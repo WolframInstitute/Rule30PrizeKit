@@ -571,7 +571,11 @@ with `open Ruliology.CellularAutomata` and `import Rule30Equivalents`.
   lowest terms with q = 2^a·q′, q′ odd. The expansion has preperiod a and period
   ord_{q′}(2) ≤ q′ − 1, so T + P ≤ q − 1. The dyadic case q′ = 1 is excluded because c is not
   eventually constant. (Own reasoning, from two surveys.)
-- *Data.* Wolfram found no period in the first 10⁹ bits [W19].
+- *Data.* Wolfram found no period in the first 10⁹ bits [W19]. A shift scan adds the p-extent
+  (project round 2, 2026-10-23): for every p ≤ 2^18 some t ≤ 3,932,157 has c(t) ≠ c(t + p) within
+  the first 2^22 bits, and no p ≤ 2^17 agrees with the last comparable bit of the first 2^24
+  bits. The Berlekamp–Massey profile of [5] gives the stronger finite bound T + P ≥ 2,097,152
+  (data, not kernel-checked).
 - *Sources.* [HW] ch. IX; [Dic19] ch. VI, for the history: Wallis (1685), Lambert, Euler, and Gauss,
   *Disquisitiones* art. 312 ff.; [W19]; OEIS A365254, A092539.
 
@@ -900,8 +904,13 @@ with `open Ruliology.CellularAutomata` and `import Rule30Equivalents`.
   Then apply [15]. Klapper and Goresky's rational approximation algorithm is the 2-adic analogue of
   Berlekamp–Massey.
 - *Difficulty.* Easy, given [15].
-- *Data.* The log₂ of the 2-adic complexity stays within 3.6 bits of n/2 for n ≤ 65536, as for a
-  random sequence (algebra survey, own computation).
+- *Data.* The log₂ of the 2-adic complexity stays close to n/2 for n ≤ 65536, as for a random
+  sequence. On a dense grid (166 points: every n ≤ 24, the powers of two, 65530–65542 and every
+  512th n ≤ 65536) the deviation reaches 6.18 bits at n = 59456; eight random control sequences
+  on the same grid give maxima 2.88–6.29 bits (mean 4.42), seven of them above the 3.6 bits
+  earlier reported from a coarser grid. The powers of two all sit slightly below n/2 in the
+  controls as well — order statistics of the minimum, not column structure. (Project round 2,
+  2026-10-23.)
 - *Lean.* Proved in the library (batch 2: `TwoAdic.problem1_iff_two_adic_complexity`,
   `problem1_iff_two_adic_complexity_odd` and `problem1_iff_padic_complexity`). Before batch 2 it was
   stated, with S as in [15]:
@@ -955,6 +964,9 @@ with `open Ruliology.CellularAutomata` and `import Rule30Equivalents`.
   (project round 1; algebra survey). This is the profile of a random sequence. Since L_n ≤ T + P,
   it gives T + P ≥ 499,998 (data, not kernel-checked). A profile near n/2 does not separate random
   from automatic sequences: the Thue–Morse sequence also deviates from n/2 by at most 1 [MeWi17].
+  Round 2 (2026-10-23): L(c↾2^22) = 2,097,152, and |L_n − n/2| ≤ 3 at every power of two up to
+  2^22, so T + P ≥ 2,097,152 (data, not kernel-checked); computed with a big-integer
+  Berlekamp–Massey cross-checked against a textbook reference on structured and random sequences.
 - *Sources.* [LN97] ch. 8; [Mas69]; [Mil75]; [WS79]; [Dor87]; [Nie88]; [Rue86]; [W85c]; [W86].
 
 **[17] rational-any-field: rationality and recurrences over any field.**
@@ -1341,7 +1353,12 @@ with `open Ruliology.CellularAutomata` and `import Rule30Equivalents`.
 - *Data.* Kernel-checked: p_c(26) ≥ 16359. In the first 10⁷ bits p_c(n) = 2ⁿ for n ≤ 19, and 96
   of the 2^20 words of length 20 are absent, where a random model predicts about 76 (project
   data). Wolfram reports that every block of length k ≤ 22 occurs, the last of them by step
-  58,671,803 [W19].
+  58,671,803 [W19]. Round 2 (2026-10-23) reproduces that number exactly and extends the data:
+  in the first 2^26 bits all 2^22 words of length 22 occur, the last at position 58,671,802
+  (step 58,671,803); the covering times C(k) grow like 2^k·k·ln 2, the coupon-collector scale;
+  and the absent words at k = 23, 24, 25 number 2,737, 305,474 and 4,536,800 against
+  random-model predictions 2,814, 307,303 and 4,541,000 (model 2^k·(1−2^−k)^(N−k+1), the same
+  as above).
 - *Sources.* [MH38] Thms 7.3–7.4; [CH73]; [CN09] (its Theorem 4 states the one-sided form);
   [CN10].
 
