@@ -67,10 +67,6 @@ are adjacent at every time `t ≥ 1`.
 **Not claimed.** Nothing sublinear: runs of length about `log a` are what the data show, and a
 bound like `a / 2` would need a speed bound on the left edge of the chaotic region. This is a
 partial result, not a solution of Problem 1.
-
-Proved by Luis Perez Morales and Claude (Fable 5.1), in the Rule 30 Prize submission that
-supersedes `R30-20261024-801153` (whose bounds were `L ≤ 3a - 2` for white runs and a black cell in
-every `[a, 4a)`), and ported to core Lean.
 -/
 
 @[expose] public section
