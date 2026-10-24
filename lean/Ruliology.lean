@@ -70,6 +70,7 @@ public import Ruliology.CellularAutomata.Rule30ClockMask
 public import Ruliology.CellularAutomata.Rule30FiniteClockCertificate
 public import Ruliology.CellularAutomata.Rule30FiniteClockSixteen
 public import Ruliology.CellularAutomata.Rule30TerminalClock
+public import Ruliology.CellularAutomata.Rule30CenterRuns
 
 /-!
 # Rule 30 Prize: Lean snapshot
