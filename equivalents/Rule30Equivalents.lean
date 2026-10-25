@@ -35,6 +35,7 @@ public import Rule30Equivalents.AlgebraicDegree
 public import Rule30Equivalents.RightHalfReturns
 public import Rule30Equivalents.Tauberian
 public import Rule30Equivalents.ProblemTwo
+public import Rule30Equivalents.P2Scales
 public import Rule30Equivalents.BuchiConverse
 public import Rule30Equivalents.Odometer
 public import Rule30Equivalents.CenterFormulas
