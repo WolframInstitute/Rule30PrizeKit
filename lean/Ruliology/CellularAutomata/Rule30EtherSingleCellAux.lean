@@ -4,9 +4,26 @@ public import Ruliology.CellularAutomata.Rule30Ether
 
 @[expose] public section
 
+/-!
+# Single-cell period-4 absorption for `0001` (helpers)
+
+Helpers for `Rule30EtherSingleCell`: the driven row model, finite family check, light-cone
+transfer and the all-white large-position case. The case data is in
+`Rule30EtherSingleCellCases`; the headline theorems are in `Rule30EtherSingleCell`.
+-/
 
 namespace Ruliology.CellularAutomata
-namespace Rule30Ether
+namespace Rule30EtherSingleCell
+
+open Rule30Ether Rule30Jen Rule30StripCertificates
+
+set_option maxRecDepth 100000
+set_option maxHeartbeats 0
+
+
+
+
+
 
 open Rule30Jen Rule30StripCertificates
 
@@ -281,3 +298,26 @@ theorem large_case {x : Nat → Bool} {p φ : Nat} (hp : 31 ≤ p) (hx' : ∀ q,
     intro i hi1 hilo hihi
     have hine : i ≠ p := by omega
     rw [show delta 0 i = false from delta_eq_false (by omega), hx' i hine]
+
+/-- **Large-position case.** If the initial right half is white on columns `1..30`, then at
+time `14 - φ` the wall window has not seen it and the orbit is the all-white orbit there. -/
+theorem large_case2 {x : Nat → Bool} {φ : Nat} (hx0 : ∀ i, 1 ≤ i → i ≤ 30 → x i = false)
+    (hφ : φ < 4) : InFamily (drv (fun n => wordAt w0001 (n + φ)) x) 6 φ (14 - φ) := by
+  obtain ⟨hEw, hWw⟩ := allWhite_data φ hφ
+  have ht : 14 - φ + φ = 14 := by omega
+  refine InFamily_congr_at (F := drv (fun n => wordAt w0001 (n + φ)) (delta 0))
+    (G := drv (fun n => wordAt w0001 (n + φ)) x) (j0 := 6) (s := φ) (t := 14 - φ) (k := 3)
+    (by decide) ?_ ?_ ?_
+  · intro q hq1 hq3
+    rw [ht]
+    exact hEw q hq1 hq3
+  · rw [ht]
+    exact hWw
+  · intro q hq1 hq16
+    apply drv_agree (fun n => wordAt w0001 (n + φ)) (delta 0) x q (14 - φ) hq1
+    intro i hi1 hlo hhi
+    rw [show delta 0 i = false from delta_eq_false (by omega), hx0 i hi1 (by omega)]
+
+
+end Rule30EtherSingleCell
+end Ruliology.CellularAutomata
