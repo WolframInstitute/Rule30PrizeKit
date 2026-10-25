@@ -94,6 +94,7 @@ On 2026-10-15 this took 285 s in total on an Apple M3 Max with 48 GB; the four u
 | `Rule30ZeroBoundaryStripe` | 18 s | 1.8 GB |
 | `Rule30Certificates/WhiteEndChecks` | 34 s | 0.8 GB |
 | `Rule30Certificates/StripeMeeting` | 47 s | 5.5 GB |
+| `Rule30EtherSingleCellCases` | 76 s | 2.2 GB |
 | `Rule30EtherThreeNoWall` | 9 s | 1.1 GB |
 | `Rule30BlackRuns` | 9 s | 2.2 GB |
 
