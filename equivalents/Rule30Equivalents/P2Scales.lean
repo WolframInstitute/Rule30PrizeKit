@@ -84,7 +84,6 @@ theorem D_step_scaled (b : Nat → Bool) (k : Nat) (n : Nat) :
     Bdd k (D b (n + 1) - D b n) (k : Int) := by
   rw [D_succ]
   unfold Bdd
-  push_cast
   rcases bit_zero_or_one b n with h | h <;> rw [h] <;> omega
 
 /-- Every segment of the walk moves at most its length, at any scale. -/
@@ -490,7 +489,7 @@ theorem blackCount_succ_int (n : Nat) :
     cases hh : center n <;> simp [hh]
   rw [h]
   unfold bit
-  cases hh : center n <;> simp [hh]
+  cases hh : center n <;> simp
 
 /-- The official `blackCount` is the sum of the `0/1` sequence. -/
 theorem blackCount_eq_isum (n : Nat) :
