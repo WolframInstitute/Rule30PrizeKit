@@ -245,10 +245,9 @@ theorem singleCell_mod (x : Nat → Bool) (p φ : Nat) (hx : x p = true)
     obtain ⟨hEw, hWw⟩ := allWhite_data φ hφ
     refine ⟨(6, 0), by decide, 14 - φ, 3, by decide, ?_, ?_⟩
     · intro q hq1 hq3
-      simp only [Prod.fst, Prod.snd]
       rw [show 14 - φ + (0 + φ) = 14 by omega]
       exact hEw q hq1 hq3
-    · simp only [Prod.fst, Prod.snd, Nat.zero_add]
+    · simp only [Nat.zero_add]
       rw [show 14 - φ + φ = 14 by omega]
       simpa using hWw
   · rcases Nat.lt_or_ge p 31 with hp31 | hp31
