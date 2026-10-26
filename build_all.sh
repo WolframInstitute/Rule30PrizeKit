@@ -74,7 +74,11 @@ for m in Rule30Predecessors Rule30PredecessorCounts BusyBeaverLifetimes Rule30Bl
     Rule30SixTailSharpened \
     Rule30SuffixFamilies \
     Rule30Certificates.StripeMeeting \
-    Rule30StripeMeeting; do
+    Rule30StripeMeeting \
+    Rule30Certificates.PeriodThirtyTwoPool \
+    Rule30Certificates.PeriodThirtyTwoChecks{0..33} \
+    Rule30Certificates.PeriodThirtyTwoDetection \
+    Rule30PeriodThirtyTwoShielding; do
   build "$m" "Ruliology.CellularAutomata.$m"
 done
 build Ruliology Ruliology

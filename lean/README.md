@@ -79,7 +79,11 @@ for m in Rule30Predecessors Rule30PredecessorCounts BusyBeaverLifetimes Rule30Bl
     Rule30SixTailSharpened \
     Rule30SuffixFamilies \
     Rule30Certificates.StripeMeeting \
-    Rule30StripeMeeting; do
+    Rule30StripeMeeting \
+    Rule30Certificates.PeriodThirtyTwoPool \
+    Rule30Certificates.PeriodThirtyTwoChecks{0..33} \
+    Rule30Certificates.PeriodThirtyTwoDetection \
+    Rule30PeriodThirtyTwoShielding; do
   lake build Ruliology.CellularAutomata.$m || break
 done
 lake build
@@ -125,6 +129,20 @@ Measured on Windows x64 with Lean 4.35.0 on 2026-10-24, each module built alone 
 | `Rule30Certificates/SixTailBackward` | 84.51 s | 1376 MiB |
 | `Rule30Certificates/SixTailEndpoints` | 20.16 s | 656 MiB |
 | `Rule30SixTailReduction` | 7.12 s | 1222 MiB |
+
+### Contributed period-32 shielding modules
+
+Measured on Windows 11 x64 (two-core Intel Celeron 6305, 16 GB) with Lean 4.35.0 on 2026-10-26. Each module was built alone with `lake build`, its imports already compiled. Time is Lean's reported time, then the wall time of the whole `lake build`. Peak memory is the summed private bytes of the Lake and Lean processes, sampled every 50 ms. The 67 certificate blocks are checked two to a module so that every module stays under a minute: seven, four and three blocks per module took 85 s, 50 s and 60 s of Lean time on this machine.
+
+| Module | Time | Peak memory |
+|---|---|---|
+| `Rule30Certificates/PeriodThirtyTwoPool` | 7.6 s (19 s wall) | 1.56 GB |
+| `Rule30Certificates/PeriodThirtyTwoChecks0`–`32` | 20–32 s each (32–48 s wall) | 2.34–2.50 GB each |
+| `Rule30Certificates/PeriodThirtyTwoChecks33` | 8 s (20 s wall) | 2.06 GB |
+| `Rule30Certificates/PeriodThirtyTwoDetection` | 13 s (28 s wall) | 2.18 GB |
+| `Rule30PeriodThirtyTwoShielding` | 31 s (43 s wall) | 2.45 GB |
+
+The 34 check modules take 775 s of Lean time in all on this machine. One build of `PeriodThirtyTwoChecks18` took 61 s wall (44 s Lean); a fresh rebuild took 38 s (25 s Lean).
 
 To check axioms, compile a file outside this folder from here:
 
@@ -206,6 +224,7 @@ These modules are not in the 2026-10-15 snapshot of the catalog, and `SHA256SUMS
 | `Rule30XorRigidity` | 2026-10-24 | For any two ordinary Rule 30 histories on all integer sites, their pointwise XOR follows Rule 30 exactly when one history is zero or both are identical. No support or periodicity assumption; a nonzero history has precisely two XOR partners. The one-step identity also appears in [Dibujaron's notes](https://github.com/Dibujaron/rule30); compare Coven–Hedlund–Rhodes (1979) on commuting maps. Contributed by AIOvernight with OpenAI Codex as Rule 30 Prize submission `R30-20261024-ddbfbd`. | `xor_history_iff`, `standard_two_partners` |
 | `Rule30StripeMeeting`, `Rule30Certificates.StripeMeeting` | 2026-10-24 | For arbitrary finite integer rows and every center index, a common stripe-prefix cut with a white separator preserves the entire center trace. The relation is preserved after two steps. If two rows become stripe-related at any finite time while their preceding center observations agree, they were related at time zero or one. A 2321-state kernel certificate is connected to arbitrary row sizes and the exact stripe grammar. Completeness for equal infinite traces, numerical-normalizer equivalence, and Problem 1 remain open. Contributed by Troy Lowry with OpenAI Codex. | `stripe_related_same_trace`, `stripe_related_preserves_two`, `stripe_meeting_is_early`, `no_delayed_stripe_meeting`, `eventually_stripe_iff_early` |
 | `Rule30PaddedWords` | 2026-10-24 | One bound for each short tail. The center column of the single seed is not eventually `0^r u` for a tail `u` of at most six cells once `r ≥ paddedBound u`, the least bound the catalog proves: 8 for `11`, 9 for `10111`, 10 for `1`, and 49, 69 or 74 for any other tail of at most four, five or six cells. A better bound for a tail, or longer tails, is a change to this module. | `no_padded_word`, `not_eventuallyWord_zeros_11`, `not_eventuallyWord_zeros_one` |
+| `Rule30PeriodThirtyTwoShielding` | 2026-10-26 | Period-32 shielding rigidity. A triangular state (`Rule30ControlledResponse`: the right half of ordinary Rule 30 in the frame moving right one cell per step, `controlled_iterate_eq_evol`) that is white from some cell `W` on, returns after 32 steps, and passes the alternating gates (at every even time `t < 32` cell `0` or cell `1` is black, at every odd time `t < 32` cell `0` is black) already returns after two steps. For an integer `n` under `T n = n ^^^ ((n >>> 1) ||| (n >>> 2))`, the same hypotheses make `n` a canonical stripe `stripeNumber w`; `integer_return_iff_evol` states `iterate 32 n = n` as a return of `Rule30Realization.evol` translated 32 cells. The proof applies the `Rule30FiniteClockCertificate` machinery to a 2,116-node temporal-pair pool in 67 blocks and uses a 14-state period-two classifier; the data and its 134 kernel checks are in 36 `Rule30Certificates/PeriodThirtyTwo*` modules. Conditional on the gates and the 32-step return; no center-column period is excluded. Contributed by Jeongseop Lee, with AI-assisted proof development and formalization by OpenAI Codex and Claude Code. | `period_thirtytwo_reduces_to_two`, `period_thirtytwo_gate_stripe`, `integer_return_iff_evol`, `pool32_checked` |
 
 ## Certificate data
 
@@ -220,6 +239,7 @@ Some theorems rest on finite checks that the kernel evaluates with `decide`. The
 | `WhiteEndChecks` | `Rule30WhiteEnd` | the strip relaxation of `1 0^q` for `q = 10 … 25` |
 | `WhitePaddingFamilies`, `FiveTailTube`, `SixTailBackward`, `SixTailEndpoints` | `Rule30ShortTail`, `Rule30FiveTail`, `Rule30SixTail`, `Rule30SixTailSharpened`, `Rule30SuffixFamilies` | the pumping, vacuum-avoidance and backward-tube certificates of the tails of at most six cells |
 | `StripeMeeting` | `Rule30StripeMeeting` | a transducer of 2321 states for stripe relations |
+| `PeriodThirtyTwoPool`, `PeriodThirtyTwoChecks0`–`33`, `PeriodThirtyTwoDetection` | `Rule30PeriodThirtyTwoShielding` | closure and the shielding gate for the 67 blocks of the 2,116-node period-32 temporal-pair pool, two blocks per check module, and propagation of a period-two head clock |
 
 The catalog takes certificate data only as a step in a theorem about an infinite family: all words of a shape, all widths, all phases, every configuration with a leftmost black cell. A list of words, widths, windows or depths for its own sake is not taken; it stays on the submissions site. A contribution uses an existing checker where one fits (the rank certificates of `Rule30StripCertificates`, the strips of `Rule30FiniteStrips`, the backward tubes of `Rule30BackwardTube`); a new checker comes with its soundness theorem and generalizes or replaces one. Its data goes in one module per family, which builds in under a minute and 4 GB; the heavier modules above are listed with their cost under [Building](#building). For padded words `0^r u`, a lower bound or a longer tail is a change to `Rule30PaddedWords`, not a new module.
 

@@ -18,7 +18,7 @@ Mathlib `56a005855e` (its `v4.35.0` tag), pinned by `lean-toolchain` and `lake-m
 * **Equivalent forms.** `Rule30Equivalents` proves 120 theorems `problem1_iff_*`, for example
   `Rule30Equivalents.BinaryIrrational.problem1_iff_irrational_binary`: Problem 1 holds iff the binary
   number `0.c(0)c(1)c(2)…` is irrational. A proof of any of these right-hand sides proves Problem 1.
-* **Partial results.** `import Ruliology` brings the whole catalog, 121 modules (periods 1 to 4,
+* **Partial results.** `import Ruliology` brings the whole catalog, 158 modules (periods 1 to 4,
   black runs, Jen's theorem, barriers, finite configurations). This root does not import it, because the catalog's
   certificate modules are slow to build; import the modules you need.
 
