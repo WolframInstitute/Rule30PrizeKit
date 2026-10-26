@@ -110,4 +110,35 @@ theorem stripe_four_tail_complete (m : Nat) (v : Fin 16) :
     exact ⟨m + 1, by omega, by omega, hag, hdev, t, by omega, he, hz⟩
 
 
+theorem row5_13_all_odd (m : Nat) (hq : m % 2 = 1) :
+    (∀ k, 1 ≤ k → k < m + 1 → row5 m 13 k = stripe k) ∧
+      row5 m 13 (m + 1) ≠ stripe (m + 1) ∧
+      ∃ t, t ≤ m + 45 ∧ t % 2 = 0 ∧ zrow (row5 m 13) t 1 = false :=
+  family5_of_class m 1 1 46 45 45 2097152 13 hq (by omega) (by omega) (by omega)
+    (by decide +kernel) (Or.inr (cycle_congr (by decide +kernel) (by decide) cycle13_complete))
+
+theorem row5_27_all_even (m : Nat) (hq : m % 2 = 0) :
+    (∀ k, 1 ≤ k → k < m + 2 → row5 m 27 k = stripe k) ∧
+      row5 m 27 (m + 2) ≠ stripe (m + 2) ∧
+      ∃ t, t ≤ m + 1 + 45 ∧ t % 2 = 0 ∧ zrow (row5 m 27) t 1 = false :=
+  family5_of_class m 0 2 46 45 45 2097152 27 hq (by omega) (by omega) (by omega)
+    (by decide +kernel) (Or.inr (cycle_congr (by decide +kernel) (by decide) cycle13_complete))
+
+theorem stripe_five_tail_complete (m : Nat) (v : Fin 32) :
+    ∃ d, 1 ≤ d ∧ d ≤ m + 7 ∧
+      (∀ k, 1 ≤ k → k < d → row5 m v.val k = stripe k) ∧
+      row5 m v.val d ≠ stripe d ∧
+      ∃ t, t ≤ d - 1 + 45 ∧ t % 2 = 0 ∧ zrow (row5 m v.val) t 1 = false := by
+  by_cases h : (v.val ≠ 13 ∨ m % 2 = 0) ∧ (v.val ≠ 27 ∨ m % 2 = 1)
+  · obtain ⟨d, hd, hdm, hag, hdev, t, ht, he, hz⟩ := stripe_five_tail m v h
+    exact ⟨d, hd, hdm, hag, hdev, t, by omega, he, hz⟩
+  · rcases (show (v.val = 13 ∧ m % 2 = 1) ∨ (v.val = 27 ∧ m % 2 = 0) by omega) with ⟨hv, hq⟩ | ⟨hv, hq⟩
+    · rw [hv]
+      obtain ⟨hag, hdev, t, ht, he, hz⟩ := row5_13_all_odd m hq
+      exact ⟨m + 1, by omega, by omega, hag, hdev, t, by omega, he, hz⟩
+    · rw [hv]
+      obtain ⟨hag, hdev, t, ht, he, hz⟩ := row5_27_all_even m hq
+      exact ⟨m + 2, by omega, by omega, hag, hdev, t, by omega, he, hz⟩
+
 end Ruliology.CellularAutomata.Rule30ZeroBoundaryStripeFourComplete
+
