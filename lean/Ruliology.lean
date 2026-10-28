@@ -69,6 +69,7 @@ public import Ruliology.CellularAutomata.Rule30ZeroBoundaryStripeFour
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryStripeFrontLift
 public import Ruliology.CellularAutomata.Rule30Certificates.StripeTail13Completion
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryStripeFourComplete
+public import Ruliology.CellularAutomata.Rule30ZeroBoundaryStripeStructure
 public import Ruliology.CellularAutomata.Rule30WhiteEnd
 public import Ruliology.CellularAutomata.Rule30WhiteEndNine
 public import Ruliology.CellularAutomata.Rule30FiveTail
