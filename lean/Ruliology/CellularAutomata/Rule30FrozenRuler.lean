@@ -31,8 +31,7 @@ exclusive or, so two codes that agree below `k` and differ at `k` keep doing so 
   is used: such a run would put every depth-`k` code into the orbit at depth `k + 1`.
 * `edge_run_alternates`: the cell behind the edge cell flips at every step, for every finite row.
 
-Contributed by Gareth Herbert with Claude (Anthropic) and GPT (OpenAI). Nothing here concerns the
-center column.
+Nothing here concerns the center column.
 -/
 
 @[expose] public section

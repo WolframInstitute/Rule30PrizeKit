@@ -25,8 +25,7 @@ A *staircase* is a maximal alternating stretch of a row, of length at least `3`.
   patch at its right edge, the first `2 n` bits of `rainA` and `rainB` in turn (not a spatially
   alternating word at odd times, since `rainB` begins `1 1`).
 
-Contributed by Gareth Herbert with Claude (Anthropic) and GPT (OpenAI). Nothing here concerns the
-center column.
+Nothing here concerns the center column.
 -/
 
 @[expose] public section

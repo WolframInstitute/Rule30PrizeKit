@@ -28,9 +28,8 @@ General facts used to read such mergers (`trace_tail_iff_row`, `merge_preserves_
 starts whose rows agree at time `T` have the same column `1` from `T` on and conversely; and rows
 that merge have their last black cells at the same depth.
 
-Contributed by Gareth Herbert with Claude (Anthropic) and GPT (OpenAI). The equal-width statement is
-a short application of the kit's `zrow_det` and `zrow_edge`. Nothing here bounds a death time or
-decides `Q01`.
+The equal-width statement is a short application of the kit's `zrow_det` and `zrow_edge`. Nothing
+here bounds a death time or decides `Q01`.
 -/
 
 @[expose] public section
