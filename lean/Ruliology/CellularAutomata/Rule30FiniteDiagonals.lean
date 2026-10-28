@@ -16,7 +16,8 @@ the same period bounds.
   periodic from time `0` with period `2^j` (`Rd_periodic`). Diagonal `0` is constant, diagonal
   `1` accumulates it, and diagonal `j + 2` accumulates the parity of `Rd (j + 1) ∨ Rd j`.
 * `Ld x lo j t = evol x t (lo - t + j)`. If `x` is white left of `lo`, every `Ld x lo j` is
-  eventually periodic with period `2^j` (`Ld_periodic`).
+  periodic with period `2^j` from the uniform onset `2^j-1` (`Ld_uniform_period`);
+  the original eventual statement remains `Ld_periodic`.
 * `evol_eq_Rd`, `evol_eq_Ld`: column `hi - i` at time `t` is `Rd x hi (t + i) t`, and column
   `lo + i` is `Ld x lo (t + i) t`. Each column reads the array of diagonals along a line of slope
   one, as the center column of the seed does (`Rule30Diagonals.center_eq_R`).
@@ -164,6 +165,55 @@ omit hleft in
 theorem Ld_step (j t : Nat) :
     Ld x lo (j + 2) (t + 1) = xor (Ld x lo j t) (Ld x lo (j + 1) t || Ld x lo (j + 2) t) :=
   evol_succ' x t _ _ _ _ (by omega) (by omega) (by omega)
+
+omit hleft in
+/-- Any Boolean array with the left-diagonal recurrence has the explicit
+power-of-two clock onset, for every initial row. -/
+theorem left_recurrence_uniform_period (b : Nat → Nat → Bool)
+    (hzero : ∀ t, b 0 (t+1) = b 0 t)
+    (hone : ∀ t, b 1 (t+1) = (b 0 t || b 1 t))
+    (hstep : ∀ i t, b (i+2) (t+1) = xor (b i t) (b (i+1) t || b (i+2) t)) :
+    ∀ i t, 2^i-1 ≤ t → b i (t+2^i) = b i t := by
+  have pair : ∀ i,
+      (∀ t, 2^i-1 ≤ t → b i (t+2^i) = b i t) ∧
+      (∀ t, 2^(i+1)-1 ≤ t → b (i+1) (t+2^(i+1)) = b (i+1) t) := by
+    intro i
+    induction i with
+    | zero =>
+      constructor
+      · intro t _
+        simpa using hzero t
+      · have ht := transducer_periodic
+          (x := b 1) (F := fun t x => b 0 t || x) (T := 0) (L := 1)
+          (fun t _ => hone t)
+          (fun t _ => by funext x; rw [hzero t])
+        simpa using ht
+    | succ i ih =>
+      refine ⟨ih.2, ?_⟩
+      have hp : 0 < 2^(i+1) := Nat.two_pow_pos _
+      have hpow : 2^(i+2) = 2*2^(i+1) := by
+        rw [show i+2=(i+1)+1 by omega, Nat.pow_succ]; omega
+      have hpow0 : 2^(i+1) = 2*2^i := by rw [Nat.pow_succ]; omega
+      have old : ∀ t, 2^(i+1)-1 ≤ t → b i (t+2^(i+1)) = b i t := by
+        intro t ht
+        rw [hpow0, show t+2*2^i=(t+2^i)+2^i by omega,
+          ih.1 _ (by omega), ih.1 t (by omega)]
+      have ht := transducer_periodic
+        (x := b (i+2)) (F := fun t x => xor (b i t) (b (i+1) t || x))
+        (T := 2^(i+1)-1) (L := 2^(i+1))
+        (fun t _ => hstep i t)
+        (fun t ht => by funext x; rw [old t ht, ih.2 t ht])
+      intro t ht0
+      rw [show i+1+1=i+2 by omega, hpow] at ht0 ⊢
+      exact ht t (by omega)
+  exact fun i => (pair i).1
+
+/-- Every left diagonal has period `2^i` from the uniform onset `2^i-1`,
+independently of the initial configuration to the right of the white edge. -/
+theorem Ld_uniform_period (i t : Nat) (ht : 2^i-1 ≤ t) :
+    Ld x lo i (t+2^i) = Ld x lo i t :=
+  left_recurrence_uniform_period (Ld x lo) (Ld_zero_succ hleft)
+    (Ld_one_succ hleft) (fun i t => Ld_step i t) i t ht
 
 /-- **Every left diagonal is eventually periodic, with period `2^j`**, for every configuration
 that is white left of `lo`. -/

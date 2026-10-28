@@ -99,8 +99,10 @@ public import Rule30Equivalents.CoupledHalves
 public import Rule30Equivalents.TailLanguage
 public import Rule30Equivalents.TFunction
 public import Rule30Equivalents.TFunctionCycles
+public import Rule30Equivalents.OrbitSignalizer
 public import Rule30Equivalents.DFinite
 public import Rule30Equivalents.AutomatonGroup
+public import Rule30Equivalents.PositiveAutomaton
 public import Rule30Equivalents.FrozenBoundary
 public import Rule30Equivalents.FrozenBoundaryPeriodTwo
 public import Rule30Equivalents.FrozenBoundaryCore

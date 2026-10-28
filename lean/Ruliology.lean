@@ -6,6 +6,8 @@ public import Ruliology.CellularAutomata.Rule30Blocks
 public import Ruliology.CellularAutomata.Rule30Jen
 public import Ruliology.CellularAutomata.Rule30Prize
 public import Ruliology.CellularAutomata.Rule30CommonGauge
+public import Ruliology.CellularAutomata.Rule30LocalConservation
+public import Ruliology.CellularAutomata.Rule30ProductParity
 public import Ruliology.CellularAutomata.Rule30Window
 public import Ruliology.CellularAutomata.Rule30MaskedJen
 public import Ruliology.CellularAutomata.Rule30BlackRuns
@@ -19,6 +21,8 @@ public import Ruliology.CellularAutomata.Rule30Realization
 public import Ruliology.CellularAutomata.Rule30FactorWindow
 public import Ruliology.CellularAutomata.Rule30PeriodTwo
 public import Ruliology.CellularAutomata.Rule30ZeroBoundary
+public import Ruliology.CellularAutomata.Rule30SpatialPeriodLifting
+public import Ruliology.CellularAutomata.Rule30DelayedDefectPeriods
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryStripe
 public import Ruliology.CellularAutomata.Rule30ZeroBoundarySmall
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryBarriers
@@ -54,6 +58,10 @@ public import Ruliology.CellularAutomata.Rule30CoupledGerms
 public import Ruliology.CellularAutomata.Rule30FiniteBlackRuns
 public import Ruliology.CellularAutomata.Rule30FiniteBlackRunBlocks
 public import Ruliology.CellularAutomata.Rule30FiniteDiagonals
+public import Ruliology.CellularAutomata.Rule30AgedLeftDiagonals
+public import Ruliology.CellularAutomata.Rule30ArbitraryWhitePadding
+public import Ruliology.CellularAutomata.Rule30WhitePaddingMixtures
+public import Ruliology.CellularAutomata.Rule30ClockBirthDemodulation
 public import Ruliology.CellularAutomata.Rule30FiniteWhiteRuns
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryStripeFour
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryStripeFrontLift

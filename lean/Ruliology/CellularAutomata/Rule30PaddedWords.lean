@@ -6,14 +6,16 @@ public import Ruliology.CellularAutomata.Rule30WhiteEndNine
 public import Ruliology.CellularAutomata.Rule30WhiteRunEight
 public import Ruliology.CellularAutomata.Rule30WordRotation
 public import Ruliology.CellularAutomata.Rule30Realization
+public import Ruliology.CellularAutomata.Rule30ArbitraryWhitePadding
 
 /-!
-# Padded words: one bound for each short tail
+# Padded words: one bound for every tail
 
 The center column of the single seed is never eventually the repeating word `0^r u`, a white run
 of length `r` followed by a tail `u`, once `r` reaches a bound that depends on `u`.
-`paddedBound u` is the least such bound the catalog proves for a tail of at most six cells, and
-`no_padded_word` states them all at once:
+`paddedBound u` retains the sharper catalog bounds for tails of at most six cells and uses
+`Rule30ArbitraryWhitePadding.paddingThreshold` for longer tails. `no_padded_word` covers every
+tail, including empty and all-white tails:
 
 | Tail `u` | Bound | Proof |
 |---|---|---|
@@ -23,6 +25,7 @@ of length `r` followed by a tail `u`, once `r` reaches a bound that depends on `
 | any other of at most four cells | 49 | `Rule30ShortTail.no_short_tail_seed` |
 | any other of five cells | 69 | `Rule30FiveTail.no_five_tail_seed` |
 | any other of six cells | 74 | `Rule30SixTailSharpened.no_six_tail_seed` |
+| every longer tail | `paddingThreshold u.length` | `Rule30ArbitraryWhitePadding.not_eventually_padded_word`, rotated; all-white tails use nonconstancy |
 
 For tails of every length ending in `011`, `001001` or `111001`, `Rule30SuffixFamilies` gives the
 bounds `10 · |v| + 41` and `10 · |v| + 71`.
@@ -34,14 +37,15 @@ namespace Ruliology.CellularAutomata.Rule30PaddedWords
 
 open Rule30StripCertificates
 
-/-- The least `r` from which the catalog excludes `0^r u`, for a tail `u` of at most six cells. -/
+/-- A white-padding bound for every tail, retaining the sharper bounds for length at most six. -/
 def paddedBound (u : List Bool) : Nat :=
   if u = [true, true] then 8
   else if u = [true, false, true, true, true] then 9
   else if u = [true] then 9
   else if u.length ≤ 4 then 49
   else if u.length ≤ 5 then 69
-  else 74
+  else if u.length ≤ 6 then 74
+  else Rule30ArbitraryWhitePadding.paddingThreshold u.length
 
 /-- An eventual word of the single seed's center column may start at any of its cells. -/
 theorem eventuallyWord_swap {u v : List Bool} (hpos : 0 < (u ++ v).length)
@@ -81,9 +85,26 @@ theorem not_eventuallyWord_zeros_11 (r : Nat) (hr : 8 ≤ r) :
       List.getElem?_append_right (by simp)]
     simp
 
-/-- **No padded word**: for a tail `u` of at most six cells, the center column of the single seed is
-not eventually the repeating word `0^r u` once `paddedBound u ≤ r`, whatever the transient. -/
-theorem no_padded_word (u : List Bool) (hu : u.length ≤ 6) (r : Nat) (hr : paddedBound u ≤ r) :
+private theorem replicate_getD (r n : Nat) : (List.replicate r false).getD n false = false := by
+  induction r generalizing n with
+  | zero => simp
+  | succ r ih =>
+    cases n with
+    | zero => simp [List.replicate_succ]
+    | succ n => simpa only [List.replicate_succ, List.getD_cons_succ] using ih n
+
+/-- An all-white word cannot be an eventual center pattern, including the empty word. -/
+theorem not_eventuallyWord_all_white (u : List Bool)
+    (hu : ∀ b, b ∈ u → b = false) : ¬ EventuallyWord u := by
+  rintro ⟨T, hT⟩
+  apply Rule30Prize.no_column_eventually_constant 0
+  refine ⟨T, false, fun t ht => ?_⟩
+  rw [hT t ht, List.eq_replicate_of_mem hu]
+  exact replicate_getD _ _
+
+/-- **No padded word**: for every tail `u`, the center column of the single seed is not
+eventually the repeating word `0^r u` once `paddedBound u ≤ r`, whatever the transient. -/
+theorem no_padded_word (u : List Bool) (r : Nat) (hr : paddedBound u ≤ r) :
     ¬ EventuallyWord (List.replicate r false ++ u) := by
   by_cases h11 : u = [true, true]
   · subst h11; exact not_eventuallyWord_zeros_11 r (by simpa [paddedBound] using hr)
@@ -98,7 +119,29 @@ theorem no_padded_word (u : List Bool) (hu : u.length ≤ 6) (r : Nat) (hr : pad
   by_cases h5 : u.length ≤ 5
   · exact Rule30FiveTail.no_five_tail_seed u h5 r
       (by simpa [paddedBound, h11, h10111, h1, h4, h5] using hr)
-  · exact Rule30SixTailSharpened.no_six_tail_seed u hu r
-      (by simpa [paddedBound, h11, h10111, h1, h4, h5] using hr)
+  by_cases h6 : u.length ≤ 6
+  · exact Rule30SixTailSharpened.no_six_tail_seed u h6 r
+      (by simpa [paddedBound, h11, h10111, h1, h4, h5, h6] using hr)
+  have hq : Rule30ArbitraryWhitePadding.paddingThreshold u.length ≤ r := by
+    simpa [paddedBound, h11, h10111, h1, h4, h5, h6] using hr
+  by_cases hb : ∃ j, j < u.length ∧ u.getD j false = true
+  · intro hw
+    have hpos : 0 < (List.replicate r false ++ u).length := by
+      obtain ⟨j, hj, _⟩ := hb
+      simp only [List.length_append, List.length_replicate]
+      omega
+    exact Rule30ArbitraryWhitePadding.not_eventually_padded_word u r hb hq
+      (eventuallyWord_swap hpos hw)
+  · apply not_eventuallyWord_all_white
+    intro b hmem
+    rcases List.mem_append.mp hmem with hmem | hmem
+    · exact (List.mem_replicate.mp hmem).2
+    · cases b with
+      | false => rfl
+      | true =>
+          obtain ⟨j, hj, he⟩ := List.mem_iff_getElem.mp hmem
+          have hget : u.getD j false = true := by
+            simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hj, he]
+          exact False.elim (hb ⟨j, hj, hget⟩)
 
 end Ruliology.CellularAutomata.Rule30PaddedWords
