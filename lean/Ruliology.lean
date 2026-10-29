@@ -117,6 +117,7 @@ public import Ruliology.CellularAutomata.Rule30XorRigidity
 public import Ruliology.CellularAutomata.Rule30StripeMeeting
 public import Ruliology.CellularAutomata.Rule30PaddedWords
 public import Ruliology.CellularAutomata.Rule30FrozenRuler
+public import Ruliology.CellularAutomata.Rule30EdgeClockDrop
 public import Ruliology.CellularAutomata.Rule30EdgeStaircases
 public import Ruliology.CellularAutomata.Rule30PrefixMerger
 
