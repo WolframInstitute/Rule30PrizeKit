@@ -119,6 +119,19 @@ public import Ruliology.CellularAutomata.Rule30PaddedWords
 public import Ruliology.CellularAutomata.Rule30FrozenRuler
 public import Ruliology.CellularAutomata.Rule30EdgeStaircases
 public import Ruliology.CellularAutomata.Rule30PrefixMerger
+public import Ruliology.CellularAutomata.Rule30RightProfiles
+
+public import Ruliology.CellularAutomata.Rule30RightPrefixClock
+public import Ruliology.CellularAutomata.Rule30RightPrefixBound
+public import Ruliology.CellularAutomata.Rule30FrontHalfPeriod
+public import Ruliology.CellularAutomata.Rule30PrefixClockGrowth
+public import Ruliology.CellularAutomata.Rule30ProfileGraph
+public import Ruliology.CellularAutomata.Rule30ProfileGraphCases
+public import Ruliology.CellularAutomata.Rule30ProfileClockEscape
+public import Ruliology.CellularAutomata.Rule30ProfileClockSharpness
+public import Ruliology.CellularAutomata.Rule30LowClockWaves
+public import Ruliology.CellularAutomata.Rule30PeriodTwoContact
+public import Ruliology.CellularAutomata.Rule30TwoBackClock
 
 /-!
 # Rule 30 Prize: Lean snapshot
