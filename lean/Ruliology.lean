@@ -119,6 +119,7 @@ public import Ruliology.CellularAutomata.Rule30PaddedWords
 public import Ruliology.CellularAutomata.Rule30FrozenRuler
 public import Ruliology.CellularAutomata.Rule30EdgeStaircases
 public import Ruliology.CellularAutomata.Rule30PrefixMerger
+public import Ruliology.CellularAutomata.Rule30RingOrbits
 
 /-!
 # Rule 30 Prize: Lean snapshot
