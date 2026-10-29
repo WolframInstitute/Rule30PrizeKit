@@ -15,6 +15,7 @@ public import Ruliology.CellularAutomata.Rule30BlackRunBlocks
 public import Ruliology.CellularAutomata.Rule30StripCertificates
 public import Ruliology.CellularAutomata.Rule30StripCertificateTable
 public import Ruliology.CellularAutomata.Rule30DrivenLeft
+public import Ruliology.CellularAutomata.Rule30DrivenMaskTransport
 public import Ruliology.CellularAutomata.Rule30RightPeriods
 public import Ruliology.CellularAutomata.Rule30RecordCharge
 public import Ruliology.CellularAutomata.Rule30DifferenceOrder
