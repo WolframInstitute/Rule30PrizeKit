@@ -140,6 +140,7 @@ public import Ruliology.CellularAutomata.Rule30ResetMixtures
 
 public import Ruliology.CellularAutomata.Rule30White17Runs
 public import Ruliology.CellularAutomata.Rule30GrammarRuns
+public import Ruliology.CellularAutomata.Rule30TemporalProfiles
 
 /-!
 # Rule 30 Prize: Lean snapshot
