@@ -9,8 +9,8 @@ public import Ruliology.CellularAutomata.Rule30Diagonals
 # Periodic temporal profiles of Rule30: source weights, pulse holes and reset budgets
 
 The child recurrence keeps its successor and carrier explicit.
-The pulse laws use Nat-indexed periodic profiles; the return theorem codes these by finite length2q lists.
-Actual-diagonal headlines use Rule30Realization.evol after a common onset T0. Pulse phase0 is an explicit
+The pulse laws use Nat-indexed periodic profiles; the return theorem codes these by finite lists of length `2 * q`.
+Actual-diagonal headlines use Rule30Realization.evol after a common onset `T0`. Pulse phase `0` is an explicit
 normalization, not an assertion that actual left diagonals are periodic from the root row. No finite-seed
 ancestry, global stage-growth or prize theorem is claimed.
 The imported left-diagonal identity is known kit machinery; additional identities have their stated scope only.
@@ -62,7 +62,7 @@ theorem source_bit_correction (next pulse current : Bool) :
       (if pulse then (if current then 0 else if next then -1 else 1) else 0) := by
   cases next <;> cases pulse <;> cases current <;> decide
 
-/-- The six nonempty intervals and the empty interval of delays (k,l,1), slope5/2, doubled. -/
+/-- The six nonempty intervals and the empty interval of delays `(k, l, 1)`, slope `5/2`, doubled. -/
 def intervalDebt2 (k l : Int) : Int :=
   max 0 (max (2*k-5) (max (2*l-5) (max (-3)
     (max (2*k+2*l-10) (max (2*l-8) (2*k+2*l-13))))))
@@ -309,7 +309,7 @@ theorem pulse_child_holes (q l : Nat) (C D : Nat → Bool)
       rw [heq] at h
       simp [h, show l<t by omega]
 
-/-- A nonzero phase representative in1..q reaches the pulse at time q. -/
+/-- A nonzero phase representative in `1 … q` reaches the pulse at time `q`. -/
 theorem first_pulse (q arrival : Nat) (ha : 1 ≤ arrival) (haq : arrival ≤ q) :
     FirstBlack (pulse q) arrival (q-arrival) := by
   constructor
@@ -337,7 +337,7 @@ theorem first_child_after_reset (q l : Nat) (C : Nat → Bool)
     rw [heq, hp (1+i)]
     exact hz (1+i) (by omega) (by omega)
 
-/-- On an actual periodic pulse-child trajectory, the last delay is1. -/
+/-- On an actual periodic pulse-child trajectory, the last delay is `1`. -/
 theorem first_grandchild_after_child (q l : Nat) (D : Nat → Bool)
     (_hl : 1 ≤ l) (hlq : l < q) (hp : Periodic q D)
     (holes : ∀ t, t ≤ q → D t = decide (t=0 ∨ l<t)) :
@@ -385,7 +385,7 @@ theorem actual_pulse_window_bound (q l arrival : Nat) (C D : Nat → Bool)
   · exact actual_pulse_delays q l arrival C D hl hlq ha haq hc hz hpC hpD hstep
   · apply pulse_window_bound <;> omega
 
-/-- Phase1 is an actual representative and attains the arithmetic upper bound. -/
+/-- Phase `1` is an actual representative and attains the arithmetic upper bound. -/
 theorem pulse_window_attained (q l : Nat) (hq : 4 ≤ q) (hlq : l < q) :
     intervalDebt2 ((q-1+1 : Nat) : Int) (l : Int) =
       2*(q : Int)-5 + max 0 (2*(l : Int)-5) := by
@@ -435,8 +435,8 @@ theorem leftWindow_pulse_bound (x : Int → Bool) (j : Int) (T0 q l arrival : Na
 
 /-! ## Rooted periodic profile chains
 
-The common Child/Periodic predicates are reused. Finiteness is on length2q Boolean codes, never on the
-infinite Nat-function carrier. The bound2^(q+q) simply retains the kit pigeonhole's existing output;
+The common Child/Periodic predicates are reused. Finiteness is on Boolean codes of length `2 * q`, never on the
+infinite Nat-function carrier. The bound `2 ^ (q + q)` simply retains the kit pigeonhole's existing output;
 it is a coarse finite-state bound, not a new settling/growth estimate or a physical ancestry theorem.
 -/
 
