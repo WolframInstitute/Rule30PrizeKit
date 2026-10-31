@@ -39,10 +39,6 @@ level `k` with `k % P = 0`.
   depths `≤ W` has a white cell at depth `1` at some step `t < K` with `t % P = 0`.
 * `bounded_of_chunks`, `QP_restricted_of_chunks`: the same for `Rule30DrivenLeft.L`, and as `QP P`
   restricted to leftmost black cells at depth `≤ W`.
-
-Run with `decide +kernel`, the checker proves `Q001` for every start of width `≤ 37` and `QP 5` for
-every start of width `≤ 28` (Rule 30 Prize submission `R30-20261022-0cac94`); those finite checks
-stay on the submissions site.
 -/
 
 @[expose] public section
