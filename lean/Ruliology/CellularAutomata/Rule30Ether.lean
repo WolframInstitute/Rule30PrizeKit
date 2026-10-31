@@ -32,6 +32,12 @@ ether column keeps its periodic values forever (`trap_invariant`).
 * `Absorption` (an open conjecture, stated as a `Prop`), `absorption_excludes` and
   `least_period_four_of_absorption`: absorption into the family for every finite right half
   excludes `w^∞` as a tail of the center column, for every transient.
+* `Lock` (an open conjecture, weaker than absorption: `lock_of_absorption`), `lock_excludes` and
+  `least_period_four_of_lock`: the exclusion needs much less than absorption. It suffices that
+  every finitely supported right half driven by `w^∞` has column `1` eventually periodic at the
+  white times of the driver, with a period `4 Q` (then masked Jen applies), or some column
+  `q ≥ 1` eventually periodic (then Jen applies). Both use the finiteness of the left half, and
+  `Rule30EtherWallWitness` shows that it cannot be replaced by spatial periodicity.
 -/
 
 @[expose] public section
@@ -1076,6 +1082,108 @@ theorem least_period_four_of_absorption (h1 : Absorption w0001 A0001) (h2 : Abso
     (¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt w0111 (t - T)) :=
   ⟨absorption_excludes w0001 A0001 A0001_ok h1, absorption_excludes w0011 A0011 A0011_ok h2,
     absorption_excludes w0111 A0111 A0111_ok h3⟩
+
+/-! ### A weaker sufficient condition: `Lock` -/
+
+/-- **Lock** (open) for a word `w`: every finitely supported right half driven by `w^∞` has
+column `1` eventually periodic, with a period `4 Q`, at the times where the driver is white, or
+some column `q ≥ 1` eventually periodic. -/
+def Lock (w : List Bool) : Prop :=
+  ∀ (x : Nat → Bool) (n : Nat), (∀ p, n < p → x p = false) →
+    (∃ N Q, 0 < Q ∧ ∀ t, N ≤ t → wordAt w t = false →
+        drv (wordAt w) x (t + 4 * Q) 1 = drv (wordAt w) x t 1) ∨
+    (∃ q, 1 ≤ q ∧ EventuallyPeriodic (fun t => drv (wordAt w) x t q))
+
+/-- `wordAt w` has period `4`. -/
+theorem wordAt_period (w : List Bool) (t m : Nat) : wordAt w (t + 4 * m) = wordAt w t := by
+  unfold wordAt; rw [Nat.add_mul_mod_self_left]
+
+/-- **`Lock w` excludes `w^∞` as a tail of the center column**, for every transient. From the
+time `T` where the tail starts, the true right half is the right half driven by `w^∞`
+(`cell_eq_drv`), and it is finitely supported. If its column `1` is eventually periodic at the
+white times of the center, masked Jen (`Rule30MaskedJen.masked_jen`) gives a contradiction; if some
+column `q ≥ 1` is eventually periodic, Jen (`Rule30Jen.jen`) does, since the center is periodic. -/
+theorem lock_excludes (w : List Bool) (hL : Lock w) :
+    ¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt w (t - T) := by
+  rintro ⟨T, hT⟩
+  have hc : (fun t => cell (T + t) 0) = wordAt w := by
+    funext t; rw [hT (T + t) (by omega)]; congr 1; omega
+  have hfin : ∀ p, T < p → (fun p : Nat => cell T (p : Int)) p = false :=
+    fun p hp => Rule30Diagonals.cell_eq_false_of_gt T p (by omega)
+  have hcell : ∀ t q : Nat,
+      cell (T + t) (q : Int) = drv (wordAt w) (fun p => cell T (p : Int)) t q := by
+    intro t q; rw [cell_eq_drv T t q, hc]
+  have hper0 : ∀ t, T ≤ t → ∀ m, cell (t + 4 * m) 0 = cell t 0 := by
+    intro t ht m
+    rw [hT t ht, hT (t + 4 * m) (by omega), show t + 4 * m - T = (t - T) + 4 * m by omega,
+      wordAt_period]
+  rcases hL _ T hfin with ⟨N, Q, hQ, hN⟩ | ⟨q, hq, hqp⟩
+  · refine Rule30MaskedJen.masked_jen 0 (T := T + N) (P := 4 * Q) (by omega)
+      (fun t ht => hper0 t (by omega) Q) ?_
+    intro t ht hw
+    obtain ⟨u, rfl⟩ : ∃ u, t = T + u := ⟨t - T, by omega⟩
+    have hwu : wordAt w u = false := by
+      rw [hT (T + u) (by omega), show T + u - T = u by omega] at hw; exact hw
+    have e1 := hcell (u + 4 * Q) 1
+    have e2 := hcell u 1
+    rw [show T + (u + 4 * Q) = T + u + 4 * Q by omega] at e1
+    show cell (T + u + 4 * Q) ((1 : Nat) : Int) = cell (T + u) ((1 : Nat) : Int)
+    rw [e1, e2]
+    exact hN u (by omega) hwu
+  · apply jen 0 (q : Int) (by omega)
+    refine ⟨⟨T, 4, by decide, fun t ht => by simpa using hper0 t ht 1⟩, ?_⟩
+    obtain ⟨N, P, hP, hNP⟩ := hqp
+    refine ⟨T + N, P, hP, fun t ht => ?_⟩
+    obtain ⟨u, rfl⟩ : ∃ u, t = T + u := ⟨t - T, by omega⟩
+    show cell (T + u + P) (q : Int) = cell (T + u) (q : Int)
+    rw [show T + u + P = T + (u + P) by omega, hcell, hcell]
+    exact hNP u (by omega)
+
+/-- **`Absorption` implies `Lock`.** For a list `A` of genuine alignments of `w`, absorption into
+the ether-and-wall family gives the first alternative of `Lock w` with period `4`: once the family
+is entered, column `1` carries the ether column `j0 + 1` at the white times of the driver (the
+first wall cell when `k = 0`, by `wall_facts`), by `trap_invariant`. -/
+theorem lock_of_absorption (w : List Bool) (A : List (Nat × Nat))
+    (hal : ∀ a ∈ A, aligned w a.1 a.2 = true) (hA : Absorption w A) : Lock w := by
+  intro x n hx
+  left
+  obtain ⟨⟨j0, s⟩, ha, t1, k, hk, hE, hW⟩ := hA x n hx 0
+  have hal' := hal (j0, s) ha
+  have hcw : (fun t => wordAt w (t + 0)) = wordAt w := rfl
+  rw [hcw] at hE hW
+  have hF := drv_isR30 (wordAt w) x
+  have h0 : ∀ t, t1 ≤ t → drv (wordAt w) x t 0 = ether j0 (t + s) := by
+    intro t _; rw [drv_col0, aligned_spec hal']
+  have inv := trap_invariant hF j0 s k t1 hk h0 hE hW
+  have key : ∀ t, t1 ≤ t → wordAt w t = false →
+      drv (wordAt w) x t 1 = ether (j0 + 1) (t + s) := by
+    intro t ht hw
+    obtain ⟨hE', hW'⟩ := inv (t - t1)
+    rw [show t1 + (t - t1) = t by omega] at hE' hW'
+    rcases Nat.eq_zero_or_pos k with hk0 | hk0
+    · subst hk0
+      have hw2 : ether 2 ((t + s) % 4) = false := by
+        have e : drv (wordAt w) x t 0 = ether (j0 + 0) (t + s) := hE' 0 (Nat.le_refl 0)
+        rw [drv_col0, hw] at e
+        rw [e]; exact ether_congr (by omega) (by omega)
+      have hhead := (wall_facts hW').1 hw2
+      rw [rowOf_head] at hhead
+      have e1 : drv (wordAt w) x t 1 = ether 3 ((t + s) % 4) := hhead
+      rw [e1]; exact ether_congr (by omega) (by omega)
+    · exact hE' 1 hk0
+  refine ⟨t1, 1, by decide, fun t ht hw => ?_⟩
+  have hw4 : wordAt w (t + 4 * 1) = false := by rw [wordAt_period]; exact hw
+  rw [key (t + 4 * 1) (by omega) hw4, key t ht hw]
+  exact ether_congr rfl (by omega)
+
+/-- **Least period 4 from the three locks.** If `Lock` holds for `0001`, `0011` and `0111`, the
+center column is not eventually equal to any rotation of these words, with any transient. By
+`lock_of_absorption` the hypotheses are weaker than those of `least_period_four_of_absorption`. -/
+theorem least_period_four_of_lock (h1 : Lock w0001) (h2 : Lock w0011) (h3 : Lock w0111) :
+    (¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt w0001 (t - T)) ∧
+    (¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt w0011 (t - T)) ∧
+    (¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt w0111 (t - T)) :=
+  ⟨lock_excludes _ h1, lock_excludes _ h2, lock_excludes _ h3⟩
 
 end Rule30Ether
 end Ruliology.CellularAutomata
