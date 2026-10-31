@@ -25,7 +25,8 @@ Structural properties and unconditional lower bounds for deterministic one-tape 
   transient beyond `2^(k-1)`.
 - **Residue-flip, fixed-transient periodicity, and unbounded step lower bounds (`time_gt_of_mod_two_pow_ne`,
   `log2_succ_succ_le_time_of_ray_flip`, `period_of_eventually_time_le`, `time_unbounded_le_thirteen`,
-  `evPer_two_pow_of_eventually_time_le`, `time_unbounded_of_problem1`, `diagonal_time_unbounded`).**
+  `evPer_two_pow_of_eventually_time_le`, `time_unbounded_of_problem1`, `diagonal_time_unbounded`,
+  `period_of_canon_window_time_le`, `diagonal_canon_window_time_ge`).**
   Any single pair `r, m ≥ 2^(k-1)` with `r ≡ m (mod 2^k)` and `f r ≠ f m` forces `k + 1 ≤ T n` for
   every `n ≥ 2^(k-1)` in that residue class, and flipping above the MSB forces
   `Nat.log2 n + 2 ≤ T n` (`log2_succ_succ_le_time_of_ray_flip`). Moreover, if `T n ≤ k` from some
@@ -35,7 +36,11 @@ Structural properties and unconditional lower bounds for deterministic one-tape 
   (without `Problem1`) that for every `k ≤ 13`, every machine computing `center` takes at least
   `k + 1` steps infinitely often (`time_unbounded_le_thirteen`, up to `14` steps), while
   `Rule30LeftUnbounded.D_period_unbounded` yields left diagonals requiring `≥ k + 1` steps
-  infinitely often for every `k` (`diagonal_time_unbounded`).
+  infinitely often for every `k` (`diagonal_time_unbounded`). In fact, `T r ≤ k` merely on the
+  canonical window `r ∈ [2^(k-1), 2^(k-1) + 2^k)` of `2^k` inputs already makes `f` `2^k`-periodic
+  from `2^(k-1)` on (`period_of_canon_window_time_le`), so for every `k` some left diagonal `D j`
+  (`j ≤ 2^(2*2^k)`) forces `k + 1 ≤ T r` on the canonical window `[2^(k-1), 2^(k-1) + 2^k)` itself
+  (`diagonal_canon_window_time_ge`).
 - **Fast cone evaluation and unconditional uniform step bounds (`center_eq_fastCenter`,
   `one_le_time`, `two_le_time`, `three_le_time`, `four_le_time`, `five_le_time`,
   `log2_succ_succ_le_time_lt_16`).** Using `Rule30BlackRuns.stepRow` on `rowAt 0 (-t) (2t + 1)`,
@@ -428,6 +433,45 @@ theorem canonRep_spec {k n : Nat} (hn : 2 ^ (k - 1) ≤ n) :
     omega
   conv => rhs; rw [hd]
   rw [← Nat.add_assoc, Nat.add_mul_mod_self_left]
+
+/-- `canonRep k n` lies strictly below `2^(k-1) + 2^k`. -/
+theorem canonRep_lt {k n : Nat} : canonRep k n < 2 ^ (k - 1) + 2 ^ k := by
+  unfold canonRep
+  have : (n - 2 ^ (k - 1)) % 2 ^ k < 2 ^ k := Nat.mod_lt _ (Nat.two_pow_pos k)
+  omega
+
+/-- **Finite canonical-window periodicity.** If `M` computes `f` in time `T` and `T r ≤ k` for
+every input `r` in the canonical window `[2^(k-1), 2^(k-1) + 2^k)` of `2^k` inputs, then `f` has
+period `2^k` for all `m ≥ 2^(k-1)`. -/
+theorem period_of_canon_window_time_le {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {k : Nat}
+    (hwin : ∀ r, 2 ^ (k - 1) ≤ r → r < 2 ^ (k - 1) + 2 ^ k → T r ≤ k) :
+    ∀ m, 2 ^ (k - 1) ≤ m → f (m + 2 ^ k) = f m := by
+  intro m hm
+  let r := canonRep k m
+  obtain ⟨_, hr1, hmod⟩ := canonRep_spec hm
+  have hr2 : r < 2 ^ (k - 1) + 2 ^ k := canonRep_lt
+  have hTr : T r ≤ k := hwin r hr1 hr2
+  have hmod1 : m % 2 ^ k = r % 2 ^ k := hmod.symm
+  have hmod2 : (m + 2 ^ k) % 2 ^ k = r % 2 ^ k := by
+    rw [Nat.add_mod_right, hmod1]
+  have e1 := (computes_eq_of_mod_two_pow_of_run_le hM hm hr1 hmod1 hTr).2
+  have e2 := (computes_eq_of_mod_two_pow_of_run_le hM (by omega) hr1 hmod2 hTr).2
+  exact e2.trans e1.symm
+
+/-- **Unconditional canonical-window step lower bound on left diagonals.** For every `k : Nat`,
+there exists a left diagonal `D j` (`j ≤ 2 ^ (2 * 2 ^ k)`) such that every machine `M` computing
+`D j` in time `T` takes at least `k + 1` steps on some input `r` in the canonical window
+`[2^(k-1), 2^(k-1) + 2^k)`. -/
+theorem diagonal_canon_window_time_ge (k : Nat) :
+    ∃ j ≤ 2 ^ (2 * 2 ^ k), ∀ (M : Machine) (T : Nat → Nat), Computes M (D j) T →
+      ∃ r, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ T r := by
+  obtain ⟨j, hj, hnot⟩ := D_period_unbounded (2 ^ k) (Nat.two_pow_pos k)
+  refine ⟨j, hj, fun M T hM => Classical.byContradiction fun hno => ?_⟩
+  have hwin : ∀ r, 2 ^ (k - 1) ≤ r → r < 2 ^ (k - 1) + 2 ^ k → T r ≤ k := fun r hr1 hr2 =>
+    Nat.le_of_not_lt fun hlt => hno ⟨r, hr1, hr2, hlt⟩
+  have hper := period_of_canon_window_time_le hM hwin
+  exact hnot ⟨2 ^ (k - 1), fun m hm => by simpa [Nat.add_comm] using hper m hm⟩
 
 /-- Generic converter from a verified `List.all` residue-flip check to a uniform step bound
 `k + 1 ≤ T n` for all `n ≥ 2^(k-1)`. -/
