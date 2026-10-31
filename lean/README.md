@@ -363,6 +363,8 @@ All modules live in `Ruliology/CellularAutomata/`. Theorems live in the namespac
 |---|---|---|---|
 | `Rule30Diagonals` | start | Right diagonals have period 2^j from the start, and left diagonals are eventually 2^j-periodic. | `R_periodic`, `D_periodic`, `center_eq_parity` |
 | `Rule30RightPeriods` | R1 | Right-diagonal periods: the doubling rule, upper and lower bounds, rows at powers of two, restarts. The half-rate upper bound `per_upper_half` was contributed on 2026-10-27 (see [Added in the kit](#added-in-the-kit)). | `e_step`, `per_bound`, `per_upper`, `per_upper_half`, `per_upper_half_explicit`, `e_le_B`, `wall_return`, `rows_at_powers_of_two`, `not_half_lower` |
+| `Rule30EdgeClock` | 2026-10-30 | Every positive digit j of an infinite black-edge code changes within ceil(j/2) updates, sharply. A first difference at j+1 >= 2 excites the next digit within ceil(j/2)+1 updates. Every first difference at j+1 escapes a two-digit band into j+3 or j+4 within ceil(j/2)+2 updates, including j=0. All bounds recur from every starting time; no arbitrary-width escape or center-periodicity claim. Contributed by Troy Lowry with OpenAI Codex. | `flip_bound_from`, `seed_at_bound`, `recurrent_excitation`, `recurrent_two_layer_escape` |
+| `Rule30DefectClockBudget` | 2026-10-30 | A bounded Boolean rank pays for at most six black ticks during confinement. Together with the uniform clock bound, every first difference at j+1 escapes a four-digit band into j+5 or j+6 within 7*(ceil(j/2)+1) updates, recurrently at every depth and for arbitrary infinite tails. No arbitrary-width escape claim. Contributed by Troy Lowry with OpenAI Codex. | `measure_step`, `four_layer_escape`, `recurrent_four_layer_escape` |
 
 ### Zero-boundary left half and period 2
 

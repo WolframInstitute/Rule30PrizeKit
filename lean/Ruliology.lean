@@ -147,6 +147,8 @@ public import Ruliology.CellularAutomata.Rule30White17Runs
 public import Ruliology.CellularAutomata.Rule30GrammarRuns
 public import Ruliology.CellularAutomata.Rule30TemporalProfiles
 public import Ruliology.CellularAutomata.Rule30GroupCocycle
+public import Ruliology.CellularAutomata.Rule30EdgeClock
+public import Ruliology.CellularAutomata.Rule30DefectClockBudget
 
 /-!
 # Rule 30 Prize: Lean snapshot
