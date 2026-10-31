@@ -33,8 +33,22 @@ on, and the transient `T` is arbitrary.
   periodic, against Jen's theorem.
 * `no_black_white_run` (Theorem D): a period cannot contain a black run of length `s ≥ 9`
   followed by a white run of length `r ≥ 1 + 9 ⌈(k + 8) / 2⌉`, where `k = P - s - r`.
+* `no_long_black_run_quarter` and `no_black_white_run_quarter` (self-shielded Theorems B and D):
+  the same with half the slope. A black run of length `r < P` followed by a white cell is
+  excluded as soon as `9 ⌈(P - r) / 4⌉ ≤ r` (roughly `r ≥ 0.69 P + 2.1`), and a black run of length
+  `s ≥ 9` followed by a white run of length `r` and a black cell as soon as
+  `r ≥ 1 + 9 ⌈(k - 2) / 4⌉`. So every repeating word `1^r u` with `1 ≤ |u| ≤ 4` and `u` starting
+  white is excluded for `r ≥ 9` (`no_black_run_ge9_len_le4`), and with `|u| ≤ 8` for `r ≥ 18`
+  (`no_black_run_ge18_len_le8`).
 * `no_white_run_11`: the words `0^r 1 1` with `r ≥ 10` are excluded: column `1` locks into the
   pattern `1^(r+1) 0` or `0^(r+1) 1` within two periods.
+
+**Self-shielding.** The pattern `(white black)^j` of Lemma A* moves two columns right every two
+steps without reading the cell on its right (`SelfShielded.wbAt_step2`), so its rightmost column
+stays black for `2 j` steps (`SelfShielded.wbAt_right_wall`) and column `1` is determined by the
+center for `4 j` steps after a black run of length `9 j`, not `2 j` (`SelfShielded.wbAt_agree_four`).
+With masked Jen (`Rule30MaskedJen.masked_jen`), which needs no agreement of column `1` while the
+center is black, this gives the self-shielded theorems.
 
 Theorem B′, the block-specific sharpening of Theorem B, is in `Rule30BlackRunBlocks`.
 
@@ -602,6 +616,541 @@ theorem no_black_white_run (T P s r t1 : Nat) (hper : ∀ t, T ≤ t → center 
       show t1 + s + q * P + i = t by omega]
   have h0 : EventuallyPeriodic (fun t => cell t 0) := ⟨T, P, hP, hper⟩
   exact not_adjacent 0 h0 h1
+
+/-! ### Self-shielded Theorems B and D
+
+Theorems B and D treat the pattern `(white black)^j` of Lemma A* as an arbitrary row of width `2 j`,
+whose influence on column `1` lasts `2 j` steps (`cone_agree`), and conclude with unmasked Jen
+(`not_adjacent`), so they also have to cover the first nine steps of the next black run. Two
+observations halve their slope.
+
+* **Self-shielding** (`SelfShielded`). Since `rule 1 0 1 = 0` and `rule 0 1 x = 1` for every `x`, the
+  pattern `(white black)^j` beside a white column `m` moves two columns right every two steps,
+  losing one pair, without reading the cell on its right (`SelfShielded.wbAt_step2`). So column
+  `m + 2 j` stays black for `2 j` steps and turns white at step `2 j`
+  (`SelfShielded.wbAt_right_wall`): until then columns `m + 1, …, m + 2 j` depend only on column `m`,
+  and column `m + 1` is determined for `4 j` steps instead of `2 j`
+  (`SelfShielded.wbAt_agree_four`).
+* **Masked Jen** (`Rule30MaskedJen.masked_jen`). Column `1` only has to agree at the white times of
+  the center column, so nothing is needed inside the black runs.
+-/
+
+namespace SelfShielded
+
+/-- Columns `m + 1, …, m + 2 j` read `(white black)^j` at time `t`. -/
+def WBAt (t : Nat) (m : Int) (j : Nat) : Prop :=
+  ∀ i : Nat, 1 ≤ i → i ≤ j →
+    cell t (m + 2 * (i : Int) - 1) = false ∧ cell t (m + 2 * (i : Int)) = true
+
+/-- Lemma A\* (`black_shield`) in the form of `WBAt`. -/
+theorem wbAt_of_black_shield (m : Int) (j t : Nat) (h : ∀ s, s < 9 * j → cell (t + s) m = true) :
+    WBAt (t + 9 * j) m j :=
+  black_shield m j t h
+
+/-- One step from `WBAt t m (j + 1)` with `cell t m = false`: columns `m + 1` and `m + 2` become
+`true`, while columns `m + 3, …, m + 2 (j + 1)` still read `(white black)^j`. -/
+theorem wbAt_step1 (t : Nat) (m : Int) (j : Nat) (hm : cell t m = false)
+    (h : WBAt t m (j + 1)) :
+    cell (t + 1) (m + 1) = true ∧
+    cell (t + 1) (m + 2) = true ∧
+    WBAt (t + 1) (m + 2) j := by
+  have h1 := h 1 (by omega) (by omega)
+  have hm1 : cell t (m + 1) = false := by
+    rw [show m + 1 = m + 2 * ((1 : Nat) : Int) - 1 by omega]; exact h1.1
+  have hm2 : cell t (m + 2) = true := by
+    rw [show m + 2 = m + 2 * ((1 : Nat) : Int) by omega]; exact h1.2
+  refine ⟨?_, ?_, fun i hi1 hij => ⟨?_, ?_⟩⟩
+  · show rule (cell t (m + 1 - 1)) (cell t (m + 1)) (cell t (m + 1 + 1)) = true
+    rw [show m + 1 - 1 = m by omega, show m + 1 + 1 = m + 2 by omega, hm, hm1, hm2]
+    rfl
+  · show rule (cell t (m + 2 - 1)) (cell t (m + 2)) (cell t (m + 2 + 1)) = true
+    rw [show m + 2 - 1 = m + 1 by omega, hm1, hm2]
+    rfl
+  · have hi := h i hi1 (by omega)
+    have hi' := h (i + 1) (by omega) (by omega)
+    show rule (cell t (m + 2 + 2 * (i : Int) - 1 - 1))
+        (cell t (m + 2 + 2 * (i : Int) - 1))
+        (cell t (m + 2 + 2 * (i : Int) - 1 + 1)) = false
+    rw [show m + 2 + 2 * (i : Int) - 1 - 1 = m + 2 * (i : Int) by omega,
+      show m + 2 + 2 * (i : Int) - 1 = m + 2 * ((i + 1 : Nat) : Int) - 1 by omega,
+      show m + 2 * ((i + 1 : Nat) : Int) - 1 + 1 = m + 2 * ((i + 1 : Nat) : Int) by omega,
+      hi.2, hi'.1, hi'.2]
+    rfl
+  · have hi' := h (i + 1) (by omega) (by omega)
+    show rule (cell t (m + 2 + 2 * (i : Int) - 1))
+        (cell t (m + 2 + 2 * (i : Int)))
+        (cell t (m + 2 + 2 * (i : Int) + 1)) = true
+    rw [show m + 2 + 2 * (i : Int) - 1 = m + 2 * ((i + 1 : Nat) : Int) - 1 by omega,
+      show m + 2 + 2 * (i : Int) = m + 2 * ((i + 1 : Nat) : Int) by omega,
+      hi'.1, hi'.2]
+    rfl
+
+/-- **Two-step self-shielding shift.** If `cell t m = false` and `WBAt t m (j + 1)`, then two steps
+later at column `m + 2` we have `cell (t + 2) (m + 2) = false` and `WBAt (t + 2) (m + 2) j`. -/
+theorem wbAt_step2 (t : Nat) (m : Int) (j : Nat) (hm : cell t m = false)
+    (h : WBAt t m (j + 1)) :
+    cell (t + 2) (m + 2) = false ∧ WBAt (t + 2) (m + 2) j := by
+  obtain ⟨c1, c2, hwb1⟩ := wbAt_step1 t m j hm h
+  refine ⟨?_, fun i hi1 hij => ⟨?_, ?_⟩⟩
+  · show rule (cell (t + 1) (m + 2 - 1)) (cell (t + 1) (m + 2)) (cell (t + 1) (m + 2 + 1)) = false
+    rw [show m + 2 - 1 = m + 1 by omega, c1, c2]
+    rfl
+  · have hi := hwb1 i hi1 hij
+    have hleft : cell (t + 1) (m + 2 + 2 * (i : Int) - 1 - 1) = true := by
+      by_cases hi0 : i = 1
+      · subst hi0
+        rw [show m + 2 + 2 * ((1 : Nat) : Int) - 1 - 1 = m + 2 by omega]
+        exact c2
+      · have hprev := hwb1 (i - 1) (by omega) (by omega)
+        rw [show m + 2 + 2 * (i : Int) - 1 - 1 = m + 2 + 2 * ((i - 1 : Nat) : Int) by omega]
+        exact hprev.2
+    show rule (cell (t + 1) (m + 2 + 2 * (i : Int) - 1 - 1))
+        (cell (t + 1) (m + 2 + 2 * (i : Int) - 1))
+        (cell (t + 1) (m + 2 + 2 * (i : Int) - 1 + 1)) = false
+    rw [hleft, hi.1, show m + 2 + 2 * (i : Int) - 1 + 1 = m + 2 + 2 * (i : Int) by omega, hi.2]
+    rfl
+  · have hi := hwb1 i hi1 hij
+    show rule (cell (t + 1) (m + 2 + 2 * (i : Int) - 1))
+        (cell (t + 1) (m + 2 + 2 * (i : Int)))
+        (cell (t + 1) (m + 2 + 2 * (i : Int) + 1)) = true
+    rw [hi.1, hi.2]
+    rfl
+
+/-- **Rightmost column of `(white black)^j` stays black for `2 j` steps, then turns white.** -/
+theorem wbAt_right_wall : ∀ (j t : Nat) (m : Int), cell t m = false → WBAt t m j →
+    (∀ s, s < 2 * j → cell (t + s) (m + 2 * (j : Int)) = true) ∧
+    cell (t + 2 * j) (m + 2 * (j : Int)) = false
+  | 0, t, m, hm, _ => ⟨fun _ hs => by omega, by simpa using hm⟩
+  | j + 1, t, m, hm, h => by
+    obtain ⟨hm2, hwb2⟩ := wbAt_step2 t m j hm h
+    obtain ⟨ih_wall, ih_end⟩ := wbAt_right_wall j (t + 2) (m + 2) hm2 hwb2
+    have htop0 : cell t (m + 2 * ((j + 1 : Nat) : Int)) = true :=
+      (h (j + 1) (by omega) (by omega)).2
+    have htop1 : cell (t + 1) (m + 2 * ((j + 1 : Nat) : Int)) = true := by
+      by_cases hj : j = 0
+      · subst hj
+        have c2 := (wbAt_step1 t m 0 hm h).2.1
+        simpa using c2
+      · have hw1 := ((wbAt_step1 t m j hm h).2.2 j (by omega) (by omega)).2
+        rwa [show m + 2 + 2 * (j : Int) = m + 2 * ((j + 1 : Nat) : Int) by omega] at hw1
+    refine ⟨fun s hs => ?_, ?_⟩
+    · rcases s with _ | _ | s'
+      · simpa using htop0
+      · exact htop1
+      · have := ih_wall s' (by omega)
+        rwa [show t + 2 + s' = t + (s' + 2) by omega,
+          show m + 2 + 2 * (j : Int) = m + 2 * ((j + 1 : Nat) : Int) by omega] at this
+    · rwa [show t + 2 + 2 * j = t + 2 * (j + 1) by omega,
+        show m + 2 + 2 * (j : Int) = m + 2 * ((j + 1 : Nat) : Int) by omega] at ih_end
+
+/-! #### Box agreement and the `4 j`-step horizon -/
+
+/-- Agreement inside a box `[m + 1, m + W]` whose right boundary `m + W` stays `true` at steps
+`< s` and agrees at step `s`. -/
+theorem box_agree (t0 t1 : Nat) (m : Int) (W : Nat)
+    (hdrv : ∀ s, cell (t0 + s) m = cell (t1 + s) m)
+    (hinit : ∀ p : Int, m + 1 ≤ p → p ≤ m + (W : Int) → cell t0 p = cell t1 p) :
+    ∀ s : Nat, (∀ q : Int, q = m + (W : Int) →
+      (∀ s', s' < s → cell (t0 + s') q = true ∧ cell (t1 + s') q = true) ∧
+      cell (t0 + s) q = cell (t1 + s) q) →
+      ∀ p : Int, m + 1 ≤ p → p ≤ m + (W : Int) → cell (t0 + s) p = cell (t1 + s) p
+  | 0, _, p, hp1, hp2 => by simpa using hinit p hp1 hp2
+  | s + 1, hq, p, hp1, hp2 => by
+    by_cases hpW : p = m + (W : Int)
+    · exact (hq p hpW).2
+    · have ih := box_agree t0 t1 m W hdrv hinit s (fun q hqW =>
+        ⟨fun s' hs' => (hq q hqW).1 s' (by omega),
+         by
+           have hw := (hq q hqW).1 s (by omega)
+           rw [hw.1, hw.2]⟩)
+      have hleft : cell (t0 + s) (p - 1) = cell (t1 + s) (p - 1) := by
+        by_cases hpm : p - 1 = m
+        · rw [hpm]; exact hdrv s
+        · exact ih (p - 1) (by omega) (by omega)
+      have hmid : cell (t0 + s) p = cell (t1 + s) p := ih p hp1 (by omega)
+      have hright : cell (t0 + s) (p + 1) = cell (t1 + s) (p + 1) :=
+        ih (p + 1) (by omega) (by omega)
+      show cell (t0 + s + 1) p = cell (t1 + s + 1) p
+      show rule (cell (t0 + s) (p - 1)) (cell (t0 + s) p) (cell (t0 + s) (p + 1)) =
+        rule (cell (t1 + s) (p - 1)) (cell (t1 + s) p) (cell (t1 + s) (p + 1))
+      rw [hleft, hmid, hright]
+
+/-- Shrinking light-cone agreement on `[m + 1, m + W - s']` driven by column `m`. -/
+theorem cone_agree_gen (a0 a1 : Nat) (m : Int) (W : Nat)
+    (hdrv : ∀ s', cell (a0 + s') m = cell (a1 + s') m)
+    (hrow : ∀ p : Int, m + 1 ≤ p → p ≤ m + (W : Int) → cell a0 p = cell a1 p) :
+    ∀ s' : Nat, ∀ p : Int, m + 1 ≤ p → p + s' ≤ m + (W : Int) →
+      cell (a0 + s') p = cell (a1 + s') p
+  | 0, p, hp1, hp2 => by simpa using hrow p hp1 (by omega)
+  | s' + 1, p, hp1, hp2 => by
+    have ih := cone_agree_gen a0 a1 m W hdrv hrow s'
+    have hleft : cell (a0 + s') (p - 1) = cell (a1 + s') (p - 1) := by
+      by_cases hpm : p - 1 = m
+      · rw [hpm]; exact hdrv s'
+      · exact ih (p - 1) (by omega) (by omega)
+    have hmid := ih p hp1 (by omega)
+    have hright := ih (p + 1) (by omega) (by omega)
+    show cell (a0 + s' + 1) p = cell (a1 + s' + 1) p
+    show rule (cell (a0 + s') (p - 1)) (cell (a0 + s') p) (cell (a0 + s') (p + 1)) =
+      rule (cell (a1 + s') (p - 1)) (cell (a1 + s') p) (cell (a1 + s') (p + 1))
+    rw [hleft, hmid, hright]
+
+/-- **Four-fold horizon (`4 j` steps).** If `WBAt t0 m j` and `WBAt t1 m j` hold with
+`cell t0 m = false`, `cell t1 m = false`, and column `m` has the same values from `t0` and `t1`,
+then column `m + 1` agrees for `4 j` steps (`0 ≤ s < 4 j`). -/
+theorem wbAt_agree_four (t0 t1 : Nat) (m : Int) (j : Nat)
+    (hm0 : cell t0 m = false) (hm1 : cell t1 m = false)
+    (hwb0 : WBAt t0 m j) (hwb1 : WBAt t1 m j)
+    (hdrv : ∀ s, cell (t0 + s) m = cell (t1 + s) m) :
+    ∀ s, s < 4 * j → cell (t0 + s) (m + 1) = cell (t1 + s) (m + 1) := by
+  obtain ⟨wall0, end0⟩ := wbAt_right_wall j t0 m hm0 hwb0
+  obtain ⟨wall1, end1⟩ := wbAt_right_wall j t1 m hm1 hwb1
+  have hinit : ∀ p : Int, m + 1 ≤ p → p ≤ m + (2 * j : Nat) → cell t0 p = cell t1 p := by
+    intro p hp1 hp2
+    by_cases hpar : (p - m) % 2 = 0
+    · have hi : p = m + 2 * ((((p - m) / 2).toNat : Nat) : Int) := by omega
+      rw [hi, (hwb0 _ (by omega) (by omega)).2, (hwb1 _ (by omega) (by omega)).2]
+    · have hi : p = m + 2 * ((((p - m + 1) / 2).toNat : Nat) : Int) - 1 := by omega
+      rw [hi, (hwb0 _ (by omega) (by omega)).1, (hwb1 _ (by omega) (by omega)).1]
+  have hbox : ∀ s, s ≤ 2 * j → ∀ p : Int, m + 1 ≤ p → p ≤ m + (2 * j : Nat) →
+      cell (t0 + s) p = cell (t1 + s) p := by
+    intro s hs
+    apply box_agree t0 t1 m (2 * j) hdrv hinit
+    intro q hq
+    subst hq
+    have hcast : m + ((2 * j : Nat) : Int) = m + 2 * (j : Int) := by omega
+    rw [hcast]
+    refine ⟨fun s' hs' => ⟨wall0 s' (by omega), wall1 s' (by omega)⟩, ?_⟩
+    by_cases hs2 : s < 2 * j
+    · rw [wall0 s hs2, wall1 s hs2]
+    · have hseq : s = 2 * j := by omega
+      subst hseq
+      rw [end0, end1]
+  have hcone := cone_agree_gen (t0 + 2 * j) (t1 + 2 * j) m (2 * j)
+    (fun s' => by
+      rw [show t0 + 2 * j + s' = t0 + (2 * j + s') by omega,
+        show t1 + 2 * j + s' = t1 + (2 * j + s') by omega]
+      exact hdrv (2 * j + s'))
+    (hbox (2 * j) (Nat.le_refl _))
+  intro s hs
+  by_cases hs2 : s ≤ 2 * j
+  · exact hbox s hs2 (m + 1) (by omega) (by omega)
+  · have := hcone (s - 2 * j) (m + 1) (by omega) (by omega)
+    rwa [show t0 + 2 * j + (s - 2 * j) = t0 + s by omega,
+      show t1 + 2 * j + (s - 2 * j) = t1 + s by omega] at this
+
+end SelfShielded
+
+open SelfShielded in
+/-- **Self-shielded Theorem B.** If the center column is periodic with period `P` from time `T` on,
+no period contains a black run of length `r < P`, followed by a white cell, with
+`9 ⌈(P - r) / 4⌉ ≤ r` (written `9 * ((P - r + 3) / 4) ≤ r`; roughly `r ≥ 0.69 P + 2.1`).
+`no_long_black_run` needs `9 ⌈(P - r + 9) / 2⌉ ≤ r`. -/
+theorem no_long_black_run_quarter (T P r t1 : Nat) (hper : ∀ t, T ≤ t → center (t + P) = center t)
+    (ht1 : T ≤ t1) (hrP : r < P)
+    (hrun : ∀ s, s < r → center (t1 + s) = true)
+    (hw0 : center (t1 + r) = false)
+    (hlong : 9 * ((P - r + 3) / 4) ≤ r) : False := by
+  have hP : 0 < P := by omega
+  have hj1 : P - r ≤ 4 * ((P - r + 3) / 4) := by omega
+  generalize hjdef : (P - r + 3) / 4 = j at hj1 hlong
+  have hperk : ∀ k t, T ≤ t → center (t + k * P) = center t := periodic_mul hper
+  have hblack : ∀ k s, s < r → cell (t1 + k * P + s) 0 = true := by
+    intro k s hs
+    have := hperk k (t1 + s) (by omega)
+    show center (t1 + k * P + s) = true
+    rw [show t1 + k * P + s = t1 + s + k * P by omega, this]
+    exact hrun s hs
+  have hwhite0 : ∀ k, cell (t1 + r + k * P) 0 = false := by
+    intro k
+    have := hperk k (t1 + r) (by omega)
+    show center (t1 + r + k * P) = false
+    rw [this]; exact hw0
+  have hwb : ∀ k, WBAt (t1 + r + k * P) 0 j := by
+    intro k
+    have := wbAt_of_black_shield 0 j (t1 + k * P + (r - 9 * j)) (fun s hs => by
+      have := hblack k (r - 9 * j + s) (by omega)
+      rwa [show t1 + k * P + (r - 9 * j + s) = t1 + k * P + (r - 9 * j) + s by omega] at this)
+    rwa [show t1 + k * P + (r - 9 * j) + 9 * j = t1 + r + k * P by omega] at this
+  have hdrv : ∀ k s, cell (t1 + r + s) 0 = cell (t1 + r + k * P + s) 0 := by
+    intro k s
+    have := hperk k (t1 + r + s) (by omega)
+    show center (t1 + r + s) = center (t1 + r + k * P + s)
+    rw [show t1 + r + k * P + s = t1 + r + s + k * P by omega, this]
+  -- Column 1 agrees at every white time of the period.
+  have hcol_masked : ∀ k s, s < P → cell (t1 + r + k * P + s) 0 = false →
+      cell (t1 + r + s) 1 = cell (t1 + r + k * P + s) 1 := by
+    intro k s hs hcw
+    by_cases hsPr : s < P - r
+    · have := wbAt_agree_four (t1 + r) (t1 + r + k * P) 0 j
+        (by simpa using hwhite0 0) (hwhite0 k) (by simpa using hwb 0) (hwb k) (hdrv k)
+        s (by omega)
+      simpa using this
+    · -- For `P - r ≤ s < P`, `t1 + r + k * P + s` lies inside the `(k + 1)`-th black run.
+      have hPk : (k + 1) * P = k * P + P := Nat.succ_mul k P
+      have hb := hblack (k + 1) (s - (P - r)) (by omega)
+      rw [hPk, show t1 + (k * P + P) + (s - (P - r)) = t1 + r + k * P + s by omega] at hb
+      rw [hb] at hcw
+      exact absurd hcw (by decide)
+  -- Conclude by Masked Jen (`Rule30MaskedJen.masked_jen 0`) from time `t1 + r`.
+  refine masked_jen 0 (T := t1 + r) (P := P) hP (fun t ht => hper t (by omega)) (fun t ht hcw => ?_)
+  rw [show (0 : Int) + 1 = 1 by rfl]
+  have hdm := Nat.div_add_mod (t - (t1 + r)) P
+  generalize (t - (t1 + r)) / P = q at hdm
+  have hmod := Nat.mod_lt (t - (t1 + r)) hP
+  generalize (t - (t1 + r)) % P = s at hdm hmod
+  have hq1 : (q + 1) * P = q * P + P := Nat.succ_mul q P
+  have hcomm : P * q = q * P := Nat.mul_comm P q
+  have hcw_q : cell (t1 + r + q * P + s) 0 = false := by
+    rwa [show t1 + r + q * P + s = t by omega]
+  have hcw_q1 : cell (t1 + r + (q + 1) * P + s) 0 = false := by
+    rw [hq1, show t1 + r + (q * P + P) + s = t + P by omega]
+    have hp0 : cell (t + P) 0 = cell t 0 := hper t (by omega)
+    rw [hp0, hcw]
+  have e1 := hcol_masked q s hmod hcw_q
+  have e2 := hcol_masked (q + 1) s hmod hcw_q1
+  rw [hq1] at e2
+  rw [show t + P = t1 + r + (q * P + P) + s by omega, ← e2, e1,
+    show t1 + r + q * P + s = t by omega]
+
+open SelfShielded in
+/-- **Self-shielded Theorem D.** If the center column is periodic with period `P` from time `T` on,
+a period cannot contain a black run of length `s ≥ 9` followed by a white run of length `r` and
+then a black cell (`s + r < P`) with `r ≥ 1 + 9 ⌈(k - 2) / 4⌉`, where `k = P - s - r` (written
+`1 + 9 * ((P - s - r + 1) / 4) ≤ r`). `no_black_white_run` needs `r ≥ 1 + 9 ⌈(k + 8) / 2⌉`. -/
+theorem no_black_white_run_quarter (T P s r t1 : Nat)
+    (hper : ∀ t, T ≤ t → center (t + P) = center t)
+    (ht1 : T ≤ t1) (hs : 9 ≤ s) (hsr : s + r < P)
+    (hblk : ∀ i, i < s → center (t1 + i) = true)
+    (hwht : ∀ i, i < r → center (t1 + s + i) = false)
+    (hnextb : center (t1 + s + r) = true)
+    (hlong : 1 + 9 * ((P - s - r + 1) / 4) ≤ r) : False := by
+  have hP : 0 < P := by omega
+  have hj1 : P - s - r ≤ 4 * ((P - s - r + 1) / 4) + 2 := by omega
+  generalize hjdef : (P - s - r + 1) / 4 = j at hj1 hlong
+  have hperk : ∀ k t, T ≤ t → center (t + k * P) = center t := periodic_mul hper
+  have hMul : ∀ k, (k + 1) * P = k * P + P := fun k => Nat.succ_mul k P
+  have cblk : ∀ k i, i < s → cell (t1 + k * P + i) 0 = true := by
+    intro k i hi
+    have := hperk k (t1 + i) (by omega)
+    show center (t1 + k * P + i) = true
+    rw [show t1 + k * P + i = t1 + i + k * P by omega, this]; exact hblk i hi
+  have cwht : ∀ k i, i < r → cell (t1 + s + k * P + i) 0 = false := by
+    intro k i hi
+    have := hperk k (t1 + s + i) (by omega)
+    show center (t1 + s + k * P + i) = false
+    rw [show t1 + s + k * P + i = t1 + s + i + k * P by omega, this]; exact hwht i hi
+  have cnextb : ∀ k, cell (t1 + s + r + k * P) 0 = true := by
+    intro k
+    have := hperk k (t1 + s + r) (by omega)
+    show center (t1 + s + r + k * P) = true
+    rw [this]; exact hnextb
+  -- Start of the white run of period k: column 1 white, column 2 black (Lemma A).
+  have hstart : ∀ k, cell (t1 + s + k * P) 1 = false ∧ cell (t1 + s + k * P) 2 = true := by
+    intro k
+    have := nine_black (t1 + k * P + (s - 9)) 0 (fun i hi => by
+      have := cblk k (s - 9 + i) (by omega)
+      rwa [show t1 + k * P + (s - 9 + i) = t1 + k * P + (s - 9) + i by omega] at this)
+    rw [show t1 + k * P + (s - 9) + 9 = t1 + s + k * P by omega] at this
+    simpa using this
+  -- Column 1 is black during the rest of the white run (steps 1..r).
+  have hrun1 : ∀ k i, 1 ≤ i → i ≤ r → cell (t1 + s + k * P + i) 1 = true := by
+    intro k i hi1 hir
+    have c1 : cell (t1 + s + k * P + 1) 1 = true := by
+      show rule (cell (t1 + s + k * P) (1 - 1)) (cell (t1 + s + k * P) 1)
+        (cell (t1 + s + k * P) (1 + 1)) = true
+      have h0 := cwht k 0 (by omega)
+      rw [show t1 + s + k * P + 0 = t1 + s + k * P by omega] at h0
+      rw [show (1 : Int) - 1 = 0 by rfl, show (1 : Int) + 1 = 2 by rfl, h0, (hstart k).1,
+        (hstart k).2]
+      rfl
+    have := black_stays (t1 + s + k * P + 1) (r - 1) (fun i' hi' => by
+      have := cwht k (1 + i') (by omega)
+      rwa [show t1 + s + k * P + (1 + i') = t1 + s + k * P + 1 + i' by omega] at this) c1
+      (i - 1) (by omega)
+    rwa [show t1 + s + k * P + 1 + (i - 1) = t1 + s + k * P + i by omega] at this
+  -- At the end of the white run (`t1 + s + r + k * P`), `WBAt` holds at column 1.
+  have hend : ∀ k, WBAt (t1 + s + r + k * P) 1 j := by
+    intro k i hi1 hij
+    have := black_shield 1 j (t1 + s + k * P + (r - 9 * j)) (fun i' hi' => by
+        have := hrun1 k (r - 9 * j + i') (by omega) (by omega)
+        rwa [show t1 + s + k * P + (r - 9 * j + i') = t1 + s + k * P + (r - 9 * j) + i' by omega]
+          at this) i hi1 hij
+    rwa [show t1 + s + k * P + (r - 9 * j) + 9 * j = t1 + s + r + k * P by omega] at this
+  -- One step later (`t1 + s + r + 1 + k * P`), column 1 is white and `WBAt` still holds at column 1.
+  have hend1_col1 : ∀ k, cell (t1 + s + r + k * P + 1) 1 = false := by
+    intro k
+    have hc1 : cell (t1 + s + r + k * P) 1 = true := by
+      have := hrun1 k r (by omega) (Nat.le_refl r)
+      rwa [show t1 + s + k * P + r = t1 + s + r + k * P by omega] at this
+    show rule (cell (t1 + s + r + k * P) (1 - 1)) (cell (t1 + s + r + k * P) 1)
+      (cell (t1 + s + r + k * P) (1 + 1)) = false
+    rw [show (1 : Int) - 1 = 0 by rfl, cnextb k, hc1]
+    rfl
+  have hend1_wb : ∀ k, WBAt (t1 + s + r + k * P + 1) 1 j := by
+    intro k i hi1 hij
+    have hc1 : cell (t1 + s + r + k * P) 1 = true := by
+      have := hrun1 k r (by omega) (Nat.le_refl r)
+      rwa [show t1 + s + k * P + r = t1 + s + r + k * P by omega] at this
+    have hi := hend k i hi1 hij
+    have hleft : cell (t1 + s + r + k * P) (1 + 2 * (i : Int) - 1 - 1) = true := by
+      by_cases hi0 : i = 1
+      · subst hi0
+        rw [show (1 : Int) + 2 * ((1 : Nat) : Int) - 1 - 1 = 1 by omega]
+        exact hc1
+      · have hprev := hend k (i - 1) (by omega) (by omega)
+        rw [show (1 : Int) + 2 * (i : Int) - 1 - 1 = 1 + 2 * ((i - 1 : Nat) : Int) by omega]
+        exact hprev.2
+    refine ⟨?_, ?_⟩
+    · show rule (cell (t1 + s + r + k * P) (1 + 2 * (i : Int) - 1 - 1))
+          (cell (t1 + s + r + k * P) (1 + 2 * (i : Int) - 1))
+          (cell (t1 + s + r + k * P) (1 + 2 * (i : Int) - 1 + 1)) = false
+      rw [hleft, hi.1, show (1 : Int) + 2 * (i : Int) - 1 + 1 = 1 + 2 * (i : Int) by omega, hi.2]
+      rfl
+    · show rule (cell (t1 + s + r + k * P) (1 + 2 * (i : Int) - 1))
+          (cell (t1 + s + r + k * P) (1 + 2 * (i : Int)))
+          (cell (t1 + s + r + k * P) (1 + 2 * (i : Int) + 1)) = true
+      rw [hi.1, hi.2]
+      rfl
+  have hdrv : ∀ k s', cell (t1 + s + r + 1 + s') 0 = cell (t1 + s + r + k * P + 1 + s') 0 := by
+    intro k s'
+    have := hperk k (t1 + s + r + 1 + s') (by omega)
+    show center (t1 + s + r + 1 + s') = center (t1 + s + r + k * P + 1 + s')
+    rw [show t1 + s + r + k * P + 1 + s' = t1 + s + r + 1 + s' + k * P by omega, this]
+  -- At time `t1 + s + r + 1 + k * P`, column 1 is `false` and `WBAt` holds at column 1,
+  -- so for `j ≥ 1`, `wbAt_right_wall` keeps column `1 + 2 j` black for `2 j` steps and white at `2 j`.
+  have hrem_agree : ∀ k s', s' < 4 * j + 1 →
+      cell (t1 + s + r + 1 + s') 1 = cell (t1 + s + r + k * P + 1 + s') 1 := by
+    intro k s' hs'
+    rcases Nat.eq_zero_or_pos j with rfl | hjpos
+    · have : s' = 0 := by omega
+      subst this
+      have a := hend1_col1 0
+      simp only [Nat.zero_mul, Nat.add_zero] at a
+      rw [Nat.add_zero, Nat.add_zero, a, hend1_col1 k]
+    · obtain ⟨wall0, end0⟩ := wbAt_right_wall j (t1 + s + r + 1) 1
+        (by simpa using hend1_col1 0) (by simpa using hend1_wb 0)
+      obtain ⟨wallk, endk⟩ := wbAt_right_wall j (t1 + s + r + k * P + 1) 1
+        (hend1_col1 k) (hend1_wb k)
+      have hinit : ∀ p : Int, 0 + 1 ≤ p → p ≤ 0 + (2 * j + 1 : Nat) →
+          cell (t1 + s + r + 1) p = cell (t1 + s + r + k * P + 1) p := by
+        intro p hp1 hp2
+        by_cases hp : p = 1
+        · subst hp
+          have a := hend1_col1 0
+          simp only [Nat.zero_mul, Nat.add_zero] at a
+          rw [a, hend1_col1 k]
+        · have wb0 := hend1_wb 0
+          simp only [Nat.zero_mul, Nat.add_zero] at wb0
+          by_cases hpar : p % 2 = 0
+          · have hi : p = 1 + 2 * (((p / 2).toNat : Nat) : Int) - 1 := by omega
+            rw [hi, (wb0 _ (by omega) (by omega)).1, (hend1_wb k _ (by omega) (by omega)).1]
+          · have hi : p = 1 + 2 * ((((p - 1) / 2).toNat : Nat) : Int) := by omega
+            rw [hi, (wb0 _ (by omega) (by omega)).2, (hend1_wb k _ (by omega) (by omega)).2]
+      have hbox : ∀ u, u ≤ 2 * j → ∀ p : Int, 0 + 1 ≤ p → p ≤ 0 + (2 * j + 1 : Nat) →
+          cell (t1 + s + r + 1 + u) p = cell (t1 + s + r + k * P + 1 + u) p := by
+        intro u hu
+        apply box_agree (t1 + s + r + 1) (t1 + s + r + k * P + 1) 0 (2 * j + 1) (hdrv k) hinit
+        intro q hq
+        subst hq
+        have hcast : (0 : Int) + ((2 * j + 1 : Nat) : Int) = 1 + 2 * (j : Int) := by omega
+        rw [hcast]
+        refine ⟨fun u' hu' => ⟨wall0 u' (by omega), wallk u' (by omega)⟩, ?_⟩
+        by_cases hu2 : u < 2 * j
+        · rw [wall0 u hu2, wallk u hu2]
+        · have hueq : u = 2 * j := by omega
+          subst hueq
+          rw [end0, endk]
+      have hcone := cone_agree_gen (t1 + s + r + 1 + 2 * j) (t1 + s + r + k * P + 1 + 2 * j) 0
+        (2 * j + 1)
+        (fun u' => by
+          rw [show t1 + s + r + 1 + 2 * j + u' = t1 + s + r + 1 + (2 * j + u') by omega,
+            show t1 + s + r + k * P + 1 + 2 * j + u' =
+              t1 + s + r + k * P + 1 + (2 * j + u') by omega]
+          exact hdrv k (2 * j + u'))
+        (hbox (2 * j) (Nat.le_refl _))
+      by_cases hs2 : s' ≤ 2 * j
+      · exact hbox s' hs2 1 (by omega) (by omega)
+      · have := hcone (s' - 2 * j) 1 (by omega) (by omega)
+        rwa [show t1 + s + r + 1 + 2 * j + (s' - 2 * j) = t1 + s + r + 1 + s' by omega,
+          show t1 + s + r + k * P + 1 + 2 * j + (s' - 2 * j) =
+            t1 + s + r + k * P + 1 + s' by omega] at this
+  -- Column 1 agrees at every white time of the period starting at `t1 + s`.
+  have hcol_masked : ∀ k i, i < P → cell (t1 + s + k * P + i) 0 = false →
+      cell (t1 + s + i) 1 = cell (t1 + s + k * P + i) 1 := by
+    intro k i hi hcw
+    by_cases hi0 : i = 0
+    · subst hi0
+      have a := (hstart 0).1
+      simp only [Nat.zero_mul, Nat.add_zero] at a
+      simp only [Nat.add_zero]
+      rw [a, (hstart k).1]
+    by_cases hir : i ≤ r
+    · have a := hrun1 0 i (by omega) hir
+      simp only [Nat.zero_mul, Nat.add_zero] at a
+      rw [a, hrun1 k i (by omega) hir]
+    by_cases hi_r : i = r
+    · omega
+    by_cases hic : i < P - s
+    · have := hrem_agree k (i - r - 1) (by omega)
+      rwa [show t1 + s + r + 1 + (i - r - 1) = t1 + s + i by omega,
+        show t1 + s + r + k * P + 1 + (i - r - 1) = t1 + s + k * P + i by omega] at this
+    · -- For `P - s ≤ i < P`, `t1 + s + k * P + i` lies inside the `(k + 1)`-th black run.
+      have hb := cblk (k + 1) (i - (P - s)) (by omega)
+      rw [hMul k, show t1 + (k * P + P) + (i - (P - s)) = t1 + s + k * P + i by omega] at hb
+      rw [hb] at hcw
+      exact absurd hcw (by decide)
+  -- Conclude by Masked Jen (`Rule30MaskedJen.masked_jen 0`) from time `t1 + s`.
+  refine masked_jen 0 (T := t1 + s) (P := P) hP (fun t ht => hper t (by omega)) (fun t ht hcw => ?_)
+  rw [show (0 : Int) + 1 = 1 by rfl]
+  have hdm := Nat.div_add_mod (t - (t1 + s)) P
+  generalize (t - (t1 + s)) / P = q at hdm
+  have hmod := Nat.mod_lt (t - (t1 + s)) hP
+  generalize (t - (t1 + s)) % P = i at hdm hmod
+  have hq1 : (q + 1) * P = q * P + P := Nat.succ_mul q P
+  have hcomm : P * q = q * P := Nat.mul_comm P q
+  have hcw_q : cell (t1 + s + q * P + i) 0 = false := by
+    rwa [show t1 + s + q * P + i = t by omega]
+  have hcw_q1 : cell (t1 + s + (q + 1) * P + i) 0 = false := by
+    rw [hq1, show t1 + s + (q * P + P) + i = t + P by omega]
+    have hp0 : cell (t + P) 0 = cell t 0 := hper t (by omega)
+    rw [hp0, hcw]
+  have e1 := hcol_masked q i hmod hcw_q
+  have e2 := hcol_masked (q + 1) i hmod hcw_q1
+  rw [hq1] at e2
+  rw [show t + P = t1 + s + (q * P + P) + i by omega, ← e2, e1,
+    show t1 + s + q * P + i = t by omega]
+
+/-- **Short tails after nine black cells.** The center column is not eventually periodic with
+repeating word `1^r u` when `1 ≤ |u| ≤ 4`, `u` starts white and `r ≥ 9`, whatever the transient:
+Self-shielded Theorem B with `⌈|u| / 4⌉ = 1`. `Rule30BlackRunBlocks` needs `r ≥ 18` or `r ≥ 27`
+for its eight blocks. -/
+theorem no_black_run_ge9_len_le4 (u : List Bool) (hlen1 : 1 ≤ u.length) (hlen4 : u.length ≤ 4)
+    (hu0 : u.getD 0 false = false)
+    (T r t1 : Nat) (hr : 9 ≤ r)
+    (hper : ∀ t, T ≤ t → center (t + (r + u.length)) = center t)
+    (ht1 : T ≤ t1)
+    (hrun : ∀ s, s < r → center (t1 + s) = true)
+    (hu : ∀ i, i < u.length → center (t1 + r + i) = u.getD i false) : False := by
+  have hw0 : center (t1 + r) = false := by
+    have := hu 0 hlen1
+    rwa [Nat.add_zero, hu0] at this
+  exact no_long_black_run_quarter T (r + u.length) r t1 hper ht1 (by omega) hrun hw0 (by omega)
+
+/-- **Tails of at most eight cells after eighteen black cells.** The center column is not
+eventually periodic with repeating word `1^r u` when `1 ≤ |u| ≤ 8`, `u` starts white and `r ≥ 18`,
+whatever the transient. -/
+theorem no_black_run_ge18_len_le8 (u : List Bool) (hlen1 : 1 ≤ u.length) (hlen8 : u.length ≤ 8)
+    (hu0 : u.getD 0 false = false)
+    (T r t1 : Nat) (hr : 18 ≤ r)
+    (hper : ∀ t, T ≤ t → center (t + (r + u.length)) = center t)
+    (ht1 : T ≤ t1)
+    (hrun : ∀ s, s < r → center (t1 + s) = true)
+    (hu : ∀ i, i < u.length → center (t1 + r + i) = u.getD i false) : False := by
+  have hw0 : center (t1 + r) = false := by
+    have := hu 0 hlen1
+    rwa [Nat.add_zero, hu0] at this
+  exact no_long_black_run_quarter T (r + u.length) r t1 hper ht1 (by omega) hrun hw0 (by omega)
 
 /-! ### The words `0^r 1 1`, `r ≥ 10` -/
 

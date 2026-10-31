@@ -40,6 +40,9 @@ system, the **zero-boundary left half** (ZBL), in one encoding: `zrow L t k` is 
 * `Q01_iff_Theta` (no `Theta f` is finitely supported), `Q01_iff_any_phase`, `Q01_iff_bounded`
   (bounded white runs of the forced row, via `uniform_death`), `koenig` (compactness of the search
   tree), `Q01_iff_staged` (it is `Rule30PeriodTwo.Q01`), `no_eventual_period_two`.
+* `Q01_iff_integer`: read as a natural number `Y` (bit `i` at depth `i + 1`), a finite start
+  evolves by `F Y = (Y >>> 1) ^^^ (Y ||| (Y <<< 1))`, and `Q01` holds iff every natural number
+  reaches an even number under some iterate of `G = F ∘ F` (`IntegerForm`).
 
 **Jen inside the ZBL.** `jen_clock`: a nonzero finite start with last black cell at depth `m` has no
 `P`-periodic window `[T, T + ℓ]` of column `-1` with `ℓ + 2 > T + m + 2 P`;
@@ -866,6 +869,162 @@ theorem Q01_iff_bounded :
     obtain ⟨k, hk1, _, hk3⟩ := hB' f
     rw [hM k hk1] at hk3
     exact absurd hk3 (by decide)
+
+/-! ### `Q01` as an integer iteration
+
+Read a start as the natural number `Y` whose bit `i` is the cell at depth `i + 1`. One ZBL step is
+then the map `IntegerForm.F Y = (Y >>> 1) ^^^ (Y ||| (Y <<< 1))` on `Nat` (the wall is bit `-1`),
+and column `-1` is bit `0`. -/
+
+namespace IntegerForm
+
+/-- One step of the zero-boundary left half (ZBL) on natural numbers:
+bit `i` of `Y` represents depth `k = i + 1` (position `-(i + 1)`), with the white wall at bit `-1`. -/
+def F (Y : Nat) : Nat := (Y >>> 1) ^^^ (Y ||| (Y <<< 1))
+
+/-- Two steps of the integer ZBL map, `G = F ∘ F`. -/
+def G (Y : Nat) : Nat := F (F Y)
+
+/-- Transparent `t`-step iteration of a map on `Nat`. -/
+def iter (f : Nat → Nat) : Nat → Nat → Nat
+  | 0, x => x
+  | t + 1, x => f (iter f t x)
+
+/-- The ZBL row associated with a natural number `Y`: depth `0` is `false` (the wall), and depth
+`k + 1` holds bit `k` of `Y`. -/
+def rowOfNat (Y : Nat) : Nat → Bool
+  | 0 => false
+  | k + 1 => Y.testBit k
+
+/-- Bit `0` of `F Y` (depth `1`, beside the wall). -/
+theorem testBit_F_zero (Y : Nat) : (F Y).testBit 0 = xor (Y.testBit 1) (Y.testBit 0) := by
+  unfold F
+  simp only [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_shiftRight, Nat.testBit_shiftLeft]
+  simp
+
+/-- Bit `i + 1` of `F Y`: the rule-30 update of depth `i + 2`. -/
+theorem testBit_F_succ (Y i : Nat) :
+    (F Y).testBit (i + 1) = xor (Y.testBit (i + 2)) (Y.testBit (i + 1) || Y.testBit i) := by
+  unfold F
+  simp only [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_shiftRight, Nat.testBit_shiftLeft,
+    show 1 + (i + 1) = i + 2 by omega, ge_iff_le, Nat.le_add_left, decide_true, Bool.true_and,
+    Nat.add_sub_cancel]
+
+/-- **One-step conjugation.** One ZBL step on `rowOfNat Y` is `rowOfNat (F Y)`. -/
+theorem zrow_rowOfNat_one (Y : Nat) : ∀ k, zrow (rowOfNat Y) 1 k = rowOfNat (F Y) k
+  | 0 => rfl
+  | 1 => by
+    rw [zrow_succ, zrow_wall, Bool.or_false, zrow_zero, zrow_zero]
+    exact (testBit_F_zero Y).symm
+  | i + 2 => by
+    rw [zrow_succ, zrow_zero, zrow_zero, zrow_zero]
+    exact (testBit_F_succ Y i).symm
+
+/-- **Multi-step conjugation.** `t` ZBL steps on `rowOfNat Y` equal `rowOfNat (iter F t Y)`. -/
+theorem zrow_rowOfNat (Y : Nat) : ∀ t k, zrow (rowOfNat Y) t k = rowOfNat (iter F t Y) k
+  | 0, 0 => rfl
+  | 0, k + 1 => rfl
+  | t + 1, k => by
+    rw [show t + 1 = t + 1 from rfl, zrow_shift (rowOfNat Y) t 1 k]
+    have hcongr : ∀ j, 1 ≤ j → zrow (rowOfNat Y) t j = rowOfNat (iter F t Y) j :=
+      fun j _ => zrow_rowOfNat Y t j
+    rw [zrow_congr hcongr 1 k, zrow_rowOfNat_one]
+    rfl
+
+/-- Column `-1` at time `t` is bit `0` of `iter F t Y`. -/
+theorem zrow_rowOfNat_col1 (Y t : Nat) :
+    zrow (rowOfNat Y) t 1 = (iter F t Y).testBit 0 :=
+  zrow_rowOfNat Y t 1
+
+theorem testBit_two_mul_add_zero (A b : Nat) (hb : b < 2) :
+    (2 * A + b).testBit 0 = decide (b = 1) := by
+  rw [Nat.testBit_zero]
+  have : (2 * A + b) % 2 = b := by omega
+  rw [this]
+
+theorem testBit_two_mul_add_succ (A b i : Nat) (hb : b < 2) :
+    (2 * A + b).testBit (i + 1) = A.testBit i := by
+  rw [Nat.testBit_succ]
+  have : (2 * A + b) / 2 = A := by omega
+  rw [this]
+
+/-- `s` iterates of `G` are `2 s` iterates of `F`. -/
+theorem iter_G_eq_iter_F_two_mul (Y : Nat) : ∀ s, iter G s Y = iter F (2 * s) Y
+  | 0 => rfl
+  | s + 1 => by
+    rw [show 2 * (s + 1) = (2 * s + 1) + 1 by omega]
+    show F (F (iter G s Y)) = F (F (iter F (2 * s) Y))
+    rw [iter_G_eq_iter_F_two_mul Y s]
+
+/-- Encoding a finitely supported row `L` of width `≤ W` as a natural number. -/
+def natOfRow : (Nat → Bool) → Nat → Nat
+  | _, 0 => 0
+  | L, W + 1 => 2 * natOfRow (fun k => L (k + 1)) W + (if L 1 then 1 else 0)
+
+/-- Bit `i` of `natOfRow L W` is the cell of `L` at depth `i + 1`, for `i < W`. -/
+theorem testBit_natOfRow : ∀ (W : Nat) (L : Nat → Bool) (i : Nat),
+    (natOfRow L W).testBit i = (decide (i < W) && L (i + 1))
+  | 0, _, i => by simp [natOfRow]
+  | W + 1, L, 0 => by
+    unfold natOfRow
+    have hb : (if L 1 then 1 else 0) < 2 := by cases L 1 <;> decide
+    rw [testBit_two_mul_add_zero _ _ hb]
+    cases L 1 <;> simp
+  | W + 1, L, i + 1 => by
+    unfold natOfRow
+    have hb : (if L 1 then 1 else 0) < 2 := by cases L 1 <;> decide
+    rw [testBit_two_mul_add_succ _ _ i hb,
+      testBit_natOfRow W (fun k => L (k + 1)) i]
+    have : decide (i < W) = decide (i + 1 < W + 1) := by
+      rcases Nat.lt_or_ge i W with h | h <;> simp [h, show i + 1 < W + 1 ↔ i < W by omega]
+    rw [this]
+
+/-- A start that is white beyond depth `W` is `rowOfNat (natOfRow L W)` at every depth `k ≥ 1`. -/
+theorem rowOfNat_natOfRow {L : Nat → Bool} {W : Nat} (hW : ∀ k, W < k → L k = false) :
+    ∀ k, 1 ≤ k → rowOfNat (natOfRow L W) k = L k := by
+  intro k hk
+  obtain ⟨i, rfl⟩ : ∃ i, k = i + 1 := ⟨k - 1, by omega⟩
+  show (natOfRow L W).testBit i = L (i + 1)
+  rw [testBit_natOfRow]
+  rcases Nat.lt_or_ge i W with h | h
+  · simp [h]
+  · simp [show ¬ i < W by omega, hW (i + 1) (by omega)]
+
+/-- `rowOfNat Y` is finitely supported. -/
+theorem finSupp_rowOfNat (Y : Nat) : FinSupp (rowOfNat Y) := by
+  refine ⟨Y, fun k hk => ?_⟩
+  obtain ⟨i, rfl⟩ : ∃ i, k = i + 1 := ⟨k - 1, by omega⟩
+  unfold rowOfNat
+  apply Nat.testBit_lt_two_pow
+  have h1 : Y < 2 ^ Y := Nat.lt_two_pow_self
+  have h2 : 2 ^ Y ≤ 2 ^ i := Nat.pow_le_pow_right (by omega) (by omega)
+  omega
+
+end IntegerForm
+
+open IntegerForm in
+/-- **`Q01` as an integer iteration.** `Q01` holds iff every natural number `Y` reaches an even
+number under some iterate of `G = F ∘ F`, where `F Y = (Y >>> 1) ^^^ (Y ||| (Y <<< 1))` is one ZBL
+step on the start whose depth `i + 1` holds bit `i` of `Y` (`IntegerForm.zrow_rowOfNat`): column
+`-1` at time `2 s` is bit `0` of the `s`-th iterate of `G`, and every finitely supported start is
+such a number (`IntegerForm.natOfRow`). -/
+theorem Q01_iff_integer :
+    Q01 ↔ ∀ Y : Nat, ∃ s, IntegerForm.iter IntegerForm.G s Y % 2 = 0 := by
+  constructor
+  · intro hQ Y
+    refine Classical.byContradiction fun hne => ?_
+    apply hQ (rowOfNat Y) (finSupp_rowOfNat Y)
+    intro s
+    rw [zrow_rowOfNat_col1, ← iter_G_eq_iter_F_two_mul, Nat.testBit_zero, decide_eq_true_iff]
+    have h := not_exists.mp hne s
+    omega
+  · rintro hInt L ⟨W, hW⟩ hX
+    obtain ⟨s, hs⟩ := hInt (natOfRow L W)
+    have hcol := hX s
+    have hcongr := zrow_congr (rowOfNat_natOfRow hW) (2 * s) 1
+    rw [← hcongr, zrow_rowOfNat_col1, ← iter_G_eq_iter_F_two_mul, Nat.testBit_zero,
+      decide_eq_true_iff] at hcol
+    omega
 
 /-! ### Compactness: the sets `F_W` -/
 
