@@ -9,6 +9,7 @@ public import Ruliology.CellularAutomata.Rule30White17Runs
 public import Ruliology.CellularAutomata.Rule30GrammarRuns
 public import Ruliology.CellularAutomata.Rule30Realization
 public import Ruliology.CellularAutomata.Rule30ArbitraryWhitePadding
+public import Ruliology.CellularAutomata.Rule30ParametricStripCertificates
 
 /-!
 # Padded words: one bound for every tail
@@ -25,8 +26,13 @@ tail, including empty and all-white tails:
 | `1111` | 7 | `not_eventuallyWord_zeros_1111`, from the uniform grammar |
 | `1^k`, `k ≥ 3`, `k ≠ 4` | 17 | `no_padded_word_black` (any length) |
 | `11` | 8 | `Rule30WhiteRunEight.no_white_run_11_ge8` |
+| `1011` | 9 | `Rule30ParametricStripCertificates.paramStripCert`, width 6 |
+| `10011` | 9 | `Rule30ParametricStripCertificates.paramStripCert`, width 6 |
 | `10111` | 9 | `Rule30WhitePad10111.not_eventually_zeros_10111` |
+| `11011` | 9 | `Rule30ParametricStripCertificates.paramStripCert`, width 6 |
+| `101111` | 9 | `Rule30ParametricStripCertificates.paramStripCert`, width 6 |
 | `1` | 9 | `Rule30WhiteEndNine.not_eventually_white_end_ge9`, rotated |
+| `1101` | 11 | `Rule30ParametricStripCertificates.paramStripCert`, width 7 |
 | any other of at most four cells | 49 | `Rule30ShortTail.no_short_tail_seed` |
 | any other of five cells | 69 | `Rule30FiveTail.no_five_tail_seed` |
 | any other of six cells | 74 | `Rule30SixTailSharpened.no_six_tail_seed` |
@@ -45,8 +51,13 @@ open Rule30StripCertificates
 /-- A white-padding bound for every tail, retaining the sharper bounds for length at most six. -/
 def paddedBound (u : List Bool) : Nat :=
   if u = [true, true] then 8
+  else if u = [true, false, true, true] then 9
+  else if u = [true, false, false, true, true] then 9
   else if u = [true, false, true, true, true] then 9
+  else if u = [true, true, false, true, true] then 9
+  else if u = [true, false, true, true, true, true] then 9
   else if u = [true] then 9
+  else if u = [true, true, false, true] then 11
   else if u = [true, true, true, true] then 7
   else if u = List.replicate u.length true ∧ 3 ≤ u.length then 17
   else if u.length ≤ 4 then 49
@@ -112,6 +123,36 @@ theorem not_eventuallyWord_zeros_1111 (q : Nat) (hq : 7 ≤ q) :
   apply hg
   simpa using eventuallyWord_swap (by simp) h
 
+/-- `0^r 1011` as an eventual word: excluded for all `r ≥ 9` by parametric strip certificates. -/
+theorem not_eventuallyWord_zeros_1011 (r : Nat) (hr : 9 ≤ r) :
+    ¬ EventuallyWord (List.replicate r false ++ [true, false, true, true]) :=
+  Rule30ParametricStripCertificates.not_eventually_param_word false 9 [true, false, true, true] 6 3
+    (by decide) (by decide) (by decide +kernel) r hr
+
+/-- `0^r 1101` as an eventual word: excluded for all `r ≥ 11` by parametric strip certificates. -/
+theorem not_eventuallyWord_zeros_1101 (r : Nat) (hr : 11 ≤ r) :
+    ¬ EventuallyWord (List.replicate r false ++ [true, true, false, true]) :=
+  Rule30ParametricStripCertificates.not_eventually_param_word false 11 [true, true, false, true] 7 2
+    (by decide) (by decide) (by decide +kernel) r hr
+
+/-- `0^r 10011` as an eventual word: excluded for all `r ≥ 9` by parametric strip certificates. -/
+theorem not_eventuallyWord_zeros_10011 (r : Nat) (hr : 9 ≤ r) :
+    ¬ EventuallyWord (List.replicate r false ++ [true, false, false, true, true]) :=
+  Rule30ParametricStripCertificates.not_eventually_param_word false 9 [true, false, false, true, true] 6 2
+    (by decide) (by decide) (by decide +kernel) r hr
+
+/-- `0^r 11011` as an eventual word: excluded for all `r ≥ 9` by parametric strip certificates. -/
+theorem not_eventuallyWord_zeros_11011 (r : Nat) (hr : 9 ≤ r) :
+    ¬ EventuallyWord (List.replicate r false ++ [true, true, false, true, true]) :=
+  Rule30ParametricStripCertificates.not_eventually_param_word false 9 [true, true, false, true, true] 6 2
+    (by decide) (by decide) (by decide +kernel) r hr
+
+/-- `0^r 101111` as an eventual word: excluded for all `r ≥ 9` by parametric strip certificates. -/
+theorem not_eventuallyWord_zeros_101111 (r : Nat) (hr : 9 ≤ r) :
+    ¬ EventuallyWord (List.replicate r false ++ [true, false, true, true, true, true]) :=
+  Rule30ParametricStripCertificates.not_eventually_param_word false 9 [true, false, true, true, true, true] 6 2
+    (by decide) (by decide) (by decide +kernel) r hr
+
 private theorem replicate_getD (r n : Nat) : (List.replicate r false).getD n false = false := by
   induction r generalizing n with
   | zero => simp
@@ -135,28 +176,48 @@ theorem no_padded_word (u : List Bool) (r : Nat) (hr : paddedBound u ≤ r) :
     ¬ EventuallyWord (List.replicate r false ++ u) := by
   by_cases h11 : u = [true, true]
   · subst h11; exact not_eventuallyWord_zeros_11 r (by simpa [paddedBound] using hr)
+  by_cases h1011 : u = [true, false, true, true]
+  · subst h1011
+    exact not_eventuallyWord_zeros_1011 r (by simpa [paddedBound, h11] using hr)
+  by_cases h10011 : u = [true, false, false, true, true]
+  · subst h10011
+    exact not_eventuallyWord_zeros_10011 r (by simpa [paddedBound, h11, h1011] using hr)
   by_cases h10111 : u = [true, false, true, true, true]
   · subst h10111
-    exact Rule30WhitePad10111.not_eventually_zeros_10111 r (by simpa [paddedBound] using hr)
+    exact Rule30WhitePad10111.not_eventually_zeros_10111 r (by simpa [paddedBound, h11, h1011, h10011] using hr)
+  by_cases h11011 : u = [true, true, false, true, true]
+  · subst h11011
+    exact not_eventuallyWord_zeros_11011 r (by simpa [paddedBound, h11, h1011, h10011, h10111] using hr)
+  by_cases h101111 : u = [true, false, true, true, true, true]
+  · subst h101111
+    exact not_eventuallyWord_zeros_101111 r (by simpa [paddedBound, h11, h1011, h10011, h10111, h11011] using hr)
   by_cases h1 : u = [true]
-  · subst h1; exact not_eventuallyWord_zeros_one r (by simpa [paddedBound] using hr)
+  · subst h1
+    exact not_eventuallyWord_zeros_one r (by simpa [paddedBound, h11, h1011, h10011, h10111, h11011, h101111] using hr)
+  by_cases h1101 : u = [true, true, false, true]
+  · subst h1101
+    exact not_eventuallyWord_zeros_1101 r (by simpa [paddedBound, h11, h1011, h10011, h10111, h11011, h101111, h1] using hr)
   by_cases h1111 : u = [true, true, true, true]
-  · subst h1111; exact not_eventuallyWord_zeros_1111 r (by simpa [paddedBound] using hr)
+  · subst h1111
+    exact not_eventuallyWord_zeros_1111 r (by simpa [paddedBound, h11, h1011, h10011, h10111, h11011, h101111, h1, h1101] using hr)
   by_cases hblack : u = List.replicate u.length true ∧ 3 ≤ u.length
-  · have hq : 17 ≤ r := by simpa only [paddedBound, ite_eq_right h11, ite_eq_right h10111, ite_eq_right h1, ite_eq_right h1111, ite_eq_left hblack] using hr
+  · have hq : 17 ≤ r := by
+      simpa only [paddedBound, ite_eq_right h11, ite_eq_right h1011, ite_eq_right h10011,
+        ite_eq_right h10111, ite_eq_right h11011, ite_eq_right h101111, ite_eq_right h1,
+        ite_eq_right h1101, ite_eq_right h1111, ite_eq_left hblack] using hr
     rw [hblack.1]
     exact no_padded_word_black _ hblack.2 r hq
   by_cases h4 : u.length ≤ 4
   · exact Rule30ShortTail.no_short_tail_seed u h4 r
-      (by simpa [paddedBound, h11, h10111, h1, h1111, hblack, h4] using hr)
+      (by simpa [paddedBound, h11, h1011, h10011, h10111, h11011, h101111, h1, h1101, h1111, hblack, h4] using hr)
   by_cases h5 : u.length ≤ 5
   · exact Rule30FiveTail.no_five_tail_seed u h5 r
-      (by simpa [paddedBound, h11, h10111, h1, h1111, hblack, h4, h5] using hr)
+      (by simpa [paddedBound, h11, h1011, h10011, h10111, h11011, h101111, h1, h1101, h1111, hblack, h4, h5] using hr)
   by_cases h6 : u.length ≤ 6
   · exact Rule30SixTailSharpened.no_six_tail_seed u h6 r
-      (by simpa [paddedBound, h11, h10111, h1, h1111, hblack, h4, h5, h6] using hr)
+      (by simpa [paddedBound, h11, h1011, h10011, h10111, h11011, h101111, h1, h1101, h1111, hblack, h4, h5, h6] using hr)
   have hq : Rule30ArbitraryWhitePadding.paddingThreshold u.length ≤ r := by
-    simpa [paddedBound, h11, h10111, h1, h1111, hblack, h4, h5, h6] using hr
+    simpa [paddedBound, h11, h1011, h10011, h10111, h11011, h101111, h1, h1101, h1111, hblack, h4, h5, h6] using hr
   by_cases hb : ∃ j, j < u.length ∧ u.getD j false = true
   · intro hw
     have hpos : 0 < (List.replicate r false ++ u).length := by
