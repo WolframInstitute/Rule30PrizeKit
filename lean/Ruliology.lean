@@ -152,6 +152,7 @@ public import Ruliology.CellularAutomata.Rule30DefectClockBudget
 public import Ruliology.CellularAutomata.Rule30GateTrap
 public import Ruliology.CellularAutomata.Rule30EtherGrounding
 public import Ruliology.CellularAutomata.Rule30Problem3Bounds
+public import Ruliology.CellularAutomata.Rule30EtherWallWitness
 
 /-!
 # Rule 30 Prize: Lean snapshot
