@@ -1,0 +1,1318 @@
+module
+
+public import Ruliology.CellularAutomata.Rule30Prize
+
+/-!
+# Problem 2: the dyadic shell, block-energy and flexible-energy forms
+
+Four exact equivalent forms of `Rule30Prize.Problem2`, for every Boolean sequence `c` and so for the
+center column:
+
+* `densityHalf_iff_shellMaxLittleO`: `A(T) - T/2 = o(T)` iff `M_k = o(N)` for the shell maximum
+  `M_k` at `N = 2^k`;
+* `shellMaxLittleO_iff_flexibleEnergyToZero`: `M_k = o(N)` iff the flexible block energy
+  `F_k = min_{0 ≤ j ≤ k} (V_(k,j) + 4^(j-k))` tends to `0`;
+* `shellMaxLittleO_iff_orderedEnergyLittleO`, `orderedEnergyLittleO_iff_maxBlockEnergyLittleO`: the
+  ordered energy `H_k = o(N^2)`, the largest block energy `max_j E_(k,j) = o(N^2)` and `M_k = o(N)`
+  are one statement.
+
+`problem2_iff_densityHalf` ties `DensityHalf` to the official `Problem2`; the other forms follow.
+
+Control, `weakened_hypotheses_do_not_give_densityHalf`: one explicit sequence has `S(2^k) = o(2^k)`
+and `min_j V_(k,j) → 0` and fails `DensityHalf`. So the dyadic endpoints alone, and the flexible
+energy with its `4^(j-k)` penalty dropped, are both too weak to carry the bridge.
+
+The little-o statements are written over `Nat` and `Int` with denominators cleared; the comment on
+each definition gives the translation. Nothing here bounds any of these quantities on the actual
+center column. Problem 2 stays open; what is proved is that the four targets are one target.
+-/
+
+@[expose] public section
+
+namespace Ruliology.CellularAutomata
+namespace Rule30P2Bridge
+
+open Rule30Prize
+
+def sign (bit : Bool) : Int := if bit then -1 else 1
+
+/-- `sumTo f n` is the sum of `f i` over `i < n`. -/
+def sumTo (f : Nat → Int) : Nat → Int
+  | 0 => 0
+  | n + 1 => sumTo f n + f n
+
+/-- `maxTo f n` is the maximum of `f u` over `u ≤ n`, both ends included. -/
+def maxTo (f : Nat → Nat) : Nat → Nat
+  | 0 => f 0
+  | n + 1 => max (maxTo f n) (f (n + 1))
+
+/-- `A(T)`: the number of ones among `c_0, ..., c_(T-1)`. -/
+def ones (c : Nat → Bool) : Nat → Nat
+  | 0 => 0
+  | T + 1 => ones c T + (if c T then 1 else 0)
+
+/-- `z_t = 1 - 2 c_t`. -/
+def z (c : Nat → Bool) (t : Nat) : Int := sign (c t)
+
+/-- `S(T)`: the sum of `z_t` over `t < T`. -/
+def S (c : Nat → Bool) (T : Nat) : Int := sumTo (z c) T
+
+/-- The sum of `z_(N+r)` over `r < u`, with `N = 2^k`. -/
+def shellPrefix (c : Nat → Bool) (k u : Nat) : Int :=
+  sumTo (fun r => z c (2 ^ k + r)) u
+
+/-- `M_k`: the maximum over `0 ≤ u ≤ N` of `|shellPrefix k u|`, with `N = 2^k`. -/
+def shellMax (c : Nat → Bool) (k : Nat) : Nat :=
+  maxTo (fun u => (shellPrefix c k u).natAbs) (2 ^ k)
+
+/-- `b_(k,j,a)`: the sum of `z` on aligned block `a` of length `2^j` inside shell `k`. -/
+def blockSum (c : Nat → Bool) (k j a : Nat) : Int :=
+  sumTo (fun r => z c (2 ^ k + a * 2 ^ j + r)) (2 ^ j)
+
+/-- `E_(k,j)`: the sum over the `2^(k-j)` aligned blocks of `b_(k,j,a)^2`. Used only for `j ≤ k`. -/
+def blockEnergy (c : Nat → Bool) (k j : Nat) : Int :=
+  sumTo (fun a => blockSum c k j a * blockSum c k j a) (2 ^ (k - j))
+
+/-- `H_k`: the sum of `E_(k,j)` over `0 ≤ j ≤ k`. -/
+def orderedEnergy (c : Nat → Bool) (k : Nat) : Int :=
+  sumTo (fun j => blockEnergy c k j) (k + 1)
+
+/-- P2, `A(T) - T/2 = o(T)`. For `ε = 1/(2m)` the bound `|A(T) - T/2| ≤ εT` is
+`m |2A(T) - T| ≤ T`, and every real `ε > 0` dominates some `1/(2m)`. -/
+def DensityHalf (c : Nat → Bool) : Prop :=
+  ∀ m : Nat, ∃ T0 : Nat, ∀ T : Nat, T0 ≤ T →
+    m * (2 * (ones c T : Int) - (T : Int)).natAbs ≤ T
+
+/-- `M_k = o(N)`, `N = 2^k`. -/
+def ShellMaxLittleO (c : Nat → Bool) : Prop :=
+  ∀ m : Nat, ∃ K : Nat, ∀ k : Nat, K ≤ k → m * shellMax c k ≤ 2 ^ k
+
+/-- `F_k → 0` for `F_k = min over 0 ≤ j ≤ k of (V_(k,j) + 4^(j-k))`, `V_(k,j) = E_(k,j)/(N 2^j)`.
+`m F_k ≤ 1` says some `j ≤ k` has `m (E_(k,j)/(2^k 2^j) + 4^j/4^k) ≤ 1`; multiplying by
+`4^k 2^j` gives `m (E_(k,j) 2^k + 8^j) ≤ 4^k 2^j`. -/
+def FlexibleEnergyToZero (c : Nat → Bool) : Prop :=
+  ∀ m : Nat, ∃ K : Nat, ∀ k : Nat, K ≤ k → ∃ j : Nat, j ≤ k ∧
+    (m : Int) * (blockEnergy c k j * 2 ^ k + 8 ^ j) ≤ 4 ^ k * 2 ^ j
+
+/-- `H_k = o(N^2)`. -/
+def OrderedEnergyLittleO (c : Nat → Bool) : Prop :=
+  ∀ m : Nat, ∃ K : Nat, ∀ k : Nat, K ≤ k → (m : Int) * orderedEnergy c k ≤ 4 ^ k
+
+/-- `max over j ≤ k of E_(k,j) = o(N^2)`. -/
+def MaxBlockEnergyLittleO (c : Nat → Bool) : Prop :=
+  ∀ m : Nat, ∃ K : Nat, ∀ k : Nat, K ≤ k → ∀ j : Nat, j ≤ k →
+    (m : Int) * blockEnergy c k j ≤ 4 ^ k
+
+/-- Weakened hypothesis for the control: only the dyadic endpoint sums `S(2^k)` are `o(2^k)`. -/
+def DyadicEndpointsLittleO (c : Nat → Bool) : Prop :=
+  ∀ m : Nat, ∃ K : Nat, ∀ k : Nat, K ≤ k → m * (S c (2 ^ k)).natAbs ≤ 2 ^ k
+
+/-- Weakened hypothesis for the control: `min over j ≤ k of V_(k,j) → 0`, the flexible
+energy with its scale penalty `4^(j-k)` dropped. -/
+def UnpenalizedEnergyToZero (c : Nat → Bool) : Prop :=
+  ∀ m : Nat, ∃ K : Nat, ∀ k : Nat, K ≤ k → ∃ j : Nat, j ≤ k ∧
+    (m : Int) * blockEnergy c k j ≤ 2 ^ k * 2 ^ j
+
+/-! ## Sums, maxima and aligned blocks -/
+
+/-! Proof plan.
+`blockSum c k j a = shellPrefix c k ((a+1)*2^j) - shellPrefix c k (a*2^j)` by additivity of
+`sumTo`, so `|blockSum| ≤ 2 * shellMax` when `(a+1)*2^j ≤ 2^k`. Each `|z| = 1`, so a sum of
+`n` of them has absolute value at most `n`.
+Prefix estimate: `u ≤ N` attains `M`. Write `u = q*L + s`, `s < L`, `q ≤ Q = 2^(k-j)`.
+`shellPrefix u = (Σ_{a<q} b_a) + tail`, `|tail| ≤ s < L`, so `M - L ≤ |Σ_{a<q} b_a|`.
+Cauchy-Schwarz gives `(Σ_{a<q} b_a)^2 ≤ q Σ_{a<q} b_a^2 ≤ Q E`. Multiply by `L`, `Q L = N`. -/
+
+theorem sumTo_succ (f : Nat → Int) (n : Nat) : sumTo f (n + 1) = sumTo f n + f n := rfl
+
+theorem sumTo_add (f : Nat → Int) (m n : Nat) :
+    sumTo f (m + n) = sumTo f m + sumTo (fun i => f (m + i)) n := by
+  induction n with
+  | zero => simp [sumTo]
+  | succ n ih =>
+    rw [← Nat.add_assoc, sumTo_succ, sumTo_succ, ih]
+    omega
+
+theorem sumTo_congr (f g : Nat → Int) (n : Nat) (h : ∀ i, i < n → f i = g i) :
+    sumTo f n = sumTo g n := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+    rw [sumTo_succ, sumTo_succ, ih (fun i hi => h i (by omega)), h n (by omega)]
+
+theorem sumTo_nonneg (f : Nat → Int) (n : Nat) (h : ∀ i, 0 ≤ f i) : 0 ≤ sumTo f n := by
+  induction n with
+  | zero => simp [sumTo]
+  | succ n ih =>
+    rw [sumTo_succ]
+    have := h n
+    omega
+
+theorem sumTo_mono (f : Nat → Int) (h : ∀ i, 0 ≤ f i) (m n : Nat) (hmn : m ≤ n) :
+    sumTo f m ≤ sumTo f n := by
+  induction n with
+  | zero =>
+    have : m = 0 := by omega
+    subst this
+    exact Int.le_refl _
+  | succ n ih =>
+    by_cases hm : m = n + 1
+    · subst hm
+      exact Int.le_refl _
+    · have h1 := ih (by omega)
+      have h2 := h n
+      rw [sumTo_succ]
+      omega
+
+theorem natAbs_sumTo_le (f : Nat → Int) (n : Nat) (h : ∀ i, (f i).natAbs ≤ 1) :
+    (sumTo f n).natAbs ≤ n := by
+  induction n with
+  | zero => simp [sumTo]
+  | succ n ih =>
+    rw [sumTo_succ]
+    have := h n
+    omega
+
+theorem mul_self_nonneg (a : Int) : 0 ≤ a * a := by
+  rw [← Int.natAbs_mul_self' a]
+  exact Int.mul_nonneg (Int.natCast_nonneg _) (Int.natCast_nonneg _)
+
+theorem two_mul_le_sq_add_sq (a b : Int) : 2 * (a * b) ≤ a * a + b * b := by
+  have h : 0 ≤ (a - b) * (a - b) := mul_self_nonneg _
+  have e : (a - b) * (a - b) = a * a - 2 * (a * b) + b * b := by grind
+  omega
+
+/-- Cross-term helper for Cauchy-Schwarz. -/
+theorem two_sumTo_mul_le (x : Nat → Int) (y : Int) (q : Nat) :
+    2 * (sumTo x q * y) ≤ sumTo (fun a => x a * x a) q + (q : Int) * (y * y) := by
+  induction q with
+  | zero => simp [sumTo]
+  | succ q ih =>
+    rw [sumTo_succ, sumTo_succ]
+    have h1 := two_mul_le_sq_add_sq (x q) y
+    have e1 : (sumTo x q + x q) * y = sumTo x q * y + x q * y := by grind
+    have e2 : ((q + 1 : Nat) : Int) * (y * y) = (q : Int) * (y * y) + y * y := by
+      push_cast
+      grind
+    rw [e1, e2]
+    omega
+
+/-- Cauchy-Schwarz for `sumTo`: `(Σ_{a<q} x_a)^2 ≤ q Σ_{a<q} x_a^2`. -/
+theorem sumTo_sq_le (x : Nat → Int) (q : Nat) :
+    sumTo x q * sumTo x q ≤ (q : Int) * sumTo (fun a => x a * x a) q := by
+  induction q with
+  | zero => simp [sumTo]
+  | succ q ih =>
+    rw [sumTo_succ, sumTo_succ]
+    have h1 := two_sumTo_mul_le x (x q) q
+    have e1 : (sumTo x q + x q) * (sumTo x q + x q)
+        = sumTo x q * sumTo x q + 2 * (sumTo x q * x q) + x q * x q := by grind
+    have e2 : ((q + 1 : Nat) : Int) * (sumTo (fun a => x a * x a) q + x q * x q)
+        = (q : Int) * sumTo (fun a => x a * x a) q + (q : Int) * (x q * x q)
+          + sumTo (fun a => x a * x a) q + x q * x q := by
+      push_cast
+      grind
+    rw [e1, e2]
+    omega
+
+theorem sq_le_sq_of_le_natAbs (d B : Int) (hd : 0 ≤ d) (h : d ≤ (B.natAbs : Int)) :
+    d * d ≤ B * B := by
+  rw [← Int.natAbs_mul_self' B]
+  exact Int.mul_le_mul h h hd (Int.natCast_nonneg _)
+
+theorem le_maxTo (f : Nat → Nat) (n u : Nat) (hu : u ≤ n) : f u ≤ maxTo f n := by
+  induction n with
+  | zero =>
+    have : u = 0 := by omega
+    subst this
+    exact Nat.le_refl _
+  | succ n ih =>
+    show f u ≤ max (maxTo f n) (f (n + 1))
+    by_cases h : u = n + 1
+    · subst h
+      omega
+    · have := ih (by omega)
+      omega
+
+theorem maxTo_le (f : Nat → Nat) (n B : Nat) (h : ∀ u, u ≤ n → f u ≤ B) : maxTo f n ≤ B := by
+  induction n with
+  | zero => exact h 0 (Nat.le_refl _)
+  | succ n ih =>
+    show max (maxTo f n) (f (n + 1)) ≤ B
+    have h1 := ih (fun u hu => h u (by omega))
+    have h2 := h (n + 1) (Nat.le_refl _)
+    omega
+
+theorem exists_maxTo_attained (f : Nat → Nat) (n : Nat) : ∃ u, u ≤ n ∧ maxTo f n = f u := by
+  induction n with
+  | zero => exact ⟨0, Nat.le_refl _, rfl⟩
+  | succ n ih =>
+    rcases ih with ⟨u, hu, he⟩
+    by_cases h : maxTo f n ≤ f (n + 1)
+    · refine ⟨n + 1, Nat.le_refl _, ?_⟩
+      show max (maxTo f n) (f (n + 1)) = f (n + 1)
+      omega
+    · refine ⟨u, by omega, ?_⟩
+      show max (maxTo f n) (f (n + 1)) = f u
+      omega
+
+theorem natAbs_z (c : Nat → Bool) (t : Nat) : (z c t).natAbs = 1 := by
+  unfold z sign
+  split <;> rfl
+
+theorem natAbs_z_le (c : Nat → Bool) (t : Nat) : (z c t).natAbs ≤ 1 :=
+  Nat.le_of_eq (natAbs_z c t)
+
+theorem natAbs_shellPrefix_le (c : Nat → Bool) (k u : Nat) : (shellPrefix c k u).natAbs ≤ u :=
+  natAbs_sumTo_le _ u (fun _ => natAbs_z_le c _)
+
+/-- `b_(k,j,a) = P((a+1) 2^j) - P(a 2^j)`, stated additively. -/
+theorem shellPrefix_succ_block (c : Nat → Bool) (k j a : Nat) :
+    shellPrefix c k ((a + 1) * 2 ^ j) = shellPrefix c k (a * 2 ^ j) + blockSum c k j a := by
+  unfold shellPrefix blockSum
+  have e : (a + 1) * 2 ^ j = a * 2 ^ j + 2 ^ j := by
+    rw [Nat.add_mul, Nat.one_mul]
+  rw [e, sumTo_add]
+  have e2 : sumTo (fun i => (fun r => z c (2 ^ k + r)) (a * 2 ^ j + i)) (2 ^ j)
+      = sumTo (fun r => z c (2 ^ k + a * 2 ^ j + r)) (2 ^ j) :=
+    sumTo_congr _ _ _ (fun i _ => by
+      show z c (2 ^ k + (a * 2 ^ j + i)) = z c (2 ^ k + a * 2 ^ j + i)
+      rw [Nat.add_assoc])
+  rw [e2]
+
+/-- `Σ_{a<q} b_(k,j,a) = P(q 2^j)`. -/
+theorem sumTo_blockSum (c : Nat → Bool) (k j q : Nat) :
+    sumTo (fun a => blockSum c k j a) q = shellPrefix c k (q * 2 ^ j) := by
+  induction q with
+  | zero =>
+    rw [Nat.zero_mul]
+    rfl
+  | succ q ih =>
+    rw [sumTo_succ, ih, shellPrefix_succ_block]
+
+theorem pow_sub_mul_pow (k j : Nat) (hj : j ≤ k) : 2 ^ (k - j) * 2 ^ j = 2 ^ k := by
+  rw [← Nat.pow_add, Nat.sub_add_cancel hj]
+
+theorem blockEnergy_nonneg (c : Nat → Bool) (k j : Nat) : 0 ≤ blockEnergy c k j := by
+  unfold blockEnergy
+  exact sumTo_nonneg _ _ (fun a => mul_self_nonneg _)
+
+theorem natAbs_blockSum_le_pow (c : Nat → Bool) (k j a : Nat) :
+    (blockSum c k j a).natAbs ≤ 2 ^ j := by
+  unfold blockSum
+  exact natAbs_sumTo_le _ _ (fun _ => natAbs_z_le c _)
+
+theorem natAbs_shellPrefix_le_shellMax (c : Nat → Bool) (k u : Nat) (hu : u ≤ 2 ^ k) :
+    (shellPrefix c k u).natAbs ≤ shellMax c k := by
+  unfold shellMax
+  exact le_maxTo (fun u => (shellPrefix c k u).natAbs) (2 ^ k) u hu
+
+theorem natAbs_blockSum_le_two_shellMax (c : Nat → Bool) (k j a : Nat)
+    (hj : j ≤ k) (ha : a < 2 ^ (k - j)) :
+    (blockSum c k j a).natAbs ≤ 2 * shellMax c k := by
+  have hN := pow_sub_mul_pow k j hj
+  have h1 : (a + 1) * 2 ^ j ≤ 2 ^ k := by
+    rw [← hN]
+    exact Nat.mul_le_mul_right _ ha
+  have h0 : a * 2 ^ j ≤ 2 ^ k := by
+    have : a * 2 ^ j ≤ (a + 1) * 2 ^ j := Nat.mul_le_mul_right _ (Nat.le_succ a)
+    omega
+  have e := shellPrefix_succ_block c k j a
+  have b1 := natAbs_shellPrefix_le_shellMax c k _ h1
+  have b0 := natAbs_shellPrefix_le_shellMax c k _ h0
+  omega
+
+theorem shellMax_le_pow (c : Nat → Bool) (k : Nat) : shellMax c k ≤ 2 ^ k := by
+  unfold shellMax
+  exact maxTo_le _ _ _ (fun u hu => Nat.le_trans (natAbs_shellPrefix_le c k u) hu)
+
+theorem exists_shellMax_attained (c : Nat → Bool) (k : Nat) :
+    ∃ u : Nat, u ≤ 2 ^ k ∧ shellMax c k = (shellPrefix c k u).natAbs := by
+  unfold shellMax
+  exact exists_maxTo_attained (fun u => (shellPrefix c k u).natAbs) (2 ^ k)
+
+/-- Splitting a prefix at the last aligned block boundary: with `q = u / 2^j`,
+`|P(u)| ≤ |Σ_{a<q} b_a| + 2^j`, and `q ≤ 2^(k-j)` when `u ≤ 2^k`. -/
+theorem natAbs_shellPrefix_le_blocks (c : Nat → Bool) (k j u : Nat) :
+    (shellPrefix c k u).natAbs
+      ≤ (sumTo (fun a => blockSum c k j a) (u / 2 ^ j)).natAbs + 2 ^ j := by
+  have hL : 0 < 2 ^ j := Nat.two_pow_pos j
+  have hdm : u / 2 ^ j * 2 ^ j + u % 2 ^ j = u := by
+    rw [Nat.mul_comm]
+    exact Nat.div_add_mod u (2 ^ j)
+  have hs : u % 2 ^ j < 2 ^ j := Nat.mod_lt u hL
+  rw [sumTo_blockSum]
+  have split : shellPrefix c k u = shellPrefix c k (u / 2 ^ j * 2 ^ j)
+      + sumTo (fun i => (fun r => z c (2 ^ k + r)) (u / 2 ^ j * 2 ^ j + i)) (u % 2 ^ j) := by
+    have : shellPrefix c k u = shellPrefix c k (u / 2 ^ j * 2 ^ j + u % 2 ^ j) := by rw [hdm]
+    rw [this]
+    unfold shellPrefix
+    exact sumTo_add _ _ _
+  have tail : (sumTo (fun i => (fun r => z c (2 ^ k + r)) (u / 2 ^ j * 2 ^ j + i))
+      (u % 2 ^ j)).natAbs ≤ u % 2 ^ j :=
+    natAbs_sumTo_le _ _ (fun _ => natAbs_z_le c _)
+  rw [split]
+  omega
+
+/-- The squared prefix estimate: with M = shellMax, L = 2^j, N = 2^k, if M > L then
+(M - L)^2 * L ≤ N * E_(k,j). -/
+theorem prefix_estimate (c : Nat → Bool) (k j : Nat) (hj : j ≤ k) :
+    (shellMax c k : Int) ≤ 2 ^ j ∨
+    ((shellMax c k : Int) - 2 ^ j) * ((shellMax c k : Int) - 2 ^ j) * 2 ^ j
+      ≤ 2 ^ k * blockEnergy c k j := by
+  by_cases hML : (shellMax c k : Int) ≤ 2 ^ j
+  · exact Or.inl hML
+  · refine Or.inr ?_
+    rcases exists_shellMax_attained c k with ⟨u, hu, hM⟩
+    have hN := pow_sub_mul_pow k j hj
+    have hq : u / 2 ^ j ≤ 2 ^ (k - j) := by
+      apply Nat.div_le_of_le_mul
+      rw [Nat.mul_comm, hN]
+      exact hu
+    have hsplit := natAbs_shellPrefix_le_blocks c k j u
+    have hLcast : ((2 ^ j : Nat) : Int) = (2 : Int) ^ j := by
+      rw [Int.natCast_pow]
+      rfl
+    have hNcast : ((2 : Int) ^ (k - j)) * (2 : Int) ^ j = (2 : Int) ^ k := by
+      rw [← Int.pow_add, Nat.sub_add_cancel hj]
+    have hQcast : ((2 ^ (k - j) : Nat) : Int) = (2 : Int) ^ (k - j) := by
+      rw [Int.natCast_pow]
+      rfl
+    -- d ≤ |B|
+    have hd0 : 0 ≤ (shellMax c k : Int) - 2 ^ j := by omega
+    have hdB : (shellMax c k : Int) - 2 ^ j
+        ≤ ((sumTo (fun a => blockSum c k j a) (u / 2 ^ j)).natAbs : Int) := by
+      rw [← hLcast]
+      omega
+    have h1 := sq_le_sq_of_le_natAbs _ _ hd0 hdB
+    have h2 := sumTo_sq_le (fun a => blockSum c k j a) (u / 2 ^ j)
+    have hsq : ∀ a, 0 ≤ (fun a => blockSum c k j a * blockSum c k j a) a :=
+      fun a => mul_self_nonneg _
+    have h3 : sumTo (fun a => blockSum c k j a * blockSum c k j a) (u / 2 ^ j)
+        ≤ blockEnergy c k j := sumTo_mono _ hsq _ _ hq
+    have h3' : 0 ≤ sumTo (fun a => blockSum c k j a * blockSum c k j a) (u / 2 ^ j) :=
+      sumTo_nonneg _ _ hsq
+    have hqc : ((u / 2 ^ j : Nat) : Int) ≤ (2 : Int) ^ (k - j) := by
+      rw [← hQcast]
+      exact Int.ofNat_le.mpr hq
+    have hQ0 : (0 : Int) ≤ (2 : Int) ^ (k - j) := by
+      rw [← hQcast]
+      exact Int.natCast_nonneg _
+    have hL0 : (0 : Int) ≤ (2 : Int) ^ j := by
+      rw [← hLcast]
+      exact Int.natCast_nonneg _
+    have h4 : ((u / 2 ^ j : Nat) : Int)
+          * sumTo (fun a => blockSum c k j a * blockSum c k j a) (u / 2 ^ j)
+        ≤ (2 : Int) ^ (k - j) * blockEnergy c k j :=
+      Int.mul_le_mul hqc h3 h3' hQ0
+    have h5 : ((shellMax c k : Int) - 2 ^ j) * ((shellMax c k : Int) - 2 ^ j)
+        ≤ (2 : Int) ^ (k - j) * blockEnergy c k j :=
+      Int.le_trans h1 (Int.le_trans h2 h4)
+    have h6 := Int.mul_le_mul_of_nonneg_right h5 hL0
+    have e : (2 : Int) ^ (k - j) * blockEnergy c k j * 2 ^ j = 2 ^ k * blockEnergy c k j := by
+      rw [← hNcast]
+      grind
+    rw [e] at h6
+    exact h6
+
+/-! ## P2.1: density one-half and the shell maximum -/
+
+
+theorem ones_le (c : Nat → Bool) (T : Nat) : ones c T ≤ T := by
+  induction T with
+  | zero => simp [ones]
+  | succ T ih =>
+    simp only [ones]
+    split <;> omega
+
+theorem signedSum_eq (c : Nat → Bool) (T : Nat) :
+    S c T = (T : Int) - 2 * (ones c T : Int) := by
+  induction T with
+  | zero => simp [S, sumTo, ones]
+  | succ T ih =>
+    unfold S at ih ⊢
+    simp only [sumTo, ones]
+    rw [ih]
+    cases h : c T <;> simp [z, sign, h] <;> omega
+
+theorem shellPrefix_eq (c : Nat → Bool) (k u : Nat) :
+    shellPrefix c k u = S c (2 ^ k + u) - S c (2 ^ k) := by
+  unfold shellPrefix S
+  rw [sumTo_add]
+  omega
+
+theorem natAbs_S_le (c : Nat → Bool) (n : Nat) : (S c n).natAbs ≤ n := by
+  have h1 := signedSum_eq c n
+  have h2 := ones_le c n
+  omega
+
+theorem densityHalf_imp_shellMaxLittleO (c : Nat → Bool) (h : DensityHalf c) :
+    ShellMaxLittleO c := by
+  intro m
+  rcases h (3 * m) with ⟨T0, hT0⟩
+  refine ⟨T0, ?_⟩
+  intro k hk
+  have hpow : T0 < 2 ^ k :=
+    Nat.lt_of_lt_of_le Nat.lt_two_pow_self (Nat.pow_le_pow_right (by decide) hk)
+  rcases exists_maxTo_attained (fun u => (shellPrefix c k u).natAbs) (2 ^ k) with ⟨u, hu, he⟩
+  have hM : shellMax c k = (shellPrefix c k u).natAbs := he
+  rw [hM, shellPrefix_eq]
+  have h1 := hT0 (2 ^ k + u) (by omega)
+  have h2 := hT0 (2 ^ k) (by omega)
+  have e1 := signedSum_eq c (2 ^ k + u)
+  have e2 := signedSum_eq c (2 ^ k)
+  have n1 : (2 * (ones c (2 ^ k + u) : Int) - ((2 ^ k + u : Nat) : Int)).natAbs
+      = (S c (2 ^ k + u)).natAbs := by omega
+  have n2 : (2 * (ones c (2 ^ k) : Int) - ((2 ^ k : Nat) : Int)).natAbs
+      = (S c (2 ^ k)).natAbs := by omega
+  rw [n1, Nat.mul_assoc] at h1
+  rw [n2, Nat.mul_assoc] at h2
+  have hx : (S c (2 ^ k + u) - S c (2 ^ k)).natAbs
+      ≤ (S c (2 ^ k + u)).natAbs + (S c (2 ^ k)).natAbs := by omega
+  have hmul := Nat.mul_le_mul_left m hx
+  rw [Nat.mul_add] at hmul
+  omega
+
+theorem S_two_pow_succ (c : Nat → Bool) (k : Nat) :
+    S c (2 ^ (k + 1)) = S c (2 ^ k) + shellPrefix c k (2 ^ k) := by
+  have h := shellPrefix_eq c k (2 ^ k)
+  have e : 2 ^ (k + 1) = 2 ^ k + 2 ^ k := by omega
+  rw [e]
+  omega
+
+theorem dyadic_telescope (c : Nat → Bool) (m K : Nat)
+    (hK : ∀ k, K ≤ k → 4 * m * shellMax c k ≤ 2 ^ k) (d : Nat) :
+    4 * m * (S c (2 ^ (K + d)) - S c (2 ^ K)).natAbs + 2 ^ K ≤ 2 ^ (K + d) := by
+  induction d with
+  | zero => simp
+  | succ d ih =>
+    rw [← Nat.add_assoc, S_two_pow_succ]
+    have hs := natAbs_shellPrefix_le_shellMax c (K + d) (2 ^ (K + d)) (Nat.le_refl _)
+    have hk := hK (K + d) (by omega)
+    have hx : (S c (2 ^ (K + d)) + shellPrefix c (K + d) (2 ^ (K + d)) - S c (2 ^ K)).natAbs
+        ≤ (S c (2 ^ (K + d)) - S c (2 ^ K)).natAbs + shellMax c (K + d) := by omega
+    have hmul := Nat.mul_le_mul_left (4 * m) hx
+    rw [Nat.mul_add] at hmul
+    omega
+
+theorem shellMaxLittleO_imp_densityHalf (c : Nat → Bool) (h : ShellMaxLittleO c) :
+    DensityHalf c := by
+  intro m
+  rcases h (4 * m) with ⟨K, hK⟩
+  refine ⟨2 ^ K * (2 * m + 1), ?_⟩
+  intro T hT
+  have hpos : 0 < 2 ^ K := Nat.two_pow_pos K
+  have hP : 2 ^ K * (2 * m + 1) = 2 * (m * 2 ^ K) + 2 ^ K := by grind
+  have hT1 : T ≠ 0 := by omega
+  have lo : 2 ^ T.log2 ≤ T := Nat.log2_self_le hT1
+  have hi : T < 2 ^ (T.log2 + 1) := Nat.lt_log2_self
+  have hKk : K ≤ T.log2 := by
+    have hlt : 2 ^ K < 2 ^ (T.log2 + 1) := by omega
+    have := (Nat.pow_lt_pow_iff_right (by decide : 1 < 2)).mp hlt
+    omega
+  generalize T.log2 = k at lo hi hKk
+  have hTk : 2 ^ k + (T - 2 ^ k) = T := by omega
+  have hu : T - 2 ^ k ≤ 2 ^ k := by omega
+  have hd : K + (k - K) = k := by omega
+  have tel := dyadic_telescope c m K hK (k - K)
+  rw [hd] at tel
+  have sp := shellPrefix_eq c k (T - 2 ^ k)
+  rw [hTk] at sp
+  have hs := natAbs_shellPrefix_le_shellMax c k (T - 2 ^ k) hu
+  have hk := hK k hKk
+  have hb := natAbs_S_le c (2 ^ K)
+  have hx : (S c T).natAbs
+      ≤ (S c (2 ^ K)).natAbs + (S c (2 ^ k) - S c (2 ^ K)).natAbs + shellMax c k := by omega
+  have hmul := Nat.mul_le_mul_left (4 * m) hx
+  rw [Nat.mul_add, Nat.mul_add] at hmul
+  have hb' := Nat.mul_le_mul_left (4 * m) hb
+  have e1 : 4 * m * 2 ^ K = 4 * (m * 2 ^ K) := Nat.mul_assoc 4 m (2 ^ K)
+  have e2 : 4 * m * (S c T).natAbs = 4 * (m * (S c T).natAbs) := Nat.mul_assoc 4 m _
+  have eS := signedSum_eq c T
+  have n1 : (2 * (ones c T : Int) - (T : Int)).natAbs = (S c T).natAbs := by omega
+  rw [n1]
+  omega
+
+theorem densityHalf_iff_shellMaxLittleO (c : Nat → Bool) :
+    DensityHalf c ↔ ShellMaxLittleO c :=
+  ⟨densityHalf_imp_shellMaxLittleO c, shellMaxLittleO_imp_densityHalf c⟩
+
+/-! ## Flexible energy -/
+
+/-! Proof plan, `N = 2^k`, `L = 2^j`, `M = shellMax c k`, `E = blockEnergy c k j`,
+`4^k = N*N`, `8^j = L*L*L`.
+(<-) Take the flexible-energy hypothesis at `4*m*m`. Both summands are nonnegative, so
+`4mm L^3 ≤ N^2 L` and `4mm E N ≤ N^2 L` hold separately. The first gives `(2mL)^2 ≤ N^2`,
+so `2mL ≤ N`. `prefix_estimate` gives `M ≤ L`, or `(M-L)^2 L ≤ N E`, and then
+`(2m(M-L))^2 L ≤ 4mm N E ≤ N^2 L`, so `2m(M-L) ≤ N`. Either way `2mM ≤ 2N`.
+(->) Take the shell-max hypothesis at `8m` and `k ≥ 2m`, so `8mM ≤ N` and `2m ≤ N^2`.
+Pick `j` minimal with `8 m M^2 ≤ L^2`; minimality gives `j = 0` or `L^2 < 32 m M^2`, and in
+both cases `2 m L^2 ≤ N^2`, hence `L ≤ N` and `j ≤ k`. Each `|b_a| ≤ 2M`, so
+`E L ≤ N 4 M^2`. Multiply the goal by `L > 0`:
+`m E N L ≤ 4 m M^2 N^2 ≤ N^2 L^2 / 2` and `m L^4 ≤ N^2 L^2 / 2`. -/
+
+theorem le_of_mul_self_le (a b : Int) (hb : 0 ≤ b) (h : a * a ≤ b * b) : a ≤ b := by
+  by_cases hab : a ≤ b
+  · exact hab
+  · have hlt : b < a := by omega
+    have ha : 0 < a := by omega
+    have h1 : b * b ≤ b * a := Int.mul_le_mul_of_nonneg_left (Int.le_of_lt hlt) hb
+    have h2 : b * a < a * a := Int.mul_lt_mul_of_pos_right hlt ha
+    omega
+
+theorem four_pow_eq (k : Nat) : (4 : Int) ^ k = 2 ^ k * 2 ^ k := by
+  have e : (4 : Int) = 2 * 2 := by decide
+  rw [e, Int.mul_pow]
+
+theorem eight_pow_eq (j : Nat) : (8 : Int) ^ j = 2 ^ j * 2 ^ j * 2 ^ j := by
+  have e : (8 : Int) = 2 * 2 * 2 := by decide
+  rw [e, Int.mul_pow, Int.mul_pow]
+
+/-- The arithmetic core of (<-). -/
+theorem back_core (m N L M E : Int) (hm : 0 ≤ m) (hN : 0 ≤ N) (hL : 0 < L) (hE : 0 ≤ E)
+    (h : 4 * m * m * (E * N + L * L * L) ≤ N * N * L)
+    (pe : M ≤ L ∨ (M - L) * (M - L) * L ≤ N * E) : m * M ≤ N := by
+  have h4 : 0 ≤ 4 * m * m := Int.mul_nonneg (Int.mul_nonneg (by omega) hm) hm
+  have hEN : 0 ≤ 4 * m * m * (E * N) := Int.mul_nonneg h4 (Int.mul_nonneg hE hN)
+  have hL3 : 0 ≤ 4 * m * m * (L * L * L) :=
+    Int.mul_nonneg h4 (Int.mul_nonneg (Int.mul_nonneg (by omega) (by omega)) (by omega))
+  have ed : 4 * m * m * (E * N + L * L * L)
+      = 4 * m * m * (E * N) + 4 * m * m * (L * L * L) := by grind
+  rw [ed] at h
+  have e1 : 4 * m * m * (L * L * L) = (2 * m * L) * (2 * m * L) * L := by grind
+  have h1 : (2 * m * L) * (2 * m * L) * L ≤ N * N * L := by
+    rw [← e1]
+    omega
+  have h2 : 2 * m * L ≤ N := le_of_mul_self_le _ _ hN (Int.le_of_mul_le_mul_right h1 hL)
+  have e2 : 2 * m * L = 2 * (m * L) := by grind
+  rw [e2] at h2
+  rcases pe with hML | hP
+  · have h3 : m * M ≤ m * L := Int.mul_le_mul_of_nonneg_left hML hm
+    have h5 : 0 ≤ m * L := Int.mul_nonneg hm (by omega)
+    omega
+  · have h3 : 4 * m * m * ((M - L) * (M - L) * L) ≤ 4 * m * m * (N * E) :=
+      Int.mul_le_mul_of_nonneg_left hP h4
+    have e3 : 4 * m * m * ((M - L) * (M - L) * L)
+        = (2 * m * (M - L)) * (2 * m * (M - L)) * L := by grind
+    have e4 : 4 * m * m * (N * E) = 4 * m * m * (E * N) := by grind
+    have h5 : (2 * m * (M - L)) * (2 * m * (M - L)) * L ≤ N * N * L := by
+      rw [← e3]
+      omega
+    have h6 : 2 * m * (M - L) ≤ N :=
+      le_of_mul_self_le _ _ hN (Int.le_of_mul_le_mul_right h5 hL)
+    have e5 : 2 * m * (M - L) = 2 * (m * M) - 2 * (m * L) := by grind
+    rw [e5] at h6
+    omega
+
+/-- The arithmetic core of (->). -/
+theorem fwd_core (m N L M E : Int) (hm : 0 ≤ m) (hN : 0 ≤ N) (hL : 0 < L)
+    (hEL : E * L ≤ N * (4 * (M * M)))
+    (hLM : 8 * (m * (M * M)) ≤ L * L)
+    (hLN : 2 * (m * (L * L)) ≤ N * N) :
+    m * (E * N + L * L * L) ≤ N * N * L := by
+  apply Int.le_of_mul_le_mul_right (a := L) _ hL
+  have hmN : 0 ≤ m * N := Int.mul_nonneg hm hN
+  have hNN : 0 ≤ N * N := Int.mul_nonneg hN hN
+  have hLL : 0 ≤ L * L := Int.mul_nonneg (by omega) (by omega)
+  have a1 : m * N * (E * L) ≤ m * N * (N * (4 * (M * M))) :=
+    Int.mul_le_mul_of_nonneg_left hEL hmN
+  have a2 : N * N * (8 * (m * (M * M))) ≤ N * N * (L * L) :=
+    Int.mul_le_mul_of_nonneg_left hLM hNN
+  have a3 : 2 * (m * (L * L)) * (L * L) ≤ N * N * (L * L) :=
+    Int.mul_le_mul_of_nonneg_right hLN hLL
+  have e0 : m * (E * N + L * L * L) * L = m * N * (E * L) + m * (L * L) * (L * L) := by grind
+  have e1 : m * N * (N * (4 * (M * M))) = 4 * (N * N * (m * (M * M))) := by grind
+  have e2 : N * N * (8 * (m * (M * M))) = 8 * (N * N * (m * (M * M))) := by grind
+  have e3 : 2 * (m * (L * L)) * (L * L) = 2 * (m * (L * L) * (L * L)) := by grind
+  have e4 : N * N * L * L = N * N * (L * L) := by grind
+  rw [e0, e4]
+  rw [e1] at a1
+  rw [e2] at a2
+  rw [e3] at a3
+  omega
+
+/-- A minimal dyadic scale: `B ≤ L^2` with `L = 2^j`, and `j = 0` or `L^2 < 4B`. -/
+theorem exists_min_scale (B : Nat) :
+    ∃ j : Nat, B ≤ 2 ^ j * 2 ^ j ∧ (j = 0 ∨ 2 ^ j * 2 ^ j < 4 * B) := by
+  have aux : ∀ n : Nat, B ≤ 2 ^ n * 2 ^ n →
+      ∃ j : Nat, B ≤ 2 ^ j * 2 ^ j ∧ (j = 0 ∨ 2 ^ j * 2 ^ j < 4 * B) := by
+    intro n
+    induction n with
+    | zero =>
+      intro h
+      exact ⟨0, h, Or.inl rfl⟩
+    | succ n ih =>
+      intro h
+      by_cases hn : B ≤ 2 ^ n * 2 ^ n
+      · exact ih hn
+      · refine ⟨n + 1, h, Or.inr ?_⟩
+        have e : 2 ^ (n + 1) * 2 ^ (n + 1) = 4 * (2 ^ n * 2 ^ n) := by
+          rw [Nat.pow_succ]
+          grind
+        omega
+  apply aux B
+  have h1 : B < 2 ^ B := Nat.lt_two_pow_self
+  have h2 : 2 ^ B ≤ 2 ^ B * 2 ^ B := Nat.le_mul_self _
+  omega
+
+theorem scale_bound (m N L M : Nat) (h8 : 8 * m * M ≤ N) (h2 : 2 * m ≤ N * N)
+    (hmin : L = 1 ∨ L * L < 4 * (8 * (m * (M * M)))) : 2 * (m * (L * L)) ≤ N * N := by
+  rcases hmin with h | h
+  · subst h
+    omega
+  · have hsq : (8 * m * M) * (8 * m * M) ≤ N * N := Nat.mul_self_le_mul_self h8
+    have h3 : m * (L * L) ≤ m * (4 * (8 * (m * (M * M)))) :=
+      Nat.mul_le_mul_left m (Nat.le_of_lt h)
+    have e : 2 * (m * (4 * (8 * (m * (M * M))))) = (8 * m * M) * (8 * m * M) := by grind
+    omega
+
+theorem sumTo_le_mul (f : Nat → Int) (n : Nat) (B : Int) (h : ∀ a, a < n → f a ≤ B) :
+    sumTo f n ≤ (n : Int) * B := by
+  induction n with
+  | zero => simp [sumTo]
+  | succ n ih =>
+    rw [sumTo_succ]
+    have h1 := ih (fun a ha => h a (by omega))
+    have h2 := h n (by omega)
+    have e : ((n + 1 : Nat) : Int) * B = (n : Int) * B + B := by
+      push_cast
+      grind
+    rw [e]
+    omega
+
+theorem blockSum_sq_le (c : Nat → Bool) (k j a : Nat) (hj : j ≤ k) (ha : a < 2 ^ (k - j)) :
+    blockSum c k j a * blockSum c k j a
+      ≤ 4 * ((shellMax c k : Int) * (shellMax c k : Int)) := by
+  have h := natAbs_blockSum_le_two_shellMax c k j a hj ha
+  have hc : ((blockSum c k j a).natAbs : Int) ≤ 2 * (shellMax c k : Int) := by
+    exact_mod_cast h
+  rw [← Int.natAbs_mul_self' (blockSum c k j a)]
+  have h2 := Int.mul_le_mul hc hc (Int.natCast_nonneg _)
+    (by omega : (0 : Int) ≤ 2 * (shellMax c k : Int))
+  have e : 2 * (shellMax c k : Int) * (2 * (shellMax c k : Int))
+      = 4 * ((shellMax c k : Int) * (shellMax c k : Int)) := by grind
+  omega
+
+/-- `E_(k,j) 2^j ≤ 2^k 4 M_k^2`. -/
+theorem blockEnergy_mul_le (c : Nat → Bool) (k j : Nat) (hj : j ≤ k) :
+    blockEnergy c k j * 2 ^ j
+      ≤ 2 ^ k * (4 * ((shellMax c k : Int) * (shellMax c k : Int))) := by
+  have h1 : blockEnergy c k j
+      ≤ ((2 ^ (k - j) : Nat) : Int) * (4 * ((shellMax c k : Int) * (shellMax c k : Int))) := by
+    unfold blockEnergy
+    exact sumTo_le_mul _ _ _ (fun a ha => blockSum_sq_le c k j a hj ha)
+  have hQ : ((2 ^ (k - j) : Nat) : Int) = (2 : Int) ^ (k - j) := by
+    rw [Int.natCast_pow]
+    rfl
+  rw [hQ] at h1
+  have hL0 : (0 : Int) ≤ 2 ^ j := Int.pow_nonneg (by decide)
+  have h2 := Int.mul_le_mul_of_nonneg_right h1 hL0
+  have hN : (2 : Int) ^ (k - j) * 2 ^ j = 2 ^ k := by
+    rw [← Int.pow_add, Nat.sub_add_cancel hj]
+  have e : (2 : Int) ^ (k - j) * (4 * ((shellMax c k : Int) * (shellMax c k : Int))) * 2 ^ j
+      = 2 ^ k * (4 * ((shellMax c k : Int) * (shellMax c k : Int))) := by
+    rw [← hN]
+    grind
+  rw [e] at h2
+  exact h2
+
+theorem shellMaxLittleO_of_flexibleEnergyToZero (c : Nat → Bool)
+    (hF : FlexibleEnergyToZero c) : ShellMaxLittleO c := by
+  intro m
+  rcases hF (4 * m * m) with ⟨K, hK⟩
+  refine ⟨K, fun k hk => ?_⟩
+  rcases hK k hk with ⟨j, hj, h⟩
+  rw [four_pow_eq, eight_pow_eq] at h
+  have hcast : ((4 * m * m : Nat) : Int) = 4 * (m : Int) * (m : Int) := by
+    push_cast
+    rfl
+  rw [hcast] at h
+  have hL : (0 : Int) < 2 ^ j := Int.pow_pos (by decide)
+  have hN : (0 : Int) ≤ 2 ^ k := Int.pow_nonneg (by decide)
+  have key := back_core (m : Int) (2 ^ k) (2 ^ j) (shellMax c k : Int) (blockEnergy c k j)
+    (Int.natCast_nonneg _) hN hL (blockEnergy_nonneg c k j) h (prefix_estimate c k j hj)
+  exact_mod_cast key
+
+theorem flexibleEnergyToZero_of_shellMaxLittleO (c : Nat → Bool)
+    (hS : ShellMaxLittleO c) : FlexibleEnergyToZero c := by
+  intro m
+  by_cases hm0 : m = 0
+  · subst hm0
+    refine ⟨0, fun k _ => ⟨0, Nat.zero_le _, ?_⟩⟩
+    have h1 : (0 : Int) ≤ 4 ^ k * 2 ^ 0 :=
+      Int.mul_nonneg (Int.pow_nonneg (by decide)) (Int.pow_nonneg (by decide))
+    have e0 : ((0 : Nat) : Int) = 0 := rfl
+    rw [e0, Int.zero_mul]
+    exact h1
+  · have hm : 1 ≤ m := by omega
+    rcases hS (8 * m) with ⟨K0, hK0⟩
+    refine ⟨max K0 (2 * m), fun k hk => ?_⟩
+    have h8 : 8 * m * shellMax c k ≤ 2 ^ k := hK0 k (by omega)
+    have hk2 : 2 * m ≤ 2 ^ k * 2 ^ k := by
+      have h1 : k < 2 ^ k := Nat.lt_two_pow_self
+      have h2 : 2 ^ k ≤ 2 ^ k * 2 ^ k := Nat.le_mul_self _
+      omega
+    rcases exists_min_scale (8 * (m * (shellMax c k * shellMax c k))) with ⟨j, hjB, hjmin⟩
+    have hmin' : 2 ^ j = 1 ∨ 2 ^ j * 2 ^ j < 4 * (8 * (m * (shellMax c k * shellMax c k))) := by
+      rcases hjmin with h | h
+      · exact Or.inl (by rw [h])
+      · exact Or.inr h
+    have hLN : 2 * (m * (2 ^ j * 2 ^ j)) ≤ 2 ^ k * 2 ^ k :=
+      scale_bound m (2 ^ k) (2 ^ j) (shellMax c k) h8 hk2 hmin'
+    have hjk : j ≤ k := by
+      have h1 : 2 ^ j * 2 ^ j ≤ m * (2 ^ j * 2 ^ j) := Nat.le_mul_of_pos_left _ hm
+      have h2 : 2 ^ j * 2 ^ j ≤ 2 ^ k * 2 ^ k := by omega
+      have h3 : 2 ^ j ≤ 2 ^ k := Nat.mul_self_le_mul_self_iff.mp h2
+      exact (Nat.pow_le_pow_iff_right (by decide)).mp h3
+    refine ⟨j, hjk, ?_⟩
+    have hEL := blockEnergy_mul_le c k j hjk
+    have hLMi : 8 * ((m : Int) * ((shellMax c k : Int) * (shellMax c k : Int)))
+        ≤ (2 : Int) ^ j * 2 ^ j := by
+      exact_mod_cast hjB
+    have hLNi : 2 * ((m : Int) * ((2 : Int) ^ j * 2 ^ j)) ≤ (2 : Int) ^ k * 2 ^ k := by
+      exact_mod_cast hLN
+    have hL : (0 : Int) < 2 ^ j := Int.pow_pos (by decide)
+    have hN : (0 : Int) ≤ 2 ^ k := Int.pow_nonneg (by decide)
+    have key := fwd_core (m : Int) (2 ^ k) (2 ^ j) (shellMax c k : Int) (blockEnergy c k j)
+      (Int.natCast_nonneg _) hN hL hEL hLMi hLNi
+    rw [four_pow_eq, eight_pow_eq]
+    exact key
+
+theorem shellMaxLittleO_iff_flexibleEnergyToZero (c : Nat → Bool) :
+    ShellMaxLittleO c ↔ FlexibleEnergyToZero c := by
+  exact ⟨flexibleEnergyToZero_of_shellMaxLittleO c, shellMaxLittleO_of_flexibleEnergyToZero c⟩
+
+/-! ## P2.2: ordered energy -/
+
+/-! Proof plan, with `N = 2^k`, `L = 2^j`, `M = shellMax c k`, `E_j = blockEnergy c k j`,
+`H = orderedEnergy c k`.
+(1) `E_j ≤ H` for `j ≤ k`: every `E_i ≥ 0`, so one term is at most the whole sum.
+(2) Given `m ≥ 1`, pick `i` with `2m ≤ 2^i ≤ 4m` and apply the hypothesis at `16 m^3`. For
+`k ≥ i` put `j = k - i`, so `2mL ≤ N ≤ 4mL`. `prefix_estimate` gives `M ≤ L`, whence
+`mM ≤ mL ≤ N`, or `P = M - L` has `P^2 L ≤ N E_j`. Then
+`16 m^3 P^2 L ≤ N (16 m^3 E_j) ≤ N^3 ≤ N^2 4mL`; cancelling `4mL > 0` gives `(2mP)^2 ≤ N^2`, so
+`2mP ≤ N`, and `2mM = 2mP + 2mL ≤ 2N`.
+(3) `|b_a| ≤ min(L, 2M)` so `E_j ≤ 2^(k-j) g_j` with `g_j = min(4^j, 4M^2)`. For
+`F_k = Σ_{j≤k} 2^(k-j) g_j` one has `F_(k+1) = 2 F_k + g_(k+1)`, and by induction on `k`
+`F_k ≤ 2 * 4^k` always and `F_k + 4M^2 ≤ 8 M 2^k` once `M ≤ 2^k`. The second starts in the
+window `2^k < M ≤ 2^(k+1)` from the first, using `x^2 ≤ Mx` and `M^2 ≤ 2Mx` at `x = 2^k`.
+Since `M ≤ N` always, `H ≤ 8MN`, and `ShellMaxLittleO` at `8m` gives `mH ≤ (8mM) N ≤ N^2`. -/
+
+theorem natCast_two_pow (k : Nat) : ((2 ^ k : Nat) : Int) = (2 : Int) ^ k := by
+  rw [Int.natCast_pow]
+  rfl
+
+theorem term_le_sumTo (f : Nat → Int) (h : ∀ i, 0 ≤ f i) (n j : Nat) (hj : j < n) :
+    f j ≤ sumTo f n := by
+  have h1 : sumTo f (j + 1) ≤ sumTo f n := sumTo_mono f h (j + 1) n hj
+  have h2 : 0 ≤ sumTo f j := sumTo_nonneg f j h
+  rw [sumTo_succ] at h1
+  omega
+
+theorem blockEnergy_le_orderedEnergy (c : Nat → Bool) (k j : Nat) (hj : j ≤ k) :
+    blockEnergy c k j ≤ orderedEnergy c k := by
+  unfold orderedEnergy
+  exact term_le_sumTo (fun j => blockEnergy c k j) (fun i => blockEnergy_nonneg c k i)
+    (k + 1) j (by omega)
+
+theorem orderedEnergyLittleO_imp_maxBlockEnergyLittleO (c : Nat → Bool) :
+    OrderedEnergyLittleO c → MaxBlockEnergyLittleO c := by
+  intro h m
+  rcases h m with ⟨K, hK⟩
+  refine ⟨K, fun k hk j hj => ?_⟩
+  have h1 := hK k hk
+  have h2 := blockEnergy_le_orderedEnergy c k j hj
+  have h3 : (m : Int) * blockEnergy c k j ≤ (m : Int) * orderedEnergy c k :=
+    Int.mul_le_mul_of_nonneg_left h2 (Int.natCast_nonneg m)
+  exact Int.le_trans h3 h1
+
+theorem exists_pow_between (m : Nat) (hm : m ≠ 0) : ∃ i, 2 * m ≤ 2 ^ i ∧ 2 ^ i ≤ 4 * m := by
+  refine ⟨(2 * m).log2 + 1, ?_, ?_⟩
+  · have h1 := @Nat.lt_log2_self (2 * m)
+    omega
+  · have h2 := @Nat.log2_self_le (2 * m) (by omega)
+    omega
+
+/-- The cancellation step of (2): from `P^2 L ≤ N E`, `16 m^3 E ≤ N^2` and `N ≤ 4mL`. -/
+theorem two_mul_le_of_energy (m P L N E : Int) (hm : 0 < m) (hL : 0 < L) (hN : 0 ≤ N)
+    (hc : N ≤ 4 * (m * L)) (hyp : 16 * (m * m * m) * E ≤ N * N)
+    (h : P * P * L ≤ N * E) : 2 * (m * P) ≤ N := by
+  have hm0 : 0 ≤ m := Int.le_of_lt hm
+  have hm3 : 0 ≤ 16 * (m * m * m) := by
+    have := Int.mul_nonneg (Int.mul_nonneg hm0 hm0) hm0
+    omega
+  have hA := Int.mul_le_mul_of_nonneg_left h hm3
+  have hB := Int.mul_le_mul_of_nonneg_left hyp hN
+  have hNN : 0 ≤ N * N := Int.mul_nonneg hN hN
+  have hC := Int.mul_le_mul_of_nonneg_left hc hNN
+  have e1 : 16 * (m * m * m) * (N * E) = N * (16 * (m * m * m) * E) := by grind
+  have e2 : 16 * (m * m * m) * (P * P * L)
+      = 4 * (m * L) * ((2 * (m * P)) * (2 * (m * P))) := by grind
+  have e3 : N * N * (4 * (m * L)) = 4 * (m * L) * (N * N) := by grind
+  have e4 : N * (N * N) = N * N * N := by grind
+  have hD : 4 * (m * L) * ((2 * (m * P)) * (2 * (m * P))) ≤ 4 * (m * L) * (N * N) := by
+    rw [← e2, ← e3]
+    omega
+  have hpos : 0 < 4 * (m * L) := by
+    have := Int.mul_pos hm hL
+    omega
+  exact le_of_mul_self_le _ _ hN (Int.le_of_mul_le_mul_left hD hpos)
+
+theorem mul_shellMax_le_of_energy (m M L N E : Int) (hm : 0 < m) (hL : 0 < L) (hN : 0 ≤ N)
+    (hd : 2 * (m * L) ≤ N) (hc : N ≤ 4 * (m * L))
+    (hyp : 16 * (m * m * m) * E ≤ N * N)
+    (pe : M ≤ L ∨ (M - L) * (M - L) * L ≤ N * E) : m * M ≤ N := by
+  have hmL : 0 < m * L := Int.mul_pos hm hL
+  by_cases hML : M ≤ L
+  · have := Int.mul_le_mul_of_nonneg_left hML (Int.le_of_lt hm)
+    omega
+  · have h : (M - L) * (M - L) * L ≤ N * E := by
+      rcases pe with h | h
+      · exact absurd h hML
+      · exact h
+    have h1 := two_mul_le_of_energy m (M - L) L N E hm hL hN hc hyp h
+    have e : m * (M - L) = m * M - m * L := by grind
+    rw [e] at h1
+    omega
+
+theorem maxBlockEnergyLittleO_imp_shellMaxLittleO (c : Nat → Bool) :
+    MaxBlockEnergyLittleO c → ShellMaxLittleO c := by
+  intro h m
+  by_cases hm0 : m = 0
+  · subst hm0
+    exact ⟨0, fun k _ => by simp⟩
+  · rcases h (16 * m * m * m) with ⟨K0, hK0⟩
+    rcases exists_pow_between m hm0 with ⟨i, hi1, hi2⟩
+    refine ⟨max K0 i, fun k hk => ?_⟩
+    have hk0 : K0 ≤ k := by omega
+    have hik : i ≤ k := by omega
+    have hj : k - i ≤ k := Nat.sub_le _ _
+    have hpow : 2 ^ i * 2 ^ (k - i) = 2 ^ k := by
+      rw [← Nat.pow_add]
+      congr 1
+      omega
+    have hdN : 2 * m * 2 ^ (k - i) ≤ 2 ^ k := by
+      rw [← hpow]
+      exact Nat.mul_le_mul_right _ hi1
+    have hcN : 2 ^ k ≤ 4 * m * 2 ^ (k - i) := by
+      rw [← hpow]
+      exact Nat.mul_le_mul_right _ hi2
+    have hd : 2 * ((m : Int) * (2 : Int) ^ (k - i)) ≤ (2 : Int) ^ k := by
+      have := Int.ofNat_le.mpr hdN
+      push_cast at this
+      rw [Int.mul_assoc] at this
+      exact this
+    have hc : (2 : Int) ^ k ≤ 4 * ((m : Int) * (2 : Int) ^ (k - i)) := by
+      have := Int.ofNat_le.mpr hcN
+      push_cast at this
+      rw [Int.mul_assoc] at this
+      exact this
+    have hyp := hK0 k hk0 (k - i) hj
+    have e : ((16 * m * m * m : Nat) : Int) = 16 * ((m : Int) * (m : Int) * (m : Int)) := by
+      push_cast
+      grind
+    rw [e, four_pow_eq] at hyp
+    have pe := prefix_estimate c k (k - i) hj
+    have hmpos : (0 : Int) < (m : Int) := by omega
+    have hLpos : (0 : Int) < (2 : Int) ^ (k - i) := Int.pow_pos (by decide)
+    have hNnn : (0 : Int) ≤ (2 : Int) ^ k := Int.le_of_lt (Int.pow_pos (by decide))
+    have fin := mul_shellMax_le_of_energy (m : Int) (shellMax c k : Int) ((2 : Int) ^ (k - i))
+      ((2 : Int) ^ k) (blockEnergy c k (k - i)) hmpos hLpos hNnn hd hc hyp pe
+    apply Int.ofNat_le.mp
+    push_cast
+    exact fin
+
+theorem sumTo_mul_left (a : Int) (f : Nat → Int) (n : Nat) :
+    sumTo (fun i => a * f i) n = a * sumTo f n := by
+  induction n with
+  | zero => simp [sumTo]
+  | succ n ih => rw [sumTo_succ, sumTo_succ, ih, Int.mul_add]
+
+theorem sumTo_le_sumTo (f g : Nat → Int) (n : Nat) (h : ∀ i, i < n → f i ≤ g i) :
+    sumTo f n ≤ sumTo g n := by
+  induction n with
+  | zero => exact Int.le_refl _
+  | succ n ih =>
+    rw [sumTo_succ, sumTo_succ]
+    have h1 := ih (fun i hi => h i (by omega))
+    have h2 := h n (by omega)
+    omega
+
+theorem sumTo_le_const (f : Nat → Int) (n : Nat) (B : Int) (h : ∀ i, i < n → f i ≤ B) :
+    sumTo f n ≤ (n : Int) * B := by
+  induction n with
+  | zero => simp [sumTo]
+  | succ n ih =>
+    rw [sumTo_succ]
+    have h1 := ih (fun i hi => h i (by omega))
+    have h2 := h n (by omega)
+    have e : ((n + 1 : Nat) : Int) * B = (n : Int) * B + B := by
+      push_cast
+      grind
+    rw [e]
+    omega
+
+/-- `F_(k+1) = 2 F_k + g_(k+1)` for `F_k = Σ_{j≤k} 2^(k-j) g_j`. -/
+theorem geomSum_succ (g : Nat → Int) (k : Nat) :
+    sumTo (fun j => 2 ^ (k + 1 - j) * g j) (k + 1 + 1)
+      = 2 * sumTo (fun j => 2 ^ (k - j) * g j) (k + 1) + g (k + 1) := by
+  rw [sumTo_succ, ← sumTo_mul_left]
+  have e1 : sumTo (fun j => (2 : Int) ^ (k + 1 - j) * g j) (k + 1)
+      = sumTo (fun j => 2 * ((2 : Int) ^ (k - j) * g j)) (k + 1) :=
+    sumTo_congr _ _ _ (fun j hj => by
+      show (2 : Int) ^ (k + 1 - j) * g j = 2 * ((2 : Int) ^ (k - j) * g j)
+      have : k + 1 - j = (k - j) + 1 := by omega
+      rw [this, Int.pow_succ]
+      grind)
+  rw [e1]
+  show _ + (2 : Int) ^ (k + 1 - (k + 1)) * g (k + 1) = _
+  rw [Nat.sub_self, Int.pow_zero, Int.one_mul]
+
+/-- The arithmetic core of (3). -/
+theorem geom_bound (g : Nat → Int) (M : Int) (hM : 0 ≤ M)
+    (h1 : ∀ j, g j ≤ 2 ^ j * 2 ^ j) (h2 : ∀ j, g j ≤ 4 * (M * M)) (k : Nat) :
+    sumTo (fun j => 2 ^ (k - j) * g j) (k + 1) ≤ 2 * (2 ^ k * 2 ^ k) ∧
+    (M ≤ 2 ^ k →
+      sumTo (fun j => 2 ^ (k - j) * g j) (k + 1) + 4 * (M * M) ≤ 8 * (M * 2 ^ k)) := by
+  induction k with
+  | zero =>
+    have a1 := h1 0
+    have a2 := h2 0
+    have e : sumTo (fun j => (2 : Int) ^ (0 - j) * g j) (0 + 1) = g 0 := by
+      simp [sumTo]
+    have p0 : (2 : Int) ^ 0 = 1 := Int.pow_zero 2
+    rw [e, p0]
+    rw [p0] at a1
+    refine ⟨by omega, fun hM1 => ?_⟩
+    have hcases : M = 0 ∨ M = 1 := by omega
+    rcases hcases with h0 | h0
+    · subst h0
+      omega
+    · subst h0
+      omega
+  | succ k ih =>
+    rcases ih with ⟨ih1, ih2⟩
+    rw [geomSum_succ]
+    have hx : (0 : Int) < 2 ^ k := Int.pow_pos (by decide)
+    have p : (2 : Int) ^ (k + 1) = 2 * 2 ^ k := by omega
+    have a1 := h1 (k + 1)
+    have a2 := h2 (k + 1)
+    rw [p] at a1 ⊢
+    have e1 : (2 * (2 : Int) ^ k) * (2 * 2 ^ k) = 4 * (2 ^ k * 2 ^ k) := by grind
+    have e2 : M * (2 * (2 : Int) ^ k) = 2 * (M * 2 ^ k) := by grind
+    rw [e1] at a1
+    rw [e1, e2]
+    refine ⟨by omega, fun hMx => ?_⟩
+    by_cases hc : M ≤ 2 ^ k
+    · have := ih2 hc
+      omega
+    · have hxM : (2 : Int) ^ k ≤ M := by omega
+      have q1 : (2 : Int) ^ k * 2 ^ k ≤ M * 2 ^ k :=
+        Int.mul_le_mul_of_nonneg_right hxM (by omega)
+      have q2 : M * M ≤ M * (2 * 2 ^ k) := Int.mul_le_mul_of_nonneg_left hMx hM
+      rw [e2] at q2
+      omega
+
+theorem sq_le_of_natAbs_le (b : Int) (B : Nat) (h : b.natAbs ≤ B) :
+    b * b ≤ (B : Int) * (B : Int) := by
+  rw [← Int.natAbs_mul_self' b]
+  have hc : (b.natAbs : Int) ≤ (B : Int) := Int.ofNat_le.mpr h
+  exact Int.mul_le_mul hc hc (Int.natCast_nonneg _) (Int.natCast_nonneg _)
+
+theorem blockSum_sq_le_min (c : Nat → Bool) (k j a : Nat) (hj : j ≤ k) (ha : a < 2 ^ (k - j)) :
+    blockSum c k j a * blockSum c k j a
+      ≤ min ((2 : Int) ^ j * 2 ^ j) (4 * ((shellMax c k : Int) * (shellMax c k : Int))) := by
+  have h1 := sq_le_of_natAbs_le _ _ (natAbs_blockSum_le_pow c k j a)
+  have h2 := sq_le_of_natAbs_le _ _ (natAbs_blockSum_le_two_shellMax c k j a hj ha)
+  rw [natCast_two_pow] at h1
+  have e : ((2 * shellMax c k : Nat) : Int) * ((2 * shellMax c k : Nat) : Int)
+      = 4 * ((shellMax c k : Int) * (shellMax c k : Int)) := by
+    push_cast
+    grind
+  rw [e] at h2
+  omega
+
+theorem blockEnergy_le_geom (c : Nat → Bool) (k j : Nat) (hj : j ≤ k) :
+    blockEnergy c k j
+      ≤ 2 ^ (k - j)
+        * min ((2 : Int) ^ j * 2 ^ j) (4 * ((shellMax c k : Int) * (shellMax c k : Int))) := by
+  unfold blockEnergy
+  have h := sumTo_le_const (fun a => blockSum c k j a * blockSum c k j a) (2 ^ (k - j)) _
+    (fun a ha => blockSum_sq_le_min c k j a hj ha)
+  rw [natCast_two_pow] at h
+  exact h
+
+/-- `H_k ≤ 8 M_k 2^k`. -/
+theorem orderedEnergy_le (c : Nat → Bool) (k : Nat) :
+    orderedEnergy c k ≤ 8 * ((shellMax c k : Int) * 2 ^ k) := by
+  have hM : (0 : Int) ≤ (shellMax c k : Int) := Int.natCast_nonneg _
+  have hMN : (shellMax c k : Int) ≤ 2 ^ k := by
+    rw [← natCast_two_pow]
+    exact Int.ofNat_le.mpr (shellMax_le_pow c k)
+  have hb := geom_bound
+    (fun j => min ((2 : Int) ^ j * 2 ^ j) (4 * ((shellMax c k : Int) * (shellMax c k : Int))))
+    (shellMax c k : Int) hM (fun j => Int.min_le_left _ _) (fun j => Int.min_le_right _ _) k
+  have h1 : orderedEnergy c k
+      ≤ sumTo (fun j => 2 ^ (k - j)
+          * min ((2 : Int) ^ j * 2 ^ j) (4 * ((shellMax c k : Int) * (shellMax c k : Int))))
+        (k + 1) := by
+    unfold orderedEnergy
+    exact sumTo_le_sumTo _ _ _ (fun j hj => blockEnergy_le_geom c k j (by omega))
+  have h2 := hb.2 hMN
+  have h3 := mul_self_nonneg (shellMax c k : Int)
+  exact Int.le_trans h1 (by omega)
+
+theorem shellMaxLittleO_imp_orderedEnergyLittleO (c : Nat → Bool) :
+    ShellMaxLittleO c → OrderedEnergyLittleO c := by
+  intro h m
+  rcases h (8 * m) with ⟨K, hK⟩
+  refine ⟨K, fun k hk => ?_⟩
+  have h1 := hK k hk
+  have h1' : 8 * ((m : Int) * (shellMax c k : Int)) ≤ 2 ^ k := by
+    have := Int.ofNat_le.mpr h1
+    push_cast at this
+    rw [Int.mul_assoc] at this
+    exact this
+  have h2 := orderedEnergy_le c k
+  have h3 : (m : Int) * orderedEnergy c k ≤ (m : Int) * (8 * ((shellMax c k : Int) * 2 ^ k)) :=
+    Int.mul_le_mul_of_nonneg_left h2 (Int.natCast_nonneg m)
+  have hN : (0 : Int) ≤ 2 ^ k := Int.le_of_lt (Int.pow_pos (by decide))
+  have h4 : 8 * ((m : Int) * (shellMax c k : Int)) * 2 ^ k ≤ 2 ^ k * 2 ^ k :=
+    Int.mul_le_mul_of_nonneg_right h1' hN
+  have e : (m : Int) * (8 * ((shellMax c k : Int) * 2 ^ k))
+      = 8 * ((m : Int) * (shellMax c k : Int)) * 2 ^ k := by grind
+  rw [four_pow_eq]
+  omega
+
+/-! ## Control: the weakened hypotheses fail -/
+
+
+theorem sumTo_halfstep (f : Nat → Int) (h : Nat) :
+    ∀ u, (∀ r, r < u → f r = if h ≤ r then -1 else 1) →
+      sumTo f u = if u ≤ h then (u : Int) else 2 * (h : Int) - u
+  | 0, _ => by simp [sumTo]
+  | u + 1, hf => by
+      have ih := sumTo_halfstep f h u (fun r hr => hf r (Nat.lt_succ_of_lt hr))
+      have hu := hf u (Nat.lt_succ_self u)
+      simp only [sumTo]
+      rw [ih, hu]
+      omega
+
+theorem S_shell (c : Nat → Bool) (k u : Nat) :
+    S c (2 ^ k + u) = S c (2 ^ k) + shellPrefix c k u := by
+  unfold S shellPrefix
+  exact sumTo_add (z c) (2 ^ k) u
+
+/-- False on the first half of every shell `[2^(i+1), 2^(i+2))`, true on the second half. -/
+def halfShell (t : Nat) : Bool :=
+  decide (∃ i, i < t ∧ (2 ^ (i + 1) + 2 ^ i ≤ t ∧ t < 2 ^ (i + 2)))
+
+theorem halfShell_iff (t : Nat) :
+    halfShell t = true ↔ ∃ i, i < t ∧ (2 ^ (i + 1) + 2 ^ i ≤ t ∧ t < 2 ^ (i + 2)) := by
+  unfold halfShell
+  exact decide_eq_true_iff
+
+theorem two_pow_lt_imp (a b : Nat) (h : 2 ^ a < 2 ^ b) : a < b :=
+  (Nat.pow_lt_pow_iff_right (by decide)).mp h
+
+theorem two_pow_add_two (i : Nat) : 2 ^ (i + 2) = 4 * 2 ^ i := by
+  have h : 2 ^ (i + 2) = 2 ^ (i + 1) * 2 := Nat.pow_succ 2 (i + 1)
+  omega
+
+theorem halfShell_shell (j r : Nat) (hr : r < 2 ^ (j + 1)) :
+    halfShell (2 ^ (j + 1) + r) = decide (2 ^ j ≤ r) := by
+  have hiff : halfShell (2 ^ (j + 1) + r) = true ↔ 2 ^ j ≤ r := by
+    rw [halfShell_iff]
+    constructor
+    · rintro ⟨i, _, hlo, hhi⟩
+      have hi2 := two_pow_add_two i
+      have hj2 := two_pow_add_two j
+      have hip := Nat.two_pow_pos i
+      have hjp := Nat.two_pow_pos j
+      have h1 : i + 1 < j + 2 := by
+        apply two_pow_lt_imp
+        omega
+      have h2 : j + 1 < i + 2 := by
+        apply two_pow_lt_imp
+        omega
+      have hij : i = j := by omega
+      subst hij
+      omega
+    · intro h
+      have hj2 := two_pow_add_two j
+      refine ⟨j, ?_, ?_, ?_⟩
+      · have := @Nat.lt_two_pow_self j
+        omega
+      · omega
+      · omega
+  cases hc : halfShell (2 ^ (j + 1) + r)
+  · have : ¬ 2 ^ j ≤ r := fun h => by rw [hiff.mpr h] at hc; exact Bool.noConfusion hc
+    simp [this]
+  · have : 2 ^ j ≤ r := hiff.mp hc
+    simp [this]
+
+theorem z_halfShell_shell (j r : Nat) (hr : r < 2 ^ (j + 1)) :
+    z halfShell (2 ^ (j + 1) + r) = if 2 ^ j ≤ r then -1 else 1 := by
+  unfold z sign
+  rw [halfShell_shell j r hr]
+  by_cases h : 2 ^ j ≤ r <;> simp [h]
+
+theorem shellPrefix_halfShell (j u : Nat) (hu : u ≤ 2 ^ (j + 1)) :
+    shellPrefix halfShell (j + 1) u
+      = if u ≤ 2 ^ j then (u : Int) else 2 * ((2 ^ j : Nat) : Int) - u := by
+  unfold shellPrefix
+  exact sumTo_halfstep _ (2 ^ j) u
+    (fun r hr => z_halfShell_shell j r (Nat.lt_of_lt_of_le hr hu))
+
+theorem shellPrefix_half (j : Nat) :
+    shellPrefix halfShell (j + 1) (2 ^ j) = ((2 ^ j : Nat) : Int) := by
+  have hp := Nat.two_pow_pos j
+  rw [shellPrefix_halfShell j (2 ^ j) (by omega)]
+  simp
+
+theorem shellPrefix_full (j : Nat) :
+    shellPrefix halfShell (j + 1) (2 ^ (j + 1)) = 0 := by
+  rw [shellPrefix_halfShell j (2 ^ (j + 1)) (Nat.le_refl _)]
+  have := Nat.two_pow_pos j
+  have h : ¬ 2 ^ (j + 1) ≤ 2 ^ j := by omega
+  simp only [h, ↓reduceIte]
+  omega
+
+theorem halfShell_zero : halfShell 0 = false := by
+  cases hc : halfShell 0
+  · rfl
+  · obtain ⟨i, hi, _⟩ := (halfShell_iff 0).mp hc
+    omega
+
+theorem halfShell_one : halfShell 1 = false := by
+  cases hc : halfShell 1
+  · rfl
+  · obtain ⟨i, _, hlo, _⟩ := (halfShell_iff 1).mp hc
+    have := Nat.two_pow_pos i
+    omega
+
+theorem S_halfShell_two : S halfShell 2 = 2 := by
+  simp [S, sumTo, z, sign, halfShell_zero, halfShell_one]
+
+theorem S_halfShell_dyadic : ∀ j, S halfShell (2 ^ (j + 1)) = 2
+  | 0 => S_halfShell_two
+  | j + 1 => by
+      have ih := S_halfShell_dyadic j
+      have hs := S_shell halfShell (j + 1) (2 ^ (j + 1))
+      rw [ih, shellPrefix_full] at hs
+      have he : 2 ^ (j + 1 + 1) = 2 ^ (j + 1) + 2 ^ (j + 1) := by omega
+      rw [he, hs]
+      rfl
+
+theorem blockEnergy_halfShell_top (j : Nat) :
+    blockEnergy halfShell (j + 1) (j + 1) = 0 := by
+  have hb : blockSum halfShell (j + 1) (j + 1) 0 = 0 := by
+    have he : blockSum halfShell (j + 1) (j + 1) 0
+        = shellPrefix halfShell (j + 1) (2 ^ (j + 1)) := by
+      unfold blockSum shellPrefix
+      simp only [Nat.zero_mul, Nat.add_zero]
+    rw [he, shellPrefix_full]
+  unfold blockEnergy
+  rw [Nat.sub_self]
+  simp [sumTo, hb]
+
+theorem dyadicEndpoints_halfShell : DyadicEndpointsLittleO halfShell := by
+  intro m
+  refine ⟨2 * m + 1, fun k hk => ?_⟩
+  obtain ⟨j, rfl⟩ : ∃ j, k = j + 1 := ⟨k - 1, by omega⟩
+  rw [S_halfShell_dyadic j]
+  have h0 : (2 : Int).natAbs = 2 := rfl
+  rw [h0]
+  have h1 := @Nat.lt_two_pow_self (2 * m + 1)
+  have h2 : 2 ^ (2 * m + 1) ≤ 2 ^ (j + 1) := Nat.pow_le_pow_right (by decide) hk
+  omega
+
+theorem unpenalizedEnergy_halfShell : UnpenalizedEnergyToZero halfShell := by
+  intro m
+  refine ⟨1, fun k hk => ⟨k, Nat.le_refl k, ?_⟩⟩
+  obtain ⟨j, rfl⟩ : ∃ j, k = j + 1 := ⟨k - 1, by omega⟩
+  rw [blockEnergy_halfShell_top j, Int.mul_zero]
+  exact Int.mul_nonneg (Int.pow_nonneg (by decide)) (Int.pow_nonneg (by decide))
+
+theorem not_densityHalf_halfShell : ¬ DensityHalf halfShell := by
+  intro h
+  obtain ⟨T0, hT0⟩ := h 4
+  have hlt := @Nat.lt_two_pow_self T0
+  have hpos := Nat.two_pow_pos T0
+  have hb := hT0 (2 ^ (T0 + 1) + 2 ^ T0) (by omega)
+  have hS := S_shell halfShell (T0 + 1) (2 ^ T0)
+  rw [S_halfShell_dyadic T0, shellPrefix_half T0, signedSum_eq] at hS
+  omega
+
+theorem weakened_hypotheses_do_not_give_densityHalf :
+    ∃ c : Nat → Bool,
+      DyadicEndpointsLittleO c ∧ UnpenalizedEnergyToZero c ∧ ¬ DensityHalf c :=
+  ⟨halfShell, dyadicEndpoints_halfShell, unpenalizedEnergy_halfShell, not_densityHalf_halfShell⟩
+
+theorem dyadicEndpoints_bridge_fails :
+    ¬ ∀ c : Nat → Bool, DyadicEndpointsLittleO c → DensityHalf c := fun h =>
+  let ⟨c, hd, _, hn⟩ := weakened_hypotheses_do_not_give_densityHalf
+  hn (h c hd)
+
+theorem unpenalizedEnergy_bridge_fails :
+    ¬ ∀ c : Nat → Bool, UnpenalizedEnergyToZero c → DensityHalf c := fun h =>
+  let ⟨c, _, hu, hn⟩ := weakened_hypotheses_do_not_give_densityHalf
+  hn (h c hu)
+
+/-! ## The four forms are one target, for every sequence and for the center column -/
+
+theorem densityHalf_iff_flexibleEnergyToZero (c : Nat → Bool) :
+    DensityHalf c ↔ FlexibleEnergyToZero c :=
+  (densityHalf_iff_shellMaxLittleO c).trans (shellMaxLittleO_iff_flexibleEnergyToZero c)
+
+theorem shellMaxLittleO_iff_orderedEnergyLittleO (c : Nat → Bool) :
+    ShellMaxLittleO c ↔ OrderedEnergyLittleO c :=
+  ⟨shellMaxLittleO_imp_orderedEnergyLittleO c, fun h =>
+    maxBlockEnergyLittleO_imp_shellMaxLittleO c
+      (orderedEnergyLittleO_imp_maxBlockEnergyLittleO c h)⟩
+
+theorem orderedEnergyLittleO_iff_maxBlockEnergyLittleO (c : Nat → Bool) :
+    OrderedEnergyLittleO c ↔ MaxBlockEnergyLittleO c :=
+  ⟨orderedEnergyLittleO_imp_maxBlockEnergyLittleO c, fun h =>
+    shellMaxLittleO_imp_orderedEnergyLittleO c
+      (maxBlockEnergyLittleO_imp_shellMaxLittleO c h)⟩
+
+theorem densityHalf_iff_orderedEnergyLittleO (c : Nat → Bool) :
+    DensityHalf c ↔ OrderedEnergyLittleO c :=
+  (densityHalf_iff_shellMaxLittleO c).trans (shellMaxLittleO_iff_orderedEnergyLittleO c)
+
+/-! ## The official `Problem2` -/
+
+theorem blackCount_eq_ones (n : Nat) : blackCount n = ones center n := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+    simp only [blackCount, ones, List.range_succ, List.filter_append, List.length_append] at ih ⊢
+    rw [ih]
+    cases h : center n <;> simp [h]
+
+theorem problem2_iff_densityHalf : Problem2 ↔ DensityHalf center := by
+  constructor
+  · intro h m
+    by_cases hm : m = 0
+    · exact ⟨0, fun T _ => by simp [hm]⟩
+    · obtain ⟨N, hN⟩ := h m (Nat.pos_of_ne_zero hm)
+      exact ⟨N, fun T hT => by simpa [blackCount_eq_ones] using hN T hT⟩
+  · intro h k hk
+    obtain ⟨N, hN⟩ := h k
+    exact ⟨N, fun T hT => by simpa [blackCount_eq_ones] using hN T hT⟩
+
+theorem problem2_iff_shellMaxLittleO : Problem2 ↔ ShellMaxLittleO center :=
+  problem2_iff_densityHalf.trans (densityHalf_iff_shellMaxLittleO center)
+
+theorem problem2_iff_flexibleEnergyToZero : Problem2 ↔ FlexibleEnergyToZero center :=
+  problem2_iff_densityHalf.trans (densityHalf_iff_flexibleEnergyToZero center)
+
+theorem problem2_iff_orderedEnergyLittleO : Problem2 ↔ OrderedEnergyLittleO center :=
+  problem2_iff_densityHalf.trans (densityHalf_iff_orderedEnergyLittleO center)
+
+theorem problem2_iff_maxBlockEnergyLittleO : Problem2 ↔ MaxBlockEnergyLittleO center :=
+  (problem2_iff_orderedEnergyLittleO).trans (orderedEnergyLittleO_iff_maxBlockEnergyLittleO center)
+
+end Rule30P2Bridge
+end Ruliology.CellularAutomata
