@@ -1,5 +1,8 @@
 module
 
+public import Ruliology.CellularAutomata.Rule30RightPeriods
+public import Ruliology.CellularAutomata.Rule30WhiteSpacing
+
 public import Ruliology.CellularAutomata.Rule30LeftUnbounded
 
 /-!
@@ -24,6 +27,8 @@ black-cell density `1/2` (`D_infinitely_many_halfDensity`).
 
 namespace Ruliology.CellularAutomata
 namespace Rule30LeftAntiPeriod
+
+open Rule30RightPeriods
 
 open Rule30Jen Rule30Prize Rule30Diagonals Rule30LeftReset Rule30LeftUnbounded
 
@@ -322,6 +327,183 @@ theorem D_infinitely_many_halfDensity (N : Nat) :
   have hmono : whiteCount j ≤ k := whiteCount_mono hjN
   have hdvd : 2 ^ whiteCount j ∣ 2 ^ k := Nat.pow_dvd_pow 2 hmono
   exact hnot (EvPer.of_dvd (D_evper_pow_whiteCount j) hdvd)
+
+/-! ## 4. Backward period descent and two-diagonal period bound -/
+
+/-- Left-permutive backward step for left diagonals:
+`D j t = xor (D (j + 2) (t + 1)) (D (j + 1) t || D (j + 2) t)`. -/
+theorem D_back (j t : Nat) :
+    D j t = xor (D (j + 2) (t + 1)) (D (j + 1) t || D (j + 2) t) := by
+  rw [D_step j t]
+  cases D j t <;> cases (D (j + 1) t || D (j + 2) t) <;> rfl
+
+/-- If `D (j + 1)` and `D (j + 2)` have period `Q` from `s` onward, then `D j` has period `Q` from
+`s` onward. -/
+theorem D_per_down {j s Q : Nat}
+    (h1 : ∀ t, s ≤ t → D (j + 1) (t + Q) = D (j + 1) t)
+    (h2 : ∀ t, s ≤ t → D (j + 2) (t + Q) = D (j + 2) t) :
+    ∀ t, s ≤ t → D j (t + Q) = D j t := by
+  intro t ht
+  rw [D_back j (t + Q), D_back j t, show t + Q + 1 = (t + 1) + Q by omega,
+    h2 (t + 1) (by omega), h1 t ht, h2 t ht]
+
+/-- If `D m` and `D (m + 1)` have period `Q` from `s` onward, then every `D i` (`i ≤ m + 1`) has
+period `Q` from `s` onward. -/
+theorem D_per_down_all {s Q : Nat} :
+    ∀ {m : Nat}, (∀ t, s ≤ t → D m (t + Q) = D m t) →
+      (∀ t, s ≤ t → D (m + 1) (t + Q) = D (m + 1) t) →
+      ∀ i, i ≤ m + 1 → ∀ t, s ≤ t → D i (t + Q) = D i t
+  | 0, h0, h1, i, hi => by
+    rcases (show i = 0 ∨ i = 1 by omega) with rfl | rfl
+    · exact h0
+    · exact h1
+  | m + 1, hm1, hm2, i, hi => by
+    rcases (show i ≤ m + 1 ∨ i = m + 2 by omega) with hle | rfl
+    · exact D_per_down_all (D_per_down hm1 hm2) hm1 i hle
+    · exact hm2
+
+/-- **Two-diagonal eventual periodicity descent (`D_evPer_pair_iff_all`).** `D m` and `D (m + 1)`
+both have eventual period `Q` iff every `D i` (`i ≤ m + 1`) has eventual period `Q`. -/
+theorem D_evPer_pair_iff_all (m Q : Nat) :
+    (EvPer (D m) Q ∧ EvPer (D (m + 1)) Q) ↔ ∀ i, i ≤ m + 1 → EvPer (D i) Q := by
+  constructor
+  · rintro ⟨⟨T1, h1⟩, ⟨T2, h2⟩⟩ i hi
+    refine ⟨max T1 T2, D_per_down_all (s := max T1 T2)
+      (fun t ht => h1 t (by omega)) (fun t ht => h2 t (by omega)) i hi⟩
+  · intro hall
+    exact ⟨hall m (by omega), hall (m + 1) (by omega)⟩
+
+/-- **Two-diagonal period bound (`D_pair_period_bound`).** Strengthening
+`Rule30LeftUnbounded.D_common_period_bound`, if `0 < Q` and the two consecutive diagonals `D m` and
+`D (m + 1)` have eventual period `Q`, then `m + 3 ≤ 2 ^ (2 * Q)`. -/
+theorem D_pair_period_bound {m Q : Nat} (hQ : 0 < Q)
+    (hm : EvPer (D m) Q) (hm1 : EvPer (D (m + 1)) Q) : m + 3 ≤ 2 ^ (2 * Q) :=
+  D_common_period_bound hQ ((D_evPer_pair_iff_all m Q).mp ⟨hm, hm1⟩)
+
+/-- **White-diagonal period bound (`D_white_period_bound`).** If `D (m + 1)` is eventually white and
+`D m` has eventual period `Q` (`0 < Q`), then `m + 3 ≤ 2 ^ (2 * Q)`. -/
+theorem D_white_period_bound {m Q : Nat} (hQ : 0 < Q)
+    (hw : EvWhite (D (m + 1))) (hm : EvPer (D m) Q) : m + 3 ≤ 2 ^ (2 * Q) := by
+  obtain ⟨T, hT⟩ := hw
+  refine D_pair_period_bound hQ hm ⟨T, fun t ht => ?_⟩
+  rw [hT (t + Q) (by omega), hT t ht]
+
+/-! ## 5. The white-diagonal neighborhood and twin anti-periodic diagonals -/
+
+/-- **Two steps before a white diagonal (`D_white_prev_two`).** If `D (j + 3)` is white from `s`
+onward, then `D j t = xor (D (j + 2) t) (D (j + 2) (t + 1))` for all `t ≥ s`. -/
+theorem D_white_prev_two {j s : Nat} (hw : ∀ t, s ≤ t → D (j + 3) t = false) :
+    ∀ t, s ≤ t → D j t = xor (D (j + 2) t) (D (j + 2) (t + 1)) := by
+  intro t ht
+  have heq := D_white_of_eq (j := j + 1) hw t ht
+  rw [D_back j t, heq]
+  cases D (j + 2) t <;> cases D (j + 2) (t + 1) <;> rfl
+
+/-- **Three steps before a white diagonal (`D_white_prev_three`).** If `D (j + 4)` is white from `s`
+onward, then `D j t = (D (j + 3) t && ! D (j + 3) (t + 1))` and `D j` is `11`-free from `s` onward. -/
+theorem D_white_prev_three {j s : Nat} (hw : ∀ t, s ≤ t → D (j + 4) t = false) :
+    ∀ t, s ≤ t →
+      D j t = (D (j + 3) t && ! D (j + 3) (t + 1)) ∧ (D j t && D j (t + 1)) = false := by
+  intro t ht
+  have h1 : ∀ u, s ≤ u → D (j + 2) u = D (j + 3) u := D_white_of_eq (j := j + 2) hw
+  have h2 : ∀ u, s ≤ u → D (j + 1) u = xor (D (j + 3) u) (D (j + 3) (u + 1)) :=
+    D_white_prev_two (j := j + 1) hw
+  have h0 : ∀ u, s ≤ u → D j u = (D (j + 3) u && ! D (j + 3) (u + 1)) := by
+    intro u hu
+    rw [D_back j u, h1 (u + 1) (by omega), h1 u hu, h2 u hu]
+    cases D (j + 3) u <;> cases D (j + 3) (u + 1) <;> rfl
+  refine ⟨h0 t ht, ?_⟩
+  rw [h0 t ht, h0 (t + 1) (by omega)]
+  cases D (j + 3) t <;> cases D (j + 3) (t + 1) <;> cases D (j + 3) (t + 1 + 1) <;> rfl
+
+/-- **Post-white complement law (`D_post_white_complement`).** Whenever `D (j + 1)` is eventually
+white, `D (j + 3)` is eventually black and `D (j + 4)` is eventually the 1-step shifted bitwise
+complement of `D (j + 2)`: `D (j + 4) (t + 1) = ! D (j + 2) t`. -/
+theorem D_post_white_complement {j : Nat} (hw : EvWhite (D (j + 1))) :
+    ∃ T, ∀ t, T ≤ t → D (j + 3) t = true ∧ D (j + 4) (t + 1) = ! D (j + 2) t := by
+  obtain ⟨T, hT⟩ := D_black_after_white hw
+  refine ⟨T, fun t ht => ⟨hT t ht, ?_⟩⟩
+  have hstep := D_step (j + 2) t
+  rw [show j + 2 + 1 = j + 3 by omega, show j + 2 + 2 = j + 4 by omega, hT t ht] at hstep
+  rw [hstep]
+  cases D (j + 2) t <;> rfl
+
+/-- **Post-white gated inhibition and `11`-freeness (`D_post_white_no11`).** Whenever `D (j + 1)` is
+eventually white, `D (j + 5)` eventually satisfies
+`D (j + 5) (t + 1) = (! D (j + 4) t && ! D (j + 5) t)` and is `11`-free
+(`(D (j + 5) t && D (j + 5) (t + 1)) = false`). -/
+theorem D_post_white_no11 {j : Nat} (hw : EvWhite (D (j + 1))) :
+    ∃ T, ∀ t, T ≤ t →
+      D (j + 5) (t + 1) = (! D (j + 4) t && ! D (j + 5) t) ∧
+      (D (j + 5) t && D (j + 5) (t + 1)) = false := by
+  obtain ⟨T, hT⟩ := D_black_after_white hw
+  refine ⟨T, fun t ht => ?_⟩
+  have hstep := D_step (j + 3) t
+  rw [show j + 3 + 1 = j + 4 by omega, show j + 3 + 2 = j + 5 by omega, (hT t ht)] at hstep
+  have h1 : D (j + 5) (t + 1) = (! D (j + 4) t && ! D (j + 5) t) := by
+    rw [hstep]
+    cases D (j + 4) t <;> cases D (j + 5) t <;> rfl
+  refine ⟨h1, ?_⟩
+  rw [h1]
+  cases D (j + 5) t <;> cases D (j + 4) t <;> rfl
+
+/-- If `f` is `L`-anti-periodic and `g (t + 1) = ! f t` from `T` onward, then `g` is also
+`L`-anti-periodic. -/
+theorem evAntiPer_of_succ_eq_not {f g : Nat → Bool} {L : Nat}
+    (hf : EvAntiPer f L) (hfg : ∃ T, ∀ t, T ≤ t → g (t + 1) = ! f t) : EvAntiPer g L := by
+  obtain ⟨T1, h1⟩ := hf
+  obtain ⟨T2, h2⟩ := hfg
+  refine ⟨max T1 T2 + 1, fun t ht => ?_⟩
+  obtain ⟨s, rfl⟩ : ∃ s, t = s + 1 := ⟨t - 1, by omega⟩
+  rw [show s + 1 + L = (s + L) + 1 by omega, h2 (s + L) (by omega), h2 s (by omega),
+    h1 s (by omega)]
+
+/-- **Twin anti-periodic and density-`1/2` diagonals (`D_twin_antiperiodic_of_not_evPer`).** If
+`D j` and `D (j + 1)` have eventual period `L` (`0 < L`) while `D (j + 2)` does not, then both
+`D (j + 2)` and `D (j + 4)` are eventually `L`-anti-periodic, fail period `L`, and satisfy
+`HalfDensity`. -/
+theorem D_twin_antiperiodic_of_not_evPer {j L : Nat} (hL : 0 < L)
+    (h1 : EvPer (D j) L) (h2 : EvPer (D (j + 1)) L) (hnot : ¬ EvPer (D (j + 2)) L) :
+    EvWhite (D (j + 1)) ∧
+      EvAntiPer (D (j + 2)) L ∧ HalfDensity (D (j + 2)) ∧
+      EvAntiPer (D (j + 4)) L ∧ ¬ EvPer (D (j + 4)) L ∧ HalfDensity (D (j + 4)) := by
+  obtain ⟨hw, hanti2⟩ := D_evAntiPer_of_not_evPer h1 h2 hnot
+  obtain ⟨T, hT⟩ := D_post_white_complement hw
+  have hanti4 : EvAntiPer (D (j + 4)) L :=
+    evAntiPer_of_succ_eq_not hanti2 ⟨T, fun t ht => (hT t ht).2⟩
+  exact ⟨hw, hanti2, halfDensity_of_antiperiodic hL hanti2,
+    hanti4, hanti4.not_evPer, halfDensity_of_antiperiodic hL hanti4⟩
+
+/-! ## 6. Period bounds via `Rule30WhiteSpacing` and right-diagonal density `1/2` -/
+
+/-- **Universal `(j + 3) / 5` power-of-two period bound for left diagonals (`D_evPer_pow_div_five`).**
+By `Rule30WhiteSpacing.whiteCount_bound_five` (`5 * whiteCount j ≤ j + 3`), every left diagonal
+`D j` has eventual period `2 ^ ((j + 3) / 5)`. -/
+theorem D_evPer_pow_div_five (j : Nat) : EvPer (D j) (2 ^ ((j + 3) / 5)) := by
+  have h5 := Rule30WhiteSpacing.whiteCount_bound_five j
+  exact EvPer.of_dvd (D_evper_pow_whiteCount j) (Nat.pow_dvd_pow 2 (by omega))
+
+/-- **Universal `(j + 5) / 6` power-of-two period bound for left diagonals (`D_evPer_pow_div_six`).**
+By `Rule30WhiteSpacing.whiteCount_bound` (`6 * whiteCount j ≤ j + 5`), every left diagonal `D j`
+has eventual period `2 ^ ((j + 5) / 6)`. -/
+theorem D_evPer_pow_div_six (j : Nat) : EvPer (D j) (2 ^ ((j + 5) / 6)) := by
+  have h6 := Rule30WhiteSpacing.whiteCount_bound j
+  exact EvPer.of_dvd (D_evper_pow_whiteCount j) (Nat.pow_dvd_pow 2 (by omega))
+
+/-- **Infinitely many right diagonals have asymptotic density `1/2` (`R_infinitely_many_halfDensity`).**
+For every `k : Nat`, there exists a right diagonal `R j` (`k < j ≤ 2 ^ (k + 1) - 1`) that is
+`2 ^ k`-anti-periodic from `t = 0` (`∀ t, R j (t + 2 ^ k) = ! R j t`), not `2 ^ k`-periodic, and
+satisfies `HalfDensity (R j)`. -/
+theorem R_infinitely_many_halfDensity (k : Nat) :
+    ∃ j, k < j ∧ j ≤ 2 ^ (k + 1) - 1 ∧
+      (∀ t, R j (t + 2 ^ k) = ! R j t) ∧ ¬ Per j (2 ^ k) ∧ HalfDensity (R j) := by
+  obtain ⟨J, hJ, hJ1, hkJ⟩ := exists_last k
+  have hJb : J ≤ 2 ^ (k + 1) - 2 := per_bound hJ
+  have hanti : ∀ t, R (J + 1) (t + 2 ^ k) = ! R (J + 1) t :=
+    antiperiod hJ hJ1
+  have hpos : 0 < 2 ^ (k + 1) := Nat.two_pow_pos (k + 1)
+  exact ⟨J + 1, by omega, by omega, hanti, hJ1,
+    halfDensity_of_antiperiodic (Nat.two_pow_pos k) ⟨0, fun t _ => hanti t⟩⟩
 
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
