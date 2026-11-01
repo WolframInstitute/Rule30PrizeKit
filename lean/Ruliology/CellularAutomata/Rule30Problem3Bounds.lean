@@ -937,5 +937,294 @@ theorem diagonal_canon_window_rightSpan_ge (k : Nat) :
   have := hscan s hs c hc
   omega
 
+/-! ## 1. Unvisited-cell tape invariance and left/right exterior rays -/
+
+/-- A single head move decreases the head position by at most `1`. -/
+theorem pred_le_move_apply (d : Move) (h : Int) : h - 1 ≤ d.apply h := by
+  cases d <;> simp [Move.apply] <;> omega
+
+/-- After `s` steps from `head = 0`, any active configuration `c` satisfies `-(s : Int) ≤ c.head`. -/
+theorem run_neg_steps_le_head {M : Machine} {n : Nat} :
+    ∀ {s : Nat} {c : Cfg M}, M.run n s = .inr c → -(s : Int) ≤ c.head
+  | 0, c, hc => by
+    injection hc with h
+    subst h
+    simp [Machine.init]
+  | s + 1, c, hc => by
+    simp only [Machine.run] at hc
+    cases hr : M.run n s with
+    | inl b => rw [hr] at hc; cases hc
+    | inr c₀ =>
+      rw [hr] at hc
+      dsimp only at hc
+      have ih := run_neg_steps_le_head hr
+      unfold Cfg.step at hc
+      cases hδ : M.δ c₀.state (c₀.tape c₀.head) with
+      | inl b => rw [hδ] at hc; cases hc
+      | inr val =>
+        rcases val with ⟨p, a, d⟩
+        rw [hδ] at hc
+        injection hc with h
+        subst h
+        have hm := pred_le_move_apply d c₀.head
+        dsimp only
+        omega
+
+/-- During the first `t` steps on input `n`, `M`'s head remains at or to the right of cell `L`. -/
+def ScansAbove (M : Machine) (n t : Nat) (L : Int) : Prop :=
+  ∀ s, s < t → ∀ c, M.run n s = .inr c → L ≤ c.head
+
+/-- Monotonicity of `ScansAbove` in the step horizon `t`. -/
+theorem ScansAbove.mono {M : Machine} {n t₁ t₂ : Nat} {L : Int}
+    (h : ScansAbove M n t₂ L) (ht : t₁ ≤ t₂) : ScansAbove M n t₁ L :=
+  fun s hs c hc => h s (Nat.lt_of_lt_of_le hs ht) c hc
+
+/-- Any run of length `t ≤ k` from `head = 0` automatically satisfies `ScansAbove M n t (-(k : Int))`. -/
+theorem scansAbove_neg_of_le {M : Machine} {n t k : Nat} (ht : t ≤ k) :
+    ScansAbove M n t (-(k : Int)) := by
+  intro s hs c hc
+  have hle := run_neg_steps_le_head hc
+  omega
+
+/-- **Unvisited-cell tape invariance (`tape_eq_init_of_head_ne`).** If cell `i` is never visited by
+the head during steps `0, …, t - 1`, then at step `t` cell `i` still holds its initial value
+`(M.init n).tape i`. -/
+theorem tape_eq_init_of_head_ne {M : Machine} {n : Nat} {i : Int} :
+    ∀ {t : Nat} {c : Cfg M}, M.run n t = .inr c →
+      (∀ s, s < t → ∀ c₀, M.run n s = .inr c₀ → c₀.head ≠ i) →
+      c.tape i = (M.init n).tape i
+  | 0, c, hc, _ => by
+    injection hc with h
+    subst h
+    rfl
+  | t + 1, c, hc, hne => by
+    simp only [Machine.run] at hc
+    cases hr : M.run n t with
+    | inl b => rw [hr] at hc; cases hc
+    | inr c₀ =>
+      rw [hr] at hc
+      dsimp only at hc
+      have ih := tape_eq_init_of_head_ne hr (fun s hs c' hc' => hne s (by omega) c' hc')
+      have hne_t : i ≠ c₀.head := Ne.symm (hne t (Nat.lt_succ_self t) c₀ hr)
+      unfold Cfg.step at hc
+      cases hδ : M.δ c₀.state (c₀.tape c₀.head) with
+      | inl b => rw [hδ] at hc; cases hc
+      | inr val =>
+        rcases val with ⟨p, a, d⟩
+        rw [hδ] at hc
+        injection hc with h
+        subst h
+        dsimp only
+        rw [ite_eq_right (fun h => hne_t h), ih]
+
+/-- **Right exterior ray invariance (`tape_eq_init_of_scansBelow`).** Under `ScansBelow M n t B`,
+every cell `i ≥ B` at step `t` still equals `(M.init n).tape i`. -/
+theorem tape_eq_init_of_scansBelow {M : Machine} {n t : Nat} {B : Int} {c : Cfg M}
+    (hr : M.run n t = .inr c) (hscan : ScansBelow M n t B) :
+    ∀ i : Int, B ≤ i → c.tape i = (M.init n).tape i := by
+  intro i hi
+  refine tape_eq_init_of_head_ne hr (fun s hs c₀ hc₀ => ?_)
+  have hlt := hscan s hs c₀ hc₀
+  omega
+
+/-- **Left exterior blank ray invariance (`tape_eq_zero_of_scansAbove`).** Under `ScansAbove M n t L`
+with `L ≤ 0`, every cell `i < L` at step `t` is still blank (`0`). -/
+theorem tape_eq_zero_of_scansAbove {M : Machine} {n t : Nat} {L : Int} {c : Cfg M}
+    (hr : M.run n t = .inr c) (hscan : ScansAbove M n t L) (hL : L ≤ 0) :
+    ∀ i : Int, i < L → c.tape i = ⟨0, by omega⟩ := by
+  intro i hi
+  rw [tape_eq_init_of_head_ne hr (fun s hs c₀ hc₀ => by have := hscan s hs c₀ hc₀; omega)]
+  exact init_tape_neg M n (by omega)
+
+/-! ## 2. Finite-box tape agreement and deterministic configuration-repeat periodicity -/
+
+/-- **Finite-box tape agreement implies full infinite-tape agreement (`tape_eq_all_of_box_eq`).**
+If the head stays inside `[L, B)` up to `t₂` (`t₁ ≤ t₂`), and the configurations `c₁` (at `t₁`) and
+`c₂` (at `t₂`) agree on the finite box `L ≤ i < B`, then `c₁.tape i = c₂.tape i` for all `i : Int`. -/
+theorem tape_eq_all_of_box_eq {M : Machine} {n t₁ t₂ : Nat} {L B : Int} {c₁ c₂ : Cfg M}
+    (ht : t₁ ≤ t₂) (hr₁ : M.run n t₁ = .inr c₁) (hr₂ : M.run n t₂ = .inr c₂)
+    (habove : ScansAbove M n t₂ L) (hbelow : ScansBelow M n t₂ B)
+    (hbox : ∀ i : Int, L ≤ i → i < B → c₁.tape i = c₂.tape i) :
+    ∀ i : Int, c₁.tape i = c₂.tape i := by
+  intro i
+  by_cases hL : i < L
+  · have h1 := tape_eq_init_of_head_ne (i := i) hr₁ (fun s hs c₀ hc₀ => by
+      have hle : L ≤ c₀.head := (habove.mono ht) s hs c₀ hc₀; omega)
+    have h2 := tape_eq_init_of_head_ne (i := i) hr₂ (fun s hs c₀ hc₀ => by
+      have hle : L ≤ c₀.head := habove s hs c₀ hc₀; omega)
+    rw [h1, h2]
+  · by_cases hB : i < B
+    · exact hbox i (by omega) hB
+    · have h1 := tape_eq_init_of_scansBelow hr₁ (hbelow.mono ht) i (by omega)
+      have h2 := tape_eq_init_of_scansBelow hr₂ hbelow i (by omega)
+      rw [h1, h2]
+
+/-- If two configurations `c₁` and `c₂` have identical state, head, and tape on all of `Int`, then
+`c₁.step = c₂.step` (with identical state, head, and tape if still running). -/
+theorem step_congr_all {M : Machine} {c₁ c₂ : Cfg M}
+    (hs : c₁.state = c₂.state) (hh : c₁.head = c₂.head) (ht : ∀ i : Int, c₁.tape i = c₂.tape i) :
+    (∃ b, c₁.step = .inl b ∧ c₂.step = .inl b) ∨
+      ∃ c₁' c₂', c₁.step = .inr c₁' ∧ c₂.step = .inr c₂' ∧
+        c₁'.state = c₂'.state ∧ c₁'.head = c₂'.head ∧ (∀ i : Int, c₁'.tape i = c₂'.tape i) := by
+  have hread : c₁.tape c₁.head = c₂.tape c₂.head := by rw [← hh, ht]
+  unfold Cfg.step
+  rw [hs, hread]
+  cases hδ : M.δ c₂.state (c₂.tape c₂.head) with
+  | inl b => exact Or.inl ⟨b, rfl, rfl⟩
+  | inr val =>
+    rcases val with ⟨p, a, d⟩
+    refine Or.inr ⟨_, _, rfl, rfl, rfl, by rw [hh], fun i => ?_⟩
+    dsimp only
+    rw [hh]
+    by_cases hih : i = c₂.head
+    · simp [hih]
+    · simp [hih, ht i]
+
+/-- If `M.run n s₁` and `M.run n s₂` are in configurations with identical state, head, and tape,
+then after `d` additional steps they remain in identical outcomes/configurations. -/
+theorem run_shift_congr_all {M : Machine} {n : Nat} :
+    ∀ (d s₁ s₂ : Nat) {c₁ c₂ : Cfg M},
+      M.run n s₁ = .inr c₁ → M.run n s₂ = .inr c₂ →
+      c₁.state = c₂.state → c₁.head = c₂.head → (∀ i : Int, c₁.tape i = c₂.tape i) →
+      match M.run n (s₁ + d), M.run n (s₂ + d) with
+      | .inl b₁, .inl b₂ => b₁ = b₂
+      | .inr c₁', .inr c₂' =>
+          c₁'.state = c₂'.state ∧ c₁'.head = c₂'.head ∧ ∀ i : Int, c₁'.tape i = c₂'.tape i
+      | _, _ => False
+  | 0, s₁, s₂, c₁, c₂, h1, h2, hs, hh, ht => by
+    rw [Nat.add_zero, Nat.add_zero, h1, h2]
+    exact ⟨hs, hh, ht⟩
+  | d + 1, s₁, s₂, c₁, c₂, h1, h2, hs, hh, ht => by
+    have ih := run_shift_congr_all d s₁ s₂ h1 h2 hs hh ht
+    rw [show s₁ + (d + 1) = (s₁ + d) + 1 by omega, show s₂ + (d + 1) = (s₂ + d) + 1 by omega]
+    simp only [Machine.run]
+    cases hr₁ : M.run n (s₁ + d) with
+    | inl b₁ =>
+      cases hr₂ : M.run n (s₂ + d) with
+      | inl b₂ => rw [hr₁, hr₂] at ih; exact ih
+      | inr c₂' => rw [hr₁, hr₂] at ih; exact False.elim ih
+    | inr c₁' =>
+      cases hr₂ : M.run n (s₂ + d) with
+      | inl b₂ => rw [hr₁, hr₂] at ih; exact False.elim ih
+      | inr c₂' =>
+        rw [hr₁, hr₂] at ih
+        obtain ⟨hs', hh', ht'⟩ := ih
+        rcases step_congr_all hs' hh' ht' with ⟨b, hb₁, hb₂⟩ | ⟨c₁'', c₂'', hc₁'', hc₂'', hst, hhd, htp⟩
+        · dsimp only; rw [hb₁, hb₂]
+        · dsimp only; rw [hc₁'', hc₂'']; exact ⟨hst, hhd, htp⟩
+
+/-- **Finite-box repeat periodicity (`run_periodic_of_box_repeat`).** If the head stays inside
+`[L, B)` up to `t₁ + p`, and the configurations at `t₁` and `t₁ + p` agree on `state`, `head`, and
+the finite box `L ≤ i < B`, then for every `k, d : Nat`, `M.run n (t₁ + d + k * p)` is active with
+the exact same `state`, `head`, and `tape` as `M.run n (t₁ + d)`. -/
+theorem run_periodic_of_box_repeat {M : Machine} {n t₁ p : Nat} {L B : Int} {c₁ c₂ : Cfg M}
+    (hr₁ : M.run n t₁ = .inr c₁) (hr₂ : M.run n (t₁ + p) = .inr c₂)
+    (habove : ScansAbove M n (t₁ + p) L) (hbelow : ScansBelow M n (t₁ + p) B)
+    (hst : c₁.state = c₂.state) (hhd : c₁.head = c₂.head)
+    (hbox : ∀ i : Int, L ≤ i → i < B → c₁.tape i = c₂.tape i) :
+    ∀ k d,
+      match M.run n (t₁ + d), M.run n (t₁ + d + k * p) with
+      | .inl b₁, .inl b₂ => b₁ = b₂
+      | .inr c, .inr c' => c.state = c'.state ∧ c.head = c'.head ∧ ∀ i : Int, c.tape i = c'.tape i
+      | _, _ => False := by
+  have htall := tape_eq_all_of_box_eq (by omega) hr₁ hr₂ habove hbelow hbox
+  intro k
+  induction k with
+  | zero =>
+    intro d
+    simp only [Nat.zero_mul, Nat.add_zero]
+    cases M.run n (t₁ + d) <;> simp
+  | succ k ih =>
+    intro d
+    have hstep := run_shift_congr_all (d + k * p) t₁ (t₁ + p) hr₁ hr₂ hst hhd htall
+    rw [show t₁ + (d + k * p) = t₁ + d + k * p by omega, show t₁ + p + (d + k * p) = t₁ + d + (k + 1) * p by rw [Nat.succ_mul]; omega] at hstep
+    have ih_d := ih d
+    cases h0 : M.run n (t₁ + d) <;>
+      cases h1 : M.run n (t₁ + d + k * p) <;>
+      cases h2 : M.run n (t₁ + d + (k + 1) * p) <;>
+      rw [h0, h1] at ih_d <;> rw [h1, h2] at hstep
+    · exact Eq.trans ih_d hstep
+    · exact False.elim hstep
+    · exact False.elim ih_d
+    · exact False.elim ih_d
+    · exact False.elim ih_d
+    · exact False.elim ih_d
+    · exact False.elim hstep
+    · exact ⟨Eq.trans ih_d.1 hstep.1, Eq.trans ih_d.2.1 hstep.2.1,
+        fun i => Eq.trans (ih_d.2.2 i) (hstep.2.2 i)⟩
+
+/-- If `M.run n (t₁ + p) = .inr c₂`, then for every `d ≤ p`, `M.run n (t₁ + d)` is also `.inr c`
+for some active configuration `c`. -/
+theorem run_inr_of_le {M : Machine} {n s t : Nat} {c₂ : Cfg M}
+    (hst : s ≤ t) (hr : M.run n t = .inr c₂) : ∃ c₁, M.run n s = .inr c₁ := by
+  cases hs : M.run n s with
+  | inr c₁ => exact ⟨c₁, rfl⟩
+  | inl b =>
+    have hadd := Machine.run_add hs (t - s)
+    rw [show s + (t - s) = t by omega, hr] at hadd
+    cases hadd
+
+/-- **Infinite-time non-halting and spatial trapping (`not_halts_and_trapped_of_box_repeat`).**
+If `M` repeats its state, head, and finite-box `[L, B)` tape at `t₁` and `t₁ + p` (`0 < p`) while
+staying inside `[L, B)` up to `t₁ + p`, then `M` NEVER halts on input `n` and its head remains
+trapped inside `[L, B)` for ALL `t : Nat`. -/
+theorem not_halts_and_trapped_of_box_repeat {M : Machine} {n t₁ p : Nat} {L B : Int} {c₁ c₂ : Cfg M}
+    (hp : 0 < p) (hr₁ : M.run n t₁ = .inr c₁) (hr₂ : M.run n (t₁ + p) = .inr c₂)
+    (habove : ScansAbove M n (t₁ + p) L) (hbelow : ScansBelow M n (t₁ + p) B)
+    (hst : c₁.state = c₂.state) (hhd : c₁.head = c₂.head)
+    (hbox : ∀ i : Int, L ≤ i → i < B → c₁.tape i = c₂.tape i) :
+    (∀ t b, M.run n t ≠ .inl b) ∧ (∀ t, ScansAbove M n t L ∧ ScansBelow M n t B) := by
+  have hper := run_periodic_of_box_repeat hr₁ hr₂ habove hbelow hst hhd hbox
+  have hactive : ∀ s, ∃ c, M.run n s = .inr c ∧ L ≤ c.head ∧ c.head < B := by
+    intro s
+    by_cases hs : s < t₁ + p
+    · obtain ⟨c, hc⟩ := run_inr_of_le (s := s) (t := t₁ + p) (by omega) hr₂
+      exact ⟨c, hc, habove s hs c hc, hbelow s hs c hc⟩
+    · let d := (s - t₁) % p
+      let k := (s - t₁) / p
+      have hdiv : (s - t₁) % p + p * ((s - t₁) / p) = s - t₁ := Nat.mod_add_div (s - t₁) p
+      have hs_eq : s = t₁ + d + k * p := by
+        dsimp only [d, k]
+        rw [Nat.mul_comm] at hdiv
+        omega
+      have hd_lt : d < p := Nat.mod_lt (s - t₁) hp
+      obtain ⟨c₀, hc₀⟩ := run_inr_of_le (s := t₁ + d) (t := t₁ + p) (by omega) hr₂
+      have hp_kd := hper k d
+      rw [← hs_eq, hc₀] at hp_kd
+      cases hrun : M.run n s with
+      | inl b => rw [hrun] at hp_kd; exact False.elim hp_kd
+      | inr c =>
+        rw [hrun] at hp_kd
+        have hL : L ≤ c₀.head := habove (t₁ + d) (by omega) c₀ hc₀
+        have hB : c₀.head < B := hbelow (t₁ + d) (by omega) c₀ hc₀
+        rw [hp_kd.2.1] at hL hB
+        exact ⟨c, rfl, hL, hB⟩
+  refine ⟨fun t b h => ?_, fun t => ⟨fun s _ c hc => ?_, fun s _ c hc => ?_⟩⟩
+  · obtain ⟨c, hc, _, _⟩ := hactive t
+    rw [hc] at h; cases h
+  · obtain ⟨c', hc', hL, _⟩ := hactive s
+    rw [hc] at hc'; injection hc' with heq; subst heq; exact hL
+  · obtain ⟨c', hc', _, hB⟩ := hactive s
+    rw [hc] at hc'; injection hc' with heq; subst heq; exact hB
+
+/-- **Dyadic ray non-halting and trapping (`not_halts_dyadic_ray_of_box_repeat`).** If `M` has a
+finite-box repeat inside `[L, B)` (`1 ≤ B`) at `t₁` and `t₁ + p` (`0 < p`) on `n ≥ 2 ^ (B - 1)`,
+then for every `m ≥ 2 ^ (B - 1)` with `m % 2 ^ B = n % 2 ^ B`, `M` never halts on `m` and stays
+below `B` for all `t : Nat`. -/
+theorem not_halts_dyadic_ray_of_box_repeat {M : Machine} {n m t₁ p B : Nat} {L : Int} {c₁ c₂ : Cfg M}
+    (hp : 0 < p) (hn : 2 ^ (B - 1) ≤ n) (hm : 2 ^ (B - 1) ≤ m)
+    (hmod : m % 2 ^ B = n % 2 ^ B)
+    (hr₁ : M.run n t₁ = .inr c₁) (hr₂ : M.run n (t₁ + p) = .inr c₂)
+    (habove : ScansAbove M n (t₁ + p) L) (hbelow : ScansBelow M n (t₁ + p) (B : Int))
+    (hst : c₁.state = c₂.state) (hhd : c₁.head = c₂.head)
+    (hbox : ∀ i : Int, L ≤ i → i < (B : Int) → c₁.tape i = c₂.tape i) :
+    (∀ t b, M.run m t ≠ .inl b) ∧ (∀ t, ScansBelow M m t (B : Int)) := by
+  obtain ⟨hnh_n, htrap_n⟩ :=
+    not_halts_and_trapped_of_box_repeat hp hr₁ hr₂ habove hbelow hst hhd hbox
+  have hinit := init_tape_eq_of_mod_two_pow_eq M hm hn hmod
+  refine ⟨fun t b h => ?_, fun t => (run_eq_of_init_eq_of_scansBelow hinit (htrap_n t).2).2⟩
+  have heq := (run_eq_of_init_eq_of_scansBelow hinit (htrap_n t).2).1 b
+  exact hnh_n t b (heq.mp h)
+
 end Rule30Problem3Bounds
 end Ruliology.CellularAutomata
