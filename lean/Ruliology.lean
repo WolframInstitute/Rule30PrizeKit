@@ -160,6 +160,10 @@ public import Ruliology.CellularAutomata.Rule30WedgeParity
 public import Ruliology.CellularAutomata.Rule30P2Bridge
 public import Ruliology.CellularAutomata.Rule30SurvivalBridge
 public import Ruliology.CellularAutomata.Rule30AlternatingTraceBridge
+public import Ruliology.CellularAutomata.Rule30WedgeBridge
+public import Ruliology.CellularAutomata.Rule30SeparatorBridge
+public import Ruliology.CellularAutomata.Rule30SeparatorEquivalences
+public import Ruliology.CellularAutomata.Rule30SEPToPeriodTwo
 
 /-!
 # Rule 30 Prize: Lean snapshot
