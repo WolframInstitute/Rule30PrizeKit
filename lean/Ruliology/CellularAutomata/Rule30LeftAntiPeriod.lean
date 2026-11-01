@@ -1,0 +1,327 @@
+module
+
+public import Ruliology.CellularAutomata.Rule30LeftUnbounded
+
+/-!
+# Left-Diagonal Anti-Periodicity and Infinitely Many Left Diagonals of Asymptotic Density 1/2
+
+In `Rule30LeftReset`, when `D (j + 1)` is eventually white, `D (j + 2)` shifts by `L` via
+`D (j + 2) (t + L) = xor (D (j + 2) t) (par (D j) t L)`. Here we prove that whenever `D j` has
+eventual period `L`, the `L`-step XOR parity `par (D j) t L` is eventually constant in `t`. This
+yields a sharp global dichotomy: when `D j` is `L`-periodic and `D (j + 1)` is eventually white,
+`D (j + 2)` is either `L`-periodic or `L`-anti-periodic (`D (j + 2) (t + L) = ! D (j + 2) t`).
+
+Applied to the first diagonal `D m` (`m ≤ 2^(2*L)`) where period `L` fails
+(`Rule30LeftUnbounded.D_period_unbounded`), this proves that for every `L > 0` there is an
+eventually `L`-anti-periodic left diagonal `D j` (`j ≤ 2^(2*L)`) with `¬ EvPer (D j) L`. We then
+prove that every eventually anti-periodic sequence has exact half-black balance (`L` black cells in
+every `2*L` window after the transient) and satisfies the exact asymptotic density-`1/2` condition
+of `Rule30Prize.Problem2` (`HalfDensity`), yielding infinitely many left diagonals with asymptotic
+black-cell density `1/2` (`D_infinitely_many_halfDensity`).
+-/
+
+@[expose] public section
+
+namespace Ruliology.CellularAutomata
+namespace Rule30LeftAntiPeriod
+
+open Rule30Jen Rule30Prize Rule30Diagonals Rule30LeftReset Rule30LeftUnbounded
+
+/-! ## Constant parity and the period / anti-period dichotomy -/
+
+/-- Associativity of Boolean `xor`. -/
+theorem xor_left_assoc (x y z : Bool) : xor x (xor y z) = xor (xor x y) z := by
+  cases x <;> cases y <;> cases z <;> rfl
+
+/-- Shifting the starting time of `par a t n` by `1` step:
+`xor (a t) (par a (t + 1) n) = xor (par a t n) (a (t + n))`. -/
+theorem par_succ_left (a : Nat → Bool) (t : Nat) :
+    ∀ n, xor (a t) (par a (t + 1) n) = xor (par a t n) (a (t + n))
+  | 0 => by simp [par]
+  | n + 1 => by
+    simp only [par]
+    rw [xor_left_assoc, par_succ_left a t n, show t + 1 + n = t + (n + 1) by omega]
+
+/-- If `a (t + L) = a t`, then `par a (t + 1) L = par a t L`. -/
+theorem par_step_of_periodic {a : Nat → Bool} {t L : Nat} (ha : a (t + L) = a t) :
+    par a (t + 1) L = par a t L := by
+  have h := par_succ_left a t L
+  rw [ha] at h
+  revert h
+  cases a t <;> cases par a (t + 1) L <;> cases par a t L <;> decide
+
+/-- **Eventual constancy of `par a t L`.** If `a` has period `L` from `s` onward, then
+`par a t L = par a s L` for all `t ≥ s`. -/
+theorem par_const_of_periodic {a : Nat → Bool} {s L : Nat}
+    (ha : ∀ t, s ≤ t → a (t + L) = a t) :
+    ∀ t, s ≤ t → par a t L = par a s L := by
+  intro t ht
+  obtain ⟨k, rfl⟩ : ∃ k, t = s + k := ⟨t - s, by omega⟩
+  induction k with
+  | zero => rfl
+  | succ k ih =>
+    rw [show s + (k + 1) = (s + k) + 1 by omega, par_step_of_periodic (ha (s + k) (by omega)),
+      ih (by omega)]
+
+/-- **Generic period / anti-period dichotomy.** If `x (t + 1) = xor (a t) (b t || x t)`, `a` has
+period `L` from `s` onward, and `b` is `false` from `s` onward, then either `x` has period `L` from
+`s` onward or `x` is `L`-anti-periodic (`x (t + L) = ! x t`) from `s` onward. -/
+theorem white_period_or_antiperiodic {x a b : Nat → Bool} {s L : Nat}
+    (hx : ∀ t, x (t + 1) = xor (a t) (b t || x t))
+    (ha : ∀ t, s ≤ t → a (t + L) = a t) (hb : ∀ t, s ≤ t → b t = false) :
+    (∀ t, s ≤ t → x (t + L) = x t) ∨ (∀ t, s ≤ t → x (t + L) = ! x t) := by
+  cases hpar : par a s L
+  · left
+    intro t ht
+    rw [white_shift hx hb t ht, par_const_of_periodic ha t ht, hpar]
+    cases x t <;> rfl
+  · right
+    intro t ht
+    rw [white_shift hx hb t ht, par_const_of_periodic ha t ht, hpar]
+    cases x t <;> rfl
+
+/-- **Left-diagonal period / anti-period dichotomy.** If `D j` has period `L` from `s` onward and
+`D (j + 1)` is white from `s` onward, then `D (j + 2)` is either `L`-periodic or `L`-anti-periodic
+from `s` onward. -/
+theorem D_period_or_antiperiodic {j s L : Nat}
+    (ha : ∀ t, s ≤ t → D j (t + L) = D j t) (hb : ∀ t, s ≤ t → D (j + 1) t = false) :
+    (∀ t, s ≤ t → D (j + 2) (t + L) = D (j + 2) t) ∨
+      (∀ t, s ≤ t → D (j + 2) (t + L) = ! D (j + 2) t) :=
+  white_period_or_antiperiodic (D_step j) ha hb
+
+/-- Eventual `L`-anti-periodicity of a sequence `f : Nat → Bool`. -/
+def EvAntiPer (f : Nat → Bool) (L : Nat) : Prop := ∃ T, ∀ t, T ≤ t → f (t + L) = ! f t
+
+/-- Every eventually `L`-anti-periodic sequence has eventual period `2 * L`. -/
+theorem EvAntiPer.evPer_two {f : Nat → Bool} {L : Nat} (h : EvAntiPer f L) : EvPer f (2 * L) := by
+  obtain ⟨T, hT⟩ := h
+  refine ⟨T, fun t ht => ?_⟩
+  rw [Nat.two_mul, ← Nat.add_assoc, hT (t + L) (by omega), hT t ht, Bool.not_not]
+
+/-- An eventually `L`-anti-periodic sequence cannot be eventually `L`-periodic. -/
+theorem EvAntiPer.not_evPer {f : Nat → Bool} {L : Nat} (h : EvAntiPer f L) : ¬ EvPer f L := by
+  rintro ⟨T₁, hper⟩
+  obtain ⟨T₂, hanti⟩ := h
+  let t := max T₁ T₂
+  have e1 := hper t (Nat.le_max_left T₁ T₂)
+  have e2 := hanti t (Nat.le_max_right T₁ T₂)
+  rw [e1] at e2
+  revert e2
+  cases f t <;> decide
+
+/-- If `D j` and `D (j + 1)` are eventually `L`-periodic while `D (j + 2)` is not, then `D (j + 1)`
+is eventually white and `D (j + 2)` is eventually `L`-anti-periodic. -/
+theorem D_evAntiPer_of_not_evPer {j L : Nat}
+    (h1 : EvPer (D j) L) (h2 : EvPer (D (j + 1)) L) (hnot : ¬ EvPer (D (j + 2)) L) :
+    EvWhite (D (j + 1)) ∧ EvAntiPer (D (j + 2)) L := by
+  rcases D_evper_or_evwhite h1 h2 with hper | hw
+  · exact absurd hper hnot
+  · refine ⟨hw, ?_⟩
+    obtain ⟨T1, hT1⟩ := h1
+    obtain ⟨T2, hT2⟩ := hw
+    rcases D_period_or_antiperiodic (s := max T1 T2)
+      (fun t ht => hT1 t (by omega)) (fun t ht => hT2 t (by omega)) with hper | hanti
+    · exact absurd ⟨max T1 T2, hper⟩ hnot
+    · exact ⟨max T1 T2, hanti⟩
+
+/-- Helper: if a predicate `P` holds at `0` and `1` but fails at some `m ≤ B`, there exists `j`
+with `j + 2 ≤ B` such that `P j`, `P (j + 1)`, and `¬ P (j + 2)`. -/
+theorem exists_step_break {P : Nat → Prop} (h0 : P 0) (h1 : P 1) :
+    ∀ {m : Nat}, ¬ P m → ∃ j, j + 2 ≤ m ∧ P j ∧ P (j + 1) ∧ ¬ P (j + 2)
+  | 0, hm => absurd h0 hm
+  | 1, hm => absurd h1 hm
+  | m + 2, hm => by
+    by_cases h : P (m + 1)
+    · by_cases h' : P m
+      · exact ⟨m, Nat.le_refl _, h', h, hm⟩
+      · obtain ⟨j, hj, hp0, hp1, hnp2⟩ := exists_step_break h0 h1 h'
+        exact ⟨j, by omega, hp0, hp1, hnp2⟩
+    · obtain ⟨j, hj, hp0, hp1, hnp2⟩ := exists_step_break h0 h1 h
+      exact ⟨j, by omega, hp0, hp1, hnp2⟩
+
+/-- **Unbounded `L`-anti-periodic left diagonals.** For every `L > 0`, there exists a left diagonal
+`D j` (`j ≤ 2 ^ (2 * L)`) that is eventually `L`-anti-periodic (`EvAntiPer (D j) L`) and not
+eventually `L`-periodic (`¬ EvPer (D j) L`). -/
+theorem D_antiperiodic_unbounded (L : Nat) (hL : 0 < L) :
+    ∃ j ≤ 2 ^ (2 * L), EvAntiPer (D j) L ∧ ¬ EvPer (D j) L := by
+  obtain ⟨m, hm, hnot⟩ := D_period_unbounded L hL
+  obtain ⟨j, hj, hp0, hp1, hnp2⟩ :=
+    exists_step_break (P := fun i => EvPer (D i) L) (D_zero_evper L) (D_one_evper L) hnot
+  obtain ⟨_, hanti⟩ := D_evAntiPer_of_not_evPer hp0 hp1 hnp2
+  exact ⟨j + 2, by omega, hanti, hnp2⟩
+
+/-! ## Exact period-`2L` balance and `Problem2` asymptotic density `1/2` -/
+
+/-- The number of black cells (`true` values) of `f` among `0, …, n - 1` (matching
+`Rule30Prize.blackCount` when `f = center`). -/
+def blackCountFor (f : Nat → Bool) (n : Nat) : Nat := ((List.range n).filter f).length
+
+/-- `blackCountFor center` is definitionally equal to `Rule30Prize.blackCount`. -/
+theorem blackCountFor_center (n : Nat) : blackCountFor center n = blackCount n := rfl
+
+/-- The asymptotic density-`1/2` property of `Rule30Prize.Problem2` for a general sequence `f`. -/
+def HalfDensity (f : Nat → Bool) : Prop :=
+  ∀ k : Nat, 0 < k → ∃ N, ∀ n, N ≤ n → k * (2 * (blackCountFor f n : Int) - n).natAbs ≤ n
+
+/-- `HalfDensity center` is identical to `Rule30Prize.Problem2`. -/
+theorem halfDensity_center_iff : HalfDensity center ↔ Problem2 := Iff.rfl
+
+/-- Step equation for `blackCountFor f (n + 1)`. -/
+theorem blackCountFor_succ (f : Nat → Bool) (n : Nat) :
+    blackCountFor f (n + 1) = blackCountFor f n + (if f n then 1 else 0) := by
+  unfold blackCountFor
+  rw [List.range_succ, List.filter_append, List.length_append]
+  cases hfn : f n <;> simp [List.filter, hfn]
+
+/-- `blackCountFor f (t + d)` is bounded between `blackCountFor f t` and `blackCountFor f t + d`. -/
+theorem blackCountFor_add_bounds (f : Nat → Bool) (t : Nat) :
+    ∀ d, blackCountFor f t ≤ blackCountFor f (t + d) ∧
+      blackCountFor f (t + d) ≤ blackCountFor f t + d
+  | 0 => ⟨Nat.le_refl _, Nat.le_refl _⟩
+  | d + 1 => by
+    obtain ⟨h1, h2⟩ := blackCountFor_add_bounds f t d
+    rw [show t + (d + 1) = (t + d) + 1 by omega, blackCountFor_succ]
+    cases f (t + d) <;> simp <;> omega
+
+/-- The number of `true` values of `f` on the window `[t, t + n)`. -/
+def winCount (f : Nat → Bool) (t : Nat) : Nat → Nat
+  | 0 => 0
+  | n + 1 => winCount f t n + (if f (t + n) then 1 else 0)
+
+/-- `blackCountFor f (t + n) = blackCountFor f t + winCount f t n`. -/
+theorem blackCountFor_add_eq_winCount (f : Nat → Bool) (t : Nat) :
+    ∀ n, blackCountFor f (t + n) = blackCountFor f t + winCount f t n
+  | 0 => by simp [winCount]
+  | n + 1 => by
+    rw [show t + (n + 1) = (t + n) + 1 by omega, blackCountFor_succ,
+      blackCountFor_add_eq_winCount f t n, winCount]
+    omega
+
+/-- If `f (t + r + L) = ! f (t + r)` for all `r < n`, then the window counts on `[t, t + n)` and
+`[t + L, t + L + n)` sum to `n`. -/
+theorem winCount_add_complement {f : Nat → Bool} {t L : Nat} :
+    ∀ n, (∀ r, r < n → f (t + L + r) = ! f (t + r)) →
+      winCount f t n + winCount f (t + L) n = n
+  | 0, _ => rfl
+  | n + 1, hcomp => by
+    simp only [winCount]
+    have ih := winCount_add_complement n (fun r hr => hcomp r (by omega))
+    have hn := hcomp n (Nat.lt_succ_self n)
+    rw [hn]
+    cases f (t + n) <;> simp <;> omega
+
+/-- **Exact period-`2L` balance of an `L`-anti-periodic sequence.** If `f (t + L) = ! f t` for all
+`t ≥ T`, then every window of length `2 * L` starting at `t ≥ T` contains *exactly* `L` black
+cells: `blackCountFor f (t + 2 * L) = blackCountFor f t + L`. -/
+theorem blackCountFor_add_two_mul_of_antiperiodic {f : Nat → Bool} {T L : Nat}
+    (hanti : ∀ t, T ≤ t → f (t + L) = ! f t) :
+    ∀ t, T ≤ t → blackCountFor f (t + 2 * L) = blackCountFor f t + L := by
+  intro t ht
+  rw [Nat.two_mul, ← Nat.add_assoc, blackCountFor_add_eq_winCount f (t + L) L,
+    blackCountFor_add_eq_winCount f t L, Nat.add_assoc]
+  have hsum : winCount f t L + winCount f (t + L) L = L := by
+    refine winCount_add_complement L fun r _ => ?_
+    rw [show t + L + r = (t + r) + L by omega]
+    exact hanti (t + r) (by omega)
+  omega
+
+/-- Iterating `q` blocks of length `2 * L` from `T` adds `q * L` black cells. -/
+theorem blackCountFor_add_mul_two_mul_of_antiperiodic {f : Nat → Bool} {T L : Nat}
+    (hanti : ∀ t, T ≤ t → f (t + L) = ! f t) :
+    ∀ q, blackCountFor f (T + q * (2 * L)) = blackCountFor f T + q * L
+  | 0 => by simp
+  | q + 1 => by
+    rw [show T + (q + 1) * (2 * L) = (T + q * (2 * L)) + 2 * L by rw [Nat.succ_mul]; omega,
+      blackCountFor_add_two_mul_of_antiperiodic hanti (T + q * (2 * L)) (by omega),
+      blackCountFor_add_mul_two_mul_of_antiperiodic hanti q, Nat.succ_mul]
+    omega
+
+/-- **Bounded discrepancy of anti-periodic sequences.** If `L > 0` and `f (t + L) = ! f t` for all
+`t ≥ T`, then `|2 * blackCountFor f n - n| ≤ T + 2 * L` for all `n ≥ T`. -/
+theorem natAbs_discrepancy_le_of_antiperiodic {f : Nat → Bool} {T L : Nat} (hL : 0 < L)
+    (hanti : ∀ t, T ≤ t → f (t + L) = ! f t) {n : Nat} (hn : T ≤ n) :
+    (2 * (blackCountFor f n : Int) - n).natAbs ≤ T + 2 * L := by
+  let q := (n - T) / (2 * L)
+  let r := (n - T) % (2 * L)
+  have h2L : 0 < 2 * L := by omega
+  have hr : r < 2 * L := Nat.mod_lt (n - T) h2L
+  have hdiv : q * (2 * L) + r = n - T := by
+    have h := Nat.div_add_mod (n - T) (2 * L)
+    rw [Nat.mul_comm] at h
+    exact h
+  have hq2 : q * (2 * L) = 2 * (q * L) := by rw [Nat.mul_left_comm, Nat.mul_comm q L]
+  have hn_eq : n = T + q * (2 * L) + r := by omega
+  have hbase := blackCountFor_add_mul_two_mul_of_antiperiodic hanti q
+  obtain ⟨hb1, hb2⟩ := blackCountFor_add_bounds f (T + q * (2 * L)) r
+  rw [← hn_eq] at hb1 hb2
+  rw [hbase] at hb1 hb2
+  obtain ⟨hT1, hT2⟩ := blackCountFor_add_bounds f 0 T
+  have h0 : blackCountFor f 0 = 0 := rfl
+  rw [h0, Nat.zero_add] at hT1 hT2
+  omega
+
+/-- **Every eventually anti-periodic sequence has asymptotic density `1/2` (`HalfDensity`).** -/
+theorem halfDensity_of_antiperiodic {f : Nat → Bool} {L : Nat} (hL : 0 < L)
+    (hanti : EvAntiPer f L) : HalfDensity f := by
+  obtain ⟨T, hT⟩ := hanti
+  intro k hk
+  refine ⟨k * (T + 2 * L) + T, fun n hn => ?_⟩
+  have hdisc := natAbs_discrepancy_le_of_antiperiodic hL hT (n := n) (by omega)
+  have hmul : k * (2 * (blackCountFor f n : Int) - n).natAbs ≤ k * (T + 2 * L) :=
+    Nat.mul_le_mul_left k hdisc
+  omega
+
+/-- **Unbounded asymptotic density-`1/2` left diagonals (`D_halfDensity_unbounded`).** For every
+`L > 0`, there exists a left diagonal `D j` (`j ≤ 2 ^ (2 * L)`) with `¬ EvPer (D j) L` that is
+eventually `L`-anti-periodic and satisfies the exact `Problem2` asymptotic density-`1/2` law
+`HalfDensity (D j)`. -/
+theorem D_halfDensity_unbounded (L : Nat) (hL : 0 < L) :
+    ∃ j ≤ 2 ^ (2 * L), EvAntiPer (D j) L ∧ ¬ EvPer (D j) L ∧ HalfDensity (D j) := by
+  obtain ⟨j, hj, hanti, hnot⟩ := D_antiperiodic_unbounded L hL
+  exact ⟨j, hj, hanti, hnot, halfDensity_of_antiperiodic hL hanti⟩
+
+/-- **Universal `whiteCount` period / anti-period dichotomy.** For every `j : Nat`, either
+`D (j + 2)` already has eventual period `2 ^ whiteCount j`, or `D (j + 1)` is eventually white,
+`D (j + 2)` is eventually `2 ^ whiteCount j`-anti-periodic, and `HalfDensity (D (j + 2))` holds. -/
+theorem D_evPer_or_evAntiPer_pow_whiteCount (j : Nat) :
+    EvPer (D (j + 2)) (2 ^ whiteCount j) ∨
+      (EvWhite (D (j + 1)) ∧ EvAntiPer (D (j + 2)) (2 ^ whiteCount j) ∧
+        HalfDensity (D (j + 2))) := by
+  by_cases hper : EvPer (D (j + 2)) (2 ^ whiteCount j)
+  · exact Or.inl hper
+  · obtain ⟨h1, h2⟩ := D_evper_pow_whiteCount_pair j
+    obtain ⟨hw, hanti⟩ := D_evAntiPer_of_not_evPer h1 h2 hper
+    exact Or.inr ⟨hw, hanti, halfDensity_of_antiperiodic (Nat.two_pow_pos _) hanti⟩
+
+/-- Monotonicity of `whiteCount`. -/
+theorem whiteCount_mono {i k : Nat} (hik : i ≤ k) : whiteCount i ≤ whiteCount k := by
+  induction k with
+  | zero =>
+    have : i = 0 := by omega
+    subst this; exact Nat.le_refl _
+  | succ k ih =>
+    rcases Nat.lt_or_ge i (k + 1) with hlt | hge
+    · have := ih (by omega)
+      simp only [whiteCount]
+      omega
+    · have : i = k + 1 := by omega
+      subst this; exact Nat.le_refl _
+
+/-- **Infinitely many left diagonals have asymptotic density `1/2` (`D_infinitely_many_halfDensity`).**
+Complementing `Rule30LeftUnbounded.D_infinitely_many_white` (density `0`) and
+`Rule30LeftUnbounded.D_infinitely_many_black` (density `1`), for every `N : Nat` there exists a
+left diagonal `D j` with `j > N` and `k : Nat` such that `D j` is eventually `2^k`-anti-periodic,
+not eventually `2^k`-periodic, and satisfies `HalfDensity (D j)`. -/
+theorem D_infinitely_many_halfDensity (N : Nat) :
+    ∃ j > N, ∃ k : Nat, EvAntiPer (D j) (2 ^ k) ∧ ¬ EvPer (D j) (2 ^ k) ∧ HalfDensity (D j) := by
+  let k := whiteCount (N + 1)
+  obtain ⟨j, _, hanti, hnot, hhalf⟩ := D_halfDensity_unbounded (2 ^ k) (Nat.two_pow_pos k)
+  refine ⟨j, ?_, k, hanti, hnot, hhalf⟩
+  refine Classical.byContradiction fun hle => ?_
+  have hjN : j ≤ N + 1 := by omega
+  have hmono : whiteCount j ≤ k := whiteCount_mono hjN
+  have hdvd : 2 ^ whiteCount j ∣ 2 ^ k := Nat.pow_dvd_pow 2 hmono
+  exact hnot (EvPer.of_dvd (D_evper_pow_whiteCount j) hdvd)
+
+end Rule30LeftAntiPeriod
+end Ruliology.CellularAutomata
