@@ -555,5 +555,387 @@ theorem log2_succ_succ_le_time_lt_16 {M : Machine} {T : Nat → Nat} (hM : Compu
             ((Nat.le_log2 (by omega)).mpr hge)
         rw [hlog]; exact five_le_time hM (by omega)
 
+
+/-! ### Right-head horizon (`ScansBelow`), `RightSpan`, time-space collapse, and spatial excursion bounds -/
+
+/-- After `s` steps from `head = 0`, any active configuration `c` satisfies `c.head ≤ s`. -/
+theorem run_head_le_steps {M : Machine} {n : Nat} :
+    ∀ {s : Nat} {c : Cfg M}, M.run n s = .inr c → c.head ≤ (s : Int)
+  | 0, c, hc => by
+    injection hc with h
+    subst h
+    simp [Machine.init]
+  | s + 1, c, hc => by
+    simp only [Machine.run] at hc
+    cases hr : M.run n s with
+    | inl b => rw [hr] at hc; cases hc
+    | inr c₀ =>
+      rw [hr] at hc
+      dsimp only at hc
+      have ih := run_head_le_steps hr
+      unfold Cfg.step at hc
+      cases hδ : M.δ c₀.state (c₀.tape c₀.head) with
+      | inl b => rw [hδ] at hc; cases hc
+      | inr val =>
+        rcases val with ⟨p, a, d⟩
+        rw [hδ] at hc
+        injection hc with h
+        subst h
+        have hm := move_apply_le_succ d c₀.head
+        dsimp only
+        omega
+
+/-- During the first `t` steps on input `n`, `M`'s head remains strictly to the left of cell `B`
+(even if `M` runs for arbitrarily many steps `t` and uses the negative half-tape `i < 0` as
+unbounded workspace). -/
+def ScansBelow (M : Machine) (n t : Nat) (B : Int) : Prop :=
+  ∀ s, s < t → ∀ c, M.run n s = .inr c → c.head < B
+
+/-- Monotonicity of `ScansBelow` in the step horizon `t`. -/
+theorem ScansBelow.mono {M : Machine} {n t₁ t₂ : Nat} {B : Int}
+    (h : ScansBelow M n t₂ B) (ht : t₁ ≤ t₂) : ScansBelow M n t₁ B :=
+  fun s hs c hc => h s (Nat.lt_of_lt_of_le hs ht) c hc
+
+/-- Monotonicity of `ScansBelow` in the spatial barrier `B`. -/
+theorem ScansBelow.mono_bound {M : Machine} {n t : Nat} {B₁ B₂ : Int}
+    (h : ScansBelow M n t B₁) (hB : B₁ ≤ B₂) : ScansBelow M n t B₂ :=
+  fun s hs c hc => Int.lt_of_lt_of_le (h s hs c hc) hB
+
+/-- Any run of length `t ≤ k` from `head = 0` automatically satisfies `ScansBelow M n t k`. -/
+theorem scansBelow_of_le {M : Machine} {n t k : Nat} (ht : t ≤ k) :
+    ScansBelow M n t (k : Int) := by
+  intro s hs c hc
+  have hle := run_head_le_steps hc
+  omega
+
+/-- The right-hand input span `RightSpan M n t`: the smallest `B : Nat` such that `M`'s head stays
+strictly below cell `B` during the first `t` steps on input `n` (measuring how many non-negative
+cells `0, …, B - 1` the head reaches). -/
+def RightSpan (M : Machine) (n : Nat) : Nat → Nat
+  | 0 => 0
+  | t + 1 =>
+    match M.run n t with
+    | .inl _ => RightSpan M n t
+    | .inr c => max (RightSpan M n t) (c.head + 1).toNat
+
+/-- **Exact equivalence between `ScansBelow` and `RightSpan`.** For every `B : Nat`, the head
+stays strictly below cell `B` during the first `t` steps iff `RightSpan M n t ≤ B`. -/
+theorem scansBelow_iff_rightSpan_le {M : Machine} {n t B : Nat} :
+    ScansBelow M n t (B : Int) ↔ RightSpan M n t ≤ B := by
+  induction t with
+  | zero =>
+    simp [ScansBelow, RightSpan]
+  | succ t ih =>
+    simp only [RightSpan]
+    cases hr : M.run n t with
+    | inl b =>
+      dsimp only
+      rw [← ih]
+      refine ⟨fun h s hs c hc => h s (by omega) c hc, fun h s hs c hc => ?_⟩
+      rcases Nat.lt_or_eq_of_le (Nat.le_of_lt_succ hs) with hlt | rfl
+      · exact h s hlt c hc
+      · rw [hr] at hc; cases hc
+    | inr c₀ =>
+      dsimp only
+      rw [Nat.max_le, ← ih]
+      refine ⟨fun h => ⟨fun s hs c hc => h s (by omega) c hc, ?_⟩, fun ⟨h1, h2⟩ s hs c hc => ?_⟩
+      · have hlt : c₀.head < (B : Int) := h t (Nat.lt_succ_self t) c₀ hr
+        omega
+      · rcases Nat.lt_or_eq_of_le (Nat.le_of_lt_succ hs) with hlt | rfl
+        · exact h1 s hlt c hc
+        · rw [hr] at hc
+          injection hc with h
+          subst h
+          omega
+
+/-- In `t` steps from `head = 0`, `RightSpan M n t ≤ t`. -/
+theorem rightSpan_le_steps (M : Machine) (n t : Nat) : RightSpan M n t ≤ t := by
+  exact scansBelow_iff_rightSpan_le.mp (scansBelow_of_le (Nat.le_refl t))
+
+/-- **Unbounded-time step congruence below a spatial barrier `B`.** If `M.init m` and `M.init n`
+agree on all cells `0 ≤ i < B` (and hence on all `i < B`, since negative cells are blank) and
+`ScansBelow M n t B` holds, then `M.run m t = M.run n t`, and if both are still running at step `t`
+their configurations have the same state, the same head position, and identical tapes below `B`. -/
+theorem run_congr_of_scansBelow {M : Machine} {m n : Nat} {B : Nat}
+    (hinit : ∀ i : Int, 0 ≤ i → i < B → (M.init m).tape i = (M.init n).tape i) :
+    ∀ t, ScansBelow M n t (B : Int) →
+      match M.run m t, M.run n t with
+      | .inl b₁, .inl b₂ => b₁ = b₂
+      | .inr c₁, .inr c₂ =>
+          c₁.state = c₂.state ∧ c₁.head = c₂.head ∧ ∀ i : Int, i < B → c₁.tape i = c₂.tape i
+      | _, _ => False
+  | 0, _ => by
+    refine ⟨rfl, rfl, fun i hi => ?_⟩
+    by_cases h0 : 0 ≤ i
+    · exact hinit i h0 hi
+    · simp [Machine.init, h0]
+  | t + 1, hscan => by
+    have ih := run_congr_of_scansBelow hinit t (hscan.mono (Nat.le_succ t))
+    simp only [Machine.run]
+    cases hm : M.run m t with
+    | inl b₁ =>
+      cases hn : M.run n t with
+      | inl b₂ => rw [hm, hn] at ih; exact ih
+      | inr c₂ => rw [hm, hn] at ih; exact False.elim ih
+    | inr c₁ =>
+      cases hn : M.run n t with
+      | inl b₂ => rw [hm, hn] at ih; exact False.elim ih
+      | inr c₂ =>
+        rw [hm, hn] at ih
+        obtain ⟨hst, hhd, htp⟩ := ih
+        have hlt : c₁.head < (B : Int) := by
+          rw [hhd]
+          exact hscan t (Nat.lt_succ_self t) c₂ hn
+        rcases step_congr_below hst hhd hlt htp with ⟨b, h1, h2⟩ | ⟨c₁', c₂', h1, h2, hst', hhd', _, htp'⟩
+        · dsimp only; rw [h1, h2]
+        · dsimp only; rw [h1, h2]; exact ⟨hst', hhd', htp'⟩
+
+/-- **Unbounded-time run invariance under `ScansBelow`.** If `M.init m` and `M.init n` agree on
+all input cells `0 ≤ i < B` and `M`'s head on input `n` stays strictly below cell `B` during `t`
+steps (`ScansBelow M n t B`), then `M.run m t = M.run n t`—regardless of how large `t` is or how
+many negative worktape cells `i < 0` are visited. -/
+theorem run_eq_of_init_eq_of_scansBelow {M : Machine} {m n t B : Nat}
+    (hinit : ∀ i : Int, 0 ≤ i → i < B → (M.init m).tape i = (M.init n).tape i)
+    (hscan : ScansBelow M n t (B : Int)) :
+    (∀ b, M.run m t = .inl b ↔ M.run n t = .inl b) ∧ ScansBelow M m t (B : Int) := by
+  refine ⟨fun b => ?_, fun s hs c₁ hc₁ => ?_⟩
+  · have h := run_congr_of_scansBelow hinit t hscan
+    cases hm : M.run m t <;> cases hn : M.run n t <;> rw [hm, hn] at h
+    · simp [h]
+    · exact False.elim h
+    · exact False.elim h
+    · simp
+  · have h := run_congr_of_scansBelow hinit s (hscan.mono (Nat.le_of_lt hs))
+    cases hn : M.run n s with
+    | inl b₂ => rw [hc₁, hn] at h; exact False.elim h
+    | inr c₂ =>
+      rw [hc₁, hn] at h
+      rw [h.2.1]
+      exact hscan s hs c₂ hn
+
+/-- **2-adic ray collapse under bounded right-head excursion (`ScansBelow`).** If `M` computes `f`
+in time `T`, `m, n ≥ 2^(k-1)` (`k ≥ 1`) satisfy `m % 2^k = n % 2^k`, and on input `n` the head of
+`M` never visits cell `k` or higher (`ScansBelow M n (T n) k`), then `M` halts on `m` within `T n`
+steps with `M.run m (T n) = .inl (f n)`, `f m = f n`, and `ScansBelow M m (T n) k`. -/
+theorem computes_eq_of_mod_two_pow_of_scansBelow {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {k m n : Nat} (hm : 2 ^ (k - 1) ≤ m) (hn : 2 ^ (k - 1) ≤ n)
+    (hmod : m % 2 ^ k = n % 2 ^ k) (hscan : ScansBelow M n (T n) (k : Int)) :
+    M.run m (T n) = .inl (f n) ∧ f m = f n ∧ ScansBelow M m (T n) (k : Int) := by
+  rcases k with _ | k'
+  · exfalso
+    have h0 : M.run n 0 = .inr (M.init n) := rfl
+    rcases Nat.eq_zero_or_pos (T n) with hT0 | hTpos
+    · have h := hM n; rw [hT0] at h; cases h
+    · have hlt := hscan 0 hTpos (M.init n) h0
+      simp [Machine.init] at hlt
+  · have hinit : ∀ i : Int, 0 ≤ i → i < (k' + 1 : Nat) → (M.init m).tape i = (M.init n).tape i :=
+      fun i hi0 hik => init_tape_eq_of_mod_two_pow_eq M hm hn hmod i hi0 hik
+    obtain ⟨hiff, hscan_m⟩ := run_eq_of_init_eq_of_scansBelow hinit hscan
+    have hrun_m : M.run m (T n) = .inl (f n) := (hiff (f n)).mpr (hM n)
+    have h1 := Machine.run_add hrun_m (T m)
+    have h2 := Machine.run_add (hM m) (T n)
+    rw [Nat.add_comm] at h2
+    have hsum : (.inl (f n) : Bool ⊕ Cfg M) = .inl (f m) := h1.symm.trans h2
+    injection hsum with hfeq
+    exact ⟨hrun_m, hfeq.symm, hscan_m⟩
+
+/-- **Dyadic ray constancy and halting collapse under `ScansBelow`.** If `M` computes `f` in time `T`
+and keeps its head below cell `k` (`ScansBelow M n (T n) k`) on a single input `n ≥ 2^(k-1)`, then
+for every `u ≥ 1`, on the ray element `m = n % 2^k + u * 2^k` the machine halts within `T n` steps
+(`M.run m (T n) = .inl (f n)`) and `f m = f n`. -/
+theorem computes_const_on_dyadic_ray_of_scansBelow {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {k n : Nat} (hn : 2 ^ (k - 1) ≤ n)
+    (hscan : ScansBelow M n (T n) (k : Int)) (u : Nat) (hu : 1 ≤ u) :
+    M.run (n % 2 ^ k + u * 2 ^ k) (T n) = .inl (f n) ∧
+      f (n % 2 ^ k + u * 2 ^ k) = f n := by
+  have hm : 2 ^ (k - 1) ≤ n % 2 ^ k + u * 2 ^ k := by
+    have h1 : 2 ^ (k - 1) ≤ 2 ^ k := Nat.pow_le_pow_right (by decide) (Nat.sub_le k 1)
+    have h2 : 1 * 2 ^ k ≤ u * 2 ^ k := Nat.mul_le_mul_right (2 ^ k) hu
+    omega
+  have hmod : (n % 2 ^ k + u * 2 ^ k) % 2 ^ k = n % 2 ^ k := by
+    rw [Nat.add_mul_mod_self_right, Nat.mod_mod]
+  obtain ⟨hrun, hfeq, _⟩ := computes_eq_of_mod_two_pow_of_scansBelow hM hm hn hmod hscan
+  exact ⟨hrun, hfeq⟩
+
+/-- **Residue-flip right-head lower bound (arbitrary halting time `T`).** If `M` computes `f` in
+time `T` and two inputs `r, m ≥ 2^(k-1)` in the same residue class modulo `2^k` satisfy `f r ≠ f m`,
+then on *every* input `n ≥ 2^(k-1)` in that residue class, `M`'s head must reach cell `k` or higher
+before halting—no matter how many steps `T n` or negative worktape cells `i < 0` it uses. -/
+theorem exists_head_ge_of_mod_two_pow_ne {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {k r m n : Nat}
+    (hr : 2 ^ (k - 1) ≤ r) (hm : 2 ^ (k - 1) ≤ m) (hn : 2 ^ (k - 1) ≤ n)
+    (hrm : r % 2 ^ k = m % 2 ^ k) (hneq : f r ≠ f m) (hrn : r % 2 ^ k = n % 2 ^ k) :
+    ∃ s < T n, ∃ c, M.run n s = .inr c ∧ (k : Int) ≤ c.head := by
+  refine Classical.byContradiction fun hno => ?_
+  have hscan : ScansBelow M n (T n) (k : Int) := fun s hs c hc =>
+    Int.lt_of_not_ge fun hge => hno ⟨s, hs, c, hc, hge⟩
+  have e1 := (computes_eq_of_mod_two_pow_of_scansBelow hM hr hn hrn hscan).2.1
+  have e2 := (computes_eq_of_mod_two_pow_of_scansBelow hM hm hn (hrm.symm.trans hrn) hscan).2.1
+  exact hneq (e1.trans e2.symm)
+
+/-- **Residue-flip lower bound on `RightSpan`.** Under the hypotheses of
+`exists_head_ge_of_mod_two_pow_ne`, `k + 1 ≤ RightSpan M n (T n)`. -/
+theorem k_lt_rightSpan_of_mod_two_pow_ne {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {k r m n : Nat}
+    (hr : 2 ^ (k - 1) ≤ r) (hm : 2 ^ (k - 1) ≤ m) (hn : 2 ^ (k - 1) ≤ n)
+    (hrm : r % 2 ^ k = m % 2 ^ k) (hneq : f r ≠ f m) (hrn : r % 2 ^ k = n % 2 ^ k) :
+    k + 1 ≤ RightSpan M n (T n) := by
+  refine Classical.byContradiction fun hlt => ?_
+  have hle : RightSpan M n (T n) ≤ k := by omega
+  have hscan : ScansBelow M n (T n) (k : Int) := scansBelow_iff_rightSpan_le.mpr hle
+  obtain ⟨s, hs, c, hc, hge⟩ := exists_head_ge_of_mod_two_pow_ne hM hr hm hn hrm hneq hrn
+  have := hscan s hs c hc
+  omega
+
+/-- **Blank-reach right-head lower bound (arbitrary halting time `T`).** For any `n ≥ 1`, let
+`L = Nat.log2 n + 1` be the binary length of `n`. If `f (n + u * 2^L) ≠ f n` for some `u`, then
+every machine `M` computing `f` in time `T` must move its head onto the blank cell `L` beyond the
+most significant bit of `n` (`∃ s < T n, ∃ c, M.run n s = .inr c ∧ (Nat.log2 n + 1 : Int) ≤ c.head`). -/
+theorem exists_head_gt_log2_of_ray_flip {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {n u : Nat} (hn : 1 ≤ n)
+    (hflip : f (n + u * 2 ^ (Nat.log2 n + 1)) ≠ f n) :
+    ∃ s < T n, ∃ c, M.run n s = .inr c ∧ (Nat.log2 n + 1 : Int) ≤ c.head := by
+  let L := Nat.log2 n + 1
+  have hpow : 2 ^ (L - 1) ≤ n := Nat.log2_self_le (by omega)
+  have hpow2 : 2 ^ (L - 1) ≤ n + u * 2 ^ L := Nat.le_trans hpow (Nat.le_add_right n (u * 2 ^ L))
+  have hmod : (n + u * 2 ^ L) % 2 ^ L = n % 2 ^ L := Nat.add_mul_mod_self_right n u (2 ^ L)
+  exact exists_head_ge_of_mod_two_pow_ne hM hpow2 hpow hpow hmod hflip (hmod.trans rfl)
+
+/-- **Blank-reach `RightSpan` lower bound.** If `n ≥ 1` and `f (n + u * 2^(Nat.log2 n + 1)) ≠ f n`,
+then `Nat.log2 n + 2 ≤ RightSpan M n (T n)` for every machine `M` computing `f` in time `T`. -/
+theorem log2_succ_lt_rightSpan_of_ray_flip {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {n u : Nat} (hn : 1 ≤ n)
+    (hflip : f (n + u * 2 ^ (Nat.log2 n + 1)) ≠ f n) :
+    Nat.log2 n + 2 ≤ RightSpan M n (T n) := by
+  let L := Nat.log2 n + 1
+  have hpow : 2 ^ (L - 1) ≤ n := Nat.log2_self_le (by omega)
+  have hpow2 : 2 ^ (L - 1) ≤ n + u * 2 ^ L := Nat.le_trans hpow (Nat.le_add_right n (u * 2 ^ L))
+  have hmod : (n + u * 2 ^ L) % 2 ^ L = n % 2 ^ L := Nat.add_mul_mod_self_right n u (2 ^ L)
+  exact k_lt_rightSpan_of_mod_two_pow_ne hM hpow2 hpow hpow hmod hflip (hmod.trans rfl)
+
+/-- **Canonical-window right-head periodicity and halting-time collapse.** If `M` computes `f` in
+time `T` and its head stays below cell `k` (`ScansBelow M r (T r) k`) on the canonical window
+`r ∈ [2^(k-1), 2^(k-1) + 2^k)`, then `f` has global period `2^k` from `2^(k-1)` onward *and* on
+every input `m ≥ 2^(k-1)` the machine halts within `T (canonRep k m)` steps. -/
+theorem period_and_halt_of_canon_window_scansBelow {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {k : Nat}
+    (hwin : ∀ r, 2 ^ (k - 1) ≤ r → r < 2 ^ (k - 1) + 2 ^ k → ScansBelow M r (T r) (k : Int)) :
+    (∀ m, 2 ^ (k - 1) ≤ m → f (m + 2 ^ k) = f m) ∧
+      (∀ m, 2 ^ (k - 1) ≤ m → M.run m (T (canonRep k m)) = .inl (f m)) := by
+  refine ⟨fun m hm => ?_, fun m hm => ?_⟩
+  · let r := canonRep k m
+    obtain ⟨_, hr1, hmod⟩ := canonRep_spec hm
+    have hr2 : r < 2 ^ (k - 1) + 2 ^ k := canonRep_lt
+    have hscan : ScansBelow M r (T r) (k : Int) := hwin r hr1 hr2
+    have hmod1 : m % 2 ^ k = r % 2 ^ k := hmod.symm
+    have hmod2 : (m + 2 ^ k) % 2 ^ k = r % 2 ^ k := by rw [Nat.add_mod_right, hmod1]
+    have e1 := (computes_eq_of_mod_two_pow_of_scansBelow hM hm hr1 hmod1 hscan).2.1
+    have e2 := (computes_eq_of_mod_two_pow_of_scansBelow hM (by omega) hr1 hmod2 hscan).2.1
+    exact e2.trans e1.symm
+  · let r := canonRep k m
+    obtain ⟨_, hr1, hmod⟩ := canonRep_spec hm
+    have hr2 : r < 2 ^ (k - 1) + 2 ^ k := canonRep_lt
+    have hscan : ScansBelow M r (T r) (k : Int) := hwin r hr1 hr2
+    obtain ⟨hrun, hfeq, _⟩ := computes_eq_of_mod_two_pow_of_scansBelow hM hm hr1 hmod.symm hscan
+    rwa [← hfeq] at hrun
+
+/-- **Full step-by-step configuration and negative-worktape collapse to the canonical root.** If
+`ScansBelow M r (T r) k` holds on the canonical window `r ∈ [2^(k-1), 2^(k-1) + 2^k)`, then for
+every input `m ≥ 2^(k-1)` (`k ≥ 1`) and every step `s ≤ T (canonRep k m)`, the run on `m` matches
+the run on `r = canonRep k m` in state, head position, and tape contents across all cells `i < k`
+(including the entire negative half-tape `i < 0`). -/
+theorem run_congr_canonRep_of_canon_window_scansBelow {M : Machine} {T : Nat → Nat} {k : Nat}
+    (hwin : ∀ r, 2 ^ (k - 1) ≤ r → r < 2 ^ (k - 1) + 2 ^ k → ScansBelow M r (T r) (k : Int))
+    {m s : Nat} (hm : 2 ^ (k - 1) ≤ m) (hs : s ≤ T (canonRep k m)) :
+    match M.run m s, M.run (canonRep k m) s with
+    | .inl b₁, .inl b₂ => b₁ = b₂
+    | .inr c₁, .inr c₂ =>
+        c₁.state = c₂.state ∧ c₁.head = c₂.head ∧ ∀ i : Int, i < k → c₁.tape i = c₂.tape i
+    | _, _ => False := by
+  let r := canonRep k m
+  obtain ⟨_, hr1, hmod⟩ := canonRep_spec hm
+  have hr2 : r < 2 ^ (k - 1) + 2 ^ k := canonRep_lt
+  have hscan : ScansBelow M r s (k : Int) := (hwin r hr1 hr2).mono hs
+  have hinit : ∀ i : Int, 0 ≤ i → i < k → (M.init m).tape i = (M.init r).tape i :=
+    fun i hi0 hik => init_tape_eq_of_mod_two_pow_eq M hm hr1 hmod.symm i hi0 hik
+  exact run_congr_of_scansBelow hinit s hscan
+
+/-- **Eventual right-head bound forces fixed-transient periodicity `2^k`.** If `M` computes `f` in
+time `T` and `ScansBelow M n (T n) k` holds for all `n ≥ N`, then `f` has period `2^k` from the
+fixed threshold `2^(k-1)` onward. -/
+theorem period_of_eventually_scansBelow {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {k N : Nat}
+    (hscan : ∀ n, N ≤ n → ScansBelow M n (T n) (k : Int)) :
+    ∀ m, 2 ^ (k - 1) ≤ m → f (m + 2 ^ k) = f m := by
+  refine (period_and_halt_of_canon_window_scansBelow hM fun r hr1 _ => ?_).1
+  by_cases hk : k = 0
+  · subst hk
+    exfalso
+    have hN := hscan N (Nat.le_refl N)
+    have h0 : M.run N 0 = .inr (M.init N) := rfl
+    rcases Nat.eq_zero_or_pos (T N) with hT0 | hTpos
+    · have h := hM N; rw [hT0] at h; cases h
+    · have hlt := hN 0 hTpos (M.init N) h0
+      simp [Machine.init] at hlt
+  · let w := r + N * 2 ^ k
+    have h2k : 1 ≤ 2 ^ k := Nat.one_le_two_pow
+    have hwN : N ≤ w := by
+      have : N * 1 ≤ N * 2 ^ k := Nat.mul_le_mul_left N h2k
+      omega
+    have hmod : r % 2 ^ k = w % 2 ^ k := (Nat.add_mul_mod_self_right r N (2 ^ k)).symm
+    have hw_scan : ScansBelow M w (T w) (k : Int) := hscan w hwN
+    obtain ⟨hrun_r, _, hscan_r⟩ :=
+      computes_eq_of_mod_two_pow_of_scansBelow hM hr1 (by omega) hmod hw_scan
+    intro s hs c hc
+    by_cases hs_lt : s < T w
+    · exact hscan_r s hs_lt c hc
+    · exfalso
+      have hadd := Machine.run_add hrun_r (s - T w)
+      rw [Nat.add_sub_cancel' (by omega), hc] at hadd
+      cases hadd
+
+/-- **`Problem1` implies unbounded right-head excursion.** Under `Problem1`, for every `k` and `N`,
+every machine `M` computing `center` in time `T` must move its head to cell `k` or higher on some
+input `n ≥ N`. -/
+theorem head_unbounded_of_problem1 (hP1 : Problem1) {M : Machine} {T : Nat → Nat}
+    (hM : Computes M center T) (k N : Nat) :
+    ∃ n, N ≤ n ∧ ∃ s < T n, ∃ c, M.run n s = .inr c ∧ (k : Int) ≤ c.head := by
+  refine Classical.byContradiction fun hno => ?_
+  have hscan : ∀ n, N ≤ n → ScansBelow M n (T n) (k : Int) := fun n hn s hs c hc =>
+    Int.lt_of_not_ge fun hge => hno ⟨n, hn, s, hs, c, hc, hge⟩
+  have hper := period_of_eventually_scansBelow hM hscan
+  exact hP1 ⟨2 ^ (k - 1), 2 ^ k, Nat.two_pow_pos k, hper⟩
+
+/-- **Unconditional canonical-window right-head lower bound on left diagonals.** For every
+`k : Nat`, there exists a left diagonal `D j` (`j ≤ 2 ^ (2 * 2 ^ k)`) such that every machine `M`
+computing `D j` in *any* time `T` must move its head to cell `k` or higher on some input `r` in the
+canonical window `[2^(k-1), 2^(k-1) + 2^k)`. -/
+theorem diagonal_canon_window_head_ge (k : Nat) :
+    ∃ j ≤ 2 ^ (2 * 2 ^ k), ∀ (M : Machine) (T : Nat → Nat), Computes M (D j) T →
+      ∃ r, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧
+        ∃ s < T r, ∃ c, M.run r s = .inr c ∧ (k : Int) ≤ c.head := by
+  obtain ⟨j, hj, hnot⟩ := D_period_unbounded (2 ^ k) (Nat.two_pow_pos k)
+  refine ⟨j, hj, fun M T hM => Classical.byContradiction fun hno => ?_⟩
+  have hwin : ∀ r, 2 ^ (k - 1) ≤ r → r < 2 ^ (k - 1) + 2 ^ k → ScansBelow M r (T r) (k : Int) :=
+    fun r hr1 hr2 s hs c hc =>
+      Int.lt_of_not_ge fun hge => hno ⟨r, hr1, hr2, s, hs, c, hc, hge⟩
+  have hper := (period_and_halt_of_canon_window_scansBelow hM hwin).1
+  exact hnot ⟨2 ^ (k - 1), fun m hm => by simpa [Nat.add_comm] using hper m hm⟩
+
+/-- **Unconditional canonical-window `RightSpan` lower bound on left diagonals.** For every
+`k : Nat`, there exists a left diagonal `D j` (`j ≤ 2 ^ (2 * 2 ^ k)`) such that every machine `M`
+computing `D j` in *any* time `T` satisfies `k + 1 ≤ RightSpan M r (T r)` on some canonical root
+`r ∈ [2^(k-1), 2^(k-1) + 2^k)`. -/
+theorem diagonal_canon_window_rightSpan_ge (k : Nat) :
+    ∃ j ≤ 2 ^ (2 * 2 ^ k), ∀ (M : Machine) (T : Nat → Nat), Computes M (D j) T →
+      ∃ r, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ RightSpan M r (T r) := by
+  obtain ⟨j, hj, hdiag⟩ := diagonal_canon_window_head_ge k
+  refine ⟨j, hj, fun M T hM => ?_⟩
+  obtain ⟨r, hr1, hr2, s, hs, c, hc, hge⟩ := hdiag M T hM
+  refine ⟨r, hr1, hr2, Classical.byContradiction fun hlt => ?_⟩
+  have hscan : ScansBelow M r (T r) (k : Int) := scansBelow_iff_rightSpan_le.mpr (by omega)
+  have := hscan s hs c hc
+  omega
+
 end Rule30Problem3Bounds
 end Ruliology.CellularAutomata
