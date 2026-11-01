@@ -498,5 +498,281 @@ theorem rowTail_sixteen_rays_all_odd (u : Fin 16) (j m : Nat) (hm : m % 2 = 1) :
   · obtain ⟨t, ht, he, hz⟩ := rowTail_fifteen_rays_31 u hu j m hm
     exact ⟨t, by omega, he, hz⟩
 
+
+/-! ## 4. Universal `010`-Synchronizing Complement Law, 2-Step Period-Doubling & `win3pow` Mod-3 Shifts -/
+
+/-- **Complement Propagation along `11`-Free Waves (`bstep1`):** if `Y` is `11`-free from `s` onward
+(`∀ r, s < r → r < K → (Y.testBit (r - 1) && Y.testBit r) = false`) and `Z = bstep1 K Y` is locked
+at `s` (`Z.testBit s = !Y.testBit s` and `(Z.testBit (s - 1) || Z.testBit s) = true`), then
+`Z.testBit (s + d) = !Y.testBit (s + d)` and `(Z.testBit (s + d - 1) || Z.testBit (s + d)) = true`
+for all `d` with `s + d < K` (`2 ≤ s`). -/
+theorem no11_complement_propagation_step1 {K s Y : Nat} (hs : 2 ≤ s)
+    (hno11 : ∀ r, s < r → r < K → (Y.testBit (r - 1) && Y.testBit r) = false)
+    (hlock : (bstep1 K Y).testBit s = !Y.testBit s ∧
+      ((bstep1 K Y).testBit (s - 1) || (bstep1 K Y).testBit s) = true) :
+    ∀ d, s + d < K →
+      (bstep1 K Y).testBit (s + d) = !Y.testBit (s + d) ∧
+      ((bstep1 K Y).testBit (s + d - 1) || (bstep1 K Y).testBit (s + d)) = true
+  | 0, _ => by simpa using hlock
+  | d + 1, hdK => by
+    obtain ⟨ih_eq, ih_or⟩ := no11_complement_propagation_step1 hs hno11 hlock d (by omega)
+    have hstep : (bstep1 K Y).testBit (s + (d + 1)) =
+        xor (Y.testBit (s + (d + 1)))
+          ((bstep1 K Y).testBit (s + d) || (bstep1 K Y).testBit (s + d - 1)) := by
+      rw [bstep1_testBit_lt hdK, ite_eq_right (by omega), ite_eq_right (by omega)]
+      simp [show s + (d + 1) - 1 = s + d by omega, show s + (d + 1) - 2 = s + d - 1 by omega]
+    rw [Bool.or_comm] at ih_or
+    have heq1 : (bstep1 K Y).testBit (s + (d + 1)) = !Y.testBit (s + (d + 1)) := by
+      rw [hstep, ih_or]
+      cases Y.testBit (s + (d + 1)) <;> rfl
+    refine ⟨heq1, ?_⟩
+    rw [show s + (d + 1) - 1 = s + d by omega, ih_eq, heq1]
+    have h11 := hno11 (s + (d + 1)) (by omega) hdK
+    rw [show s + (d + 1) - 1 = s + d by omega] at h11
+    revert h11
+    cases Y.testBit (s + d) <;> cases Y.testBit (s + (d + 1)) <;> decide
+
+/-- **Complement Propagation along `11`-Free Waves (`bstep0`):** if `Y` is `11`-free from `s` onward
+and `Z = bstep0 K Y` is locked at `s`, then `Z.testBit (s + d) = !Y.testBit (s + d)` and
+`(Z.testBit (s + d - 1) || Z.testBit (s + d)) = true` for all `d` with `s + d < K` (`2 ≤ s`). -/
+theorem no11_complement_propagation_step0 {K s Y : Nat} (hs : 2 ≤ s)
+    (hno11 : ∀ r, s < r → r < K → (Y.testBit (r - 1) && Y.testBit r) = false)
+    (hlock : (bstep0 K Y).testBit s = !Y.testBit s ∧
+      ((bstep0 K Y).testBit (s - 1) || (bstep0 K Y).testBit s) = true) :
+    ∀ d, s + d < K →
+      (bstep0 K Y).testBit (s + d) = !Y.testBit (s + d) ∧
+      ((bstep0 K Y).testBit (s + d - 1) || (bstep0 K Y).testBit (s + d)) = true
+  | 0, _ => by simpa using hlock
+  | d + 1, hdK => by
+    obtain ⟨ih_eq, ih_or⟩ := no11_complement_propagation_step0 hs hno11 hlock d (by omega)
+    have hstep : (bstep0 K Y).testBit (s + (d + 1)) =
+        xor (Y.testBit (s + (d + 1)))
+          ((bstep0 K Y).testBit (s + d) || (bstep0 K Y).testBit (s + d - 1)) := by
+      rw [bstep0_testBit_lt hdK, ite_eq_right (by omega), ite_eq_right (by omega)]
+      simp [show s + (d + 1) - 1 = s + d by omega, show s + (d + 1) - 2 = s + d - 1 by omega]
+    rw [Bool.or_comm] at ih_or
+    have heq1 : (bstep0 K Y).testBit (s + (d + 1)) = !Y.testBit (s + (d + 1)) := by
+      rw [hstep, ih_or]
+      cases Y.testBit (s + (d + 1)) <;> rfl
+    refine ⟨heq1, ?_⟩
+    rw [show s + (d + 1) - 1 = s + d by omega, ih_eq, heq1]
+    have h11 := hno11 (s + (d + 1)) (by omega) hdK
+    rw [show s + (d + 1) - 1 = s + d by omega] at h11
+    revert h11
+    cases Y.testBit (s + d) <;> cases Y.testBit (s + (d + 1)) <;> decide
+
+/-- **The Universal `010`-Synchronizing Complement Theorem (`bstep1`):** if `(Y_s, Y_{s+1}, Y_{s+2}) =
+(false, true, false)` (`2 ≤ s`) and `Y` is `11`-free above `s + 2`, then regardless of the lower bits
+of `Y`, `Z = bstep1 K Y` locks into the exact bitwise complement `Z.testBit (s + 2 + d) =
+!Y.testBit (s + 2 + d)` with `(Z.testBit (s + 1 + d) || Z.testBit (s + 2 + d)) = true` for all `d`. -/
+theorem sync_010_complement_step1 {K s Y : Nat} (hs : 2 ≤ s)
+    (hy0 : Y.testBit s = false) (hy1 : Y.testBit (s + 1) = true) (hy2 : Y.testBit (s + 2) = false)
+    (hno11 : ∀ r, s + 2 < r → r < K → (Y.testBit (r - 1) && Y.testBit r) = false) :
+    ∀ d, s + 2 + d < K →
+      (bstep1 K Y).testBit (s + 2 + d) = !Y.testBit (s + 2 + d) ∧
+      ((bstep1 K Y).testBit (s + 1 + d) || (bstep1 K Y).testBit (s + 2 + d)) = true := by
+  intro d hdK
+  have hz0 : (bstep1 K Y).testBit s =
+      xor (Y.testBit s) ((bstep1 K Y).testBit (s - 1) || (bstep1 K Y).testBit (s - 2)) := by
+    rw [bstep1_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega)]
+  have hz1 : (bstep1 K Y).testBit (s + 1) =
+      xor (Y.testBit (s + 1)) ((bstep1 K Y).testBit s || (bstep1 K Y).testBit (s - 1)) := by
+    rw [bstep1_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega)]
+    simp
+  have hz2 : (bstep1 K Y).testBit (s + 2) =
+      xor (Y.testBit (s + 2)) ((bstep1 K Y).testBit (s + 1) || (bstep1 K Y).testBit s) := by
+    rw [bstep1_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega)]
+    simp [show s + 2 - 1 = s + 1 by omega, show s + 2 - 2 = s by omega]
+  have hlock : (bstep1 K Y).testBit (s + 2) = !Y.testBit (s + 2) ∧
+      ((bstep1 K Y).testBit (s + 2 - 1) || (bstep1 K Y).testBit (s + 2)) = true := by
+    rw [show s + 2 - 1 = s + 1 by omega, hz2, hz1, hz0, hy0, hy1, hy2]
+    cases (bstep1 K Y).testBit (s - 2) <;> cases (bstep1 K Y).testBit (s - 1) <;> decide
+  have hprop := no11_complement_propagation_step1 (by omega : 2 ≤ s + 2) hno11 hlock d hdK
+  simpa [show s + 2 + d - 1 = s + 1 + d by omega] using hprop
+
+/-- **The Universal `010`-Synchronizing Complement Theorem (`bstep0`):** if `(Y_s, Y_{s+1}, Y_{s+2}) =
+(false, true, false)` (`2 ≤ s`) and `Y` is `11`-free above `s + 2`, then `Z = bstep0 K Y` locks into
+the exact bitwise complement `Z.testBit (s + 2 + d) = !Y.testBit (s + 2 + d)` for all `d`. -/
+theorem sync_010_complement_step0 {K s Y : Nat} (hs : 2 ≤ s)
+    (hy0 : Y.testBit s = false) (hy1 : Y.testBit (s + 1) = true) (hy2 : Y.testBit (s + 2) = false)
+    (hno11 : ∀ r, s + 2 < r → r < K → (Y.testBit (r - 1) && Y.testBit r) = false) :
+    ∀ d, s + 2 + d < K →
+      (bstep0 K Y).testBit (s + 2 + d) = !Y.testBit (s + 2 + d) ∧
+      ((bstep0 K Y).testBit (s + 1 + d) || (bstep0 K Y).testBit (s + 2 + d)) = true := by
+  intro d hdK
+  have hz0 : (bstep0 K Y).testBit s =
+      xor (Y.testBit s) ((bstep0 K Y).testBit (s - 1) || (bstep0 K Y).testBit (s - 2)) := by
+    rw [bstep0_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega)]
+  have hz1 : (bstep0 K Y).testBit (s + 1) =
+      xor (Y.testBit (s + 1)) ((bstep0 K Y).testBit s || (bstep0 K Y).testBit (s - 1)) := by
+    rw [bstep0_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega)]
+    simp
+  have hz2 : (bstep0 K Y).testBit (s + 2) =
+      xor (Y.testBit (s + 2)) ((bstep0 K Y).testBit (s + 1) || (bstep0 K Y).testBit s) := by
+    rw [bstep0_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega)]
+    simp [show s + 2 - 1 = s + 1 by omega, show s + 2 - 2 = s by omega]
+  have hlock : (bstep0 K Y).testBit (s + 2) = !Y.testBit (s + 2) ∧
+      ((bstep0 K Y).testBit (s + 2 - 1) || (bstep0 K Y).testBit (s + 2)) = true := by
+    rw [show s + 2 - 1 = s + 1 by omega, hz2, hz1, hz0, hy0, hy1, hy2]
+    cases (bstep0 K Y).testBit (s - 2) <;> cases (bstep0 K Y).testBit (s - 1) <;> decide
+  have hprop := no11_complement_propagation_step0 (by omega : 2 ≤ s + 2) hno11 hlock d hdK
+  simpa [show s + 2 + d - 1 = s + 1 + d by omega] using hprop
+
+/-- **Chained 2-Step Period-Doubling (`B_shift K` on any `(100)^∞` NOR wave):** if `Y` satisfies the
+backward NOR recurrence `Y.testBit r = !(Y.testBit (r - 1) || Y.testBit (r - 2))` for `m ≤ r < K`
+(`2 ≤ m`), then `B_shift K Y = bstep0 K (bstep1 K Y)` locks into the strict period-6 `(000101)^∞`
+wave `(B_shift K Y).testBit (i + 6) = (B_shift K Y).testBit i` for all `m + 11 ≤ i` (`i + 6 < K`). -/
+theorem nor_wave_B_shift_period6 {K m Y i : Nat} (hm : 2 ≤ m) (hmi : m + 11 ≤ i) (hiK : i + 6 < K)
+    (hnor : ∀ r, m ≤ r → r < K → Y.testBit r = !(Y.testBit (r - 1) || Y.testBit (r - 2))) :
+    (B_shift K Y).testBit (i + 6) = (B_shift K Y).testBit i := by
+  unfold B_shift
+  refine wave_011_to_period6_step0 (m := m + 6) (by omega) (by omega) hiK fun r hmr hrK => ?_
+  have hw0 := wave_100_to_011_step1 hm hnor (r - (m + 4)) (by omega)
+  have hw1 := wave_100_to_011_step1 hm hnor (r - 1 - (m + 4)) (by omega)
+  have hw2 := wave_100_to_011_step1 hm hnor (r - 2 - (m + 4)) (by omega)
+  rw [show m + 4 + (r - (m + 4)) = r by omega] at hw0
+  rw [show m + 4 + (r - 1 - (m + 4)) = r - 1 by omega,
+    show m + 3 + (r - 1 - (m + 4)) = r - 2 by omega] at hw1
+  rw [show m + 4 + (r - 2 - (m + 4)) = r - 2 by omega] at hw2
+  refine ⟨?_, by rw [Bool.or_comm]; exact hw1.2⟩
+  rw [hw0.1, hw1.1, hw2.1, hnor r (by omega) hrK]
+  cases Y.testBit (r - 1) <;> cases Y.testBit (r - 2) <;> rfl
+
+/-- **Universal Type II Primitive-Root Cascade (`(100)^∞ → (011)^∞ → (000101)^∞`):** if `W < 2^k`
+(`4 ≤ k ≤ K`) is a Type II primitive root (so `V = B_shift K W` satisfies the backward NOR recurrence
+on `[k, K)`), then at backward step 3 (`Z = bstep1 K (B_shift K W)`) `Z` is the bitwise complement
+`Z.testBit i = !(B_shift K W).testBit i` (`k + 4 ≤ i < K`), and at backward step 4
+(`B_shiftIter 2 K W`) it locks into the period-6 wave
+`(B_shiftIter 2 K W).testBit (i + 6) = (B_shiftIter 2 K W).testBit i` (`k + 11 ≤ i`, `i + 6 < K`). -/
+theorem typeII_step3_and_step4_cascade {K k W i : Nat} (hk : 4 ≤ k) (hmi : k + 11 ≤ i)
+    (hiK : i + 6 < K)
+    (hnor : ∀ r, k ≤ r → r < K →
+      (B_shift K W).testBit r = !((B_shift K W).testBit (r - 1) || (B_shift K W).testBit (r - 2))) :
+    (bstep1 K (B_shift K W)).testBit i = !(B_shift K W).testBit i ∧
+      (B_shiftIter 2 K W).testBit (i + 6) = (B_shiftIter 2 K W).testBit i := by
+  have hw := wave_100_to_011_step1 (by omega : 2 ≤ k) hnor (i - (k + 4)) (by omega)
+  rw [show k + 4 + (i - (k + 4)) = i by omega] at hw
+  refine ⟨hw.1, ?_⟩
+  simpa [B_shiftIter] using nor_wave_B_shift_period6 (by omega : 2 ≤ k) hmi hiK hnor
+
+/-- **All-`n` Low-Bit Period-3 Wave for `win3pow n` at Backward Step 3 (`bstep1 K (B_shift K (win3pow n))`):**
+for every `n ≥ 1` and `i < n` (`i < K`), `(bstep1 K (B_shift K (win3pow n))).testBit i = decide (i % 3 = 1)`. -/
+theorem bstep1_B_shift_win3pow_low_wave {K n i : Nat} (hn : 1 ≤ n) (hi : i < n) (hiK : i < K) :
+    (bstep1 K (B_shift K (win3pow n))).testBit i = decide (i % 3 = 1) := by
+  induction i using Nat.strongRecOn with
+  | ind i ih =>
+    have hV : (B_shift K (win3pow n)).testBit i = true := B_shift_win3pow_low_ones hn hi hiK
+    rcases (show i = 0 ∨ i = 1 ∨ i = 2 ∨ 3 ≤ i by omega) with rfl | rfl | rfl | hi3
+    · rw [bstep1_testBit_lt hiK, hV]; rfl
+    · have h0 := ih 0 (by decide) (by omega) (by omega)
+      rw [bstep1_testBit_lt hiK, hV, ite_eq_right (by decide), ite_eq_left rfl, h0]; rfl
+    · have h0 := ih 0 (by decide) (by omega) (by omega)
+      have h1 := ih 1 (by decide) (by omega) (by omega)
+      rw [bstep1_testBit_lt hiK, hV, ite_eq_right (by decide), ite_eq_right (by decide), h1, h0]; rfl
+    · have h1 := ih (i - 1) (by omega) (by omega) (by omega)
+      have h2 := ih (i - 2) (by omega) (by omega) (by omega)
+      rw [bstep1_testBit_lt hiK, hV, ite_eq_right (by omega), ite_eq_right (by omega), h1, h2]
+      rcases (show i % 3 = 0 ∨ i % 3 = 1 ∨ i % 3 = 2 by omega) with hmod | hmod | hmod
+      · have hm1 : (i - 1) % 3 = 2 := by omega
+        have hm2 : (i - 2) % 3 = 1 := by omega
+        rw [hmod, hm1, hm2]; rfl
+      · have hm1 : (i - 1) % 3 = 0 := by omega
+        have hm2 : (i - 2) % 3 = 2 := by omega
+        rw [hmod, hm1, hm2]; rfl
+      · have hm1 : (i - 1) % 3 = 1 := by omega
+        have hm2 : (i - 2) % 3 = 0 := by omega
+        rw [hmod, hm1, hm2]; rfl
+
+/-- **All-`n` Low-Bit Period-3 Complement Wave for `win3pow n` at Backward Step 4 (`B_shiftIter 2 K (win3pow n)`):**
+for every `n ≥ 1` and `i < n` (`i < K`), `(B_shiftIter 2 K (win3pow n)).testBit i = decide (i % 3 ≠ 1)`. -/
+theorem B_shiftIter_two_win3pow_low_wave {K n i : Nat} (hn : 1 ≤ n) (hi : i < n) (hiK : i < K) :
+    (B_shiftIter 2 K (win3pow n)).testBit i = decide (i % 3 ≠ 1) := by
+  change (bstep0 K (bstep1 K (B_shift K (win3pow n)))).testBit i = decide (i % 3 ≠ 1)
+  induction i using Nat.strongRecOn with
+  | ind i ih =>
+    have hZ := bstep1_B_shift_win3pow_low_wave hn hi hiK
+    rcases (show i = 0 ∨ i = 1 ∨ i = 2 ∨ 3 ≤ i by omega) with rfl | rfl | rfl | hi3
+    · rw [bstep0_testBit_lt hiK, hZ]; rfl
+    · rw [bstep0_testBit_lt hiK, hZ]; rfl
+    · have h0 := ih 0 (by decide) (by omega) (by omega)
+      have h1 := ih 1 (by decide) (by omega) (by omega)
+      rw [bstep0_testBit_lt hiK, hZ, ite_eq_right (by decide), ite_eq_right (by decide), h1, h0]; rfl
+    · have h1 := ih (i - 1) (by omega) (by omega) (by omega)
+      have h2 := ih (i - 2) (by omega) (by omega) (by omega)
+      rw [bstep0_testBit_lt hiK, hZ, ite_eq_right (by omega), ite_eq_right (by omega), h1, h2]
+      rcases (show i % 3 = 0 ∨ i % 3 = 1 ∨ i % 3 = 2 by omega) with hmod | hmod | hmod
+      · have hm1 : (i - 1) % 3 = 2 := by omega
+        have hm2 : (i - 2) % 3 = 1 := by omega
+        rw [hmod, hm1, hm2]; rfl
+      · have hm1 : (i - 1) % 3 = 0 := by omega
+        have hm2 : (i - 2) % 3 = 2 := by omega
+        rw [hmod, hm1, hm2]; rfl
+      · have hm1 : (i - 1) % 3 = 1 := by omega
+        have hm2 : (i - 2) % 3 = 0 := by omega
+        rw [hmod, hm1, hm2]; rfl
+
+/-- **Universal 3-Step Mod-3 Shift-Template Law for `win3pow (2 + 3 * m)` (`13, 97, 769, …`):**
+for every `m : Nat` and `d : Nat` with `3 * m + d < K`, bit `3 * m + d` of
+`bstep1 K (B_shift K (win3pow (2 + 3 * m)))` equals bit `d` of `bstep1 K (B_shift K 13)`. -/
+theorem bstep1_B_shift_win3pow_mod3_shift_13 {K m d : Nat} (hdK : 3 * m + d < K) :
+    (bstep1 K (B_shift K (win3pow (2 + 3 * m)))).testBit (3 * m + d) =
+      (bstep1 K (B_shift K 13)).testBit d := by
+  rw [← win3pow_2_eq_13]
+  induction d using Nat.strongRecOn with
+  | ind d ih =>
+    rcases (show d = 0 ∨ d = 1 ∨ 2 ≤ d by omega) with rfl | rfl | hd2
+    · rw [Nat.add_zero] at hdK ⊢
+      rw [bstep1_B_shift_win3pow_low_wave (by omega) (by omega) hdK,
+        bstep1_B_shift_win3pow_low_wave (by decide) (by decide) (by omega)]
+      simp [Nat.mul_mod_right]
+    · rw [bstep1_B_shift_win3pow_low_wave (by omega) (by omega) hdK,
+        bstep1_B_shift_win3pow_low_wave (by decide) (by decide) (by omega)]
+      have hmod : (3 * m + 1) % 3 = 1 := by omega
+      rw [hmod]
+    · have h1 := ih (d - 1) (by omega) (by omega)
+      have h2 := ih (d - 2) (by omega) (by omega)
+      have hV := B_shift_win3pow_shift_13 (K := K) (n := 2 + 3 * m) (d := d) (by omega)
+        (by omega : 2 + 3 * m - 2 + d < K)
+      rw [show 2 + 3 * m - 2 + d = 3 * m + d by omega, ← win3pow_2_eq_13] at hV
+      rw [bstep1_testBit_lt hdK, bstep1_testBit_lt (by omega : d < K), hV,
+        ite_eq_right (by omega : 3 * m + d ≠ 0), ite_eq_right (by omega : 3 * m + d ≠ 1),
+        ite_eq_right (by omega : d ≠ 0), ite_eq_right (by omega : d ≠ 1),
+        show 3 * m + d - 1 = 3 * m + (d - 1) by omega,
+        show 3 * m + d - 2 = 3 * m + (d - 2) by omega, h1, h2]
+
+/-- **Universal 4-Step Mod-3 Shift-Template Law for `win3pow (2 + 3 * m)` (`13, 97, 769, …`):**
+for every `m : Nat` and `d : Nat` with `3 * m + d < K`, bit `3 * m + d` of
+`B_shiftIter 2 K (win3pow (2 + 3 * m))` equals bit `d` of `B_shiftIter 2 K 13`. -/
+theorem B_shiftIter_two_win3pow_mod3_shift_13 {K m d : Nat} (hdK : 3 * m + d < K) :
+    (B_shiftIter 2 K (win3pow (2 + 3 * m))).testBit (3 * m + d) =
+      (B_shiftIter 2 K 13).testBit d := by
+  rw [← win3pow_2_eq_13]
+  induction d using Nat.strongRecOn with
+  | ind d ih =>
+    rcases (show d = 0 ∨ d = 1 ∨ 2 ≤ d by omega) with rfl | rfl | hd2
+    · rw [Nat.add_zero] at hdK ⊢
+      rw [B_shiftIter_two_win3pow_low_wave (by omega) (by omega) hdK,
+        B_shiftIter_two_win3pow_low_wave (by decide) (by decide) (by omega)]
+      simp [Nat.mul_mod_right]
+    · rw [B_shiftIter_two_win3pow_low_wave (by omega) (by omega) hdK,
+        B_shiftIter_two_win3pow_low_wave (by decide) (by decide) (by omega)]
+      have hmod : (3 * m + 1) % 3 = 1 := by omega
+      rw [hmod]
+    · have h1 := ih (d - 1) (by omega) (by omega)
+      have h2 := ih (d - 2) (by omega) (by omega)
+      have hZ := bstep1_B_shift_win3pow_mod3_shift_13 (K := K) (m := m) (d := d) hdK
+      rw [← win3pow_2_eq_13] at hZ
+      change (bstep0 K (bstep1 K (B_shift K (win3pow (2 + 3 * m))))).testBit (3 * m + d) =
+        (bstep0 K (bstep1 K (B_shift K (win3pow 2)))).testBit d
+      change (bstep0 K (bstep1 K (B_shift K (win3pow (2 + 3 * m))))).testBit (3 * m + (d - 1)) =
+        (bstep0 K (bstep1 K (B_shift K (win3pow 2)))).testBit (d - 1) at h1
+      change (bstep0 K (bstep1 K (B_shift K (win3pow (2 + 3 * m))))).testBit (3 * m + (d - 2)) =
+        (bstep0 K (bstep1 K (B_shift K (win3pow 2)))).testBit (d - 2) at h2
+      rw [bstep0_testBit_lt hdK, bstep0_testBit_lt (by omega : d < K), hZ,
+        ite_eq_right (by omega : 3 * m + d ≠ 0), ite_eq_right (by omega : 3 * m + d ≠ 1),
+        ite_eq_right (by omega : d ≠ 0), ite_eq_right (by omega : d ≠ 1),
+        show 3 * m + d - 1 = 3 * m + (d - 1) by omega,
+        show 3 * m + d - 2 = 3 * m + (d - 2) by omega, h1, h2]
+
 end Rule30ZeroBoundaryStripeCascade
 end Ruliology.CellularAutomata
