@@ -156,6 +156,7 @@ public import Ruliology.CellularAutomata.Rule30Problem3Bounds
 public import Ruliology.CellularAutomata.Rule30EtherWallWitness
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryPeriodLanes
 public import Ruliology.CellularAutomata.Rule30EtherEpisode
+public import Ruliology.CellularAutomata.Rule30WedgeParity
 
 /-!
 # Rule 30 Prize: Lean snapshot
