@@ -1,6 +1,7 @@
 module
 
 public import Ruliology.CellularAutomata.Rule30Prize
+public import Ruliology.CellularAutomata.Rule30LeftAntiPeriod
 
 /-!
 # Problem 2: the dyadic shell, block-energy and flexible-energy forms
@@ -32,7 +33,8 @@ center column. Problem 2 stays open; what is proved is that the four targets are
 namespace Ruliology.CellularAutomata
 namespace Rule30P2Bridge
 
-open Rule30Prize
+open Rule30RightPeriods
+open Rule30Jen Rule30Prize Rule30Diagonals Rule30LeftReset Rule30LeftUnbounded open Rule30LeftAntiPeriod
 
 def sign (bit : Bool) : Int := if bit then -1 else 1
 
@@ -1313,6 +1315,206 @@ theorem problem2_iff_orderedEnergyLittleO : Problem2 ↔ OrderedEnergyLittleO ce
 
 theorem problem2_iff_maxBlockEnergyLittleO : Problem2 ↔ MaxBlockEnergyLittleO center :=
   (problem2_iff_orderedEnergyLittleO).trans (orderedEnergyLittleO_iff_maxBlockEnergyLittleO center)
+
+/-! ## Antiperiodic Spin-Momentum Annihilation, Block-Energy Vanishing, and Diagonal Energy Bridges -/
+
+/-- For every Boolean sequence `c : Nat → Bool` and `n : Nat`, `Rule30Prize.blackCountFor c n`
+equals `Rule30P2Bridge.ones c n`. -/
+theorem blackCountFor_eq_ones (c : Nat → Bool) : ∀ n : Nat, blackCountFor c n = ones c n
+  | 0 => rfl
+  | n + 1 => by
+    rw [blackCountFor_succ, ones, blackCountFor_eq_ones c n]
+
+/-- **Universal Equivalence of `HalfDensity` and `DensityHalf` (`halfDensity_iff_densityHalf`):**
+for every sequence `c : Nat → Bool`, `Rule30Prize.HalfDensity c` holds iff
+`Rule30P2Bridge.DensityHalf c` holds. -/
+theorem halfDensity_iff_densityHalf (c : Nat → Bool) :
+    HalfDensity c ↔ DensityHalf c := by
+  constructor
+  · intro h m
+    by_cases hm : m = 0
+    · subst hm; exact ⟨0, fun T _ => by simp⟩
+    · obtain ⟨N, hN⟩ := h m (by omega)
+      refine ⟨N, fun T hT => ?_⟩
+      have h1 := hN T hT
+      rwa [blackCountFor_eq_ones] at h1
+  · intro h k _
+    obtain ⟨T0, hT0⟩ := h k
+    refine ⟨T0, fun n hn => ?_⟩
+    have h1 := hT0 n hn
+    rwa [← blackCountFor_eq_ones] at h1
+
+/-- **All Five Energy Forms from Antiperiodicity (`energy_forms_of_antiperiodic`):** every
+eventually `L`-anti-periodic sequence `c` (`0 < L`) satisfies `HalfDensity`, `DensityHalf`,
+`ShellMaxLittleO`, `FlexibleEnergyToZero`, `OrderedEnergyLittleO`, and `MaxBlockEnergyLittleO`. -/
+theorem energy_forms_of_antiperiodic {c : Nat → Bool} {L : Nat} (hL : 0 < L) (ha : EvAntiPer c L) :
+    HalfDensity c ∧ DensityHalf c ∧ ShellMaxLittleO c ∧
+      FlexibleEnergyToZero c ∧ OrderedEnergyLittleO c ∧ MaxBlockEnergyLittleO c := by
+  have hhd : HalfDensity c := halfDensity_of_antiperiodic hL ha
+  have hdh : DensityHalf c := (halfDensity_iff_densityHalf c).mp hhd
+  have hsm : ShellMaxLittleO c := (densityHalf_iff_shellMaxLittleO c).mp hdh
+  have hfe : FlexibleEnergyToZero c := (shellMaxLittleO_iff_flexibleEnergyToZero c).mp hsm
+  have hoe : OrderedEnergyLittleO c := (shellMaxLittleO_iff_orderedEnergyLittleO c).mp hsm
+  have hme : MaxBlockEnergyLittleO c := (orderedEnergyLittleO_iff_maxBlockEnergyLittleO c).mp hoe
+  exact ⟨hhd, hdh, hsm, hfe, hoe, hme⟩
+
+/-- Negating a bit negates its spin `sign (!b) = - sign b`. -/
+theorem sign_not (b : Bool) : sign (!b) = - sign b := by
+  cases b <;> rfl
+
+/-- If `c (t + L) = ! c t` for all `t ≥ T`, then `z c (t + L) + z c t = 0`. -/
+theorem z_add_antiperiodic {c : Nat → Bool} {L T t : Nat}
+    (ha : ∀ s, T ≤ s → c (s + L) = ! c s) (ht : T ≤ t) :
+    z c (t + L) + z c t = 0 := by
+  simp only [z, ha t ht, sign_not]
+  omega
+
+/-- The sum of `f` plus the sum of `-f` over `[0, m)` is `0`. -/
+theorem sumTo_add_neg (f : Nat → Int) : ∀ m : Nat, sumTo f m + sumTo (fun r => - f r) m = 0
+  | 0 => rfl
+  | m + 1 => by
+    have ih := sumTo_add_neg f m
+    simp only [sumTo]
+    omega
+
+/-- Over any full cycle of length `2 * L` starting at `t ≥ T`, the net spin momentum sums to `0`. -/
+theorem sumTo_z_two_mul_eq_zero {c : Nat → Bool} {L T t : Nat}
+    (ha : ∀ s, T ≤ s → c (s + L) = ! c s) (ht : T ≤ t) :
+    sumTo (fun r => z c (t + r)) (2 * L) = 0 := by
+  rw [show 2 * L = L + L by omega, sumTo_add]
+  have hcongr : sumTo (fun r => z c (t + (L + r))) L = sumTo (fun r => - z c (t + r)) L := by
+    apply sumTo_congr
+    intro r _
+    rw [show t + (L + r) = (t + r) + L by omega]
+    have hz := z_add_antiperiodic ha (t := t + r) (by omega)
+    omega
+  rw [hcongr]
+  exact sumTo_add_neg (fun r => z c (t + r)) L
+
+/-- Over any multiple `q * (2 * L)` of the full period `2 * L` starting at `t ≥ T`, the net spin
+momentum sums to `0`. -/
+theorem sumTo_z_mul_two_mul_eq_zero {c : Nat → Bool} {L T t : Nat}
+    (ha : ∀ s, T ≤ s → c (s + L) = ! c s) (ht : T ≤ t) :
+    ∀ q : Nat, sumTo (fun r => z c (t + r)) (q * (2 * L)) = 0
+  | 0 => by simp [sumTo]
+  | q + 1 => by
+    rw [Nat.succ_mul, sumTo_add, sumTo_z_mul_two_mul_eq_zero ha ht q, Int.zero_add]
+    have hshift : (fun r => z c (t + (q * (2 * L) + r))) =
+        (fun r => z c ((t + q * (2 * L)) + r)) := by
+      funext r; congr 1; omega
+    rw [hshift]
+    exact sumTo_z_two_mul_eq_zero ha (by omega)
+
+/-- **Remainder Reduction of `shellPrefix` (`shellPrefix_antiperiodic_mod`):** if `c` is
+`L`-anti-periodic from `T ≤ 2 ^ k` onward, then for every `u : Nat`, `shellPrefix c k u` equals the
+remainder sum of length `u % (2 * L)` starting at `2 ^ k + (u / (2 * L)) * (2 * L)`. -/
+theorem shellPrefix_antiperiodic_mod {c : Nat → Bool} {L T k u : Nat}
+    (ha : ∀ s, T ≤ s → c (s + L) = ! c s) (hTk : T ≤ 2 ^ k) :
+    shellPrefix c k u =
+      sumTo (fun r => z c (2 ^ k + (u / (2 * L)) * (2 * L) + r)) (u % (2 * L)) := by
+  unfold shellPrefix
+  have hdiv : (u / (2 * L)) * (2 * L) + u % (2 * L) = u := by
+    rw [Nat.mul_comm (u / (2 * L)) (2 * L), Nat.div_add_mod]
+  conv => lhs; rw [← hdiv]
+  rw [sumTo_add, sumTo_z_mul_two_mul_eq_zero ha hTk (u / (2 * L)), Int.zero_add]
+  apply sumTo_congr
+  intro r _
+  congr 1
+  omega
+
+/-- **Uniform `O(1)` Shell-Excursion Bound (`shellMax_le_two_mul_of_antiperiodic`):** if `c` is
+`L`-anti-periodic (`0 < L`) from `T ≤ 2 ^ k` onward, then `shellMax c k ≤ 2 * L` (a constant bound
+independent of the shell index `k`). -/
+theorem shellMax_le_two_mul_of_antiperiodic {c : Nat → Bool} {L T k : Nat}
+    (hL : 0 < L) (ha : ∀ s, T ≤ s → c (s + L) = ! c s) (hTk : T ≤ 2 ^ k) :
+    shellMax c k ≤ 2 * L := by
+  unfold shellMax
+  apply maxTo_le
+  intro u _
+  rw [shellPrefix_antiperiodic_mod ha hTk]
+  have h1 : (sumTo (fun r => z c (2 ^ k + (u / (2 * L)) * (2 * L) + r)) (u % (2 * L))).natAbs ≤
+      u % (2 * L) :=
+    natAbs_sumTo_le _ _ (fun r => natAbs_z_le c _)
+  have h2 : u % (2 * L) < 2 * L := Nat.mod_lt u (by omega)
+  omega
+
+/-- **Exact Block-Momentum Annihilation (`blockSum_eq_zero_of_antiperiodic`):** if `c` is
+`2 ^ j₀`-anti-periodic from `T ≤ 2 ^ k` onward, then for every scale `j ≥ j₀ + 1` and block `a`,
+`blockSum c k j a = 0`. -/
+theorem blockSum_eq_zero_of_antiperiodic {c : Nat → Bool} {j₀ T k j a : Nat}
+    (ha : ∀ s, T ≤ s → c (s + 2 ^ j₀) = ! c s) (hTk : T ≤ 2 ^ k) (hj : j₀ + 1 ≤ j) :
+    blockSum c k j a = 0 := by
+  unfold blockSum
+  have hpow : 2 ^ j = 2 ^ (j - (j₀ + 1)) * (2 * 2 ^ j₀) := by
+    rw [show 2 * 2 ^ j₀ = 2 ^ (j₀ + 1) by rw [Nat.pow_succ, Nat.mul_comm], ← Nat.pow_add,
+      show j - (j₀ + 1) + (j₀ + 1) = j by omega]
+  rw [hpow]
+  exact sumTo_z_mul_two_mul_eq_zero ha (by omega) (2 ^ (j - (j₀ + 1)))
+
+/-- **Exact Lagrangian Block-Energy Annihilation (`blockEnergy_eq_zero_of_antiperiodic`):** if `c`
+is `2 ^ j₀`-anti-periodic from `T ≤ 2 ^ k` onward, then for every scale `j ≥ j₀ + 1`,
+`blockEnergy c k j = 0`. -/
+theorem blockEnergy_eq_zero_of_antiperiodic {c : Nat → Bool} {j₀ T k j : Nat}
+    (ha : ∀ s, T ≤ s → c (s + 2 ^ j₀) = ! c s) (hTk : T ≤ 2 ^ k) (hj : j₀ + 1 ≤ j) :
+    blockEnergy c k j = 0 := by
+  unfold blockEnergy
+  have h0 : sumTo (fun a => blockSum c k j a * blockSum c k j a) (2 ^ (k - j)) =
+      sumTo (fun _ => 0) (2 ^ (k - j)) := by
+    apply sumTo_congr
+    intro a _
+    rw [blockSum_eq_zero_of_antiperiodic ha hTk hj, Int.mul_zero]
+  rw [h0]
+  induction (2 ^ (k - j)) with
+  | zero => rfl
+  | succ n ih => simp [sumTo, ih]
+
+/-- **Scale Truncation of Ordered Energy (`orderedEnergy_eq_trunc_of_antiperiodic`):** if `c` is
+`2 ^ j₀`-anti-periodic from `T ≤ 2 ^ k` onward (`j₀ ≤ k`), then the multi-scale ordered energy
+`orderedEnergy c k` equals the partial sum over only the bottom `j₀ + 1` scales `0 ≤ j ≤ j₀`. -/
+theorem orderedEnergy_eq_trunc_of_antiperiodic {c : Nat → Bool} {j₀ T k : Nat}
+    (ha : ∀ s, T ≤ s → c (s + 2 ^ j₀) = ! c s) (hTk : T ≤ 2 ^ k) (hjk : j₀ ≤ k) :
+    orderedEnergy c k = sumTo (fun j => blockEnergy c k j) (j₀ + 1) := by
+  unfold orderedEnergy
+  have haux : ∀ d : Nat, sumTo (fun j => blockEnergy c k j) ((j₀ + 1) + d) =
+      sumTo (fun j => blockEnergy c k j) (j₀ + 1) := by
+    intro d
+    induction d with
+    | zero => simp
+    | succ d ih =>
+      rw [Nat.add_succ, sumTo, ih, blockEnergy_eq_zero_of_antiperiodic ha hTk (by omega),
+        Int.add_zero]
+  rw [show k + 1 = (j₀ + 1) + (k - j₀) by omega]
+  exact haux (k - j₀)
+
+/-- **Infinitely Many Left Diagonals Satisfy All Five Energy Forms (`D_infinitely_many_energy_forms`):**
+for every `N : Nat`, there exist `j > N` and `k : Nat` such that `D j` is `2 ^ k`-anti-periodic and
+satisfies `HalfDensity`, `DensityHalf`, `ShellMaxLittleO`, `FlexibleEnergyToZero`,
+`OrderedEnergyLittleO`, and `MaxBlockEnergyLittleO`. -/
+theorem D_infinitely_many_energy_forms (N : Nat) :
+    ∃ j k : Nat, N < j ∧ EvAntiPer (D j) (2 ^ k) ∧ ¬ EvPer (D j) (2 ^ k) ∧
+      HalfDensity (D j) ∧ DensityHalf (D j) ∧ ShellMaxLittleO (D j) ∧
+      FlexibleEnergyToZero (D j) ∧ OrderedEnergyLittleO (D j) ∧ MaxBlockEnergyLittleO (D j) := by
+  obtain ⟨j, hj, k, ha, hnp, _⟩ := D_infinitely_many_halfDensity N
+  exact ⟨j, k, hj, ha, hnp, energy_forms_of_antiperiodic (Nat.two_pow_pos k) ha⟩
+
+/-- **Infinitely Many Right Diagonals have Exact Zero High-Scale Block Energy & Satisfy All Five
+Energy Forms (`R_infinitely_many_energy_forms`):** for every `k₀ : Nat`, there exists a right
+diagonal `R m` (`k₀ < m ≤ 2 ^ (k₀ + 1) - 1`) that is `2 ^ k₀`-anti-periodic from `t = 0`, has
+`blockEnergy (R m) k j = 0` for all `k` and `j ≥ k₀ + 1`, `shellMax (R m) k ≤ 2 * 2 ^ k₀` for all `k`,
+and satisfies all five Problem 2 energy forms. -/
+theorem R_infinitely_many_energy_forms (k₀ : Nat) :
+    ∃ m : Nat, k₀ < m ∧ m ≤ 2 ^ (k₀ + 1) - 1 ∧
+      (∀ t : Nat, R m (t + 2 ^ k₀) = ! R m t) ∧
+      (∀ k j : Nat, k₀ + 1 ≤ j → blockEnergy (R m) k j = 0) ∧
+      (∀ k : Nat, shellMax (R m) k ≤ 2 * 2 ^ k₀) ∧
+      HalfDensity (R m) ∧ DensityHalf (R m) ∧ ShellMaxLittleO (R m) ∧
+      FlexibleEnergyToZero (R m) ∧ OrderedEnergyLittleO (R m) ∧ MaxBlockEnergyLittleO (R m) := by
+  obtain ⟨m, hm1, hm2, ha0, _, _⟩ := R_infinitely_many_halfDensity k₀
+  have hea : EvAntiPer (R m) (2 ^ k₀) := ⟨0, fun t _ => ha0 t⟩
+  refine ⟨m, hm1, hm2, ha0, fun k j hj => ?_, fun k => ?_,
+    energy_forms_of_antiperiodic (Nat.two_pow_pos k₀) hea⟩
+  · exact blockEnergy_eq_zero_of_antiperiodic (T := 0) (fun s _ => ha0 s) (Nat.zero_le _) hj
+  · exact shellMax_le_two_mul_of_antiperiodic (T := 0) (Nat.two_pow_pos k₀) (fun s _ => ha0 s) (Nat.zero_le _)
 
 end Rule30P2Bridge
 end Ruliology.CellularAutomata
