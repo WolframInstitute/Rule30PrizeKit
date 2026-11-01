@@ -774,5 +774,597 @@ theorem B_shiftIter_two_win3pow_mod3_shift_13 {K m d : Nat} (hdK : 3 * m + d < K
         show 3 * m + d - 1 = 3 * m + (d - 1) by omega,
         show 3 * m + d - 2 = 3 * m + (d - 2) by omega, h1, h2]
 
+/-! ## 1. The 1-State `010` Causal Firewall & Exact Period Preservation -/
+
+/-- Any two solutions `Z₁, Z₂ : Nat → Bool` to the backward recurrence
+`Z r = xor (Y r) (Z (r - 1) || Z (r - 2))` on `[m, K)` (`2 ≤ m`) that agree at `m - 2` and `m - 1`
+agree on `[m, K)`. -/
+theorem bstep_rec_congr {m K : Nat} {Y Z₁ Z₂ : Nat → Bool} (hm : 2 ≤ m)
+    (hrec₁ : ∀ r, m ≤ r → r < K → Z₁ r = xor (Y r) (Z₁ (r - 1) || Z₁ (r - 2)))
+    (hrec₂ : ∀ r, m ≤ r → r < K → Z₂ r = xor (Y r) (Z₂ (r - 1) || Z₂ (r - 2)))
+    (hm2 : Z₁ (m - 2) = Z₂ (m - 2)) (hm1 : Z₁ (m - 1) = Z₂ (m - 1)) :
+    ∀ d, m + d < K → Z₁ (m + d) = Z₂ (m + d) := by
+  intro d
+  induction d using Nat.strongRecOn with
+  | ind d ih =>
+    intro hdK
+    rw [hrec₁ (m + d) (by omega) hdK, hrec₂ (m + d) (by omega) hdK]
+    rcases (show d = 0 ∨ d = 1 ∨ 2 ≤ d by omega) with rfl | rfl | hd2
+    · rw [Nat.add_zero, hm1, hm2]
+    · have h0 := ih 0 (by decide) (by omega)
+      rw [Nat.add_zero] at h0
+      rw [show m + 1 - 1 = m by omega, show m + 1 - 2 = m - 1 by omega, h0, hm1]
+    · have h1 := ih (d - 1) (by omega) (by omega)
+      have h2 := ih (d - 2) (by omega) (by omega)
+      rw [show m + d - 1 = m + (d - 1) by omega, show m + d - 2 = m + (d - 2) by omega, h1, h2]
+
+/-- Reading `(Y_s, Y_{s+1}, Y_{s+2}) = (false, true, false)` (`2 ≤ s`, `s + 2 < K`) forces bit
+`s + 2` of both `bstep1 K Y` and `bstep0 K Y` to be `true`. -/
+theorem bstep_010_bit_two {K s Y : Nat} (hs : 2 ≤ s) (hsK : s + 2 < K)
+    (hy0 : Y.testBit s = false) (hy1 : Y.testBit (s + 1) = true) (hy2 : Y.testBit (s + 2) = false) :
+    (bstep1 K Y).testBit (s + 2) = true ∧ (bstep0 K Y).testBit (s + 2) = true := by
+  have hz10 : (bstep1 K Y).testBit s =
+      xor (Y.testBit s) ((bstep1 K Y).testBit (s - 1) || (bstep1 K Y).testBit (s - 2)) := by
+    rw [bstep1_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega)]
+  have hz11 : (bstep1 K Y).testBit (s + 1) =
+      xor (Y.testBit (s + 1)) ((bstep1 K Y).testBit s || (bstep1 K Y).testBit (s - 1)) := by
+    rw [bstep1_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega)]; simp
+  have hz12 : (bstep1 K Y).testBit (s + 2) =
+      xor (Y.testBit (s + 2)) ((bstep1 K Y).testBit (s + 1) || (bstep1 K Y).testBit s) := by
+    rw [bstep1_testBit_lt hsK, ite_eq_right (by omega), ite_eq_right (by omega)]
+    simp [show s + 2 - 1 = s + 1 by omega, show s + 2 - 2 = s by omega]
+  have hz00 : (bstep0 K Y).testBit s =
+      xor (Y.testBit s) ((bstep0 K Y).testBit (s - 1) || (bstep0 K Y).testBit (s - 2)) := by
+    rw [bstep0_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega)]
+  have hz01 : (bstep0 K Y).testBit (s + 1) =
+      xor (Y.testBit (s + 1)) ((bstep0 K Y).testBit s || (bstep0 K Y).testBit (s - 1)) := by
+    rw [bstep0_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega)]; simp
+  have hz02 : (bstep0 K Y).testBit (s + 2) =
+      xor (Y.testBit (s + 2)) ((bstep0 K Y).testBit (s + 1) || (bstep0 K Y).testBit s) := by
+    rw [bstep0_testBit_lt hsK, ite_eq_right (by omega), ite_eq_right (by omega)]
+    simp [show s + 2 - 1 = s + 1 by omega, show s + 2 - 2 = s by omega]
+  refine ⟨?_, ?_⟩
+  · rw [hz12, hz11, hz10, hy0, hy1, hy2]
+    cases (bstep1 K Y).testBit (s - 2) <;> cases (bstep1 K Y).testBit (s - 1) <;> decide
+  · rw [hz02, hz01, hz00, hy0, hy1, hy2]
+    cases (bstep0 K Y).testBit (s - 2) <;> cases (bstep0 K Y).testBit (s - 1) <;> decide
+
+/-- **Universal `010` 1-State Reset (`bstep1_010_state_reset`):** for ANY window `Y` (no `11`-free
+hypothesis), if `(Y_s, Y_{s+1}, Y_{s+2}) = (false, true, false)` (`2 ≤ s`, `s + 3 < K`), then
+`Z = bstep1 K Y` resets its 2-bit state at `(s + 2, s + 3)` to `(true, !Y.testBit (s + 3))`. -/
+theorem bstep1_010_state_reset {K s Y : Nat} (hs : 2 ≤ s) (hsK : s + 3 < K)
+    (hy0 : Y.testBit s = false) (hy1 : Y.testBit (s + 1) = true) (hy2 : Y.testBit (s + 2) = false) :
+    (bstep1 K Y).testBit (s + 2) = true ∧
+      (bstep1 K Y).testBit (s + 3) = !Y.testBit (s + 3) := by
+  have h2 := (bstep_010_bit_two (K := K) hs (by omega) hy0 hy1 hy2).1
+  have hz3 : (bstep1 K Y).testBit (s + 3) =
+      xor (Y.testBit (s + 3)) ((bstep1 K Y).testBit (s + 2) || (bstep1 K Y).testBit (s + 1)) := by
+    rw [bstep1_testBit_lt hsK, ite_eq_right (by omega), ite_eq_right (by omega)]
+    simp [show s + 3 - 1 = s + 2 by omega, show s + 3 - 2 = s + 1 by omega]
+  refine ⟨h2, ?_⟩
+  rw [hz3, h2, Bool.true_or, Bool.xor_true]
+
+/-- **Universal `010` 1-State Reset (`bstep0_010_state_reset`):** for ANY window `Y`, if
+`(Y_s, Y_{s+1}, Y_{s+2}) = (false, true, false)` (`2 ≤ s`, `s + 3 < K`), then `Z = bstep0 K Y`
+resets its 2-bit state at `(s + 2, s + 3)` to `(true, !Y.testBit (s + 3))`. -/
+theorem bstep0_010_state_reset {K s Y : Nat} (hs : 2 ≤ s) (hsK : s + 3 < K)
+    (hy0 : Y.testBit s = false) (hy1 : Y.testBit (s + 1) = true) (hy2 : Y.testBit (s + 2) = false) :
+    (bstep0 K Y).testBit (s + 2) = true ∧
+      (bstep0 K Y).testBit (s + 3) = !Y.testBit (s + 3) := by
+  have h2 := (bstep_010_bit_two (K := K) hs (by omega) hy0 hy1 hy2).2
+  have hz3 : (bstep0 K Y).testBit (s + 3) =
+      xor (Y.testBit (s + 3)) ((bstep0 K Y).testBit (s + 2) || (bstep0 K Y).testBit (s + 1)) := by
+    rw [bstep0_testBit_lt hsK, ite_eq_right (by omega), ite_eq_right (by omega)]
+    simp [show s + 3 - 1 = s + 2 by omega, show s + 3 - 2 = s + 1 by omega]
+  refine ⟨h2, ?_⟩
+  rw [hz3, h2, Bool.true_or, Bool.xor_true]
+
+/-- **The `010` Causal Firewall (`bstep1_congr_of_010`):** if `Y₁` and `Y₂` both have `010` at
+`(s, s + 1, s + 2)` (`2 ≤ s`) and agree on `[s + 3, K)`, then `bstep1 K Y₁`, `bstep1 K Y₂`, and
+`bstep0 K Y₂` agree on every bit `i ∈ [s + 2, K)`, erasing all lower-bit differences below `s`. -/
+theorem bstep1_congr_of_010 {K s Y₁ Y₂ : Nat} (hs : 2 ≤ s)
+    (h10 : Y₁.testBit s = false) (h11 : Y₁.testBit (s + 1) = true) (h12 : Y₁.testBit (s + 2) = false)
+    (h20 : Y₂.testBit s = false) (h21 : Y₂.testBit (s + 1) = true) (h22 : Y₂.testBit (s + 2) = false)
+    (hag : ∀ r, s + 3 ≤ r → r < K → Y₁.testBit r = Y₂.testBit r) :
+    ∀ i, s + 2 ≤ i → i < K →
+      (bstep1 K Y₁).testBit i = (bstep1 K Y₂).testBit i ∧
+      (bstep1 K Y₁).testBit i = (bstep0 K Y₂).testBit i := by
+  intro i hsi hiK
+  rcases (show i = s + 2 ∨ s + 3 ≤ i by omega) with rfl | hi3
+  · have hb1 := (bstep_010_bit_two hs hiK h10 h11 h12).1
+    have hb2 := bstep_010_bit_two hs hiK h20 h21 h22
+    rw [hb1, hb2.1, hb2.2]; exact ⟨rfl, rfl⟩
+  · have hs3 : s + 3 < K := by omega
+    have hr1 := bstep1_010_state_reset hs hs3 h10 h11 h12
+    have hr2 := bstep1_010_state_reset hs hs3 h20 h21 h22
+    have hr0 := bstep0_010_state_reset hs hs3 h20 h21 h22
+    have hy3 : Y₁.testBit (s + 3) = Y₂.testBit (s + 3) := hag (s + 3) (by omega) hs3
+    rcases (show i = s + 3 ∨ s + 4 ≤ i by omega) with rfl | hi4
+    · rw [hr1.2, hr2.2, hr0.2, hy3]; exact ⟨rfl, rfl⟩
+    · have hrec1 : ∀ r, s + 4 ≤ r → r < K →
+          (bstep1 K Y₁).testBit r =
+            xor (Y₁.testBit r) ((bstep1 K Y₁).testBit (r - 1) || (bstep1 K Y₁).testBit (r - 2)) := by
+        intro r hr hrK
+        rw [bstep1_testBit_lt hrK, ite_eq_right (by omega), ite_eq_right (by omega)]
+      have hrec2 : ∀ r, s + 4 ≤ r → r < K →
+          (bstep1 K Y₂).testBit r =
+            xor (Y₁.testBit r) ((bstep1 K Y₂).testBit (r - 1) || (bstep1 K Y₂).testBit (r - 2)) := by
+        intro r hr hrK
+        rw [bstep1_testBit_lt hrK, hag r (by omega) hrK,
+          ite_eq_right (by omega), ite_eq_right (by omega)]
+      have hrec0 : ∀ r, s + 4 ≤ r → r < K →
+          (bstep0 K Y₂).testBit r =
+            xor (Y₁.testBit r) ((bstep0 K Y₂).testBit (r - 1) || (bstep0 K Y₂).testBit (r - 2)) := by
+        intro r hr hrK
+        rw [bstep0_testBit_lt hrK, hag r (by omega) hrK,
+          ite_eq_right (by omega), ite_eq_right (by omega)]
+      have hc12 := bstep_rec_congr (m := s + 4) (K := K) (by omega) hrec1 hrec2
+        (by simp [show s + 4 - 2 = s + 2 by omega, hr1.1, hr2.1])
+        (by simp [show s + 4 - 1 = s + 3 by omega, hr1.2, hr2.2, hy3])
+        (i - (s + 4)) (by omega)
+      have hc10 := bstep_rec_congr (m := s + 4) (K := K) (by omega) hrec1 hrec0
+        (by simp [show s + 4 - 2 = s + 2 by omega, hr1.1, hr0.1])
+        (by simp [show s + 4 - 1 = s + 3 by omega, hr1.2, hr0.2, hy3])
+        (i - (s + 4)) (by omega)
+      rw [show s + 4 + (i - (s + 4)) = i by omega] at hc12 hc10
+      exact ⟨hc12, hc10⟩
+
+/-- **Exact Period-`L` Preservation under `010` (`bstep1_periodic_of_010`):** if `Y` is `L`-periodic
+on `[s, K)` (`2 ≤ s`, `1 ≤ L`) and `(Y_s, Y_{s+1}, Y_{s+2}) = (false, true, false)`, then
+`bstep1 K Y` and `bstep0 K Y` preserve the exact period `L` (without doubling) on `[s + 2, K)`. -/
+theorem bstep1_periodic_of_010 {K s L Y : Nat} (hs : 2 ≤ s) (hL : 1 ≤ L)
+    (hy0 : Y.testBit s = false) (hy1 : Y.testBit (s + 1) = true) (hy2 : Y.testBit (s + 2) = false)
+    (hper : ∀ r, s ≤ r → r + L < K → Y.testBit (r + L) = Y.testBit r) :
+    ∀ i, s + 2 ≤ i → i + L < K →
+      (bstep1 K Y).testBit (i + L) = (bstep1 K Y).testBit i ∧
+      (bstep0 K Y).testBit (i + L) = (bstep0 K Y).testBit i := by
+  intro i hsi hiK
+  rcases (show i = s + 2 ∨ s + 3 ≤ i by omega) with rfl | hi3
+  · have hb_base := bstep_010_bit_two (K := K) hs (by omega) hy0 hy1 hy2
+    have hb_shift := bstep_010_bit_two (K := K) (s := s + L) (by omega) (by omega)
+      (by rw [hper s (by omega) (by omega), hy0])
+      (by rw [show s + L + 1 = (s + 1) + L by omega, hper (s + 1) (by omega) (by omega), hy1])
+      (by rw [show s + L + 2 = (s + 2) + L by omega, hper (s + 2) (by omega) (by omega), hy2])
+    rw [show s + 2 + L = s + L + 2 by omega, hb_shift.1, hb_base.1, hb_shift.2, hb_base.2]
+    exact ⟨rfl, rfl⟩
+  · have hs3 : s + 3 + L < K := by omega
+    have hr1_base := bstep1_010_state_reset (K := K) hs (by omega) hy0 hy1 hy2
+    have hr1_shift := bstep1_010_state_reset (K := K) (s := s + L) (by omega) (by omega)
+      (by rw [hper s (by omega) (by omega), hy0])
+      (by rw [show s + L + 1 = (s + 1) + L by omega, hper (s + 1) (by omega) (by omega), hy1])
+      (by rw [show s + L + 2 = (s + 2) + L by omega, hper (s + 2) (by omega) (by omega), hy2])
+    have hr0_base := bstep0_010_state_reset (K := K) hs (by omega) hy0 hy1 hy2
+    have hr0_shift := bstep0_010_state_reset (K := K) (s := s + L) (by omega) (by omega)
+      (by rw [hper s (by omega) (by omega), hy0])
+      (by rw [show s + L + 1 = (s + 1) + L by omega, hper (s + 1) (by omega) (by omega), hy1])
+      (by rw [show s + L + 2 = (s + 2) + L by omega, hper (s + 2) (by omega) (by omega), hy2])
+    have hy3 : Y.testBit (s + L + 3) = Y.testBit (s + 3) := by
+      rw [show s + L + 3 = (s + 3) + L by omega]
+      exact hper (s + 3) (by omega) hs3
+    rcases (show i = s + 3 ∨ s + 4 ≤ i by omega) with rfl | hi4
+    · rw [show s + 3 + L = s + L + 3 by omega, hr1_shift.2, hr1_base.2, hr0_shift.2, hr0_base.2, hy3]
+      exact ⟨rfl, rfl⟩
+    · let Z1_s (u : Nat) : Bool := (bstep1 K Y).testBit (u + L)
+      let Z0_s (u : Nat) : Bool := (bstep0 K Y).testBit (u + L)
+      have hrec1_a : ∀ r, s + 4 ≤ r → r < K - L →
+          Z1_s r = xor (Y.testBit r) (Z1_s (r - 1) || Z1_s (r - 2)) := by
+        intro r hr hrK
+        show (bstep1 K Y).testBit (r + L) =
+          xor (Y.testBit r) ((bstep1 K Y).testBit (r - 1 + L) || (bstep1 K Y).testBit (r - 2 + L))
+        rw [bstep1_testBit_lt (by omega), hper r (by omega) (by omega),
+          ite_eq_right (by omega), ite_eq_right (by omega),
+          show r + L - 1 = r - 1 + L by omega, show r + L - 2 = r - 2 + L by omega]
+      have hrec1_b : ∀ r, s + 4 ≤ r → r < K - L →
+          (bstep1 K Y).testBit r =
+            xor (Y.testBit r) ((bstep1 K Y).testBit (r - 1) || (bstep1 K Y).testBit (r - 2)) := by
+        intro r hr hrK
+        rw [bstep1_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega)]
+      have hrec0_a : ∀ r, s + 4 ≤ r → r < K - L →
+          Z0_s r = xor (Y.testBit r) (Z0_s (r - 1) || Z0_s (r - 2)) := by
+        intro r hr hrK
+        show (bstep0 K Y).testBit (r + L) =
+          xor (Y.testBit r) ((bstep0 K Y).testBit (r - 1 + L) || (bstep0 K Y).testBit (r - 2 + L))
+        rw [bstep0_testBit_lt (by omega), hper r (by omega) (by omega),
+          ite_eq_right (by omega), ite_eq_right (by omega),
+          show r + L - 1 = r - 1 + L by omega, show r + L - 2 = r - 2 + L by omega]
+      have hrec0_b : ∀ r, s + 4 ≤ r → r < K - L →
+          (bstep0 K Y).testBit r =
+            xor (Y.testBit r) ((bstep0 K Y).testBit (r - 1) || (bstep0 K Y).testBit (r - 2)) := by
+        intro r hr hrK
+        rw [bstep0_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega)]
+      have hc1 := bstep_rec_congr (m := s + 4) (K := K - L) (by omega) hrec1_a hrec1_b
+        (by show (bstep1 K Y).testBit (s + 4 - 2 + L) = (bstep1 K Y).testBit (s + 4 - 2)
+            rw [show s + 4 - 2 + L = s + L + 2 by omega, show s + 4 - 2 = s + 2 by omega, hr1_shift.1, hr1_base.1])
+        (by show (bstep1 K Y).testBit (s + 4 - 1 + L) = (bstep1 K Y).testBit (s + 4 - 1)
+            rw [show s + 4 - 1 + L = s + L + 3 by omega, show s + 4 - 1 = s + 3 by omega, hr1_shift.2, hr1_base.2, hy3])
+        (i - (s + 4)) (by omega)
+      have hc0 := bstep_rec_congr (m := s + 4) (K := K - L) (by omega) hrec0_a hrec0_b
+        (by show (bstep0 K Y).testBit (s + 4 - 2 + L) = (bstep0 K Y).testBit (s + 4 - 2)
+            rw [show s + 4 - 2 + L = s + L + 2 by omega, show s + 4 - 2 = s + 2 by omega, hr0_shift.1, hr0_base.1])
+        (by show (bstep0 K Y).testBit (s + 4 - 1 + L) = (bstep0 K Y).testBit (s + 4 - 1)
+            rw [show s + 4 - 1 + L = s + L + 3 by omega, show s + 4 - 1 = s + 3 by omega, hr0_shift.2, hr0_base.2, hy3])
+        (i - (s + 4)) (by omega)
+      change (bstep1 K Y).testBit (s + 4 + (i - (s + 4)) + L) = (bstep1 K Y).testBit (s + 4 + (i - (s + 4))) at hc1
+      change (bstep0 K Y).testBit (s + 4 + (i - (s + 4)) + L) = (bstep0 K Y).testBit (s + 4 + (i - (s + 4))) at hc0
+      rw [show s + 4 + (i - (s + 4)) = i by omega] at hc1 hc0
+      exact ⟨hc1, hc0⟩
+
+/-! ## 2. The 2-State `00` Collapse & 3-State General Collapse on `Bool × Bool` -/
+
+/-- The 1-step backward state transition on `Bool × Bool`: `(a, b) ↦ (b, xor y (a || b))`. -/
+def bstepTrans (y : Bool) (p : Bool × Bool) : Bool × Bool :=
+  (p.2, xor y (p.1 || p.2))
+
+/-- **1-Step State Merge (`bstepTrans_merge_true`):** for any bit `y : Bool`, the states
+`(false, true)` and `(true, true)` merge in a single step to `(true, !y)`. -/
+theorem bstepTrans_merge_true (y : Bool) :
+    bstepTrans y (false, true) = (true, !y) ∧
+      bstepTrans y (true, true) = (true, !y) := by
+  cases y <;> decide
+
+/-- **2-Step `00` State Collapse (`bstepTrans_00_collapse`):** reading `(false, false)` fixes
+`(false, false)` and merges all three non-zero states `(false, true)`, `(true, false)`, and
+`(true, true)` into `(true, true)`. -/
+theorem bstepTrans_00_collapse :
+    bstepTrans false (bstepTrans false (false, false)) = (false, false) ∧
+    bstepTrans false (bstepTrans false (false, true)) = (true, true) ∧
+    bstepTrans false (bstepTrans false (true, false)) = (true, true) ∧
+    bstepTrans false (bstepTrans false (true, true)) = (true, true) := by
+  decide
+
+/-- Iterated application of a state map `M : Bool × Bool → Bool × Bool`. -/
+def iterPair (M : Bool × Bool → Bool × Bool) : Nat → Bool × Bool → Bool × Bool
+  | 0, p => p
+  | k + 1, p => M (iterPair M k p)
+
+/-- Canonical 3-value table lookup on `Bool × Bool` merging `(false, true)` and `(true, true)`. -/
+def eval3 (u v w : Bool × Bool) : Bool × Bool → Bool × Bool
+  | (false, false) => u
+  | (true, false)  => v
+  | (_, true)      => w
+
+/-- Helper declaration `iterPair_congr` for backward transducer state collapse. -/
+theorem iterPair_congr {M₁ M₂ : Bool × Bool → Bool × Bool} (h : ∀ x, M₁ x = M₂ x) :
+    ∀ k p, iterPair M₁ k p = iterPair M₂ k p
+  | 0, _ => rfl
+  | k + 1, p => by rw [iterPair, iterPair, iterPair_congr h k p, h]
+
+/-- Helper declaration `eval3_nine_eq_three` for backward transducer state collapse. -/
+theorem eval3_nine_eq_three :
+    ∀ a1 a2 b1 b2 c1 c2 p1 p2 : Bool,
+      iterPair (eval3 (a1, a2) (b1, b2) (c1, c2)) 9 (p1, p2) =
+        iterPair (eval3 (a1, a2) (b1, b2) (c1, c2)) 3 (p1, p2) := by
+  decide
+
+/-- Helper declaration `eval3_four_eq_two` for backward transducer state collapse. -/
+theorem eval3_four_eq_two :
+    ∀ a1 a2 c1 c2 p1 p2 : Bool,
+      iterPair (eval3 (a1, a2) (c1, c2) (c1, c2)) 4 (p1, p2) =
+        iterPair (eval3 (a1, a2) (c1, c2) (c1, c2)) 2 (p1, p2) := by
+  decide
+
+/-- **Universal 2-State Collapse Period-Doubling Identity (`iterPair_four_eq_two`):** for any map
+`M : Bool × Bool → Bool × Bool` that merges the three non-zero states
+(`M (false, true) = M (true, true)` and `M (true, false) = M (true, true)`),
+`iterPair M 4 p = iterPair M 2 p` for all `p : Bool × Bool`. -/
+theorem iterPair_four_eq_two (M : Bool × Bool → Bool × Bool)
+    (h01 : M (false, true) = M (true, true))
+    (h10 : M (true, false) = M (true, true)) (p : Bool × Bool) :
+    iterPair M 4 p = iterPair M 2 p := by
+  have heq : ∀ x, M x = eval3 (M (false, false)) (M (true, true)) (M (true, true)) x := by
+    rintro ⟨a, b⟩
+    cases a <;> cases b
+    · rfl
+    · exact h01
+    · exact h10
+    · rfl
+  rw [iterPair_congr heq 4 p, iterPair_congr heq 2 p]
+  exact eval3_four_eq_two (M (false, false)).1 (M (false, false)).2 (M (true, true)).1 (M (true, true)).2 p.1 p.2
+
+/-- **Universal 3-State Collapse Period-6 Identity (`iterPair_nine_eq_three`):** for any map
+`M : Bool × Bool → Bool × Bool` satisfying `M (false, true) = M (true, true)`,
+`iterPair M 9 p = iterPair M 3 p` for all `p : Bool × Bool`. -/
+theorem iterPair_nine_eq_three (M : Bool × Bool → Bool × Bool)
+    (h01 : M (false, true) = M (true, true)) (p : Bool × Bool) :
+    iterPair M 9 p = iterPair M 3 p := by
+  have heq : ∀ x, M x = eval3 (M (false, false)) (M (true, false)) (M (true, true)) x := by
+    rintro ⟨a, b⟩
+    cases a <;> cases b
+    · rfl
+    · exact h01
+    · rfl
+    · rfl
+  rw [iterPair_congr heq 9 p, iterPair_congr heq 3 p]
+  exact eval3_nine_eq_three (M (false, false)).1 (M (false, false)).2 (M (true, false)).1 (M (true, false)).2 (M (true, true)).1 (M (true, true)).2 p.1 p.2
+
+
+/-- Multi-step state transition of `bstepTrans` along `Y : Nat → Bool` from index `r`. -/
+def runTrans (Y : Nat → Bool) (r : Nat) : Nat → Bool × Bool → Bool × Bool
+  | 0, p => p
+  | d + 1, p => bstepTrans (Y (r + d)) (runTrans Y r d p)
+
+/-- Helper declaration `runTrans_add` for backward transducer state collapse. -/
+theorem runTrans_add (Y : Nat → Bool) (r a b : Nat) (p : Bool × Bool) :
+    runTrans Y r (a + b) p = runTrans Y (r + a) b (runTrans Y r a p) := by
+  induction b with
+  | zero => simp [runTrans]
+  | succ b ih =>
+    rw [Nat.add_succ, runTrans, ih, runTrans, show r + (a + b) = r + a + b by omega]
+
+/-- Helper declaration `runTrans_congr` for backward transducer state collapse. -/
+theorem runTrans_congr {Y : Nat → Bool} {r₁ r₂ d : Nat}
+    (h : ∀ j, j < d → Y (r₁ + j) = Y (r₂ + j)) (p : Bool × Bool) :
+    runTrans Y r₁ d p = runTrans Y r₂ d p := by
+  induction d with
+  | zero => rfl
+  | succ d ih =>
+    rw [runTrans, runTrans, ih (fun j hj => h j (by omega)), h d (by omega)]
+
+/-- Helper declaration `runTrans_merge_true` for backward transducer state collapse. -/
+theorem runTrans_merge_true (Y : Nat → Bool) (r L : Nat) (hL : 1 ≤ L) :
+    runTrans Y r L (false, true) = runTrans Y r L (true, true) := by
+  obtain ⟨d, rfl⟩ : ∃ d, L = 1 + d := ⟨L - 1, by omega⟩
+  rw [runTrans_add, runTrans_add]
+  have hm := bstepTrans_merge_true (Y r)
+  have h1 : runTrans Y r 1 (false, true) = (true, !Y r) := hm.1
+  have h2 : runTrans Y r 1 (true, true) = (true, !Y r) := hm.2
+  rw [h1, h2]
+
+/-- Helper declaration `runTrans_00_collapse` for backward transducer state collapse. -/
+theorem runTrans_00_collapse (Y : Nat → Bool) (r L : Nat) (hL : 2 ≤ L)
+    (hy0 : Y r = false) (hy1 : Y (r + 1) = false) :
+    runTrans Y r L (false, true) = runTrans Y r L (true, true) ∧
+      runTrans Y r L (true, false) = runTrans Y r L (true, true) := by
+  obtain ⟨d, rfl⟩ : ∃ d, L = 2 + d := ⟨L - 2, by omega⟩
+  have hstep : ∀ p, runTrans Y r 2 p = bstepTrans false (bstepTrans false p) := by
+    intro p
+    simp [runTrans, hy0, hy1]
+  have hc := bstepTrans_00_collapse
+  refine ⟨?_, ?_⟩
+  · rw [runTrans_add, runTrans_add, hstep, hstep, hc.2.1, hc.2.2.2]
+  · rw [runTrans_add, runTrans_add, hstep, hstep, hc.2.2.1, hc.2.2.2]
+
+/-- Helper declaration `state_add_eq_runTrans` for backward transducer state collapse. -/
+theorem state_add_eq_runTrans {Z Y : Nat → Bool} {r K : Nat} (hr : 2 ≤ r)
+    (hrec : ∀ u, r ≤ u → u < K → Z u = xor (Y u) (Z (u - 1) || Z (u - 2))) :
+    ∀ d, r + d ≤ K →
+      (Z (r + d - 2), Z (r + d - 1)) = runTrans Y r d (Z (r - 2), Z (r - 1))
+  | 0, _ => by simp [runTrans]
+  | d + 1, hdK => by
+    rw [runTrans, ← state_add_eq_runTrans hr hrec d (by omega)]
+    simp only [bstepTrans]
+    rw [show r + (d + 1) - 2 = r + d - 1 by omega, show r + (d + 1) - 1 = r + d by omega,
+      hrec (r + d) (by omega) (by omega), Bool.or_comm]
+
+/-- Helper declaration `y_shift_mul` for backward transducer state collapse. -/
+theorem y_shift_mul {Y : Nat → Bool} {s L K : Nat}
+    (hper : ∀ u, s ≤ u → u + L < K → Y (u + L) = Y u) :
+    ∀ k j, j < L → s + (k * L + L) ≤ K → Y (s + k * L + j) = Y (s + j)
+  | 0, j, _, _ => by simp
+  | k + 1, j, hj, hkK => by
+    rw [Nat.succ_mul] at hkK ⊢
+    rw [show s + (k * L + L) + j = (s + k * L + j) + L by omega,
+      hper (s + k * L + j) (by omega) (by omega),
+      y_shift_mul hper k j hj (by omega)]
+
+/-- Helper declaration `state_mul_eq_iterPair` for backward transducer state collapse. -/
+theorem state_mul_eq_iterPair {Z Y : Nat → Bool} {s L K : Nat} (hs : 2 ≤ s)
+    (hrec : ∀ u, s ≤ u → u < K → Z u = xor (Y u) (Z (u - 1) || Z (u - 2)))
+    (hper : ∀ u, s ≤ u → u + L < K → Y (u + L) = Y u) :
+    ∀ k, s + k * L ≤ K →
+      (Z (s + k * L - 2), Z (s + k * L - 1)) =
+        iterPair (runTrans Y s L) k (Z (s - 2), Z (s - 1))
+  | 0, _ => by simp [iterPair]
+  | k + 1, hkK => by
+    rw [Nat.succ_mul] at hkK
+    rw [iterPair, ← state_mul_eq_iterPair hs hrec hper k (by omega)]
+    have hstep := state_add_eq_runTrans (Z := Z) (Y := Y) (r := s + k * L) (K := K) (by omega)
+      (fun u hu huK => hrec u (by omega) huK) L (by omega)
+    rw [show s + k * L + L = s + (k + 1) * L by rw [Nat.succ_mul]; omega] at hstep
+    rw [hstep]
+    exact runTrans_congr (fun j hj => y_shift_mul hper k j hj hkK) _
+
+/-- **Universal `2 * L` Period-Doubling Bound under `00` (`bstep1_periodic_two_mul_of_00`):** for any
+window `Y` that is `L`-periodic on `[s, K)` (`2 ≤ s`, `2 ≤ L`) with `(Y_s, Y_{s+1}) = (false, false)`,
+both `bstep1 K Y` and `bstep0 K Y` have period `2 * L` on `[s + 2 * L - 2, K)`. -/
+theorem bstep1_periodic_two_mul_of_00 {K s L Y : Nat} (hs : 2 ≤ s) (hL : 2 ≤ L)
+    (hy0 : Y.testBit s = false) (hy1 : Y.testBit (s + 1) = false)
+    (hper : ∀ r, s ≤ r → r + L < K → Y.testBit (r + L) = Y.testBit r) :
+    ∀ i, s + 2 * L ≤ i → i + 2 * L < K →
+      (bstep1 K Y).testBit (i + 2 * L) = (bstep1 K Y).testBit i ∧
+      (bstep0 K Y).testBit (i + 2 * L) = (bstep0 K Y).testBit i := by
+  intro i hsi hiK
+  have hcol := runTrans_00_collapse (fun u => Y.testBit u) s L hL hy0 hy1
+  have hrec1 : ∀ u, s ≤ u → u < K →
+      (bstep1 K Y).testBit u =
+        xor (Y.testBit u) ((bstep1 K Y).testBit (u - 1) || (bstep1 K Y).testBit (u - 2)) := by
+    intro u hu huK
+    rw [bstep1_testBit_lt huK, ite_eq_right (by omega), ite_eq_right (by omega)]
+  have hrec0 : ∀ u, s ≤ u → u < K →
+      (bstep0 K Y).testBit u =
+        xor (Y.testBit u) ((bstep0 K Y).testBit (u - 1) || (bstep0 K Y).testBit (u - 2)) := by
+    intro u hu huK
+    rw [bstep0_testBit_lt huK, ite_eq_right (by omega), ite_eq_right (by omega)]
+  have hst1_4 := state_mul_eq_iterPair hs hrec1 hper 4 (by omega)
+  have hst1_2 := state_mul_eq_iterPair hs hrec1 hper 2 (by omega)
+  have heq1 : ((bstep1 K Y).testBit (s + 4 * L - 2), (bstep1 K Y).testBit (s + 4 * L - 1)) =
+      ((bstep1 K Y).testBit (s + 2 * L - 2), (bstep1 K Y).testBit (s + 2 * L - 1)) := by
+    rw [hst1_4, hst1_2]
+    exact iterPair_four_eq_two (runTrans (fun u => Y.testBit u) s L) hcol.1 hcol.2 _
+  have hst0_4 := state_mul_eq_iterPair hs hrec0 hper 4 (by omega)
+  have hst0_2 := state_mul_eq_iterPair hs hrec0 hper 2 (by omega)
+  have heq0 : ((bstep0 K Y).testBit (s + 4 * L - 2), (bstep0 K Y).testBit (s + 4 * L - 1)) =
+      ((bstep0 K Y).testBit (s + 2 * L - 2), (bstep0 K Y).testBit (s + 2 * L - 1)) := by
+    rw [hst0_4, hst0_2]
+    exact iterPair_four_eq_two (runTrans (fun u => Y.testBit u) s L) hcol.1 hcol.2 _
+  have hper2 : ∀ r, s ≤ r → r + 2 * L < K → Y.testBit (r + 2 * L) = Y.testBit r := by
+    intro r hr hrK
+    rw [show r + 2 * L = (r + L) + L by omega, hper (r + L) (by omega) (by omega), hper r hr (by omega)]
+  let Z1_s (u : Nat) : Bool := (bstep1 K Y).testBit (u + 2 * L)
+  let Z0_s (u : Nat) : Bool := (bstep0 K Y).testBit (u + 2 * L)
+  have hc1 := bstep_rec_congr (m := s + 2 * L) (K := K - 2 * L) (Y := fun u => Y.testBit u)
+    (Z₁ := Z1_s) (Z₂ := fun u => (bstep1 K Y).testBit u) (by omega)
+    (fun r hr hrK => by
+      show (bstep1 K Y).testBit (r + 2 * L) =
+        xor (Y.testBit r) ((bstep1 K Y).testBit (r - 1 + 2 * L) || (bstep1 K Y).testBit (r - 2 + 2 * L))
+      rw [bstep1_testBit_lt (by omega), hper2 r (by omega) (by omega),
+        ite_eq_right (by omega), ite_eq_right (by omega),
+        show r + 2 * L - 1 = r - 1 + 2 * L by omega, show r + 2 * L - 2 = r - 2 + 2 * L by omega])
+    (fun r hr hrK => hrec1 r (by omega) (by omega))
+    (by show (bstep1 K Y).testBit (s + 2 * L - 2 + 2 * L) = (bstep1 K Y).testBit (s + 2 * L - 2)
+        rw [show s + 2 * L - 2 + 2 * L = s + 4 * L - 2 by omega]
+        exact Prod.mk.injEq _ _ _ _ ▸ heq1 |>.1)
+    (by show (bstep1 K Y).testBit (s + 2 * L - 1 + 2 * L) = (bstep1 K Y).testBit (s + 2 * L - 1)
+        rw [show s + 2 * L - 1 + 2 * L = s + 4 * L - 1 by omega]
+        exact Prod.mk.injEq _ _ _ _ ▸ heq1 |>.2)
+    (i - (s + 2 * L)) (by omega)
+  have hc0 := bstep_rec_congr (m := s + 2 * L) (K := K - 2 * L) (Y := fun u => Y.testBit u)
+    (Z₁ := Z0_s) (Z₂ := fun u => (bstep0 K Y).testBit u) (by omega)
+    (fun r hr hrK => by
+      show (bstep0 K Y).testBit (r + 2 * L) =
+        xor (Y.testBit r) ((bstep0 K Y).testBit (r - 1 + 2 * L) || (bstep0 K Y).testBit (r - 2 + 2 * L))
+      rw [bstep0_testBit_lt (by omega), hper2 r (by omega) (by omega),
+        ite_eq_right (by omega), ite_eq_right (by omega),
+        show r + 2 * L - 1 = r - 1 + 2 * L by omega, show r + 2 * L - 2 = r - 2 + 2 * L by omega])
+    (fun r hr hrK => hrec0 r (by omega) (by omega))
+    (by show (bstep0 K Y).testBit (s + 2 * L - 2 + 2 * L) = (bstep0 K Y).testBit (s + 2 * L - 2)
+        rw [show s + 2 * L - 2 + 2 * L = s + 4 * L - 2 by omega]
+        exact Prod.mk.injEq _ _ _ _ ▸ heq0 |>.1)
+    (by show (bstep0 K Y).testBit (s + 2 * L - 1 + 2 * L) = (bstep0 K Y).testBit (s + 2 * L - 1)
+        rw [show s + 2 * L - 1 + 2 * L = s + 4 * L - 1 by omega]
+        exact Prod.mk.injEq _ _ _ _ ▸ heq0 |>.2)
+    (i - (s + 2 * L)) (by omega)
+  change (bstep1 K Y).testBit (s + 2 * L + (i - (s + 2 * L)) + 2 * L) =
+    (bstep1 K Y).testBit (s + 2 * L + (i - (s + 2 * L))) at hc1
+  change (bstep0 K Y).testBit (s + 2 * L + (i - (s + 2 * L)) + 2 * L) =
+    (bstep0 K Y).testBit (s + 2 * L + (i - (s + 2 * L))) at hc0
+  rw [show s + 2 * L + (i - (s + 2 * L)) = i by omega] at hc1 hc0
+  exact ⟨hc1, hc0⟩
+
+/-- **Universal `6 * L` Period Bound for Arbitrary `L`-Periodic Tails (`bstep1_periodic_six_mul`):**
+for ANY window `Y` that is `L`-periodic on `[s, K)` (`2 ≤ s`, `1 ≤ L`), both `bstep1 K Y` and
+`bstep0 K Y` have period `6 * L` on `[s + 3 * L, K)`. -/
+theorem bstep1_periodic_six_mul {K s L Y : Nat} (hs : 2 ≤ s) (hL : 1 ≤ L)
+    (hper : ∀ r, s ≤ r → r + L < K → Y.testBit (r + L) = Y.testBit r) :
+    ∀ i, s + 3 * L ≤ i → i + 6 * L < K →
+      (bstep1 K Y).testBit (i + 6 * L) = (bstep1 K Y).testBit i ∧
+      (bstep0 K Y).testBit (i + 6 * L) = (bstep0 K Y).testBit i := by
+  intro i hsi hiK
+  have hcol := runTrans_merge_true (fun u => Y.testBit u) s L hL
+  have hrec1 : ∀ u, s ≤ u → u < K →
+      (bstep1 K Y).testBit u =
+        xor (Y.testBit u) ((bstep1 K Y).testBit (u - 1) || (bstep1 K Y).testBit (u - 2)) := by
+    intro u hu huK
+    rw [bstep1_testBit_lt huK, ite_eq_right (by omega), ite_eq_right (by omega)]
+  have hrec0 : ∀ u, s ≤ u → u < K →
+      (bstep0 K Y).testBit u =
+        xor (Y.testBit u) ((bstep0 K Y).testBit (u - 1) || (bstep0 K Y).testBit (u - 2)) := by
+    intro u hu huK
+    rw [bstep0_testBit_lt huK, ite_eq_right (by omega), ite_eq_right (by omega)]
+  have hst1_9 := state_mul_eq_iterPair hs hrec1 hper 9 (by omega)
+  have hst1_3 := state_mul_eq_iterPair hs hrec1 hper 3 (by omega)
+  have heq1 : ((bstep1 K Y).testBit (s + 9 * L - 2), (bstep1 K Y).testBit (s + 9 * L - 1)) =
+      ((bstep1 K Y).testBit (s + 3 * L - 2), (bstep1 K Y).testBit (s + 3 * L - 1)) := by
+    rw [hst1_9, hst1_3]
+    exact iterPair_nine_eq_three (runTrans (fun u => Y.testBit u) s L) hcol _
+  have hst0_9 := state_mul_eq_iterPair hs hrec0 hper 9 (by omega)
+  have hst0_3 := state_mul_eq_iterPair hs hrec0 hper 3 (by omega)
+  have heq0 : ((bstep0 K Y).testBit (s + 9 * L - 2), (bstep0 K Y).testBit (s + 9 * L - 1)) =
+      ((bstep0 K Y).testBit (s + 3 * L - 2), (bstep0 K Y).testBit (s + 3 * L - 1)) := by
+    rw [hst0_9, hst0_3]
+    exact iterPair_nine_eq_three (runTrans (fun u => Y.testBit u) s L) hcol _
+  have hper6 : ∀ r, s ≤ r → r + 6 * L < K → Y.testBit (r + 6 * L) = Y.testBit r := by
+    intro r hr hrK
+    have h1 := hper (r + 5 * L) (by omega) (by omega)
+    have h2 := hper (r + 4 * L) (by omega) (by omega)
+    have h3 := hper (r + 3 * L) (by omega) (by omega)
+    have h4 := hper (r + 2 * L) (by omega) (by omega)
+    have h5 := hper (r + L) (by omega) (by omega)
+    have h6 := hper r hr (by omega)
+    rw [show r + 6 * L = r + 5 * L + L by omega, h1,
+      show r + 5 * L = r + 4 * L + L by omega, h2,
+      show r + 4 * L = r + 3 * L + L by omega, h3,
+      show r + 3 * L = r + 2 * L + L by omega, h4,
+      show r + 2 * L = r + L + L by omega, h5, h6]
+  let Z1_s (u : Nat) : Bool := (bstep1 K Y).testBit (u + 6 * L)
+  let Z0_s (u : Nat) : Bool := (bstep0 K Y).testBit (u + 6 * L)
+  have hc1 := bstep_rec_congr (m := s + 3 * L) (K := K - 6 * L) (Y := fun u => Y.testBit u)
+    (Z₁ := Z1_s) (Z₂ := fun u => (bstep1 K Y).testBit u) (by omega)
+    (fun r hr hrK => by
+      show (bstep1 K Y).testBit (r + 6 * L) =
+        xor (Y.testBit r) ((bstep1 K Y).testBit (r - 1 + 6 * L) || (bstep1 K Y).testBit (r - 2 + 6 * L))
+      rw [bstep1_testBit_lt (by omega), hper6 r (by omega) (by omega),
+        ite_eq_right (by omega), ite_eq_right (by omega),
+        show r + 6 * L - 1 = r - 1 + 6 * L by omega, show r + 6 * L - 2 = r - 2 + 6 * L by omega])
+    (fun r hr hrK => hrec1 r (by omega) (by omega))
+    (by show (bstep1 K Y).testBit (s + 3 * L - 2 + 6 * L) = (bstep1 K Y).testBit (s + 3 * L - 2)
+        rw [show s + 3 * L - 2 + 6 * L = s + 9 * L - 2 by omega]
+        exact (Prod.mk.inj heq1).1)
+    (by show (bstep1 K Y).testBit (s + 3 * L - 1 + 6 * L) = (bstep1 K Y).testBit (s + 3 * L - 1)
+        rw [show s + 3 * L - 1 + 6 * L = s + 9 * L - 1 by omega]
+        exact (Prod.mk.inj heq1).2)
+    (i - (s + 3 * L)) (by omega)
+  have hc0 := bstep_rec_congr (m := s + 3 * L) (K := K - 6 * L) (Y := fun u => Y.testBit u)
+    (Z₁ := Z0_s) (Z₂ := fun u => (bstep0 K Y).testBit u) (by omega)
+    (fun r hr hrK => by
+      show (bstep0 K Y).testBit (r + 6 * L) =
+        xor (Y.testBit r) ((bstep0 K Y).testBit (r - 1 + 6 * L) || (bstep0 K Y).testBit (r - 2 + 6 * L))
+      rw [bstep0_testBit_lt (by omega), hper6 r (by omega) (by omega),
+        ite_eq_right (by omega), ite_eq_right (by omega),
+        show r + 6 * L - 1 = r - 1 + 6 * L by omega, show r + 6 * L - 2 = r - 2 + 6 * L by omega])
+    (fun r hr hrK => hrec0 r (by omega) (by omega))
+    (by show (bstep0 K Y).testBit (s + 3 * L - 2 + 6 * L) = (bstep0 K Y).testBit (s + 3 * L - 2)
+        rw [show s + 3 * L - 2 + 6 * L = s + 9 * L - 2 by omega]
+        exact (Prod.mk.inj heq0).1)
+    (by show (bstep0 K Y).testBit (s + 3 * L - 1 + 6 * L) = (bstep0 K Y).testBit (s + 3 * L - 1)
+        rw [show s + 3 * L - 1 + 6 * L = s + 9 * L - 1 by omega]
+        exact (Prod.mk.inj heq0).2)
+    (i - (s + 3 * L)) (by omega)
+  change (bstep1 K Y).testBit (s + 3 * L + (i - (s + 3 * L)) + 6 * L) =
+    (bstep1 K Y).testBit (s + 3 * L + (i - (s + 3 * L))) at hc1
+  change (bstep0 K Y).testBit (s + 3 * L + (i - (s + 3 * L)) + 6 * L) =
+    (bstep0 K Y).testBit (s + 3 * L + (i - (s + 3 * L))) at hc0
+  rw [show s + 3 * L + (i - (s + 3 * L)) = i by omega] at hc1 hc0
+  exact ⟨hc1, hc0⟩
+
+/-! ## 3. Stage 5 & Stage 6 Explicit Periodic Waves (`(000101)^∞ → (111010)^∞ → (001101)^∞`) -/
+
+/-- **Stage 4 to Stage 5 (`(000101)^∞ → (111010)^∞`) via `010` Synchronization:** if `W` is locked
+into the period-6 `(000101)^∞` wave on `[s, K)` (`2 ≤ s`, with `(W_s, W_{s+1}, W_{s+2}) =
+(false, true, false)` and `11`-free above `s + 2`), then both `bstep1 K W` and `bstep0 K W` lock
+into the exact bitwise complement `!W` (period 6 `(111010)^∞`) on `[s + 2, K)`. -/
+theorem wave_000101_to_111010 {K s W : Nat} (hs : 2 ≤ s)
+    (hw0 : W.testBit s = false) (hw1 : W.testBit (s + 1) = true) (hw2 : W.testBit (s + 2) = false)
+    (hno11 : ∀ r, s + 2 < r → r < K → (W.testBit (r - 1) && W.testBit r) = false)
+    (hper6 : ∀ r, s ≤ r → r + 6 < K → W.testBit (r + 6) = W.testBit r) :
+    ∀ i, s + 2 ≤ i → i + 6 < K →
+      (bstep1 K W).testBit i = !W.testBit i ∧
+      (bstep1 K W).testBit (i + 6) = (bstep1 K W).testBit i ∧
+      (bstep0 K W).testBit i = !W.testBit i ∧
+      (bstep0 K W).testBit (i + 6) = (bstep0 K W).testBit i := by
+  intro i hsi hiK
+  have hc1 := (sync_010_complement_step1 hs hw0 hw1 hw2 hno11 (i - (s + 2)) (by omega)).1
+  have hc1_6 := (sync_010_complement_step1 hs hw0 hw1 hw2 hno11 (i + 6 - (s + 2)) (by omega)).1
+  have hc0 := (sync_010_complement_step0 hs hw0 hw1 hw2 hno11 (i - (s + 2)) (by omega)).1
+  have hc0_6 := (sync_010_complement_step0 hs hw0 hw1 hw2 hno11 (i + 6 - (s + 2)) (by omega)).1
+  rw [show s + 2 + (i - (s + 2)) = i by omega] at hc1 hc0
+  rw [show s + 2 + (i + 6 - (s + 2)) = i + 6 by omega] at hc1_6 hc0_6
+  have hp := hper6 i (by omega) hiK
+  refine ⟨hc1, ?_, hc0, ?_⟩
+  · rw [hc1_6, hc1, hp]
+  · rw [hc0_6, hc0, hp]
+
+/-- **Stage 5 to Stage 6 (`(111010)^∞ → (001101)^∞`) via `010` Period Preservation:** if `X` is a
+period-6 wave on `[s, K)` (`2 ≤ s`) with `(X_s, X_{s+1}, X_{s+2}) = (false, true, false)` (which
+holds for `(111010)^∞` at its `010` phase), then both `bstep1 K X` and `bstep0 K X` preserve
+exact period 6 (`testBit (i + 6) = testBit i`) for all `i ≥ s + 2` (`i + 6 < K`). -/
+theorem wave_111010_period6_step {K s X : Nat} (hs : 2 ≤ s)
+    (hx0 : X.testBit s = false) (hx1 : X.testBit (s + 1) = true) (hx2 : X.testBit (s + 2) = false)
+    (hper6 : ∀ r, s ≤ r → r + 6 < K → X.testBit (r + 6) = X.testBit r) :
+    ∀ i, s + 2 ≤ i → i + 6 < K →
+      (bstep1 K X).testBit (i + 6) = (bstep1 K X).testBit i ∧
+      (bstep0 K X).testBit (i + 6) = (bstep0 K X).testBit i :=
+  bstep1_periodic_of_010 hs (by decide) hx0 hx1 hx2 hper6
+
 end Rule30ZeroBoundaryStripeCascade
 end Ruliology.CellularAutomata
