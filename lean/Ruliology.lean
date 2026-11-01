@@ -157,6 +157,9 @@ public import Ruliology.CellularAutomata.Rule30EtherWallWitness
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryPeriodLanes
 public import Ruliology.CellularAutomata.Rule30EtherEpisode
 public import Ruliology.CellularAutomata.Rule30WedgeParity
+public import Ruliology.CellularAutomata.Rule30P2Bridge
+public import Ruliology.CellularAutomata.Rule30SurvivalBridge
+public import Ruliology.CellularAutomata.Rule30AlternatingTraceBridge
 
 /-!
 # Rule 30 Prize: Lean snapshot
