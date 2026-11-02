@@ -232,5 +232,192 @@ theorem separator_excludes_finite_peel_rank (hs : ConstantTailSeparator)
   exact hi.symm
 
 
+/-! ## 1. Global Invertibility of `inverse` via `stepInverse` and `uninverse` -/
+
+/-- `boundary` (`3 - q`) is an involution on all four symbols of `Sym = Fin 4`. -/
+theorem boundary_involutive : ∀ a : Sym, boundary (boundary a) = a := by decide
+
+/-- Column-stepping operator on inverse diagonals: reconstructs column `j + 1` of the cone from column `j`. -/
+def stepInverse (v : Stream) : Stream :=
+  lift (unphi (boundary (v 0)) (v 1)) (shift v)
+
+/-- `j`-fold iteration of `stepInverse`. -/
+def stepInverseIter : Nat → Stream → Stream
+  | 0, v => v
+  | j + 1, v => stepInverseIter j (stepInverse v)
+
+/-- Explicit left-inverse of `inverse : Stream → Stream`, recovering `e j` from `inverse e`. -/
+def uninverse (v : Stream) (j : Nat) : Sym :=
+  boundary (stepInverseIter j v 0)
+
+/-- The initial symbol `cone e 0 (j + 1)` of column `j + 1` equals `unphi (boundary (cone e 0 j)) (cone e 1 j)`. -/
+theorem cone_zero_succ (e : Stream) (j : Nat) :
+    cone e 0 (j + 1) = unphi (boundary (cone e 0 j)) (cone e 1 j) := by
+  change boundary (e (j + 1)) = unphi (boundary (boundary (e j))) (phi (e j) (boundary (e (j + 1))))
+  rw [boundary_involutive, unphi_phi]
+
+/-- **Exact Cone Column-Stepping Identity (`cone_succ_eq_stepInverse`):** column `j + 1` of `cone e`
+is `stepInverse` applied to column `j` of `cone e`. -/
+theorem cone_succ_eq_stepInverse (e : Stream) (j : Nat) :
+    (fun t => cone e t (j + 1)) = stepInverse (fun t => cone e t j) := by
+  unfold stepInverse
+  apply lift_unique (unphi (boundary (cone e 0 j)) (cone e 1 j))
+    (shift (fun t => cone e t j)) (fun t => cone e t (j + 1))
+  · exact cone_zero_succ e j
+  · funext t
+    rfl
+
+/-- **Shift Conjugacy of `inverse` (`inverse_shift_eq_stepInverse`):** `inverse (shift e)` equals
+`stepInverse (inverse e)`. -/
+theorem inverse_shift_eq_stepInverse (e : Stream) :
+    inverse (shift e) = stepInverse (inverse e) := by
+  funext t
+  change cone (shift e) t 0 = stepInverse (fun s => cone e s 0) t
+  rw [cone_shift]
+  exact congrFun (cone_succ_eq_stepInverse e 0) t
+
+/-- Iterated shift conjugacy: `inverse (shiftN e j) = stepInverseIter j (inverse e)`. -/
+theorem inverse_shiftN_eq_stepInverseIter (e : Stream) : ∀ (j : Nat),
+    inverse (shiftN e j) = stepInverseIter j (inverse e)
+  | 0 => rfl
+  | j + 1 => by
+    have h : shiftN e (j + 1) = shiftN (shift e) j := rfl
+    rw [h, inverse_shiftN_eq_stepInverseIter (shift e) j, inverse_shift_eq_stepInverse, stepInverseIter]
+
+/-- **Exact Reconstruction of Any Stream from Its Inverse Diagonal (`uninverse_inverse`):**
+`uninverse (inverse e) = e` for every stream `e : Stream`. -/
+theorem uninverse_inverse (e : Stream) : uninverse (inverse e) = e := by
+  funext j
+  unfold uninverse
+  rw [← inverse_shiftN_eq_stepInverseIter]
+  change boundary (boundary (shiftN e j 0)) = e j
+  rw [boundary_involutive]
+  simp [shiftN]
+
+/-- **Global Injectivity of `inverse` (`inverse_injective`):** if `inverse e₁ = inverse e₂`, then `e₁ = e₂`. -/
+theorem inverse_injective {e₁ e₂ : Stream} (h : inverse e₁ = inverse e₂) : e₁ = e₂ := by
+  rw [← uninverse_inverse e₁, ← uninverse_inverse e₂, h]
+
+/-! ## 2. Complete 4-Symbol Peel-Rank Exclusion Under `ConstantTailSeparator` -/
+
+/-- For every symbol `c : Sym` (`0, 1, 2, 3`), two `phi` self-contractions yield `0` (`phi (phi c c) (phi c c) = 0`). -/
+theorem phi_phi_self_eq_zero : ∀ c : Sym, phi (phi c c) (phi c c) = 0 := by decide
+
+/-- If `peelPow d x t = c` for all `t ≥ K`, then `peelPow (d + 2) x t = 0` for all `t ≥ K`. -/
+theorem peelPow_add_two_eq_zero_of_const (x : Stream) (d K : Nat) (c : Sym)
+    (hc : ∀ t, K ≤ t → peelPow d x t = c) :
+    ∀ t, K ≤ t → peelPow (d + 2) x t = 0 := by
+  intro t ht
+  have h1 : peelPow (d + 1) x t = phi c c := by
+    change phi (peelPow d x t) (peelPow d x (t + 1)) = phi c c
+    rw [hc t ht, hc (t + 1) (by omega)]
+  have h2 : peelPow (d + 1) x (t + 1) = phi c c := by
+    change phi (peelPow d x (t + 1)) (peelPow d x (t + 2)) = phi c c
+    rw [hc (t + 1) (by omega), hc (t + 2) (by omega)]
+  change phi (peelPow (d + 1) x t) (peelPow (d + 1) x (t + 1)) = 0
+  rw [h1, h2, phi_phi_self_eq_zero]
+
+/-- **Complete 4-Symbol Peel-Rank Exclusion (`separator_excludes_any_constant_peel_rank`):** under
+`ConstantTailSeparator`, no hard-core stream `e` has `peelPow d (inverse e)` eventually equal to ANY
+symbol `c ∈ {0, 1, 2, 3}` at any peel rank `d : Nat`. -/
+theorem separator_excludes_any_constant_peel_rank (hs : ConstantTailSeparator)
+    (e : Stream) (hh : HardCore e) (d K : Nat) (c : Sym)
+    (hc : ∀ t, K ≤ t → peelPow d (inverse e) t = c) : False :=
+  separator_excludes_finite_peel_rank hs e hh (d + 2) K
+    (peelPow_add_two_eq_zero_of_const (inverse e) d K c hc)
+
+/-- **Complete 4-Symbol Constant-Tail Exclusion (`separator_excludes_all_constant_tails`):** under
+`ConstantTailSeparator`, no hard-core stream `e` has `inverse e` eventually constant `c` for ANY
+symbol `c ∈ {0, 1, 2, 3}` (extending `ConstantTailSeparator` from `{2, 3}` to all of `Fin 4`). -/
+theorem separator_excludes_all_constant_tails (hs : ConstantTailSeparator) :
+    ∀ (c : Sym) (e : Stream), HardCore e → ¬ EventuallyConstant (inverse e) c := by
+  intro c e hh ⟨K, hK⟩
+  exact separator_excludes_any_constant_peel_rank hs e hh 0 K c hK
+
+/-- **Unconditional `1 → 2` Constant-Tail Reduction (`no_constant_tail_one_of_two`):** if no
+hard-core stream has `inverse` eventually constant `2`, then no hard-core stream has `inverse`
+eventually constant `1` (without assuming `ConstantTailSeparator` for `c = 3`). -/
+theorem no_constant_tail_one_of_two
+    (h2 : ∀ e : Stream, HardCore e → ¬ EventuallyConstant (inverse e) 2)
+    (e : Stream) (hh : HardCore e) : ¬ EventuallyConstant (inverse e) 1 := by
+  rintro ⟨K, hK⟩
+  apply h2 (prependTwos e 1) (hc_prepend e 1 hh)
+  refine ⟨K + 2, fun t ht => ?_⟩
+  have hi := rotated_iterate (prependTwos e 1) 1 (t - 2)
+  rw [shift_prepend] at hi
+  have hidx : t - 2 + 2 * 1 = t := by omega
+  rw [hidx] at hi
+  rw [← hi]
+  change phi (inverse e (t - 2)) (inverse e (t - 2 + 1)) = 2
+  rw [hK (t - 2) (by omega), hK (t - 2 + 1) (by omega)]
+  rfl
+
+/-! ## 3. Unconditional Exclusion of Constant, 1-Lift, and 2-Lift Inverse Diagonals (`u.length ≤ 2`) -/
+
+/-- If `HardCore e` holds, then for every `j : Nat`, `uninverse (inverse e) j` is binary (`1` or `2`)
+and `(uninverse (inverse e) j, uninverse (inverse e) (j + 1)) ≠ (1, 1)`. -/
+theorem hardCore_uninverse_constraints {e : Stream} {v : Stream}
+    (hh : HardCore e) (hv : v = inverse e) (j : Nat) :
+    binary (uninverse v j) ∧ ¬(uninverse v j = 1 ∧ uninverse v (j + 1) = 1) := by
+  rw [hv, uninverse_inverse]
+  exact ⟨hh.1 j, hh.2 j⟩
+
+/-- **Unconditional Exclusion of Constant Inverse Diagonals (`no_hardCore_const_inverse`):** for
+every `c : Sym` (`0, 1, 2, 3`), no hard-core stream `e` satisfies `inverse e = (fun _ => c)` from `t = 0`. -/
+theorem no_hardCore_const_inverse (c : Sym) (e : Stream) (hh : HardCore e) :
+    (fun _ => c) ≠ inverse e := by
+  intro hv
+  have h0 := (hardCore_uninverse_constraints hh hv 0).1
+  have h1 := (hardCore_uninverse_constraints hh hv 1).1
+  have h2 := (hardCore_uninverse_constraints hh hv 2).1
+  have hdec : ∀ c : Sym,
+      binary (uninverse (fun _ => c) 0) →
+      binary (uninverse (fun _ => c) 1) →
+      binary (uninverse (fun _ => c) 2) → False := by unfold binary; decide
+  exact hdec c h0 h1 h2
+
+/-- **Unconditional 1-Step `OrbitSeparator` (`no_hardCore_lift_const_inverse`):** for every label
+`a : Sym` (`0, 1, 2, 3`) and every `c ∈ {2, 3}` (`constantTail c`), no hard-core stream `e` satisfies
+`lift a (fun _ => c) = inverse e`. -/
+theorem no_hardCore_lift_const_inverse (a c : Sym) (hc : constantTail c)
+    (e : Stream) (hh : HardCore e) :
+    lift a (fun _ => c) ≠ inverse e := by
+  intro hv
+  have h0 := hardCore_uninverse_constraints hh hv 0
+  have h1 := hardCore_uninverse_constraints hh hv 1
+  have h2 := hardCore_uninverse_constraints hh hv 2
+  have hdec : ∀ a c : Sym, constantTail c →
+      (binary (uninverse (lift a (fun _ => c)) 0) ∧
+        ¬(uninverse (lift a (fun _ => c)) 0 = 1 ∧ uninverse (lift a (fun _ => c)) 1 = 1)) →
+      (binary (uninverse (lift a (fun _ => c)) 1) ∧
+        ¬(uninverse (lift a (fun _ => c)) 1 = 1 ∧ uninverse (lift a (fun _ => c)) 2 = 1)) →
+      (binary (uninverse (lift a (fun _ => c)) 2) ∧
+        ¬(uninverse (lift a (fun _ => c)) 2 = 1 ∧ uninverse (lift a (fun _ => c)) 3 = 1)) →
+      False := by unfold constantTail binary; decide
+  exact hdec a c hc h0 h1 h2
+
+/-- **Unconditional 2-Step `OrbitSeparator` (`no_hardCore_lift_two_const_inverse`):** for all labels
+`a b : Sym` (`0, 1, 2, 3`) and every `c ∈ {2, 3}` (`constantTail c`), no hard-core stream `e` satisfies
+`liftWord [a, b] (fun _ => c) = inverse e`. -/
+theorem no_hardCore_lift_two_const_inverse (a b c : Sym) (hc : constantTail c)
+    (e : Stream) (hh : HardCore e) :
+    liftWord [a, b] (fun _ => c) ≠ inverse e := by
+  intro hv
+  have h0 := hardCore_uninverse_constraints hh hv 0
+  have h1 := hardCore_uninverse_constraints hh hv 1
+  have h2 := hardCore_uninverse_constraints hh hv 2
+  have h3 := hardCore_uninverse_constraints hh hv 3
+  have hdec : ∀ a b c : Sym, constantTail c →
+      (binary (uninverse (liftWord [a, b] (fun _ => c)) 0) ∧
+        ¬(uninverse (liftWord [a, b] (fun _ => c)) 0 = 1 ∧ uninverse (liftWord [a, b] (fun _ => c)) 1 = 1)) →
+      (binary (uninverse (liftWord [a, b] (fun _ => c)) 1) ∧
+        ¬(uninverse (liftWord [a, b] (fun _ => c)) 1 = 1 ∧ uninverse (liftWord [a, b] (fun _ => c)) 2 = 1)) →
+      (binary (uninverse (liftWord [a, b] (fun _ => c)) 2) ∧
+        ¬(uninverse (liftWord [a, b] (fun _ => c)) 2 = 1 ∧ uninverse (liftWord [a, b] (fun _ => c)) 3 = 1)) →
+      (binary (uninverse (liftWord [a, b] (fun _ => c)) 3) ∧
+        ¬(uninverse (liftWord [a, b] (fun _ => c)) 3 = 1 ∧ uninverse (liftWord [a, b] (fun _ => c)) 4 = 1)) →
+      False := by unfold constantTail binary; decide
+  exact hdec a b c hc h0 h1 h2 h3
+
 end Rule30SeparatorEquivalences
 end Ruliology.CellularAutomata
