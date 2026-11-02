@@ -164,6 +164,7 @@ public import Ruliology.CellularAutomata.Rule30WedgeBridge
 public import Ruliology.CellularAutomata.Rule30SeparatorBridge
 public import Ruliology.CellularAutomata.Rule30SeparatorEquivalences
 public import Ruliology.CellularAutomata.Rule30SEPToPeriodTwo
+public import Ruliology.CellularAutomata.Rule30TopCoefficient
 
 /-!
 # Rule 30 Prize: Lean snapshot
