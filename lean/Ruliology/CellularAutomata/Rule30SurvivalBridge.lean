@@ -1243,5 +1243,215 @@ theorem mortality_of_capacity_budget (Q : List Sym → Nat)
       Q w ≤ K → run w N = some (w', tape) → repeats tape ≤ B) : Mortality :=
   mortal_of_capacity_budget survival Q hQ
 
+/-! ## Left-Prefix Causality, 1-Step Memory Erasure, and Left-Front / Right-Terminal Causal Cone Collision -/
+
+/-- One pure left-to-right scan from the zero initial memory `(false, false, false)`. -/
+def pureScan (w : List Sym) : List Sym :=
+  (scan (false, false, false) w).1
+
+/-- `n`-fold iteration of `pureScan` on a frontier prefix `w`. -/
+def iterPureScan : Nat → List Sym → List Sym
+  | 0, w => w
+  | n + 1, w => pureScan (iterPureScan n w)
+
+/-- `pureScan` preserves list length. -/
+theorem pureScan_length (w : List Sym) : (pureScan w).length = w.length :=
+  scan_length (false, false, false) w
+
+/-- `iterPureScan n` preserves list length for all `n : Nat`. -/
+theorem iterPureScan_length : ∀ (n : Nat) (w : List Sym), (iterPureScan n w).length = w.length
+  | 0, _ => rfl
+  | n + 1, w => by rw [iterPureScan, pureScan_length, iterPureScan_length n w]
+
+/-- **Left-prefix causality of `scan` (`scan_take`):** for any initial memory `m`, frontier `w`,
+and prefix length `k`, the first `k` emitted symbols of `scan m w` depend only on `w.take k`. -/
+theorem scan_take : ∀ (k : Nat) (m : Bool × Bool × Bool) (w : List Sym),
+    ((scan m w).1).take k = (scan m (w.take k)).1
+  | 0, _, _ => rfl
+  | _ + 1, _, [] => rfl
+  | k + 1, m, s :: w => by
+    simp only [List.take_succ_cons, scan, scan_take k (scanStep m s) w]
+
+/-- `pureScan` commutes with `.take k` for every `k : Nat`. -/
+theorem pureScan_take (k : Nat) (w : List Sym) :
+    (pureScan w).take k = pureScan (w.take k) :=
+  scan_take k (false, false, false) w
+
+/-- `iterPureScan n` commutes with `.take k` for every `n, k : Nat`. -/
+theorem iterPureScan_take : ∀ (n k : Nat) (w : List Sym),
+    (iterPureScan n w).take k = iterPureScan n (w.take k)
+  | 0, _, _ => rfl
+  | n + 1, k, w => by
+    rw [iterPureScan, pureScan_take, iterPureScan_take n k w, ← iterPureScan]
+
+/-- **Single-step left-prefix autonomy (`Z_take_eq_pureScan`):** if `Z w = some (w', s)`, then for
+every `k ≤ w.length`, `w'.take k = pureScan (w.take k)` (independent of the birth symbol `(1, !s)`). -/
+theorem Z_take_eq_pureScan {w w' : List Sym} {s : Bool} {k : Nat}
+    (hZ : Z w = some (w', s)) (hk : k ≤ w.length) :
+    w'.take k = pureScan (w.take k) := by
+  rcases Z_some hZ with ⟨_, rfl⟩
+  have hlen : ((scan (false, false, false) w).1).length = w.length :=
+    scan_length (false, false, false) w
+  rw [List.take_append_of_le_length (by omega)]
+  exact scan_take k (false, false, false) w
+
+/-- **Multi-step left-prefix autonomy (`run_take_eq_iterPureScan`):** throughout any successful
+`n`-step run `run w n = some (w', tape)` and any `k ≤ w.length`, the prefix `w'.take k` equals
+`iterPureScan n (w.take k)`—evolving deterministically and independently of the scalar `tape`. -/
+theorem run_take_eq_iterPureScan :
+    ∀ {n : Nat} {w w' : List Sym} {tape : List Bool} {k : Nat},
+      run w n = some (w', tape) → k ≤ w.length →
+      w'.take k = iterPureScan n (w.take k)
+  | 0, w, w', tape, k, hrun, _ => by
+    simp only [run, Option.some.injEq, Prod.mk.injEq] at hrun
+    rw [← hrun.1, iterPureScan]
+  | n + 1, w, w'', tape, k, hrun, hk => by
+    rcases run_succ_some_S hrun with ⟨w', t, s, hr, hZ, _⟩
+    have hlen : w'.length = w.length + n := (run_length n w' t hr).1
+    have h1 := Z_take_eq_pureScan hZ (k := k) (by omega)
+    have ih := run_take_eq_iterPureScan hr hk
+    rw [h1, ih, iterPureScan]
+
+/-- **Left-Front Head Permanence (`iterPureScan_head_eq`):** for any legal frontier `(true, b₀) :: w`
+and any `n : Nat`, the first symbol of `iterPureScan n ((true, b₀) :: w)` is `(true, b₀)`. -/
+theorem iterPureScan_head_eq (b₀ : Bool) (w : List Sym) :
+    ∀ n : Nat, (iterPureScan n ((true, b₀) :: w)).take 1 = [(true, b₀)]
+  | 0 => rfl
+  | n + 1 => by
+    rw [iterPureScan, pureScan_take, iterPureScan_head_eq b₀ w n]
+    cases b₀ <;> rfl
+
+/-- **1-Step Left-Front Memory Erasure (`pureScan_two_erase_b1`):** for any legal frontier starting
+with `(true, b₀) :: (a₁, b₁)`, the first scan step erases `b₁` completely, mapping the 2-symbol
+prefix to `[(true, b₀), (b₀ && !a₁, !b₀)]`. -/
+theorem pureScan_two_erase_b1 (b₀ a₁ b₁ : Bool) (w : List Sym) :
+    (pureScan ((true, b₀) :: (a₁, b₁) :: w)).take 2 =
+      [(true, b₀), (b₀ && !a₁, !b₀)] := by
+  unfold pureScan scan scanStep
+  cases b₀ <;> cases a₁ <;> cases b₁ <;> rfl
+
+/-- When `b₀ = false`, the first two symbols of `iterPureScan n ((true, false) :: s₁ :: w)` are
+permanently frozen to `[(true, false), (false, true)]` for all `n ≥ 1`. -/
+theorem iterPureScan_two_of_false (s₁ : Sym) (w : List Sym) :
+    ∀ n : Nat, 1 ≤ n →
+      (iterPureScan n ((true, false) :: s₁ :: w)).take 2 = [(true, false), (false, true)]
+  | 0, h => by omega
+  | 1, _ => by
+    obtain ⟨a₁, b₁⟩ := s₁
+    simpa [iterPureScan] using pureScan_two_erase_b1 false a₁ b₁ w
+  | n + 2, _ => by
+    have ih := iterPureScan_two_of_false s₁ w (n + 1) (by omega)
+    rw [iterPureScan, pureScan_take, ih]
+    rfl
+
+/-- **2-Symbol Left-Front Period-2 Lock (`iterPureScan_two_period_two`):** for any legal 2-symbol
+prefix `[(true, b₀), s₁]` and any `n ≥ 1`, `iterPureScan (n + 2) [(true, b₀), s₁] =
+iterPureScan n [(true, b₀), s₁]`. -/
+theorem iterPureScan_two_period_two (b₀ : Bool) (s₁ : Sym) :
+    ∀ n : Nat, 1 ≤ n →
+      iterPureScan (n + 2) [(true, b₀), s₁] = iterPureScan n [(true, b₀), s₁]
+  | 0, h => by omega
+  | 1, _ => by
+    obtain ⟨a₁, b₁⟩ := s₁
+    revert b₀ a₁ b₁
+    decide
+  | n + 2, _ => by
+    have ih := iterPureScan_two_period_two b₀ s₁ (n + 1) (by omega)
+    show pureScan (iterPureScan (n + 1 + 2) [(true, b₀), s₁]) =
+      pureScan (iterPureScan (n + 1) [(true, b₀), s₁])
+    rw [ih]
+
+/-- **4-Symbol Left-Front Period-2 Lock (`iterPureScan_four_period_two`):** for any legal 4-symbol
+prefix `[(true, b₀), s₁, s₂, s₃]` and any `n ≥ 4`, `iterPureScan (n + 2) [(true, b₀), s₁, s₂, s₃] =
+iterPureScan n [(true, b₀), s₁, s₂, s₃]`. -/
+theorem iterPureScan_four_period_two (b₀ : Bool) (s₁ s₂ s₃ : Sym) :
+    ∀ n : Nat, 4 ≤ n →
+      iterPureScan (n + 2) [(true, b₀), s₁, s₂, s₃] = iterPureScan n [(true, b₀), s₁, s₂, s₃]
+  | 0, h => by omega
+  | 1, h => by omega
+  | 2, h => by omega
+  | 3, h => by omega
+  | 4, _ => by
+    obtain ⟨a₁, b₁⟩ := s₁; obtain ⟨a₂, b₂⟩ := s₂; obtain ⟨a₃, b₃⟩ := s₃
+    revert b₀ a₁ b₁ a₂ b₂ a₃ b₃
+    decide
+  | n + 5, _ => by
+    have ih := iterPureScan_four_period_two b₀ s₁ s₂ s₃ (n + 4) (by omega)
+    show pureScan (iterPureScan (n + 4 + 2) [(true, b₀), s₁, s₂, s₃]) =
+      pureScan (iterPureScan (n + 4) [(true, b₀), s₁, s₂, s₃])
+    rw [ih]
+
+/-- Indexing from the right terminal end `atDepth u (u.length - 1 - i)` equals `u.getD i (false, false)`
+for all `i < u.length`. -/
+theorem atDepth_rev_index : ∀ (u : List Sym) (i : Nat), i < u.length →
+    atDepth u (u.length - 1 - i) = u.getD i (false, false)
+  | [], _, h => by simp at h
+  | s :: u, 0, _ => by
+    simp only [List.length_cons, Nat.add_sub_cancel, Nat.sub_zero, List.getD_cons_zero]
+    exact atDepth_cons_eq s u
+  | s :: u, i + 1, h => by
+    simp only [List.length_cons] at h
+    have hi : i < u.length := by omega
+    have hsub : (s :: u).length - 1 - (i + 1) = u.length - 1 - i := by
+      simp only [List.length_cons]; omega
+    rw [hsub, atDepth_cons_lt s u (u.length - 1 - i) (by omega), List.getD_cons_succ]
+    exact atDepth_rev_index u i hi
+
+/-- If `i < k`, `(u.take k).getD i d = u.getD i d`. -/
+theorem getD_take_lt : ∀ (u : List Sym) (k i : Nat) (d : Sym),
+    i < k → (u.take k).getD i d = u.getD i d
+  | [], _, _, _, _ => by simp
+  | _ :: _, 0, _, _, hik => by omega
+  | _ :: _, _ + 1, 0, _, _ => rfl
+  | _ :: u, k + 1, i + 1, d, hik => getD_take_lt u k i d (by omega)
+
+/-- **Left-Front / Right-Terminal Causal Collision (`front_eq_terminal_FG`):** in any successful
+run `run w n = some (w', tape)` of a legal frontier `w`, once `w.length + 1 ≤ n + i` (`i < w.length`),
+the `i`-th symbol of the autonomous left-front trajectory `iterPureScan n w` must equal the
+right-terminal scalar field `FG (window tape) (w.length + n - 1 - i) 0`. -/
+theorem front_eq_terminal_FG {w w' : List Sym} {n i : Nat} {tape : List Bool}
+    (hw : Legal w) (hrun : run w n = some (w', tape))
+    (hi : i < w.length) (hcol : w.length + 1 ≤ n + i) :
+    (iterPureScan n w).getD i (false, false) =
+      FG (window tape) (w.length + n - 1 - i) 0 := by
+  have hlen : w'.length = w.length + n := (run_length n w' tape hrun).1
+  have htake : w'.take w.length = iterPureScan n w := by
+    have h := run_take_eq_iterPureScan hrun (Nat.le_refl w.length)
+    rwa [List.take_length] at h
+  rw [← htake, getD_take_lt w' w.length i (false, false) hi, ← atDepth_rev_index w' i (by omega)]
+  have hd_lt : w'.length - 1 - i < w'.length := by omega
+  have hrec := reconstruction w w' n tape hw hrun (w'.length - 1 - i) hd_lt
+  have h1 := hrec.1 (Or.inl (by omega))
+  have h2 := hrec.2 (Or.inl (by omega))
+  rw [show w'.length - 1 - i = w.length + n - 1 - i by omega] at h1 h2 ⊢
+  exact Prod.ext h1 h2
+
+/-- **Universal Top-Depth Scalar Field Locking (`terminal_FG_top_eq_head`):** for any legal frontier
+`(true, b₀) :: rest` and any successful run `run ((true, b₀) :: rest) n = some (w', tape)` with
+`rest.length + 2 ≤ n`, the scalar field `FG (window tape) (rest.length + n) 0` is permanently
+locked to `(true, b₀)`. -/
+theorem terminal_FG_top_eq_head {b₀ : Bool} {rest w' : List Sym} {n : Nat} {tape : List Bool}
+    (hrun : run ((true, b₀) :: rest) n = some (w', tape)) (hn : rest.length + 2 ≤ n) :
+    FG (window tape) (rest.length + n) 0 = (true, b₀) := by
+  have hw : Legal ((true, b₀) :: rest) := rfl
+  have hcol := front_eq_terminal_FG hw hrun (i := 0) (by simp) (by simp; omega)
+  simp only [List.length_cons, Nat.sub_zero, show rest.length + 1 + n - 1 = rest.length + n by omega] at hcol
+  rw [← hcol, ← getD_take_lt (iterPureScan n ((true, b₀) :: rest)) 1 0 (false, false) (by decide),
+    iterPureScan_head_eq b₀ rest n]
+  rfl
+
+/-- **Universal Second-Depth Scalar Field Locking (`terminal_FG_second_of_false`):** for any legal
+frontier `(true, false) :: s₁ :: rest` and any successful run of length `n ≥ rest.length + 2`, the
+scalar field `FG (window tape) (rest.length + n) 0` is permanently locked to `(false, true)`. -/
+theorem terminal_FG_second_of_false {s₁ : Sym} {rest w' : List Sym} {n : Nat} {tape : List Bool}
+    (hrun : run ((true, false) :: s₁ :: rest) n = some (w', tape)) (hn : rest.length + 2 ≤ n) :
+    FG (window tape) (rest.length + n) 0 = (false, true) := by
+  have hw : Legal ((true, false) :: s₁ :: rest) := rfl
+  have hcol := front_eq_terminal_FG hw hrun (i := 1) (by simp) (by simp; omega)
+  simp only [List.length_cons, show rest.length + 1 + 1 + n - 1 - 1 = rest.length + n by omega] at hcol
+  rw [← hcol, ← getD_take_lt (iterPureScan n ((true, false) :: s₁ :: rest)) 2 1 (false, false) (by decide),
+    iterPureScan_two_of_false s₁ rest n (by omega)]
+  rfl
+
 end Rule30SurvivalBridge
 end Ruliology.CellularAutomata
