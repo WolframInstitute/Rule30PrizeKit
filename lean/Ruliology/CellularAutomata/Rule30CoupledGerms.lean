@@ -1,6 +1,7 @@
 module
 
 public import Ruliology.CellularAutomata.Rule30Coupled
+public import Ruliology.CellularAutomata.Rule30PeriodTwoSideways
 
 /-!
 # Recurring RIGHT germs in coupled Rule 30 histories
@@ -293,5 +294,155 @@ theorem coupled_finite_gamma_cofinal (omega : Nat → Bool)
   intro hg
   exact coupled_finite_zero_gamma_impossible omega s x hc hleft hright
     hper hno11 hg hblack
+
+open Rule30ZeroBoundary Rule30PeriodTwoCoupled Rule30PeriodTwoSideways
+
+/-! ## 1. The 2-Cell White Corridor of an Active Right Germ under `altCol` -/
+
+/-- **Even-Step Formula for `u R s` (`u_eq_not_or_even`):** for every right half `R` and step `s`,
+the white-step column-`1` cell `u R s = drv altCol R (2 * s + 1) 1` equals
+`!(drv altCol R (2 * s) 1 || drv altCol R (2 * s) 2)`. -/
+theorem u_eq_not_or_even (R : Nat → Bool) (s : Nat) :
+    u R s = !(drv altCol R (2 * s) 1 || drv altCol R (2 * s) 2) := by
+  unfold u
+  rw [driven_right_step altCol R (2 * s), altCol_even s]
+  cases (drv altCol R (2 * s) 1 || drv altCol R (2 * s) 2) <;> rfl
+
+/-- **Even-Step Column-1 Recovery (`drv_even_succ_col1_eq_not_drivenGamma`):** at every even step
+`2 * s + 2`, column `1` of the `altCol`-driven right half is `!drivenGamma altCol R (2 * s)`. -/
+theorem drv_even_succ_col1_eq_not_drivenGamma (R : Nat → Bool) (s : Nat) :
+    drv altCol R (2 * s + 2) 1 = !drivenGamma altCol R (2 * s) :=
+  driven_right_two altCol R (2 * s) (altCol_even s) (altCol_odd s)
+
+/-- **The 2-Cell White Corridor of an Active Germ (`white_corridor_of_drivenGamma_true`):** whenever
+`drivenGamma altCol R (2 * s) = true`, both column `1` and column `2` of `drv altCol R` vanish at
+the odd step `2 * s + 1` (`u R s = false` and `drv altCol R (2 * s + 1) 2 = false`). -/
+theorem white_corridor_of_drivenGamma_true (R : Nat → Bool) (s : Nat)
+    (hg : drivenGamma altCol R (2 * s) = true) :
+    u R s = false ∧ drv altCol R (2 * s + 1) 2 = false := by
+  have h1 : u R s = !(drv altCol R (2 * s) 1 || drv altCol R (2 * s) 2) := u_eq_not_or_even R s
+  have h2 : drv altCol R (2 * s + 1) 2 =
+      xor (drv altCol R (2 * s) 1) (drv altCol R (2 * s) 2 || drv altCol R (2 * s) 3) := rfl
+  unfold drivenGamma at hg
+  rw [h1, h2]
+  revert hg
+  cases drv altCol R (2 * s) 1 <;> cases drv altCol R (2 * s) 2 <;> cases drv altCol R (2 * s) 3 <;> decide
+
+/-- **Transparent Corridor Transmission (`col2_even_succ_of_drivenGamma_true`):** whenever
+`drivenGamma altCol R (2 * s) = true`, the 2-cell white corridor at `(2 * s + 1, 1..2)` transmits
+column `3` at time `2 * s + 1` directly into column `2` at time `2 * s + 2`. -/
+theorem col2_even_succ_of_drivenGamma_true (R : Nat → Bool) (s : Nat)
+    (hg : drivenGamma altCol R (2 * s) = true) :
+    drv altCol R (2 * s + 2) 2 = drv altCol R (2 * s + 1) 3 := by
+  obtain ⟨hc1, hc2⟩ := white_corridor_of_drivenGamma_true R s hg
+  unfold u at hc1
+  change rule (drv altCol R (2 * s + 1) 1) (drv altCol R (2 * s + 1) 2) (drv altCol R (2 * s + 1) 3) = _
+  rw [hc1, hc2]
+  cases drv altCol R (2 * s + 1) 3 <;> rfl
+
+/-! ## 2. Exact Germ Factorization of `u R (s + 1)` and Universal `11`-Freeness -/
+
+/-- **Exact 2-Tick Germ Factorization of `u R (s + 1)` (`u_succ_eq_drivenGamma_and_not_col2`):** for
+every right half `R` and step `s`, `u R (s + 1)` equals
+`drivenGamma altCol R (2 * s) && !drv altCol R (2 * s + 2) 2`. -/
+theorem u_succ_eq_drivenGamma_and_not_col2 (R : Nat → Bool) (s : Nat) :
+    u R (s + 1) = (drivenGamma altCol R (2 * s) && !drv altCol R (2 * s + 2) 2) := by
+  rw [u_eq_not_or_even R (s + 1), show 2 * (s + 1) = 2 * s + 2 by omega,
+    drv_even_succ_col1_eq_not_drivenGamma R s]
+  cases drivenGamma altCol R (2 * s) <;> cases drv altCol R (2 * s + 2) 2 <;> rfl
+
+/-- **Exact Corridor Factorization of `u R (s + 1)` (`u_succ_eq_drivenGamma_and_not_col3_odd`):** for
+every right half `R` and step `s`, `u R (s + 1)` equals
+`drivenGamma altCol R (2 * s) && !drv altCol R (2 * s + 1) 3`. -/
+theorem u_succ_eq_drivenGamma_and_not_col3_odd (R : Nat → Bool) (s : Nat) :
+    u R (s + 1) = (drivenGamma altCol R (2 * s) && !drv altCol R (2 * s + 1) 3) := by
+  rw [u_succ_eq_drivenGamma_and_not_col2 R s]
+  by_cases hg : drivenGamma altCol R (2 * s) = true
+  · rw [col2_even_succ_of_drivenGamma_true R s hg]
+  · cases h : drivenGamma altCol R (2 * s)
+    · rfl
+    · exact absurd h hg
+
+/-- **Universal `11`-Freeness of `u R` (`u_no11`):** for every right half `R : Nat → Bool` (finite or
+infinite) and every `s : Nat`, `(u R s && u R (s + 1)) = false`. -/
+theorem u_no11 (R : Nat → Bool) (s : Nat) :
+    (u R s && u R (s + 1)) = false := by
+  rw [u_succ_eq_drivenGamma_and_not_col2 R s]
+  by_cases hg : drivenGamma altCol R (2 * s) = true
+  · rw [(white_corridor_of_drivenGamma_true R s hg).1]; rfl
+  · cases h : drivenGamma altCol R (2 * s)
+    · simp
+    · exact absurd h hg
+
+/-- **Universal Golden Rule for `Psi R` (`Psi_free_golden`):** for every right half `R : Nat → Bool`
+and every `s : Nat`, if the free bit `zrow (Psi R) (2 * s + 1) 1` is `false`, then the next free bit
+`zrow (Psi R) (2 * (s + 1) + 1) 1` is `true`. -/
+theorem Psi_free_golden (R : Nat → Bool) (s : Nat)
+    (h0 : zrow (Psi R) (2 * s + 1) 1 = false) :
+    zrow (Psi R) (2 * (s + 1) + 1) 1 = true := by
+  rw [Psi_free] at h0 ⊢
+  change (!u R s) = false at h0
+  change (!u R (s + 1)) = true
+  have hno := u_no11 R s
+  revert h0 hno
+  cases u R s <;> cases u R (s + 1) <;> decide
+
+/-! ## 3. Zero-Germ Exclusion and Quantitative Germ-Drought Clock Bounds for `Psi R` -/
+
+/-- **Unconditional Infinite Support of `Psi R` under `EventuallyZeroGamma` (`not_finSupp_Psi_of_eventuallyZeroGamma`):**
+for any right half `R : Nat → Bool`, if `EventuallyZeroGamma altCol R` holds, then `u R` is
+eventually `false` and `Psi R` is not finitely supported (`¬ FinSupp (Psi R)`). -/
+theorem not_finSupp_Psi_of_eventuallyZeroGamma (R : Nat → Bool)
+    (hgamma : EventuallyZeroGamma altCol R) :
+    ¬ FinSupp (Psi R) := by
+  apply not_finSupp_Psi_of_eventuallyPeriodic R
+  obtain ⟨T, hT⟩ := hgamma
+  refine ⟨T + 1, 1, by decide, fun s hs => ?_⟩
+  obtain ⟨k, rfl⟩ : ∃ k, s = k + 1 := ⟨s - 1, by omega⟩
+  have hg1 : drivenGamma altCol R (2 * k) = false :=
+    hT (2 * k) (by omega) (altCol_even k) (altCol_odd k)
+  have hg2 : drivenGamma altCol R (2 * (k + 1)) = false :=
+    hT (2 * (k + 1)) (by omega) (altCol_even (k + 1)) (altCol_odd (k + 1))
+  rw [show k + 1 + 1 = (k + 1) + 1 by omega,
+    u_succ_eq_drivenGamma_and_not_col2 R (k + 1),
+    u_succ_eq_drivenGamma_and_not_col2 R k, hg1, hg2]
+  rfl
+
+/-- **Cofinal Active Right Germs from `FinSupp (Psi R)` (`cofinal_drivenGamma_of_finSupp_Psi`):**
+if `FinSupp (Psi R)` holds for a right half `R`, then for every `N : Nat` there exists `s ≥ N` such
+that `drivenGamma altCol R (2 * s) = true`. -/
+theorem cofinal_drivenGamma_of_finSupp_Psi {R : Nat → Bool} (hfin : FinSupp (Psi R)) (N : Nat) :
+    ∃ s, N ≤ s ∧ drivenGamma altCol R (2 * s) = true := by
+  refine Classical.byContradiction fun hne => ?_
+  apply not_finSupp_Psi_of_eventuallyZeroGamma R ⟨2 * N, fun t ht hb hw => ?_⟩ hfin
+  obtain ⟨s, rfl | rfl⟩ : ∃ s, t = 2 * s ∨ t = 2 * s + 1 := ⟨t / 2, by omega⟩
+  · cases hg : drivenGamma altCol R (2 * s)
+    · rfl
+    · exact False.elim (hne ⟨s, by omega, hg⟩)
+  · rw [altCol_odd s] at hb; contradiction
+
+/-- **Quantitative Germ-Drought Clock Bound (`germ_drought_clock_bound`):** if `Psi R` has its last
+black cell at depth `m ≥ 1`, then on any interval `[s₀, s₀ + ℓ)` where `drivenGamma altCol R (2 * s) = false`
+for all `s₀ ≤ s < s₀ + ℓ`, the drought length `ℓ` is bounded by `2 * ℓ ≤ 2 * s₀ + m + 6`. -/
+theorem germ_drought_clock_bound {R : Nat → Bool} {m : Nat}
+    (hm : 1 ≤ m) (hedge : Psi R m = true) (hfin : ∀ k, m < k → Psi R k = false)
+    {s₀ ℓ : Nat} (hdrought : ∀ s, s₀ ≤ s → s < s₀ + ℓ → drivenGamma altCol R (2 * s) = false) :
+    2 * ℓ ≤ 2 * s₀ + m + 6 := by
+  rcases Nat.eq_zero_or_pos ℓ with rfl | hℓ
+  · omega
+  · have hconst : ∀ s, s₀ + 1 ≤ s → s + 1 ≤ (s₀ + 1) + (ℓ - 1) →
+        zrow (Psi R) (2 * (s + 1) + 1) 1 = zrow (Psi R) (2 * s + 1) 1 := by
+      intro s hs1 hs2
+      obtain ⟨k, rfl⟩ : ∃ k, s = k + 1 := ⟨s - 1, by omega⟩
+      rw [Psi_free, Psi_free]
+      change (!u R (k + 1 + 1)) = (!u R (k + 1))
+      rw [u_succ_eq_drivenGamma_and_not_col2 R (k + 1),
+        u_succ_eq_drivenGamma_and_not_col2 R k,
+        hdrought (k + 1) (by omega) (by omega),
+        hdrought k (by omega) (by omega)]
+      rfl
+    have hclock := free_bits_clock hm hedge hfin (Psi_inX R)
+      (s₀ := s₀ + 1) (ℓ := ℓ - 1) (p := 1) (by decide) hconst
+    omega
 
 end Ruliology.CellularAutomata.Rule30CoupledGerms
