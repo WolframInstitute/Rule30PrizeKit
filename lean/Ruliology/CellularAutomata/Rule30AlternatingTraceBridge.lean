@@ -2,6 +2,7 @@ module
 
 public import Ruliology.CellularAutomata.Rule30Prize
 public import Ruliology.CellularAutomata.Rule30PeriodTwo
+public import Ruliology.CellularAutomata.Rule30SurvivalBridge
 
 /-!
 # Mortality of the auxiliary frontier excludes a nonconstant period-two center
@@ -927,6 +928,325 @@ theorem Q01_of_mortality (hM : Mortality) : Rule30PeriodTwo.Q01 := by
   obtain ⟨N, hN⟩ := hM w hw
   exact hrun N hN
 
+
+/-! ## 1. Exact Dictionary Equivalence with `Rule30SurvivalBridge` -/
+
+/-- `Legal` in `Rule30AlternatingTraceBridge` agrees with `Rule30SurvivalBridge.Legal`. -/
+theorem Legal_eq (w : List Sym) : Legal w = Rule30SurvivalBridge.Legal w := by
+  cases w <;> rfl
+
+/-- `scanStep` in `Rule30AlternatingTraceBridge` agrees with `Rule30SurvivalBridge.scanStep`. -/
+theorem scanStep_eq (m : Bool × Bool × Bool) (s : Sym) :
+    scanStep m s = Rule30SurvivalBridge.scanStep m s := rfl
+
+/-- `scan` in `Rule30AlternatingTraceBridge` agrees with `Rule30SurvivalBridge.scan`. -/
+theorem scan_eq : ∀ (w : List Sym) (m : Bool × Bool × Bool),
+    scan m w = Rule30SurvivalBridge.scan m w
+  | [], _ => rfl
+  | s :: w, m => by
+    simp only [scan, Rule30SurvivalBridge.scan, scanStep_eq, scan_eq w]
+
+/-- `Z` in `Rule30AlternatingTraceBridge` agrees with `Rule30SurvivalBridge.Z`. -/
+theorem Z_eq (w : List Sym) : Z w = Rule30SurvivalBridge.Z w := by
+  unfold Z Rule30SurvivalBridge.Z
+  rw [scan_eq]
+
+/-- `run` in `Rule30AlternatingTraceBridge` agrees with `Rule30SurvivalBridge.run`. -/
+theorem run_eq (w : List Sym) : ∀ (n : Nat),
+    run w n = Rule30SurvivalBridge.run w n
+  | 0 => rfl
+  | n + 1 => by
+    simp only [run, Rule30SurvivalBridge.run, run_eq w n]
+    cases Rule30SurvivalBridge.run w n with
+    | none => rfl
+    | some wt => rcases wt with ⟨w', t⟩; dsimp only; rw [Z_eq]; cases Rule30SurvivalBridge.Z w' <;> rfl
+
+/-- `repeats` in `Rule30AlternatingTraceBridge` agrees with `Rule30SurvivalBridge.repeats`. -/
+theorem repeats_eq : ∀ (tape : List Bool),
+    repeats tape = Rule30SurvivalBridge.repeats tape
+  | [] => rfl
+  | [_] => rfl
+  | a :: b :: t => by
+    simp only [repeats, Rule30SurvivalBridge.repeats, repeats_eq (b :: t)]
+
+/-- `terminalHigh` in `Rule30AlternatingTraceBridge` agrees with `Rule30SurvivalBridge.terminalHigh`. -/
+theorem terminalHigh_eq (w : List Sym) :
+    terminalHigh w = Rule30SurvivalBridge.terminalHigh w := rfl
+
+/-- `FG` in `Rule30AlternatingTraceBridge` agrees with `Rule30SurvivalBridge.FG`. -/
+theorem FG_eq (W : Nat → Bool) : ∀ (d j : Nat),
+    FG W d j = Rule30SurvivalBridge.FG W d j
+  | 0, _ => rfl
+  | 1, _ => rfl
+  | d + 2, j => by
+    simp only [FG, Rule30SurvivalBridge.FG, FG_eq W (d + 1) j, FG_eq W d (j + 1),
+      FG_eq W (d + 1) (j + 1)]
+
+/-- `window` in `Rule30AlternatingTraceBridge` agrees with `Rule30SurvivalBridge.window`. -/
+theorem window_eq (tape : List Bool) (j : Nat) :
+    window tape j = Rule30SurvivalBridge.window tape j := rfl
+
+/-- `atDepth` in `Rule30AlternatingTraceBridge` agrees with `Rule30SurvivalBridge.atDepth`. -/
+theorem atDepth_eq (w : List Sym) (d : Nat) :
+    atDepth w d = Rule30SurvivalBridge.atDepth w d := rfl
+
+/-- **Discharging `Reconstruction` (`reconstruction_holds`):** proves the `Reconstruction`
+proposition defined in `Rule30AlternatingTraceBridge`. -/
+theorem reconstruction_holds : Reconstruction := by
+  intro w w' n tape hL hrun d hd
+  rw [Legal_eq] at hL
+  rw [run_eq] at hrun
+  simp only [terminalHigh_eq, atDepth_eq, FG_eq]
+  exact Rule30SurvivalBridge.reconstruction w w' n tape hL hrun d hd
+
+/-- **Discharging `RunBound` (`runBound_holds`):** proves the `RunBound` proposition defined in
+`Rule30AlternatingTraceBridge`. -/
+theorem runBound_holds : RunBound := by
+  intro w w' L tape hL hrun hrep
+  rw [Legal_eq] at hL
+  rw [run_eq] at hrun
+  rw [repeats_eq] at hrep
+  simp only [terminalHigh_eq]
+  exact Rule30SurvivalBridge.runBound w w' L tape hL hrun hrep
+
+/-- **Discharging `Survival` (`survival_holds`):** proves the `Survival` proposition defined in
+`Rule30AlternatingTraceBridge`. -/
+theorem survival_holds : Survival := by
+  intro w w' N tape hL hN hrun
+  rw [Legal_eq] at hL
+  rw [run_eq] at hrun
+  simp only [repeats_eq, terminalHigh_eq]
+  exact Rule30SurvivalBridge.survival w w' N tape hL hN hrun
+
+/-- `BudgetAt r` in `Rule30AlternatingTraceBridge` is equivalent to `Rule30SurvivalBridge.BudgetAt r`. -/
+theorem budgetAt_iff_survival (r : Nat) :
+    BudgetAt r ↔ Rule30SurvivalBridge.BudgetAt r := by
+  unfold BudgetAt Rule30SurvivalBridge.BudgetAt
+  simp only [Legal_eq, run_eq, repeats_eq]
+
+/-- `MortalAt r` in `Rule30AlternatingTraceBridge` is equivalent to `Rule30SurvivalBridge.MortalAt r`. -/
+theorem mortalAt_iff_survival (r : Nat) :
+    MortalAt r ↔ Rule30SurvivalBridge.MortalAt r := by
+  unfold MortalAt Rule30SurvivalBridge.MortalAt
+  simp only [Legal_eq, run_eq]
+
+/-- `Mortality` in `Rule30AlternatingTraceBridge` is equivalent to `Rule30SurvivalBridge.Mortality`. -/
+theorem mortality_iff_survival :
+    Mortality ↔ Rule30SurvivalBridge.Mortality := by
+  unfold Mortality Rule30SurvivalBridge.Mortality
+  simp only [Legal_eq, run_eq]
+
+/-- **Repeat Budget Equivalence (`budget_iff_mortality_bridge`):** `(∀ r, BudgetAt r) ↔ Mortality`
+in `Rule30AlternatingTraceBridge`. -/
+theorem budget_iff_mortality_bridge : (∀ r : Nat, BudgetAt r) ↔ Mortality := by
+  simp only [budgetAt_iff_survival, mortality_iff_survival]
+  exact Rule30SurvivalBridge.budget_iff_mortality
+
+/-- **Repeat Budget Excludes Period-Two Center (`periodTwoExcluded_of_budget`):** a repeat budget
+at every frontier length implies `PeriodTwoExcluded`. -/
+theorem periodTwoExcluded_of_budget (hB : ∀ r : Nat, BudgetAt r) : PeriodTwoExcluded :=
+  periodTwoExcluded_of_mortality' (budget_iff_mortality_bridge.mp hB)
+
+/-- **Repeat Budget Implies `Q01` (`Q01_of_budget`):** a repeat budget at every frontier length
+implies `Rule30PeriodTwo.Q01`. -/
+theorem Q01_of_budget (hB : ∀ r : Nat, BudgetAt r) : Rule30PeriodTwo.Q01 :=
+  Q01_of_mortality (budget_iff_mortality_bridge.mp hB)
+
+/-! ## 2. Universal Pin of `W x p q 0`, Explicit History Scalar Tape, and Tight `p + 1` Bounds -/
+
+/-- Length of `seg f k L` is `L`. -/
+theorem length_seg (f : Nat → Sym) : ∀ (L k : Nat), (seg f k L).length = L
+  | 0, _ => rfl
+  | L + 1, k => by simp only [seg, List.length_cons, length_seg f L (k + 1)]
+
+/-- Length of `W x p q n` is `p + n`. -/
+theorem length_W (x : Nat → Int → Bool) (p q n : Nat) :
+    (W x p q n).length = p + n :=
+  length_seg (sym x p q n) (p + n) 0
+
+/-- The last element of `seg f k (L + 1)` is `f (k + L)`. -/
+theorem getLast?_seg_succ (f : Nat → Sym) : ∀ (L k : Nat),
+    (seg f k (L + 1)).getLast? = some (f (k + L))
+  | 0, _ => rfl
+  | L + 1, k => by
+    change (f k :: f (k + 1) :: seg f (k + 1 + 1) L).getLast? = some (f (k + (L + 1)))
+    change (seg f (k + 1) (L + 1)).getLast? = some (f (k + (L + 1)))
+    rw [getLast?_seg_succ f L (k + 1)]
+    congr 2
+    omega
+
+/-- **Universal Pin of `W x p q 0` (`terminalHigh_W_zero`):** for any left-step history `x` with
+`1 ≤ p`, `flip`, `hpin`, and `x (q + 1 + p) 0 = false`, the terminal symbol of `W x p q 0` lies at
+column `-1` at time `q + p` where `x (q + p) 0 = true` and `x (q + p + 1) 0 = false`, so `hpin`
+forces `terminalHigh (W x p q 0) = true`. -/
+theorem terminalHigh_W_zero (x : Nat → Int → Bool)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true)
+    (p q : Nat) (hp : 1 ≤ p) (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) :
+    terminalHigh (W x p q 0) = true := by
+  unfold terminalHigh W
+  have hp_eq : p + 0 = (p - 1) + 1 := by omega
+  rw [hp_eq, getLast?_seg_succ]
+  simp only [Nat.zero_add, sym, symA]
+  have c2 : x (q + p + 1) 0 = false := (cell_congr x _ _ _ _ (by omega) rfl).trans hc
+  have c1 : x (q + p) 0 = true := by
+    have h := flip (q + p)
+    rw [c2] at h
+    revert h
+    cases x (q + p) 0 <;> simp
+  have hp_pin := hpin (q + p) c1 c2
+  exact (cell_congr x _ _ _ _ (by omega) (by omega)).trans hp_pin
+
+/-- The `m`-th scalar emitted by `W x p q 0` is `x (q + p + 2 * m) (-2)`. -/
+def histScalar (x : Nat → Int → Bool) (p q m : Nat) : Bool :=
+  x (q + p + 2 * m) (-2)
+
+/-- Explicit scalar tape emitted over `n` updates from `W x p q 0`. -/
+def histTape (x : Nat → Int → Bool) (p q : Nat) : Nat → List Bool
+  | 0 => []
+  | n + 1 => histTape x p q n ++ [histScalar x p q n]
+
+/-- **Explicit History Run Identity (`run_W_histTape`):** refines `run_W` by proving that after `n`
+updates from `W x p q 0`, the emitted scalar tape is `histTape x p q n`. -/
+theorem run_W_histTape (x : Nat → Int → Bool) (hx : LeftStep x)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true) (d : Int)
+    (hd : 1 ≤ d) (p q : Nat) (h1 : x 0 (-d) = true)
+    (h0 : ∀ j : Int, j < -d → x 0 j = false)
+    (hhi : d + (q : Int) + 1 ≤ (p : Int) + 1)
+    (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) (n : Nat) :
+    run (W x p q 0) n = some (W x p q n, histTape x p q n) := by
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+    simp only [run, ih, Z_W x hx hpin d hd p q h1 h0 hhi flip hc n, histTape, histScalar]
+
+/-- **Tight Alternating-Run Bound on History Tapes (`histTape_runBound_tight`):** because
+`terminalHigh (W x p q 0) = true`, the column-`(-2)` scalar tape `histTape x p q L` cannot
+alternate without repeats for more than `p + 1` steps (`repeats (histTape x p q L) = 0 → L ≤ p + 1`). -/
+theorem histTape_runBound_tight (x : Nat → Int → Bool) (hx : LeftStep x)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true) (d : Int)
+    (hd : 1 ≤ d) (p q : Nat) (h1 : x 0 (-d) = true)
+    (h0 : ∀ j : Int, j < -d → x 0 j = false)
+    (hlo : (p : Int) ≤ d + (q : Int) + 1)
+    (hhi : d + (q : Int) + 1 ≤ (p : Int) + 1) (hp : 1 ≤ p)
+    (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) (L : Nat)
+    (hrep : repeats (histTape x p q L) = 0) :
+    L ≤ p + 1 := by
+  have hleg := legal_W x hx d hd p q h1 h0 hlo hhi hp 0
+  have hrun := run_W_histTape x hx hpin d hd p q h1 h0 hhi flip hc L
+  have hth := terminalHigh_W_zero x hpin p q hp flip hc
+  have hrb := (runBound_holds (W x p q 0) (W x p q L) L (histTape x p q L) hleg hrun hrep).2 hth
+  rwa [length_W, Nat.add_zero] at hrb
+
+/-- **Tight Exponential Survival Inequality on History Tapes (`histTape_survival_tight`):** for
+every `N ≥ 1`, `p + N + 1 ≤ 2 ^ (repeats (histTape x p q N) + 1) * (p + 1)`. -/
+theorem histTape_survival_tight (x : Nat → Int → Bool) (hx : LeftStep x)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true) (d : Int)
+    (hd : 1 ≤ d) (p q : Nat) (h1 : x 0 (-d) = true)
+    (h0 : ∀ j : Int, j < -d → x 0 j = false)
+    (hlo : (p : Int) ≤ d + (q : Int) + 1)
+    (hhi : d + (q : Int) + 1 ≤ (p : Int) + 1) (hp : 1 ≤ p)
+    (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) (N : Nat) (hN : 1 ≤ N) :
+    p + N + 1 ≤ 2 ^ (repeats (histTape x p q N) + 1) * (p + 1) := by
+  have hleg := legal_W x hx d hd p q h1 h0 hlo hhi hp 0
+  have hrun := run_W_histTape x hx hpin d hd p q h1 h0 hhi flip hc N
+  have hth := terminalHigh_W_zero x hpin p q hp flip hc
+  have hsurv := (survival_holds (W x p q 0) (W x p q N) N (histTape x p q N) hleg hN hrun).2 hth
+  rwa [length_W, Nat.add_zero] at hsurv
+
+/-- Monotonicity of `2 ^ a`: if `2 ^ a < 2 ^ b`, then `a < b`. -/
+theorem lt_of_pow_lt_pow_two {a b : Nat} (h : 2 ^ a < 2 ^ b) : a < b := by
+  by_cases hab : a < b
+  · exact hab
+  · exfalso
+    have hle : 2 ^ b ≤ 2 ^ a := Nat.pow_le_pow_right (by omega) (by omega)
+    omega
+
+/-- **Unbounded Logarithmic Growth of Column-`(-2)` Repeats (`histTape_repeats_ge`):** in any
+left-step history `x` satisfying the `run_W` hypotheses, by step `N = 2 ^ K * (p + 1)` (`K : Nat`),
+the scalar tape `histTape x p q (2 ^ K * (p + 1))` has at least `K` adjacent equal scalars
+(`K ≤ repeats (histTape x p q (2 ^ K * (p + 1)))`). -/
+theorem histTape_repeats_ge (x : Nat → Int → Bool) (hx : LeftStep x)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true) (d : Int)
+    (hd : 1 ≤ d) (p q : Nat) (h1 : x 0 (-d) = true)
+    (h0 : ∀ j : Int, j < -d → x 0 j = false)
+    (hlo : (p : Int) ≤ d + (q : Int) + 1)
+    (hhi : d + (q : Int) + 1 ≤ (p : Int) + 1) (hp : 1 ≤ p)
+    (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) (K : Nat) :
+    K ≤ repeats (histTape x p q (2 ^ K * (p + 1))) := by
+  have hpow_pos : 1 ≤ 2 ^ K := Nat.one_le_pow K 2 (by omega)
+  have hN : 1 ≤ 2 ^ K * (p + 1) := by
+    have : 1 * 2 ≤ 2 ^ K * (p + 1) := Nat.mul_le_mul hpow_pos (by omega)
+    omega
+  have hsurv := histTape_survival_tight x hx hpin d hd p q h1 h0 hlo hhi hp flip hc
+    (2 ^ K * (p + 1)) hN
+  have hlt_mul : 2 ^ K * (p + 1) < 2 ^ (repeats (histTape x p q (2 ^ K * (p + 1))) + 1) * (p + 1) :=
+    by omega
+  have hpow_lt : 2 ^ K < 2 ^ (repeats (histTape x p q (2 ^ K * (p + 1))) + 1) := by
+    by_cases hlt : 2 ^ K < 2 ^ (repeats (histTape x p q (2 ^ K * (p + 1))) + 1)
+    · exact hlt
+    · exfalso
+      have hle : 2 ^ (repeats (histTape x p q (2 ^ K * (p + 1))) + 1) * (p + 1) ≤ 2 ^ K * (p + 1) :=
+        Nat.mul_le_mul_right (p + 1) (by omega)
+      omega
+  have hlt := lt_of_pow_lt_pow_two hpow_lt
+  omega
+
+/-! ## 3. Exact Spacetime Reconstruction from the Column-`(-2)` Scalar Tape -/
+
+/-- Reversing `l ++ [s]` prepends `s` to `l.reverse`. -/
+theorem reverse_append_singleton (l : List Sym) (s : Sym) :
+    (l ++ [s]).reverse = s :: l.reverse := by
+  simp
+
+/-- Indexing `(seg f k L).reverse` at depth `d < L` returns `f (k + L - 1 - d)`. -/
+theorem reverse_seg_getD (f : Nat → Sym) : ∀ (L k d : Nat), d < L →
+    (seg f k L).reverse.getD d (false, false) = f (k + L - 1 - d)
+  | 0, _, _, hd => by omega
+  | L + 1, k, 0, _ => by
+    rw [seg_snoc, reverse_append_singleton]
+    rfl
+  | L + 1, k, d + 1, hd => by
+    rw [seg_snoc, reverse_append_singleton]
+    change (seg f k L).reverse.getD d (false, false) = f (k + (L + 1) - 1 - (d + 1))
+    rw [reverse_seg_getD f L k d (by omega)]
+    congr 1; omega
+
+/-- **Exact Depth Indexing of `W x p q n` (`atDepth_W`):** for every depth `d < p + n` inward from
+the terminal end, `atDepth (W x p q n) d = sym x p q n (p + n - 1 - d)`. -/
+theorem atDepth_W (x : Nat → Int → Bool) (p q n d : Nat) (hd : d < p + n) :
+    atDepth (W x p q n) d = sym x p q n (p + n - 1 - d) := by
+  unfold atDepth W
+  rw [reverse_seg_getD (sym x p q n) (p + n) 0 d hd]
+  congr 1; omega
+
+/-- **Exact Spacetime Reconstruction from Column `-2` (`hist_sym_eq_FG`):** in any left-step
+history `x` satisfying the `run_W` hypotheses, every symbol `sym x p q n (p + n - 1 - d)` at
+depth `d < p + n` is reconstructed by the formal scalar field `FG (window (histTape x p q n)) d 0`
+once `(d + 1) / 2 ≤ n` (high bit `symA`) and `1 + d / 2 ≤ n` (low bit `symB`). -/
+theorem hist_sym_eq_FG (x : Nat → Int → Bool) (hx : LeftStep x)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true) (d0 : Int)
+    (hd0 : 1 ≤ d0) (p q : Nat) (h1 : x 0 (-d0) = true)
+    (h0 : ∀ j : Int, j < -d0 → x 0 j = false)
+    (hlo : (p : Int) ≤ d0 + (q : Int) + 1)
+    (hhi : d0 + (q : Int) + 1 ≤ (p : Int) + 1) (hp : 1 ≤ p)
+    (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) (n d : Nat) (hd : d < p + n) :
+    ((d + 1) / 2 ≤ n →
+      symA x p q n (p + n - 1 - d) = (FG (window (histTape x p q n)) d 0).1) ∧
+    (1 + d / 2 ≤ n →
+      symB x p q n (p + n - 1 - d) = (FG (window (histTape x p q n)) d 0).2) := by
+  have hleg := legal_W x hx d0 hd0 p q h1 h0 hlo hhi hp 0
+  have hrun := run_W_histTape x hx hpin d0 hd0 p q h1 h0 hhi flip hc n
+  have hth := terminalHigh_W_zero x hpin p q hp flip hc
+  have hd_len : d < (W x p q n).length := by rwa [length_W]
+  have hrec := reconstruction_holds (W x p q 0) (W x p q n) n (histTape x p q n) hleg hrun d hd_len
+  rw [atDepth_W x p q n d hd] at hrec
+  exact ⟨fun hn => hrec.1 (Or.inr ⟨hth, hn⟩), fun hn => hrec.2 (Or.inr ⟨hth, hn⟩)⟩
 
 end Rule30AlternatingTraceBridge
 end Ruliology.CellularAutomata
