@@ -1,5 +1,7 @@
 module
 
+public import Ruliology.CellularAutomata.Rule30LeftAntiPeriod
+
 public import Ruliology.CellularAutomata.Rule30Prize
 
 /-!
@@ -43,6 +45,8 @@ column of Rule 30; Problems 1 to 3 stay open.
 
 namespace Ruliology.CellularAutomata
 namespace Rule30SurvivalBridge
+
+open Rule30Prize Rule30Diagonals Rule30LeftReset Rule30LeftUnbounded Rule30LeftAntiPeriod
 
 
 /-- A frontier symbol `w_i = 2 a_i + b_i`, stored as `(a_i, b_i)`, high bit first. -/
@@ -1452,6 +1456,249 @@ theorem terminal_FG_second_of_false {s₁ : Sym} {rest w' : List Sym} {n : Nat} 
   rw [← hcol, ← getD_take_lt (iterPureScan n ((true, false) :: s₁ :: rest)) 2 1 (false, false) (by decide),
     iterPureScan_two_of_false s₁ rest n (by omega)]
   rfl
+
+/-! ## 2. Exact Isomorphism Between `pureScan` and the Rule 30 Left Diagonals `D j` -/
+
+/-- The `k`-th symbol of the canonical `(true, true)` left-diagonal frontier at time offset `q`:
+`(D (2 * k + 1) (q + k + 1), D (2 * k) (q + k))`. -/
+def diagSym (q k : Nat) : Sym :=
+  (D (2 * k + 1) (q + k + 1), D (2 * k) (q + k))
+
+/-- The 3-bit scan memory entering site `k + 1` after scanning `diagSym q 0 .. diagSym q k`. -/
+def diagMem (q k : Nat) : Bool × Bool × Bool :=
+  (D (2 * k + 1) (q + k + 2), D (2 * k) (q + k + 1), D (2 * k + 1) (q + k + 1))
+
+/-- Tail of the canonical left-diagonal frontier from site `k` of length `m`. -/
+def diagTail (q k : Nat) : Nat → List Sym
+  | 0 => []
+  | m + 1 => diagSym q k :: diagTail q (k + 1) m
+
+/-- The canonical `(true, true)` left-diagonal frontier of length `r` at time offset `q`. -/
+def diagFrontier (q r : Nat) : List Sym :=
+  diagTail q 0 r
+
+/-- Length of `diagTail q k m` is `m`. -/
+theorem diagTail_length (q : Nat) : ∀ (m k : Nat), (diagTail q k m).length = m
+  | 0, _ => rfl
+  | m + 1, k => by simp [diagTail, diagTail_length q m (k + 1)]
+
+/-- Length of `diagFrontier q r` is `r`. -/
+theorem diagFrontier_length (q r : Nat) : (diagFrontier q r).length = r :=
+  diagTail_length q r 0
+
+/-- Indexing `diagTail q k m` at `i < m` returns `diagSym q (k + i)`. -/
+theorem diagTail_getD (q : Nat) : ∀ (m k i : Nat), i < m →
+    (diagTail q k m).getD i (false, false) = diagSym q (k + i)
+  | 0, _, _, h => by omega
+  | _ + 1, k, 0, _ => by simp [diagTail]
+  | m + 1, k, i + 1, h => by
+    simp only [diagTail, List.getD_cons_succ, diagTail_getD q m (k + 1) i (by omega)]
+    rw [show k + 1 + i = k + (i + 1) by omega]
+
+/-- Indexing `diagFrontier q r` at `i < r` returns `diagSym q i`. -/
+theorem diagFrontier_getD (q r i : Nat) (hi : i < r) :
+    (diagFrontier q r).getD i (false, false) = diagSym q i := by
+  simpa [diagFrontier] using diagTail_getD q r 0 i hi
+
+/-- Every nonempty `diagFrontier q (r + 1)` is a `Legal` frontier (`a₀ = D 1 (q + 1) = true`). -/
+theorem diagFrontier_legal (q r : Nat) : Legal (diagFrontier q (r + 1)) := by
+  unfold diagFrontier diagTail Legal diagSym
+  simp [D_one]
+
+/-- At site `0`, `scanStep (false, false, false) (diagSym q 0)` enters state `diagMem q 0`. -/
+theorem scanStep_diagSym_zero (q : Nat) :
+    scanStep (false, false, false) (diagSym q 0) = diagMem q 0 := by
+  unfold scanStep diagSym diagMem
+  simp only [Nat.mul_zero, Nat.zero_add, D_zero, D_one]
+  rfl
+
+/-- **Exact Site-by-Site `D` Step (`scanStep_diagMem_succ`):** feeding `diagSym q (k + 1)` into
+`scanStep (diagMem q k)` applies `D_step` twice to advance to `diagMem q (k + 1)`. -/
+theorem scanStep_diagMem_succ (q k : Nat) :
+    scanStep (diagMem q k) (diagSym q (k + 1)) = diagMem q (k + 1) := by
+  unfold scanStep diagMem diagSym
+  dsimp only
+  have h1 := D_step (2 * k) (q + k + 1)
+  have h2 := D_step (2 * k + 1) (q + k + 2)
+  have e2 : 2 * (k + 1) + 1 = 2 * k + 1 + 2 := by omega
+  have e1 : 2 * (k + 1) = 2 * k + 2 := by omega
+  have e5 : q + (k + 1) + 2 = q + k + 2 + 1 := by omega
+  have e4 : q + (k + 1) + 1 = q + k + 1 + 1 := by omega
+  have e3 : q + (k + 1) = q + k + 1 := by omega
+  rw [e2, e1, e5, e4, e3, ← h1]
+  have e6 : q + k + 1 + 1 = q + k + 2 := by omega
+  have e7 : 2 * k + 2 = 2 * k + 1 + 1 := by omega
+  rw [e6, e7, ← h2]
+
+/-- Scanning `diagTail q (k + 1) m` from memory `diagMem q k` advances the time offset from `q` to `q + 1`. -/
+theorem scan_diagTail (q : Nat) : ∀ (m k : Nat),
+    (scan (diagMem q k) (diagTail q (k + 1) m)).1 = diagTail (q + 1) (k + 1) m
+  | 0, _ => rfl
+  | m + 1, k => by
+    simp only [diagTail, scan, scanStep_diagMem_succ]
+    rw [scan_diagTail q m (k + 1)]
+    unfold diagMem diagSym
+    have e1 : q + 1 + (k + 1) + 1 = q + (k + 1) + 2 := by omega
+    have e2 : q + 1 + (k + 1) = q + (k + 1) + 1 := by omega
+    rw [e1, e2]
+
+/-- **Exact One-Step Conjugacy (`pureScan_diagFrontier`):** for every time offset `q : Nat` and
+frontier length `r : Nat`, `pureScan (diagFrontier q r) = diagFrontier (q + 1) r`. -/
+theorem pureScan_diagFrontier (q : Nat) : ∀ r : Nat,
+    pureScan (diagFrontier q r) = diagFrontier (q + 1) r
+  | 0 => rfl
+  | r + 1 => by
+    unfold pureScan diagFrontier diagTail
+    simp only [scan, scanStep_diagSym_zero]
+    rw [scan_diagTail q r 0]
+    unfold diagMem diagSym
+    simp only [Nat.mul_zero, Nat.zero_add]
+
+/-- **Exact Multi-Step Conjugacy (`iterPureScan_diagFrontier`):** for all `n, q, r : Nat`,
+`iterPureScan n (diagFrontier q r) = diagFrontier (q + n) r`. -/
+theorem iterPureScan_diagFrontier : ∀ (n q r : Nat),
+    iterPureScan n (diagFrontier q r) = diagFrontier (q + n) r
+  | 0, q, r => by simp [iterPureScan]
+  | n + 1, q, r => by
+    rw [iterPureScan, iterPureScan_diagFrontier n q r, pureScan_diagFrontier,
+      show q + n + 1 = q + (n + 1) by omega]
+
+/-! ## 3. Exact Conjugacy for the `(true, false)` Branch (`diagFrontierFalse`) -/
+
+/-- The `(k + 1)`-th symbol of the `(true, false)` left-diagonal frontier at time offset `q`:
+`(D (2 * k + 2) (q + k + 2), D (2 * k + 1) (q + k + 1))`. -/
+def diagSymFalse (q k : Nat) : Sym :=
+  (D (2 * k + 2) (q + k + 2), D (2 * k + 1) (q + k + 1))
+
+/-- The 3-bit scan memory after scanning `(true, false)` (`k = 0`) or `diagSymFalse q (k - 1)`:
+entering site `k + 1` on the `(true, false)` branch. -/
+def diagMemFalse (q k : Nat) : Bool × Bool × Bool :=
+  (D (2 * k + 2) (q + k + 3), D (2 * k + 1) (q + k + 2), D (2 * k + 2) (q + k + 2))
+
+/-- Tail of the `(true, false)` left-diagonal frontier from index `k` of length `m`. -/
+def diagTailFalse (q k : Nat) : Nat → List Sym
+  | 0 => []
+  | m + 1 => diagSymFalse q k :: diagTailFalse q (k + 1) m
+
+/-- The canonical `(true, false)` left-diagonal frontier of length `r + 2` at time offset `q`. -/
+def diagFrontierFalse (q r : Nat) : List Sym :=
+  (true, false) :: (false, true) :: diagTailFalse q 1 r
+
+/-- **Exact Site-by-Site `D` Step on the `(true, false)` Branch (`scanStep_diagMemFalse_succ`):**
+feeding `diagSymFalse q (k + 1)` into `scanStep (diagMemFalse q k)` applies `D_step` twice to
+advance to `diagMemFalse q (k + 1)`. -/
+theorem scanStep_diagMemFalse_succ (q k : Nat) :
+    scanStep (diagMemFalse q k) (diagSymFalse q (k + 1)) = diagMemFalse q (k + 1) := by
+  unfold scanStep diagMemFalse diagSymFalse
+  dsimp only
+  have h1 := D_step (2 * k + 1) (q + k + 2)
+  have h2 := D_step (2 * k + 2) (q + k + 3)
+  have e2 : 2 * (k + 1) + 2 = (2 * k + 2) + 2 := by omega
+  have e1 : 2 * (k + 1) + 1 = (2 * k + 1) + 2 := by omega
+  have e5 : q + (k + 1) + 3 = q + k + 3 + 1 := by omega
+  have e4 : q + (k + 1) + 2 = q + k + 2 + 1 := by omega
+  have e3 : q + (k + 1) + 1 = q + k + 2 := by omega
+  rw [e2, e1, e5, e4, e3, ← h1]
+  have e6 : q + k + 2 + 1 = q + k + 3 := by omega
+  have e7 : (2 * k + 1) + 2 = (2 * k + 2) + 1 := by omega
+  rw [e6, e7, ← h2]
+
+/-- Scanning `diagTailFalse q (k + 1) m` from `diagMemFalse q k` advances `q` to `q + 1`. -/
+theorem scan_diagTailFalse (q : Nat) : ∀ (m k : Nat),
+    (scan (diagMemFalse q k) (diagTailFalse q (k + 1) m)).1 = diagTailFalse (q + 1) (k + 1) m
+  | 0, _ => rfl
+  | m + 1, k => by
+    simp only [diagTailFalse, scan, scanStep_diagMemFalse_succ]
+    rw [scan_diagTailFalse q m (k + 1)]
+    unfold diagMemFalse diagSymFalse
+    have e1 : q + 1 + (k + 1) + 2 = q + (k + 1) + 3 := by omega
+    have e2 : q + 1 + (k + 1) + 1 = q + (k + 1) + 2 := by omega
+    rw [e1, e2]
+
+/-- For every `t : Nat`, `D 2 (t + 2) = false`. -/
+theorem D_two_succ_succ (t : Nat) : D 2 (t + 2) = false := by
+  have h := D_step 0 (t + 1)
+  simp only [Nat.zero_add, D_zero, D_one] at h
+  rw [h]; rfl
+
+/-- **Exact One-Step Conjugacy on the `(true, false)` Branch (`pureScan_diagFrontierFalse`):**
+for all `q, r : Nat`, `pureScan (diagFrontierFalse q r) = diagFrontierFalse (q + 1) r`. -/
+theorem pureScan_diagFrontierFalse (q r : Nat) :
+    pureScan (diagFrontierFalse q r) = diagFrontierFalse (q + 1) r := by
+  unfold pureScan diagFrontierFalse
+  simp only [scan]
+  have hm0 : scanStep (scanStep (false, false, false) (true, false)) (false, true) =
+      diagMemFalse q 0 := by
+    unfold scanStep diagMemFalse
+    simp only [Nat.mul_zero, Nat.zero_add]
+    rw [D_one (q + 1), D_two_succ_succ (q + 1), D_two_succ_succ q]
+    rfl
+  rw [hm0, scan_diagTailFalse q r 0]
+  unfold diagMemFalse
+  simp only [Nat.mul_zero, Nat.zero_add, D_one (q + 1), D_two_succ_succ (q + 1)]
+  rfl
+
+/-- **Exact Multi-Step Conjugacy on the `(true, false)` Branch (`iterPureScan_diagFrontierFalse`):**
+for all `n, q, r : Nat`, `iterPureScan n (diagFrontierFalse q r) = diagFrontierFalse (q + n) r`. -/
+theorem iterPureScan_diagFrontierFalse : ∀ (n q r : Nat),
+    iterPureScan n (diagFrontierFalse q r) = diagFrontierFalse (q + n) r
+  | 0, q, r => by simp [iterPureScan]
+  | n + 1, q, r => by
+    rw [iterPureScan, iterPureScan_diagFrontierFalse n q r, pureScan_diagFrontierFalse,
+      show q + n + 1 = q + (n + 1) by omega]
+
+/-! ## 4. Terminal Scalar Field `FG` Forced to Equal Rule 30 Left Diagonals & Unbounded Periods -/
+
+/-- **Terminal Scalar Field Matches Rule 30 Left Diagonals (`diagFrontier_terminal_FG`):** in any
+successful run `run (diagFrontier q (r + 1)) n = some (w', tape)` with `r + 2 ≤ n + k` (`k < r + 1`),
+`FG (window tape) (r + n - k) 0` equals `(D (2 * k + 1) (q + n + k + 1), D (2 * k) (q + n + k))`. -/
+theorem diagFrontier_terminal_FG {q r n k : Nat} {w' : List Sym} {tape : List Bool}
+    (hrun : run (diagFrontier q (r + 1)) n = some (w', tape))
+    (hk : k < r + 1) (hcol : r + 2 ≤ n + k) :
+    FG (window tape) (r + n - k) 0 =
+      (D (2 * k + 1) (q + n + k + 1), D (2 * k) (q + n + k)) := by
+  have hw := diagFrontier_legal q r
+  have hlen := diagFrontier_length q (r + 1)
+  have hf := front_eq_terminal_FG hw hrun (i := k) (by omega) (by omega)
+  rw [hlen, show r + 1 + n - 1 - k = r + n - k by omega] at hf
+  rw [← hf, iterPureScan_diagFrontier, diagFrontier_getD (q + n) (r + 1) k hk]
+  rfl
+
+/-- **Unbounded Period Exclusion in `iterPureScan` (`diagFrontier_not_evPer`):** for every `L > 0`,
+there exists a site `k ≤ 2 ^ (2 * L - 1)` such that one bit of
+`n ↦ (iterPureScan n (diagFrontier 0 (k + 1))).getD k (false, false)` is not eventually `L`-periodic. -/
+theorem diagFrontier_not_evPer {L : Nat} (hL : 0 < L) :
+    ∃ k : Nat, k ≤ 2 ^ (2 * L) ∧
+      (¬ EvPer (fun n => ((iterPureScan n (diagFrontier 0 (k + 1))).getD k (false, false)).1) L ∨
+       ¬ EvPer (fun n => ((iterPureScan n (diagFrontier 0 (k + 1))).getD k (false, false)).2) L) := by
+  obtain ⟨j, hj, hnot⟩ := D_period_unbounded L hL
+  refine ⟨j / 2, by omega, ?_⟩
+  have hget : ∀ n, (iterPureScan n (diagFrontier 0 (j / 2 + 1))).getD (j / 2) (false, false) =
+      (D (2 * (j / 2) + 1) (n + j / 2 + 1), D (2 * (j / 2)) (n + j / 2)) := by
+    intro n
+    rw [iterPureScan_diagFrontier, diagFrontier_getD _ _ _ (by omega)]
+    simp [diagSym]
+  rcases Nat.mod_two_eq_zero_or_one j with hj0 | hj1
+  · right
+    have hj_eq : 2 * (j / 2) = j := by omega
+    simp only [hget, hj_eq]
+    intro ⟨T, hT⟩
+    apply hnot
+    refine ⟨T + j / 2, fun t ht => ?_⟩
+    have h1 := hT (t - j / 2) (by omega)
+    dsimp only at h1
+    rwa [show t - j / 2 + L + j / 2 = t + L by omega,
+         show t - j / 2 + j / 2 = t by omega] at h1
+  · left
+    have hj_eq : 2 * (j / 2) + 1 = j := by omega
+    simp only [hget, hj_eq]
+    intro ⟨T, hT⟩
+    apply hnot
+    refine ⟨T + j / 2 + 1, fun t ht => ?_⟩
+    have h1 := hT (t - (j / 2 + 1)) (by omega)
+    dsimp only at h1
+    rwa [show t - (j / 2 + 1) + L + j / 2 + 1 = t + L by omega,
+         show t - (j / 2 + 1) + j / 2 + 1 = t by omega] at h1
 
 end Rule30SurvivalBridge
 end Ruliology.CellularAutomata
