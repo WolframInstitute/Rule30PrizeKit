@@ -1366,5 +1366,236 @@ theorem wave_111010_period6_step {K s X : Nat} (hs : 2 ≤ s)
       (bstep0 K X).testBit (i + 6) = (bstep0 K X).testBit i :=
   bstep1_periodic_of_010 hs (by decide) hx0 hx1 hx2 hper6
 
+/-! ## 4. Universal Idempotent Period Preservation & Stages 6–9 Attractor Bifurcation -/
+
+/-- **Universal Idempotent Period-Preservation Theorem (`bstep1_periodic_of_idempotent`):** if `Y` is
+`L`-periodic on `[s, K)` (`2 ≤ s`, `1 ≤ L`) and its 1-period state-transition map
+`runTrans (fun u => Y.testBit u) s L` is idempotent (`iterPair M 2 p = iterPair M 1 p` for all `p`),
+then both `bstep1 K Y` and `bstep0 K Y` lock into exact period `L` on `[s + L, K)`. -/
+theorem bstep1_periodic_of_idempotent {K s L Y : Nat} (hs : 2 ≤ s)
+    (hper : ∀ r, s ≤ r → r + L < K → Y.testBit (r + L) = Y.testBit r)
+    (hidem : ∀ p : Bool × Bool,
+      iterPair (runTrans (fun u => Y.testBit u) s L) 2 p =
+        iterPair (runTrans (fun u => Y.testBit u) s L) 1 p) :
+    ∀ i, s + L ≤ i → i + L < K →
+      (bstep1 K Y).testBit (i + L) = (bstep1 K Y).testBit i ∧
+      (bstep0 K Y).testBit (i + L) = (bstep0 K Y).testBit i := by
+  intro i hsi hiK
+  have hrec1 : ∀ u, s ≤ u → u < K →
+      (bstep1 K Y).testBit u =
+        xor (Y.testBit u) ((bstep1 K Y).testBit (u - 1) || (bstep1 K Y).testBit (u - 2)) := by
+    intro u hu huK
+    rw [bstep1_testBit_lt huK, ite_eq_right (by omega), ite_eq_right (by omega)]
+  have hrec0 : ∀ u, s ≤ u → u < K →
+      (bstep0 K Y).testBit u =
+        xor (Y.testBit u) ((bstep0 K Y).testBit (u - 1) || (bstep0 K Y).testBit (u - 2)) := by
+    intro u hu huK
+    rw [bstep0_testBit_lt huK, ite_eq_right (by omega), ite_eq_right (by omega)]
+  have hst1_2 := state_mul_eq_iterPair hs hrec1 hper 2 (by omega)
+  have hst1_1 := state_mul_eq_iterPair hs hrec1 hper 1 (by omega)
+  have heq1 : ((bstep1 K Y).testBit (s + 2 * L - 2), (bstep1 K Y).testBit (s + 2 * L - 1)) =
+      ((bstep1 K Y).testBit (s + 1 * L - 2), (bstep1 K Y).testBit (s + 1 * L - 1)) := by
+    rw [hst1_2, hst1_1]
+    exact hidem _
+  have hst0_2 := state_mul_eq_iterPair hs hrec0 hper 2 (by omega)
+  have hst0_1 := state_mul_eq_iterPair hs hrec0 hper 1 (by omega)
+  have heq0 : ((bstep0 K Y).testBit (s + 2 * L - 2), (bstep0 K Y).testBit (s + 2 * L - 1)) =
+      ((bstep0 K Y).testBit (s + 1 * L - 2), (bstep0 K Y).testBit (s + 1 * L - 1)) := by
+    rw [hst0_2, hst0_1]
+    exact hidem _
+  let Z1_s (u : Nat) : Bool := (bstep1 K Y).testBit (u + L)
+  let Z0_s (u : Nat) : Bool := (bstep0 K Y).testBit (u + L)
+  have hc1 := bstep_rec_congr (m := s + L) (K := K - L) (Y := fun u => Y.testBit u)
+    (Z₁ := Z1_s) (Z₂ := fun u => (bstep1 K Y).testBit u) (by omega)
+    (fun r hr hrK => by
+      show (bstep1 K Y).testBit (r + L) =
+        xor (Y.testBit r) ((bstep1 K Y).testBit (r - 1 + L) || (bstep1 K Y).testBit (r - 2 + L))
+      rw [bstep1_testBit_lt (by omega), hper r (by omega) (by omega),
+        ite_eq_right (by omega), ite_eq_right (by omega),
+        show r + L - 1 = r - 1 + L by omega, show r + L - 2 = r - 2 + L by omega])
+    (fun r hr hrK => hrec1 r (by omega) (by omega))
+    (by show (bstep1 K Y).testBit (s + L - 2 + L) = (bstep1 K Y).testBit (s + L - 2)
+        rw [show s + L - 2 + L = s + 2 * L - 2 by omega, show s + L - 2 = s + 1 * L - 2 by omega]
+        exact (Prod.mk.inj heq1).1)
+    (by show (bstep1 K Y).testBit (s + L - 1 + L) = (bstep1 K Y).testBit (s + L - 1)
+        rw [show s + L - 1 + L = s + 2 * L - 1 by omega, show s + L - 1 = s + 1 * L - 1 by omega]
+        exact (Prod.mk.inj heq1).2)
+    (i - (s + L)) (by omega)
+  have hc0 := bstep_rec_congr (m := s + L) (K := K - L) (Y := fun u => Y.testBit u)
+    (Z₁ := Z0_s) (Z₂ := fun u => (bstep0 K Y).testBit u) (by omega)
+    (fun r hr hrK => by
+      show (bstep0 K Y).testBit (r + L) =
+        xor (Y.testBit r) ((bstep0 K Y).testBit (r - 1 + L) || (bstep0 K Y).testBit (r - 2 + L))
+      rw [bstep0_testBit_lt (by omega), hper r (by omega) (by omega),
+        ite_eq_right (by omega), ite_eq_right (by omega),
+        show r + L - 1 = r - 1 + L by omega, show r + L - 2 = r - 2 + L by omega])
+    (fun r hr hrK => hrec0 r (by omega) (by omega))
+    (by show (bstep0 K Y).testBit (s + L - 2 + L) = (bstep0 K Y).testBit (s + L - 2)
+        rw [show s + L - 2 + L = s + 2 * L - 2 by omega, show s + L - 2 = s + 1 * L - 2 by omega]
+        exact (Prod.mk.inj heq0).1)
+    (by show (bstep0 K Y).testBit (s + L - 1 + L) = (bstep0 K Y).testBit (s + L - 1)
+        rw [show s + L - 1 + L = s + 2 * L - 1 by omega, show s + L - 1 = s + 1 * L - 1 by omega]
+        exact (Prod.mk.inj heq0).2)
+    (i - (s + L)) (by omega)
+  change (bstep1 K Y).testBit (s + L + (i - (s + L)) + L) =
+    (bstep1 K Y).testBit (s + L + (i - (s + L))) at hc1
+  change (bstep0 K Y).testBit (s + L + (i - (s + L)) + L) =
+    (bstep0 K Y).testBit (s + L + (i - (s + L))) at hc0
+  rw [show s + L + (i - (s + L)) = i by omega] at hc1 hc0
+  exact ⟨hc1, hc0⟩
+
+/-- **Stage 6 to Stage 7 Exact Synchronization (`(001101)^∞ → (111000)^∞`, `wave_001101_to_111000`):**
+if `Y` is a period-6 wave on `[s, K)` (`2 ≤ s`, `s + 7 < K`) with `(Y_s, ..., Y_{s+5}) =
+(false, true, false, false, true, true)` (Stage 6 `(001101)^∞` at its `010` phase), then both
+`bstep1 K Y` and `bstep0 K Y` lock into the Stage-7 block `(true, true, false, false, false, true)`
+(`(111000)^∞` shifted by 1) on `[s + 2, s + 7]` and preserve exact period 6 on `[s + 2, K)`. -/
+theorem wave_001101_to_111000 {K s Y : Nat} (hs : 2 ≤ s) (hsK : s + 7 < K)
+    (hy0 : Y.testBit s = false) (hy1 : Y.testBit (s + 1) = true)
+    (hy2 : Y.testBit (s + 2) = false) (hy3 : Y.testBit (s + 3) = false)
+    (hy4 : Y.testBit (s + 4) = true) (hy5 : Y.testBit (s + 5) = true)
+    (hper6 : ∀ r, s ≤ r → r + 6 < K → Y.testBit (r + 6) = Y.testBit r) :
+    ((bstep1 K Y).testBit (s + 2) = true ∧ (bstep1 K Y).testBit (s + 3) = true ∧
+     (bstep1 K Y).testBit (s + 4) = false ∧ (bstep1 K Y).testBit (s + 5) = false ∧
+     (bstep1 K Y).testBit (s + 6) = false ∧ (bstep1 K Y).testBit (s + 7) = true) ∧
+    (∀ i, s + 2 ≤ i → i + 6 < K →
+      (bstep1 K Y).testBit (i + 6) = (bstep1 K Y).testBit i ∧
+      (bstep0 K Y).testBit (i + 6) = (bstep0 K Y).testBit i) := by
+  have hreset := bstep1_010_state_reset (K := K) hs (by omega) hy0 hy1 hy2
+  rw [hy3] at hreset
+  have hy6 : Y.testBit (s + 6) = false := by
+    have h := hper6 s (by omega) (by omega); rwa [hy0] at h
+  have hy7 : Y.testBit (s + 7) = true := by
+    have h := hper6 (s + 1) (by omega) (by omega)
+    rw [show s + 1 + 6 = s + 7 by omega, hy1] at h; exact h
+  have hz4 : (bstep1 K Y).testBit (s + 4) = false := by
+    rw [bstep1_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega),
+      show s + 4 - 1 = s + 3 by omega, show s + 4 - 2 = s + 2 by omega,
+      hy4, hreset.1, hreset.2]; rfl
+  have hz5 : (bstep1 K Y).testBit (s + 5) = false := by
+    rw [bstep1_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega),
+      show s + 5 - 1 = s + 4 by omega, show s + 5 - 2 = s + 3 by omega,
+      hy5, hz4, hreset.2]; rfl
+  have hz6 : (bstep1 K Y).testBit (s + 6) = false := by
+    rw [bstep1_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega),
+      show s + 6 - 1 = s + 5 by omega, show s + 6 - 2 = s + 4 by omega,
+      hy6, hz5, hz4]; rfl
+  have hz7 : (bstep1 K Y).testBit (s + 7) = true := by
+    rw [bstep1_testBit_lt (by omega), ite_eq_right (by omega), ite_eq_right (by omega),
+      show s + 7 - 1 = s + 6 by omega, show s + 7 - 2 = s + 5 by omega,
+      hy7, hz6, hz5]; rfl
+  exact ⟨⟨hreset.1, hreset.2, hz4, hz5, hz6, hz7⟩,
+    bstep1_periodic_of_010 hs (by decide) hy0 hy1 hy2 hper6⟩
+
+/-- **Stage-7 `(111000)` Transition Table (`runTrans_000111_table`):** across a 6-bit block
+`(Y_s, ..., Y_{s+5}) = (true, true, true, false, false, false)`, `runTrans` maps `(false, false)`
+to `(false, false)` and maps `(false, true)`, `(true, false)`, and `(true, true)` to `(true, true)`,
+so `iterPair (runTrans Y s 6) 2 p = iterPair (runTrans Y s 6) 1 p` for all `p : Bool × Bool`. -/
+theorem runTrans_000111_table {Y : Nat → Bool} {s : Nat}
+    (hy0 : Y s = true) (hy1 : Y (s + 1) = true) (hy2 : Y (s + 2) = true)
+    (hy3 : Y (s + 3) = false) (hy4 : Y (s + 4) = false) (hy5 : Y (s + 5) = false) :
+    runTrans Y s 6 (false, false) = (false, false) ∧
+    runTrans Y s 6 (false, true) = (true, true) ∧
+    runTrans Y s 6 (true, false) = (true, true) ∧
+    runTrans Y s 6 (true, true) = (true, true) ∧
+    (∀ p : Bool × Bool, iterPair (runTrans Y s 6) 2 p = iterPair (runTrans Y s 6) 1 p) := by
+  have heval : ∀ p : Bool × Bool,
+      runTrans Y s 6 p =
+        bstepTrans false (bstepTrans false (bstepTrans false
+          (bstepTrans true (bstepTrans true (bstepTrans true p))))) := by
+    intro p
+    simp only [runTrans, Nat.add_zero, hy0, hy1, hy2, hy3, hy4, hy5]
+  refine ⟨by rw [heval]; rfl, by rw [heval]; rfl, by rw [heval]; rfl, by rw [heval]; rfl, ?_⟩
+  rintro ⟨a, b⟩
+  simp only [iterPair, heval]
+  cases a <;> cases b <;> rfl
+
+/-- **Stage 7 to Stage 8 Idempotent Period-6 Preservation (`wave_111000_period6_step`):** even
+though `(111000)^∞` has no `010` substring, its 6-step transition map is idempotent, so both
+`bstep1 K Y` and `bstep0 K Y` lock into exact period 6 on `[s + 6, K)`. -/
+theorem wave_111000_period6_step {K s Y : Nat} (hs : 2 ≤ s)
+    (hy0 : Y.testBit s = true) (hy1 : Y.testBit (s + 1) = true) (hy2 : Y.testBit (s + 2) = true)
+    (hy3 : Y.testBit (s + 3) = false) (hy4 : Y.testBit (s + 4) = false) (hy5 : Y.testBit (s + 5) = false)
+    (hper6 : ∀ r, s ≤ r → r + 6 < K → Y.testBit (r + 6) = Y.testBit r) :
+    ∀ i, s + 6 ≤ i → i + 6 < K →
+      (bstep1 K Y).testBit (i + 6) = (bstep1 K Y).testBit i ∧
+      (bstep0 K Y).testBit (i + 6) = (bstep0 K Y).testBit i := by
+  have htab := runTrans_000111_table (Y := fun u => Y.testBit u) hy0 hy1 hy2 hy3 hy4 hy5
+  exact bstep1_periodic_of_idempotent hs hper6 htab.2.2.2.2
+
+/-- **Stage-8 Dual Attractor Dichotomy (`wave_111000_attractor_dichotomy`):** on `[s, s + 5]`, any
+preimage `Z = bstep1 K Y` of `(111000)^∞` (`(Y_s, ..., Y_{s+5}) = (true, true, true, false, false, false)`)
+either starts from `(Z_{s-2}, Z_{s-1}) = (false, false)` and emits Branch A `(true, false, false, false, false, false)`
+(`(100000)^∞`, ending at `(false, false)`), or starts from `(Z_{s-2}, Z_{s-1}) ≠ (false, false)`
+and transitions to `(Z_{s+4}, Z_{s+5}) = (true, true)`, from which the next block emits Branch B
+`(false, false, true, true, true, true)` (`(001111)^∞`). -/
+theorem wave_111000_attractor_dichotomy {K s Y : Nat} (hs : 2 ≤ s) (hsK : s + 6 ≤ K)
+    (hy0 : Y.testBit s = true) (hy1 : Y.testBit (s + 1) = true) (hy2 : Y.testBit (s + 2) = true)
+    (hy3 : Y.testBit (s + 3) = false) (hy4 : Y.testBit (s + 4) = false) (hy5 : Y.testBit (s + 5) = false) :
+    (((bstep1 K Y).testBit (s - 2), (bstep1 K Y).testBit (s - 1)) = (false, false) →
+      ((bstep1 K Y).testBit (s + 4), (bstep1 K Y).testBit (s + 5)) = (false, false)) ∧
+    (((bstep1 K Y).testBit (s - 2), (bstep1 K Y).testBit (s - 1)) ≠ (false, false) →
+      ((bstep1 K Y).testBit (s + 4), (bstep1 K Y).testBit (s + 5)) = (true, true)) := by
+  have hrec1 : ∀ u, s ≤ u → u < K →
+      (bstep1 K Y).testBit u =
+        xor (Y.testBit u) ((bstep1 K Y).testBit (u - 1) || (bstep1 K Y).testBit (u - 2)) := by
+    intro u hu huK
+    rw [bstep1_testBit_lt huK, ite_eq_right (by omega), ite_eq_right (by omega)]
+  have hst := state_add_eq_runTrans (Z := fun u => (bstep1 K Y).testBit u)
+    (Y := fun u => Y.testBit u) hs hrec1 6 hsK
+  rw [show s + 6 - 2 = s + 4 by omega, show s + 6 - 1 = s + 5 by omega] at hst
+  have htab := runTrans_000111_table (Y := fun u => Y.testBit u) hy0 hy1 hy2 hy3 hy4 hy5
+  rw [hst]
+  constructor
+  · intro h00
+    rw [h00, htab.1]
+  · intro hne
+    rcases hp : ((bstep1 K Y).testBit (s - 2), (bstep1 K Y).testBit (s - 1)) with ⟨a, b⟩
+    cases a <;> cases b
+    · exact absurd hp hne
+    · exact htab.2.1
+    · exact htab.2.2.1
+    · exact htab.2.2.2.1
+
+/-- 4-step `B_shift 24` chain (8 backward steps) for `W = 3` (Branch A `(100000)^∞`). -/
+theorem stage8_chain_a :
+    B_shift 24 3 = 2396745 ∧ B_shift 24 2396745 = 4527207 ∧
+    B_shift 24 4527207 = 6657029 ∧ B_shift 24 6657029 = 268435 := by decide
+
+/-- 4-step `B_shift 24` chain (8 backward steps) for `W = 11` (Branch B `(001111)^∞`). -/
+theorem stage8_chain_b :
+    B_shift 24 11 = 4793489 ∧ B_shift 24 4793489 = 9054415 ∧
+    B_shift 24 9054415 = 13315261 ∧ B_shift 24 13315261 = 15179035 := by decide
+
+/-- **Concrete Stage-8 Attractor Bifurcation Witnesses (`stage8_bifurcation_1_vs_41`):** at backward
+step 8 (`B_shiftIter 4 24`), the roots `W = 3` and `W = 11` bifurcate into Branch A `(100000)^∞`
+(6-bit window `1` on `[18, 24)`) vs. Branch B `(001111)^∞` (6-bit window `57` on `[18, 24)`). -/
+theorem stage8_bifurcation_1_vs_41 :
+    ((B_shiftIter 4 24 3 >>> 18) % 64 = 1) ∧
+    ((B_shiftIter 4 24 11 >>> 18) % 64 = 57) := by
+  obtain ⟨h1, h2, h3, h4⟩ := stage8_chain_a
+  obtain ⟨g1, g2, g3, g4⟩ := stage8_chain_b
+  have ea : B_shiftIter 4 24 3 = 268435 := by
+    simp only [B_shiftIter, h1, h2, h3, h4]
+  have eb : B_shiftIter 4 24 11 = 15179035 := by
+    simp only [B_shiftIter, g1, g2, g3, g4]
+  rw [ea, eb]
+  decide
+
+/-- **Stage 8 to Stage 9 Exact Complement on Branch A (`(100000)^∞ → (011111)^∞`,
+`wave_100000_to_011111`):** if `W` is locked into the Stage-8 Branch A wave `(100000)^∞` on `[s, K)`
+(`2 ≤ s`, with `(W_s, W_{s+1}, W_{s+2}) = (false, true, false)` and `11`-free above `s + 2`), then
+both `bstep1 K W` and `bstep0 K W` lock into the exact bitwise complement `!W` (Stage 9 `(011111)^∞`,
+period 6, Hamming weight 5 per period) on `[s + 2, K)`. -/
+theorem wave_100000_to_011111 {K s W : Nat} (hs : 2 ≤ s)
+    (hw0 : W.testBit s = false) (hw1 : W.testBit (s + 1) = true) (hw2 : W.testBit (s + 2) = false)
+    (hno11 : ∀ r, s + 2 < r → r < K → (W.testBit (r - 1) && W.testBit r) = false)
+    (hper6 : ∀ r, s ≤ r → r + 6 < K → W.testBit (r + 6) = W.testBit r) :
+    ∀ i, s + 2 ≤ i → i + 6 < K →
+      (bstep1 K W).testBit i = !W.testBit i ∧
+      (bstep1 K W).testBit (i + 6) = (bstep1 K W).testBit i ∧
+      (bstep0 K W).testBit i = !W.testBit i ∧
+      (bstep0 K W).testBit (i + 6) = (bstep0 K W).testBit i :=
+  wave_000101_to_111010 hs hw0 hw1 hw2 hno11 hper6
+
 end Rule30ZeroBoundaryStripeCascade
 end Ruliology.CellularAutomata
