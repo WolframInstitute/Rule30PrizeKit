@@ -1700,5 +1700,132 @@ theorem diagFrontier_not_evPer {L : Nat} (hL : 0 < L) :
     rwa [show t - (j / 2 + 1) + L + j / 2 + 1 = t + L by omega,
          show t - (j / 2 + 1) + j / 2 + 1 = t by omega] at h1
 
+open Rule30Jen Rule30Prize
+
+/-! ## 1. Exhaustive 8-State Truth Table, `cell` Bridge, and Algebraic Normal Form (ANF) -/
+
+/-- The local 3-cell Rule 30 Boolean update function `p ^^ (q || r)`. -/
+def rule30 (p q r : Bool) : Bool := p ^^ (q || r)
+
+/-- **Exact Bridge to `Rule30Jen.cell` (`cell_succ_eq_rule30`):** the global spacetime grid `cell`
+evolves at every `(t, x)` by applying `rule30` to `(cell t (x - 1), cell t x, cell t (x + 1))`. -/
+theorem cell_succ_eq_rule30 (t : Nat) (x : Int) :
+    cell (t + 1) x = rule30 (cell t (x - 1)) (cell t x) (cell t (x + 1)) := rfl
+
+/-- **Exhaustive 8-State Truth Table of Rule 30 (`rule30_truth_table`):** explicit verification of all
+eight Boolean input triples `(p, q, r)` against binary `00011110₂ = 30₁₀`. -/
+theorem rule30_truth_table :
+    (rule30 true true true = false) ∧
+    (rule30 true true false = false) ∧
+    (rule30 true false true = false) ∧
+    (rule30 true false false = true) ∧
+    (rule30 false true true = true) ∧
+    (rule30 false true false = true) ∧
+    (rule30 false false true = true) ∧
+    (rule30 false false false = false) := by
+  exact ⟨rfl, rfl, rfl, rfl, rfl, rfl, rfl, rfl⟩
+
+/-- **Algebraic Normal Form over `GF(2)` (`rule30_anf_decomposition`):** `rule30 p q r` decomposes into
+the linear Rule-150 parity `p ^^ q ^^ r` XORed with the single quadratic collision term `q && r`. -/
+theorem rule30_anf_decomposition (p q r : Bool) :
+    rule30 p q r = ((p ^^ q ^^ r) ^^ (q && r)) := by
+  cases p <;> cases q <;> cases r <;> rfl
+
+/-- **Exact Linear vs. Nonlinear Phase Criterion (`rule30_eq_xor_iff_not_and`):** `rule30 p q r`
+coincides with the linear parity `p ^^ q ^^ r` if and only if `!(q && r) = true` (which holds on
+6 of the 8 states and fails only when `q = true ∧ r = true`). -/
+theorem rule30_eq_xor_iff_not_and (p q r : Bool) :
+    (rule30 p q r = (p ^^ q ^^ r)) ↔ !(q && r) = true := by
+  cases p <;> cases q <;> cases r <;> decide
+
+/-! ## 2. Marginal Causal Influence (Shapley Weight) and Firewall Shielding -/
+
+/-- **Unconditional Left-Channel Toggle (`rule30_flip_left`):** flipping the left input `p` always
+inverts the output `rule30 p q r`, giving the left channel marginal causal weight `1` everywhere. -/
+theorem rule30_flip_left (p q r : Bool) :
+    rule30 (!p) q r = !(rule30 p q r) := by
+  cases p <;> cases q <;> cases r <;> rfl
+
+/-- **Center-Channel Marginal Influence Criterion (`rule30_flip_center_iff`):** flipping the center
+input `q` inverts `rule30 p q r` if and only if the right input is `r = false`. -/
+theorem rule30_flip_center_iff (p q r : Bool) :
+    (rule30 p (!q) r = !(rule30 p q r)) ↔ r = false := by
+  cases p <;> cases q <;> cases r <;> decide
+
+/-- **Right-Channel Marginal Influence Criterion (`rule30_flip_right_iff`):** flipping the right
+input `r` inverts `rule30 p q r` if and only if the center input is `q = false`. -/
+theorem rule30_flip_right_iff (p q r : Bool) :
+    (rule30 p q (!r) = !(rule30 p q r)) ↔ q = false := by
+  cases p <;> cases q <;> cases r <;> decide
+
+/-- **Center-True Firewall Shielding (`rule30_center_true_firewall`):** whenever `q = true`, the right
+input `r` is completely shielded and the output is simply `!p`. -/
+theorem rule30_center_true_firewall (p r : Bool) :
+    rule30 p true r = !p := by
+  cases p <;> cases r <;> rfl
+
+/-- All 8 Boolean triples `(p, q, r) ∈ Bool³`. -/
+def allTriples : List (Bool × Bool × Bool) :=
+  [ (false, false, false), (false, false, true), (false, true, false), (false, true, true),
+    (true,  false, false), (true,  false, true), (true,  true, false), (true,  true, true) ]
+
+/-- **Exact Marginal Causal Weight Census (`marginal_influence_census_8_4_4`):** across all 8 input
+triples in `allTriples`, flipping `p` flips the output in all `8` states, flipping `q` flips the
+output in `4` states, and flipping `r` flips the output in `4` states (totalling `16` causal flips out
+of `24`). -/
+theorem marginal_influence_census_8_4_4 :
+    (allTriples.countP (fun ⟨p, q, r⟩ => rule30 (!p) q r != rule30 p q r) = 8) ∧
+    (allTriples.countP (fun ⟨p, q, r⟩ => rule30 p (!q) r != rule30 p q r) = 4) ∧
+    (allTriples.countP (fun ⟨p, q, r⟩ => rule30 p q (!r) != rule30 p q r) = 4) := by
+  decide
+
+/-! ## 3. Exact Retrodiction, Inverse Causal Logic, and Global Spacetime Identities -/
+
+/-- **Exact Left Retrodiction Involution (`retrodict_left_involution`):** the past left input `p` is
+uniquely reconstructed from the present output `o = rule30 p q r` and right context `(q, r)` via
+`p = o ^^ (q || r)`. -/
+theorem retrodict_left_involution (p q r : Bool) :
+    ((rule30 p q r) ^^ (q || r)) = p ∧
+    rule30 (p ^^ (q || r)) q r = p := by
+  cases p <;> cases q <;> cases r <;> decide
+
+/-- **Conditional Right Retrodiction vs. Firewall Erasure (`retrodict_right_dichotomy`):** when
+`q = false`, the past right input `r` is uniquely retrodicted as `p ^^ rule30 p false r`; when
+`q = true`, both `r = false` and `r = true` collide at the identical output `!p`. -/
+theorem retrodict_right_dichotomy (p r : Bool) :
+    ((p ^^ rule30 p false r) = r) ∧
+    (rule30 p true false = rule30 p true true) := by
+  cases p <;> cases r <;> decide
+
+/-- **Global Spacetime ANF Decomposition (`cell_anf_decomposition`):** at every `(t, x)`, `cell (t + 1) x`
+decomposes into the linear Rule-150 parity of `(cell t (x - 1), cell t x, cell t (x + 1))` XORed with
+the quadratic term `cell t x && cell t (x + 1)`. -/
+theorem cell_anf_decomposition (t : Nat) (x : Int) :
+    cell (t + 1) x =
+      ((cell t (x - 1) ^^ cell t x ^^ cell t (x + 1)) ^^ (cell t x && cell t (x + 1))) := by
+  rw [cell_succ_eq_rule30, rule30_anf_decomposition]
+
+/-- **Global Spacetime Left Retrodiction (`cell_retrodict_left`):** at every `(t, x)` in the Rule 30
+spacetime lattice, the past left parent `cell t (x - 1)` is uniquely retrodicted from `cell (t + 1) x`
+and `(cell t x, cell t (x + 1))`. -/
+theorem cell_retrodict_left (t : Nat) (x : Int) :
+    (cell (t + 1) x ^^ (cell t x || cell t (x + 1))) = cell t (x - 1) := by
+  rw [cell_succ_eq_rule30]
+  exact (retrodict_left_involution (cell t (x - 1)) (cell t x) (cell t (x + 1))).1
+
+/-- **Center-Column Left-Neighbor Retrodiction (`center_retrodict_left`):** at every time step `t`,
+the left neighbor `cell t (-1)` of the center column is uniquely retrodicted from `center (t + 1)`,
+`center t`, and `cell t 1`. -/
+theorem center_retrodict_left (t : Nat) :
+    (center (t + 1) ^^ (center t || cell t 1)) = cell t (-1) := by
+  simpa [center] using cell_retrodict_left t 0
+
+/-- **Global Spacetime Firewall Shielding (`cell_succ_eq_not_left_of_center_true`):** whenever
+`cell t x = true`, the right neighbor `cell t (x + 1)` is causally shielded and
+`cell (t + 1) x = !(cell t (x - 1))`. -/
+theorem cell_succ_eq_not_left_of_center_true (t : Nat) (x : Int) (h : cell t x = true) :
+    cell (t + 1) x = !(cell t (x - 1)) := by
+  rw [cell_succ_eq_rule30, h, rule30_center_true_firewall]
+
 end Rule30SurvivalBridge
 end Ruliology.CellularAutomata
