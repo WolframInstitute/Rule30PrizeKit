@@ -505,5 +505,185 @@ theorem R_infinitely_many_halfDensity (k : Nat) :
   exact ⟨J + 1, by omega, by omega, hanti, hJ1,
     halfDensity_of_antiperiodic (Nat.two_pow_pos k) ⟨0, fun t _ => hanti t⟩⟩
 
+/-! ## 7. Twin-Diagonal Conservation, `HalfDensity` Invariance, and Right-Diagonal `leastExp` Balance -/
+
+/-- **Shifted-Complement Window Conservation (`winCount_add_of_succ_eq_not`):** if
+`g (t + 1) = !f t` for all `t ≥ T`, then on every window of length `d` starting at `t ≥ T`,
+`winCount f t d + winCount g (t + 1) d = d`. -/
+theorem winCount_add_of_succ_eq_not {f g : Nat → Bool} {T : Nat}
+    (hfg : ∀ t, T ≤ t → g (t + 1) = !f t) {t : Nat} (ht : T ≤ t) :
+    ∀ d, winCount f t d + winCount g (t + 1) d = d
+  | 0 => rfl
+  | d + 1 => by
+    simp only [winCount]
+    have ih := winCount_add_of_succ_eq_not hfg ht d
+    have hstep := hfg (t + d) (by omega)
+    rw [show t + 1 + d = (t + d) + 1 by omega, hstep]
+    cases f (t + d) <;> simp <;> omega
+
+/-- **Cumulative Twin Discrepancy Cancellation (`blackCountFor_twin_conservation`):** if
+`g (t + 1) = !f t` for all `t ≥ T`, then for every `n ≥ T`,
+`((2 * (blackCountFor f n : Int) - (n : Int)) + (2 * (blackCountFor g (n + 1) : Int) - ((n + 1 : Nat) : Int))).natAbs ≤ 2 * T + 3`. -/
+theorem blackCountFor_twin_conservation {f g : Nat → Bool} {T : Nat}
+    (hfg : ∀ t, T ≤ t → g (t + 1) = !f t) {n : Nat} (hn : T ≤ n) :
+    ((2 * (blackCountFor f n : Int) - (n : Int)) +
+      (2 * (blackCountFor g (n + 1) : Int) - ((n + 1 : Nat) : Int))).natAbs ≤ 2 * T + 3 := by
+  let d := n - T
+  have hn_eq : n = T + d := by omega
+  have hn1_eq : n + 1 = (T + 1) + d := by omega
+  have hf := blackCountFor_add_eq_winCount f T d
+  have hg := blackCountFor_add_eq_winCount g (T + 1) d
+  have hwin := winCount_add_of_succ_eq_not hfg (Nat.le_refl T) d
+  rw [← hn_eq] at hf
+  rw [← hn1_eq] at hg
+  obtain ⟨hf0, hfT⟩ := blackCountFor_add_bounds f 0 T
+  obtain ⟨hg0, hgT⟩ := blackCountFor_add_bounds g 0 (T + 1)
+  have hbz1 : blackCountFor f 0 = 0 := rfl
+  have hbz2 : blackCountFor g 0 = 0 := rfl
+  rw [hbz1, Nat.zero_add] at hf0 hfT
+  rw [hbz2, Nat.zero_add] at hg0 hgT
+  omega
+
+/-- **Forward `HalfDensity` Transfer under Shifted Complementation (`halfDensity_of_succ_eq_not`):**
+if `g (t + 1) = !f t` for all `t ≥ T` and `HalfDensity f` holds, then `HalfDensity g` holds. -/
+theorem halfDensity_of_succ_eq_not {f g : Nat → Bool} {T : Nat}
+    (hfg : ∀ t, T ≤ t → g (t + 1) = !f t) (hf : HalfDensity f) : HalfDensity g := by
+  intro k hk
+  obtain ⟨N, hN⟩ := hf (2 * k) (by omega)
+  refine ⟨max (N + 1) (2 * (k * (2 * T + 3)) + T + 1), fun n hn => ?_⟩
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
+  have hmN : N ≤ m := by omega
+  have hmT : T ≤ m := by omega
+  have h1 := hN m hmN
+  have h2 := blackCountFor_twin_conservation hfg hmT
+  have htri : (2 * (blackCountFor g (m + 1) : Int) - ((m + 1 : Nat) : Int)).natAbs ≤
+      (2 * (blackCountFor f m : Int) - (m : Int)).natAbs + (2 * T + 3) := by omega
+  have hmul := Nat.mul_le_mul_left k htri
+  rw [Nat.left_distrib] at hmul
+  rw [Nat.mul_assoc] at h1
+  omega
+
+/-- **Bidirectional `HalfDensity` Invariance under Shifted Complementation (`halfDensity_iff_of_succ_eq_not`):**
+if `g (t + 1) = !f t` for all `t ≥ T`, then `HalfDensity f ↔ HalfDensity g`. -/
+theorem halfDensity_iff_of_succ_eq_not {f g : Nat → Bool} {T : Nat}
+    (hfg : ∀ t, T ≤ t → g (t + 1) = !f t) :
+    HalfDensity f ↔ HalfDensity g := by
+  constructor
+  · exact halfDensity_of_succ_eq_not hfg
+  · intro hg k hk
+    obtain ⟨N, hN⟩ := hg (2 * k) (by omega)
+    refine ⟨max N (2 * (k * (2 * T + 3)) + T + 1), fun n hn => ?_⟩
+    have hn1 : N ≤ n + 1 := by omega
+    have hnT : T ≤ n := by omega
+    have h1 := hN (n + 1) hn1
+    have h2 := blackCountFor_twin_conservation hfg hnT
+    have htri : (2 * (blackCountFor f n : Int) - (n : Int)).natAbs ≤
+        (2 * (blackCountFor g (n + 1) : Int) - ((n + 1 : Nat) : Int)).natAbs + (2 * T + 3) := by omega
+    have hmul := Nat.mul_le_mul_left k htri
+    rw [Nat.left_distrib] at hmul
+    rw [Nat.mul_assoc] at h1
+    omega
+
+/-- **Post-White Twin-Diagonal Window Conservation (`D_post_white_twin_winCount_sum`):** around
+every eventually white left diagonal `EvWhite (D (j + 1))`, there is a transient `T` such that for
+all `t ≥ T` and `d : Nat`, `winCount (D (j + 2)) t d + winCount (D (j + 4)) (t + 1) d = d`. -/
+theorem D_post_white_twin_winCount_sum {j : Nat} (hw : EvWhite (D (j + 1))) :
+    ∃ T, ∀ t, T ≤ t → ∀ d, winCount (D (j + 2)) t d + winCount (D (j + 4)) (t + 1) d = d := by
+  obtain ⟨T, hT⟩ := D_post_white_complement hw
+  exact ⟨T, fun t ht d => winCount_add_of_succ_eq_not (fun s hs => (hT s hs).2) ht d⟩
+
+/-- **Post-White Twin-Diagonal `HalfDensity` Equivalence (`D_post_white_halfDensity_iff`):** around
+every eventually white left diagonal `EvWhite (D (j + 1))`, `D (j + 2)` has asymptotic density
+`1/2` (`HalfDensity (D (j + 2))`) if and only if `D (j + 4)` has asymptotic density `1/2`
+(`HalfDensity (D (j + 4))`). -/
+theorem D_post_white_halfDensity_iff {j : Nat} (hw : EvWhite (D (j + 1))) :
+    HalfDensity (D (j + 2)) ↔ HalfDensity (D (j + 4)) := by
+  obtain ⟨T, hT⟩ := D_post_white_complement hw
+  exact halfDensity_iff_of_succ_eq_not (fun t ht => (hT t ht).2)
+
+/-- Time-interleaved multiplex of two Boolean trajectories `f` and `g`:
+`interleave f g (2 * s) = f s` and `interleave f g (2 * s + 1) = g s`. -/
+def interleave (f g : Nat → Bool) (t : Nat) : Bool :=
+  if t % 2 = 0 then f (t / 2) else g (t / 2)
+
+/-- **Exact Pairwise Balance of the Interleaved Multiplex (`winCount_interleave_two_mul`):** if
+`g (s + 1) = !f s` for all `s ≥ T`, then for all `s ≥ T` and `d : Nat`, the interleaved sequence
+`interleave f (fun u => g (u + 1))` contains exactly `d` black cells in `[2 * s, 2 * s + 2 * d)`. -/
+theorem winCount_interleave_two_mul {f g : Nat → Bool} {T : Nat}
+    (hfg : ∀ s, T ≤ s → g (s + 1) = !f s) {s : Nat} (hs : T ≤ s) :
+    ∀ d, winCount (interleave f (fun u => g (u + 1))) (2 * s) (2 * d) = d
+  | 0 => rfl
+  | d + 1 => by
+    rw [show 2 * (d + 1) = 2 * d + 1 + 1 by omega]
+    simp only [winCount]
+    rw [winCount_interleave_two_mul hfg hs d]
+    have hev : interleave f (fun u => g (u + 1)) (2 * s + 2 * d) = f (s + d) := by
+      unfold interleave
+      rw [ite_eq_left (by omega), show (2 * s + 2 * d) / 2 = s + d by omega]
+    have hod : interleave f (fun u => g (u + 1)) (2 * s + (2 * d + 1)) = !f (s + d) := by
+      unfold interleave
+      rw [ite_eq_right (by omega), show (2 * s + (2 * d + 1)) / 2 = s + d by omega]
+      exact hfg (s + d) (by omega)
+    rw [hev, hod]
+    cases f (s + d) <;> simp <;> omega
+
+/-- **Unconditional `HalfDensity` of the Shifted-Complement Multiplex (`halfDensity_interleave_of_succ_eq_not`):**
+if `g (s + 1) = !f s` for all `s ≥ T`, then `interleave f (fun u => g (u + 1))` satisfies
+`HalfDensity`. -/
+theorem halfDensity_interleave_of_succ_eq_not {f g : Nat → Bool} {T : Nat}
+    (hfg : ∀ s, T ≤ s → g (s + 1) = !f s) :
+    HalfDensity (interleave f (fun u => g (u + 1))) := by
+  let h := interleave f (fun u => g (u + 1))
+  intro k hk
+  refine ⟨k * (2 * T + 2) + 2 * T, fun n hn => ?_⟩
+  let d := (n - 2 * T) / 2
+  let r := (n - 2 * T) % 2
+  have hn_eq : n = (2 * T + 2 * d) + r := by omega
+  have hbase := blackCountFor_add_eq_winCount h (2 * T) (2 * d)
+  rw [winCount_interleave_two_mul hfg (Nat.le_refl T) d] at hbase
+  obtain ⟨hb1, hb2⟩ := blackCountFor_add_bounds h (2 * T + 2 * d) r
+  rw [← hn_eq] at hb1 hb2
+  rw [hbase] at hb1 hb2
+  obtain ⟨hT1, hT2⟩ := blackCountFor_add_bounds h 0 (2 * T)
+  have h0 : blackCountFor h 0 = 0 := rfl
+  rw [h0, Nat.zero_add] at hT1 hT2
+  have hdisc : (2 * (blackCountFor h n : Int) - (n : Int)).natAbs ≤ 2 * T + 2 := by omega
+  have hmul : k * (2 * (blackCountFor h n : Int) - (n : Int)).natAbs ≤ k * (2 * T + 2) :=
+    Nat.mul_le_mul_left k hdisc
+  dsimp only [h] at hmul
+  omega
+
+/-- **Unconditional `HalfDensity` of the Post-White Twin-Diagonal Multiplex (`D_post_white_interleave_halfDensity`):**
+around every eventually white left diagonal `EvWhite (D (j + 1))`, the interleaved twin-diagonal
+sequence `interleave (D (j + 2)) (fun t => D (j + 4) (t + 1))` unconditionally has asymptotic
+density `1/2` (`HalfDensity`). -/
+theorem D_post_white_interleave_halfDensity {j : Nat} (hw : EvWhite (D (j + 1))) :
+    HalfDensity (interleave (D (j + 2)) (fun t => D (j + 4) (t + 1))) := by
+  obtain ⟨T, hT⟩ := D_post_white_complement hw
+  exact halfDensity_interleave_of_succ_eq_not (fun s hs => (hT s hs).2)
+
+/-- **Right-Diagonal `leastExp` Step-Up Implies `HalfDensity` (`R_halfDensity_of_leastExp_succ`):**
+whenever the least period exponent of a right diagonal increases (`leastExp (j + 1) = leastExp j + 1`),
+`R (j + 1)` is `2 ^ leastExp j`-anti-periodic from `t = 0`, is not `2 ^ leastExp j`-periodic, and
+satisfies `HalfDensity (R (j + 1))`. -/
+theorem R_halfDensity_of_leastExp_succ {j : Nat} (h : leastExp (j + 1) = leastExp j + 1) :
+    (∀ t, R (j + 1) (t + 2 ^ leastExp j) = !R (j + 1) t) ∧
+      ¬ Per (j + 1) (2 ^ leastExp j) ∧ HalfDensity (R (j + 1)) := by
+  have hanti := leastExp_antiperiod h
+  have hnot := (leastExp_spec (j + 1)).2 (leastExp j) (by omega)
+  exact ⟨hanti, hnot, halfDensity_of_antiperiodic (Nat.two_pow_pos (leastExp j)) ⟨0, fun t _ => hanti t⟩⟩
+
+/-- **Uniform All-`n` Discrepancy Bound for Period-Doubling Right Diagonals (`R_discrepancy_le_of_leastExp_succ`):**
+whenever `leastExp (j + 1) = leastExp j + 1`, for every `n : Nat` the discrepancy of `R (j + 1)` is
+bounded by a single period: `(2 * (blackCountFor (R (j + 1)) n : Int) - n).natAbs ≤ 2 ^ leastExp (j + 1)`. -/
+theorem R_discrepancy_le_of_leastExp_succ {j : Nat} (h : leastExp (j + 1) = leastExp j + 1) (n : Nat) :
+    (2 * (blackCountFor (R (j + 1)) n : Int) - n).natAbs ≤ 2 ^ leastExp (j + 1) := by
+  have hanti := leastExp_antiperiod h
+  have hd := natAbs_discrepancy_le_of_antiperiodic (T := 0) (L := 2 ^ leastExp j)
+    (Nat.two_pow_pos (leastExp j)) (fun t _ => hanti t) (Nat.zero_le n)
+  rw [Nat.zero_add] at hd
+  rw [h, Nat.pow_succ, Nat.mul_comm]
+  exact hd
+
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
