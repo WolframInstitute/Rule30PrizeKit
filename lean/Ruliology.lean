@@ -166,6 +166,7 @@ public import Ruliology.CellularAutomata.Rule30SeparatorEquivalences
 public import Ruliology.CellularAutomata.Rule30SEPToPeriodTwo
 public import Ruliology.CellularAutomata.Rule30Rule180LoneSeed
 public import Ruliology.CellularAutomata.Rule30TopCoefficient
+public import Ruliology.CellularAutomata.Rule30HealingBound
 
 /-!
 # Rule 30 Prize: Lean snapshot
