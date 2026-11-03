@@ -212,4 +212,157 @@ theorem white_run_le_erosion (a L ℓ : Nat) (h : ∀ i, i < L → center (a + i
   rw [show -((a - s : Nat) : Int) + 1 - 1 = -((a - s : Nat) : Int) by omega, ← c1, ← c2] at this
   exact Bool.noConfusion this
 
+/-! ### Parity-Resolved `D 0`/`D 1` Boundary Collisions and Strengthened Erosion Bounds -/
+
+/-- **Parity of `alt` at `-((k : Nat) : Int) + 1` (`alt_neg_add_one`):** for every `k : Nat`,
+`alt (-((k : Nat) : Int) + 1) = !ev k`. -/
+theorem alt_neg_add_one (k : Nat) : alt (-((k : Nat) : Int) + 1) = !ev k := by
+  have h := alt_pred (-((k : Nat) : Int) + 1)
+  rw [show -((k : Nat) : Int) + 1 - 1 = -((k : Nat) : Int) by omega, alt_neg] at h
+  rw [← Bool.not_not (alt (-((k : Nat) : Int) + 1)), h]
+
+/-- **Single-Point Left-Edge (`D 0`) Collision for Black Center Runs (`black_block_back_left_edge_even`):**
+if a black center run of length `L` starts at `a`, `5 * s ≤ a`, and `a < L + 2 * s`, then the left
+boundary `cell (a - s) (-(a - s)) = true` forces `(a - s) % 2 = 0`. -/
+theorem black_block_back_left_edge_even {a L s : Nat}
+    (h : ∀ i, i < L → center (a + i) = true)
+    (hs : 5 * s ≤ a) (hL : a < L + 2 * s) :
+    (a - s) % 2 = 0 := by
+  have h' : ∀ i, i < L → cell (a + i) 0 = true := h
+  have hb := black_block_back a L h' s (by omega) (-((a - s : Nat) : Int)) (by omega) (by omega)
+  rw [cell_left_edge, alt_neg] at hb
+  unfold ev at hb
+  by_cases hmod : (a - s) % 2 = 0
+  · exact hmod
+  · rw [decide_eq_false hmod] at hb
+    exact Bool.noConfusion hb
+
+/-- **Single-Point `D 1` Collision for Black Center Runs (`black_block_back_D_one_odd`):**
+if a black center run of length `L` starts at `a`, `5 * s + 1 ≤ a`, and `a < L + 2 * s`, then the
+first inner diagonal `D 1 (a - s) = true` forces `(a - s) % 2 = 1`. -/
+theorem black_block_back_D_one_odd {a L s : Nat}
+    (h : ∀ i, i < L → center (a + i) = true)
+    (hs : 5 * s + 1 ≤ a) (hL : a < L + 2 * s) :
+    (a - s) % 2 = 1 := by
+  have h' : ∀ i, i < L → cell (a + i) 0 = true := h
+  have hb := black_block_back a L h' s (by omega) (-((a - s : Nat) : Int) + 1) (by omega) (by omega)
+  have hD : D 1 (a - s) = true := by
+    obtain ⟨u, hu⟩ : ∃ u, a - s = u + 1 := ⟨a - s - 1, by omega⟩
+    rw [hu]; exact D_one u
+  have e : cell (a - s) (-((a - s : Nat) : Int) + 1) = D 1 (a - s) := cell_congr (by omega)
+  rw [e, hD, alt_neg_add_one] at hb
+  unfold ev at hb
+  by_cases hmod : (a - s) % 2 = 0
+  · rw [decide_eq_true hmod] at hb
+    exact Bool.noConfusion hb
+  · omega
+
+/-- **Single-Point Left-Edge Black-Run Erosion under Odd `(a - s)` (`black_run_le_erosion_of_odd_diff`):**
+if `5 * s ≤ a` and `(a - s) % 2 = 1`, then `L + 2 * s ≤ a` holds from the left edge `D 0` alone. -/
+theorem black_run_le_erosion_of_odd_diff (a L s : Nat)
+    (h : ∀ i, i < L → center (a + i) = true)
+    (hs : 5 * s ≤ a) (hodd : (a - s) % 2 = 1) :
+    L + 2 * s ≤ a := by
+  refine Classical.byContradiction fun hcon => ?_
+  have heven := black_block_back_left_edge_even h hs (by omega)
+  omega
+
+/-- **Exact Remainder Form of the Linear Black-Run Erosion Bound (`five_mul_black_run_le_exact_mod`):**
+for every `a ≥ 1` and `L : Nat`, if `center (a + i) = true` for all `i < L`, then
+`5 * L ≤ 3 * a + 2 * ((a - 1) % 5) + 2`. -/
+theorem five_mul_black_run_le_exact_mod (a L : Nat) (ha : 1 ≤ a)
+    (h : ∀ i, i < L → center (a + i) = true) :
+    5 * L ≤ 3 * a + 2 * ((a - 1) % 5) + 2 := by
+  have hb := black_run_le_erosion a L ha h
+  omega
+
+/-- **Sharp `5 * L ≤ 3 * a + 2` Black-Run Bound when `a % 5 = 1` (`five_mul_black_run_le_of_mod_one`):**
+whenever `1 ≤ a` and `a % 5 = 1`, any black center run of length `L` starting at `a` satisfies
+`5 * L ≤ 3 * a + 2`. -/
+theorem five_mul_black_run_le_of_mod_one (a L : Nat) (ha : 1 ≤ a) (hmod : a % 5 = 1)
+    (h : ∀ i, i < L → center (a + i) = true) :
+    5 * L ≤ 3 * a + 2 := by
+  have hb := five_mul_black_run_le_exact_mod a L ha h
+  omega
+
+/-- **Single-Point Left-Edge (`D 0`) Collision for White Center Runs (`white_block_back_left_edge_odd`):**
+under the hypotheses of `white_block_back`, if `5 * s + ℓ + 2 ≤ a` and `a < L + 2 * s`, then the
+left boundary `cell (a - s) (-(a - s)) = true` forces `(a - s) % 2 = 1`. -/
+theorem white_block_back_left_edge_odd {a L ℓ s : Nat}
+    (h : ∀ i, i < L → center (a + i) = false)
+    (hw : ∀ p : Nat, 1 ≤ p → p ≤ ℓ → cell a p = false)
+    (hb : cell a ((ℓ + 1 : Nat) : Int) = true)
+    (hs : 5 * s + ℓ + 2 ≤ a) (hL : a < L + 2 * s) :
+    (a - s) % 2 = 1 := by
+  have h' : ∀ i, i < L → cell (a + i) 0 = false := h
+  have hbk := white_block_back a L ℓ h' hw hb s (by omega) (-((a - s : Nat) : Int)) (by omega) (by omega)
+  rw [cell_left_edge] at hbk
+  unfold nalt at hbk
+  rw [alt_neg] at hbk
+  unfold ev at hbk
+  by_cases hmod : (a - s) % 2 = 0
+  · rw [decide_eq_true hmod] at hbk
+    exact Bool.noConfusion hbk
+  · omega
+
+/-- **Single-Point `D 1` Collision for White Center Runs (`white_block_back_D_one_even`):**
+under the hypotheses of `white_block_back`, if `5 * s + ℓ + 3 ≤ a` and `a < L + 2 * s`, then the
+first inner diagonal `D 1 (a - s) = true` forces `(a - s) % 2 = 0`. -/
+theorem white_block_back_D_one_even {a L ℓ s : Nat}
+    (h : ∀ i, i < L → center (a + i) = false)
+    (hw : ∀ p : Nat, 1 ≤ p → p ≤ ℓ → cell a p = false)
+    (hb : cell a ((ℓ + 1 : Nat) : Int) = true)
+    (hs : 5 * s + ℓ + 3 ≤ a) (hL : a < L + 2 * s) :
+    (a - s) % 2 = 0 := by
+  have h' : ∀ i, i < L → cell (a + i) 0 = false := h
+  have hbk := white_block_back a L ℓ h' hw hb s (by omega) (-((a - s : Nat) : Int) + 1) (by omega) (by omega)
+  have hD : D 1 (a - s) = true := by
+    obtain ⟨u, hu⟩ : ∃ u, a - s = u + 1 := ⟨a - s - 1, by omega⟩
+    rw [hu]; exact D_one u
+  have e : cell (a - s) (-((a - s : Nat) : Int) + 1) = D 1 (a - s) := cell_congr (by omega)
+  rw [e, hD] at hbk
+  unfold nalt at hbk
+  rw [alt_neg_add_one, Bool.not_not] at hbk
+  exact of_decide_eq_true hbk.symm
+
+/-- **Parity-Sharpened White-Run Erosion Bound (`white_run_le_erosion_of_even_diff`):** if
+`5 * s + ℓ + 2 ≤ a` and `(a - s) % 2 = 0`, then `L + 2 * s ≤ a` holds with threshold
+`5 * s + ℓ + 2 ≤ a` (one step earlier than `white_run_le_erosion`). -/
+theorem white_run_le_erosion_of_even_diff (a L ℓ : Nat)
+    (h : ∀ i, i < L → center (a + i) = false)
+    (hw : ∀ p : Nat, 1 ≤ p → p ≤ ℓ → cell a p = false)
+    (hb : cell a ((ℓ + 1 : Nat) : Int) = true)
+    (s : Nat) (hs : 5 * s + ℓ + 2 ≤ a) (heven : (a - s) % 2 = 0) :
+    L + 2 * s ≤ a := by
+  refine Classical.byContradiction fun hcon => ?_
+  have hodd := white_block_back_left_edge_odd h hw hb hs (by omega)
+  omega
+
+/-- **Strengthened White-Run Erosion Bound for Even `ℓ` (`white_run_le_erosion_of_even_ell`):**
+whenever `ℓ % 2 = 0` and `5 * s + ℓ + 2 ≤ a`, a white center run of length `L` starting at `a`
+satisfies `L + 2 * s ≤ a` (improving `white_run_le_erosion` from `5 * s + ℓ + 3 ≤ a` to
+`5 * s + ℓ + 2 ≤ a` for every even `ℓ`). -/
+theorem white_run_le_erosion_of_even_ell (a L ℓ : Nat)
+    (h : ∀ i, i < L → center (a + i) = false)
+    (hw : ∀ p : Nat, 1 ≤ p → p ≤ ℓ → cell a p = false)
+    (hb : cell a ((ℓ + 1 : Nat) : Int) = true)
+    (hℓ_even : ℓ % 2 = 0) (s : Nat) (hs : 5 * s + ℓ + 2 ≤ a) :
+    L + 2 * s ≤ a := by
+  by_cases hs3 : 5 * s + ℓ + 3 ≤ a
+  · exact white_run_le_erosion a L ℓ h hw hb s hs3
+  · have ha_eq : a = 5 * s + ℓ + 2 := by omega
+    exact white_run_le_erosion_of_even_diff a L ℓ h hw hb s hs (by omega)
+
+/-- **Closed-Form Division Bound for White-Run Erosion (`white_run_le_erosion_div`):** if
+`ℓ + 3 ≤ a`, then `L + 2 * ((a - ℓ - 3) / 5) ≤ a`, and if `ℓ % 2 = 0` with `ℓ + 2 ≤ a`, then
+`L + 2 * ((a - ℓ - 2) / 5) ≤ a`. -/
+theorem white_run_le_erosion_div (a L ℓ : Nat)
+    (h : ∀ i, i < L → center (a + i) = false)
+    (hw : ∀ p : Nat, 1 ≤ p → p ≤ ℓ → cell a p = false)
+    (hb : cell a ((ℓ + 1 : Nat) : Int) = true) :
+    (ℓ + 3 ≤ a → L + 2 * ((a - ℓ - 3) / 5) ≤ a) ∧
+    (ℓ % 2 = 0 → ℓ + 2 ≤ a → L + 2 * ((a - ℓ - 2) / 5) ≤ a) :=
+  ⟨fun h3 => white_run_le_erosion a L ℓ h hw hb ((a - ℓ - 3) / 5) (by omega),
+   fun hev h2 => white_run_le_erosion_of_even_ell a L ℓ h hw hb hev ((a - ℓ - 2) / 5) (by omega)⟩
+
 end Ruliology.CellularAutomata.Rule30BlackRunErosion
