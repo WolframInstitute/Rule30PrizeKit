@@ -279,5 +279,150 @@ theorem frontBound_le_linear {π f : Nat → Nat} (hπ0 : ∀ j, 0 < π j)
       omega
   exact fun k => Nat.le_trans (frontBound_le_periodSum hπ0 hπ k) (hs k k (Nat.le_refl k))
 
+/-! ### Exact Small-Depth Front Bounds (`k ≤ 5`) and Sharpened `2 ^ k - 27` Periodicity Onset -/
+
+/-- **Second Left Diagonal Is Identically White (`D_two_eq_false`):** for every `t : Nat`,
+`D 2 (t + 2) = false`. -/
+theorem D_two_eq_false (t : Nat) : D 2 (t + 2) = false := by
+  have e : D 2 (t + 2) = xor (D 0 (t + 1)) (D 1 (t + 1) || D 2 (t + 1)) := D_step 0 (t + 1)
+  rw [e, D_zero, D_one]
+  rfl
+
+/-- **Exact Front Bound at Depth 2 (`frontBound_two`):** `frontBound 2 = 2`. -/
+theorem frontBound_two : frontBound 2 = 2 := by
+  have h : ∃ u, max (frontBound 0) (frontBound 1) ≤ u ∧ D 1 u = true :=
+    ⟨1, by simp [frontBound], D_one 0⟩
+  obtain ⟨u, hu, _, hwhite, hR⟩ := frontBound_reset (j := 0) h
+  change frontBound 2 = u + 1 at hR
+  have hu1 : 1 ≤ u := by simpa [frontBound] using hu
+  have hle : u ≤ 1 := by
+    refine Classical.byContradiction fun hgt => ?_
+    have hw := hwhite 1 (by simp [frontBound]) (by omega)
+    exact Bool.noConfusion (hw.symm.trans (D_one 0))
+  omega
+
+/-- **Exact Front Bound at Depth 3 (`frontBound_three`):** because `D 2 t = false` for all
+`t ≥ 2`, diagonal `2` never resets after `max (frontBound 1) (frontBound 2) = 2`, so
+`frontBound 3 = 2`. -/
+theorem frontBound_three : frontBound 3 = 2 := by
+  have hno : ¬ ∃ u, max (frontBound 1) (frontBound 2) ≤ u ∧ D 2 u = true := by
+    rintro ⟨u, hu, hD⟩
+    have hu2 : 2 ≤ u := by rw [frontBound_two] at hu; simp [frontBound] at hu; omega
+    obtain ⟨t, rfl⟩ : ∃ t, u = t + 2 := ⟨u - 2, by omega⟩
+    rw [D_two_eq_false] at hD
+    exact Bool.noConfusion hD
+  have hw := frontBound_white (j := 1) hno
+  change frontBound 3 = max (frontBound 1) (frontBound 2) at hw
+  rw [hw, frontBound_two]
+  simp [frontBound]
+
+/-- **Exact Front Bound at Depth 4 (`frontBound_four`):** since `D 3 2 = false` and `D 3 3 = true`,
+the first reset of `D 3` at or after `max (frontBound 2) (frontBound 3) = 2` is at `u = 3`, giving
+`frontBound 4 = 4`. -/
+theorem frontBound_four : frontBound 4 = 4 := by
+  have hmax : max (frontBound 2) (frontBound 3) = 2 := by
+    rw [frontBound_two, frontBound_three]; rfl
+  have hD3_2 : D 3 2 = false := by decide
+  have hD3_3 : D 3 3 = true := by decide
+  have h : ∃ u, max (frontBound 2) (frontBound 3) ≤ u ∧ D 3 u = true :=
+    ⟨3, by omega, hD3_3⟩
+  obtain ⟨u, hu, hblack, hwhite, hR⟩ := frontBound_reset (j := 2) h
+  change frontBound 4 = u + 1 at hR
+  change D 3 u = true at hblack
+  rw [show (2 + 1 : Nat) = 3 by rfl, hmax] at hu hwhite
+  have hu2 : 2 ≤ u := by omega
+  have hu_ne2 : u ≠ 2 := by
+    intro heq
+    rw [heq, hD3_2] at hblack
+    exact Bool.noConfusion hblack
+  have hle : u ≤ 3 := by
+    refine Classical.byContradiction fun hgt => ?_
+    have hw := hwhite 3 (by omega) (by omega)
+    change D 3 3 = false at hw
+    exact Bool.noConfusion (hw.symm.trans hD3_3)
+  omega
+
+/-- **Exact Front Bound at Depth 5 (`frontBound_five`):** since `max (frontBound 3) (frontBound 4) = 4`
+and `D 4 4 = true`, diagonal `4` resets immediately at `u = 4`, giving `frontBound 5 = 5`. -/
+theorem frontBound_five : frontBound 5 = 5 := by
+  have hmax : max (frontBound 3) (frontBound 4) = 4 := by
+    rw [frontBound_three, frontBound_four]; rfl
+  have hD4_4 : D 4 4 = true := by decide
+  have h : ∃ u, max (frontBound 3) (frontBound 4) ≤ u ∧ D 4 u = true :=
+    ⟨4, by omega, hD4_4⟩
+  obtain ⟨u, hu, _, hwhite, hR⟩ := frontBound_reset (j := 3) h
+  change frontBound 5 = u + 1 at hR
+  rw [show (3 + 1 : Nat) = 4 by rfl, hmax] at hu hwhite
+  have hu4 : 4 ≤ u := by omega
+  have hle : u ≤ 4 := by
+    refine Classical.byContradiction fun hgt => ?_
+    have hw := hwhite 4 (by omega) (by omega)
+    change D 4 4 = false at hw
+    exact Bool.noConfusion (hw.symm.trans hD4_4)
+  omega
+
+/-- **Closed-Form Evaluation of `periodSum` for `2 ^ j` (`periodSum_two_pow`):** for every
+`k : Nat`, `periodSum (fun j => 2 ^ j) k = 2 ^ k`. -/
+theorem periodSum_two_pow (k : Nat) : periodSum (fun j => 2 ^ j) k = 2 ^ k := by
+  induction k with
+  | zero => rfl
+  | succ k ih =>
+    simp only [periodSum, ih, Nat.pow_succ]
+    omega
+
+/-- **Universal `2 ^ k` Upper Bound on `frontBound` (`frontBound_le_two_pow`):** for every
+`k : Nat`, `frontBound k ≤ 2 ^ k`. -/
+theorem frontBound_le_two_pow (k : Nat) : frontBound k ≤ 2 ^ k := by
+  have h := frontBound_le_periodSum (f := fun j => 2 ^ j)
+    (fun j => Nat.pow_pos (by decide : 0 < 2))
+    (fun j => ⟨frontBound j, D_periodic_from_frontBound j⟩) k
+  rwa [periodSum_two_pow] at h
+
+/-- **Sharpened `2 ^ k - 27` Upper Bound on `frontBound` (`frontBound_add_twenty_seven_le_two_pow`):**
+because `frontBound 4 = 4 = 2 ^ 4 - 12` and `frontBound 5 = 5 = 2 ^ 5 - 27`, for every `k ≥ 5` we
+have `frontBound k + 27 ≤ 2 ^ k`. -/
+theorem frontBound_add_twenty_seven_le_two_pow : ∀ k, 5 ≤ k → frontBound k + 27 ≤ 2 ^ k := by
+  have hpow_ge : ∀ d, 16 ≤ 2 ^ (d + 4) := by
+    intro d
+    induction d with
+    | zero => decide
+    | succ d ih =>
+      rw [show d + 1 + 4 = (d + 4) + 1 by omega, Nat.pow_succ]
+      omega
+  have pair : ∀ d, frontBound (d + 4) + 12 ≤ 2 ^ (d + 4) ∧
+      frontBound (d + 5) + 27 ≤ 2 ^ (d + 5) := by
+    intro d
+    induction d with
+    | zero =>
+      refine ⟨by change frontBound 4 + 12 ≤ 16; rw [frontBound_four]; decide,
+              by change frontBound 5 + 27 ≤ 32; rw [frontBound_five]; decide⟩
+    | succ d ih =>
+      obtain ⟨h0, h1⟩ := ih
+      have hge16 := hpow_ge d
+      have hpow5 : 2 ^ (d + 5) = 2 ^ (d + 4) + 2 ^ (d + 4) := by
+        rw [show d + 5 = (d + 4) + 1 by omega, Nat.pow_succ]; omega
+      have hpow6 : 2 ^ (d + 1 + 5) = 2 ^ (d + 5) + 2 ^ (d + 5) := by
+        rw [show d + 1 + 5 = (d + 5) + 1 by omega, Nat.pow_succ]; omega
+      have h1' : frontBound (d + 1 + 4) + 12 ≤ 2 ^ (d + 1 + 4) := by
+        rw [show d + 1 + 4 = d + 5 by omega]
+        omega
+      refine ⟨h1', ?_⟩
+      have hper := D_periodic_from_frontBound (d + 5)
+      have hstep := frontBound_step_le (j := d + 4)
+        (Nat.pow_pos (by decide : 0 < 2)) hper
+      change frontBound (d + 6) ≤ max (frontBound (d + 4)) (frontBound (d + 5)) + 2 ^ (d + 5) at hstep
+      rw [show d + 1 + 5 = d + 6 by omega] at hpow6 ⊢
+      omega
+  intro k hk
+  obtain ⟨d, rfl⟩ : ∃ d, k = d + 5 := ⟨k - 5, by omega⟩
+  exact (pair d).2
+
+/-- **Explicit `2 ^ k - 27` Onset of `2 ^ k`-Periodicity (`D_periodic_from_two_pow_sub_twenty_seven`):**
+for every `k ≥ 5` and every `t` with `2 ^ k - 27 ≤ t`, `D k (t + 2 ^ k) = D k t`. -/
+theorem D_periodic_from_two_pow_sub_twenty_seven {k t : Nat} (hk : 5 ≤ k) (ht : 2 ^ k - 27 ≤ t) :
+    D k (t + 2 ^ k) = D k t := by
+  have hfb := frontBound_add_twenty_seven_le_two_pow k hk
+  exact D_periodic_from_frontBound k t (by omega)
+
 end Rule30FrontLaw
 end Ruliology.CellularAutomata
