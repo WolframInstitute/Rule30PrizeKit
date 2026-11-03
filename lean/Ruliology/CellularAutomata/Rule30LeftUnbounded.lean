@@ -390,5 +390,98 @@ theorem D_infinitely_many_black (N : Nat) : ∃ j, N < j ∧ ∃ T, ∀ t, T ≤
   obtain ⟨j, hj, hw⟩ := D_infinitely_many_white N
   exact ⟨j + 2, by omega, D_black_after_white hw⟩
 
+/-! ### Explicit Quantitative Bounds on `whiteCount` and the Next Settled Diagonals -/
+
+open Classical in
+/-- **Monotonicity of `whiteCount` (`whiteCount_mono`):** for all `i ≤ k`,
+`whiteCount i ≤ whiteCount k`. -/
+theorem whiteCount_mono {i k : Nat} (hik : i ≤ k) : whiteCount i ≤ whiteCount k := by
+  induction k with
+  | zero =>
+    have : i = 0 := by omega
+    subst this
+    exact Nat.le_refl _
+  | succ k ih =>
+    rcases Nat.lt_or_ge i (k + 1) with hlt | hge
+    · have hle := ih (by omega)
+      simp only [whiteCount]
+      by_cases hw : EvWhite (D (k + 1)) <;> simp [hw] <;> omega
+    · have : i = k + 1 := by omega
+      subst this
+      exact Nat.le_refl _
+
+/-- **Quantitative Lower Bound on `whiteCount` at `2 ^ (2 * 2 ^ N)` (`whiteCount_two_pow_lower_bound`):**
+for every `N : Nat`, `N + 1 ≤ whiteCount (2 ^ (2 * 2 ^ N))`. -/
+theorem whiteCount_two_pow_lower_bound (N : Nat) :
+    N + 1 ≤ whiteCount (2 ^ (2 * 2 ^ N)) := by
+  obtain ⟨j, hj_le, hj_nper⟩ := D_period_unbounded (2 ^ N) (Nat.two_pow_pos _)
+  have hj_gt : N < whiteCount j := by
+    refine Classical.byContradiction fun hle => ?_
+    have hd : 2 ^ whiteCount j ∣ 2 ^ N := Nat.pow_dvd_pow 2 (by omega)
+    exact hj_nper (EvPer.of_dvd (D_evper_pow_whiteCount j) hd)
+  have hmono := whiteCount_mono hj_le
+  omega
+
+open Classical in
+/-- **Constancy of `whiteCount` Across a White-Free Interval (`whiteCount_eq_of_no_white_range`):**
+if no `j` with `N < j ≤ M` satisfies `EvWhite (D j)`, then for every `k` with `N ≤ k ≤ M`,
+`whiteCount k = whiteCount N`. -/
+theorem whiteCount_eq_of_no_white_range {N M : Nat}
+    (hno : ∀ j, N < j → j ≤ M → ¬ EvWhite (D j)) :
+    ∀ k, N ≤ k → k ≤ M → whiteCount k = whiteCount N := by
+  intro k hNk hkM
+  induction k with
+  | zero =>
+    have : N = 0 := by omega
+    subst this
+    rfl
+  | succ k ih =>
+    rcases Nat.lt_or_ge N (k + 1) with hlt | hge
+    · have hnw : ¬ EvWhite (D (k + 1)) := hno (k + 1) hlt hkM
+      simp only [whiteCount, hnw, ↓reduceIte, Nat.add_zero]
+      exact ih (by omega) (by omega)
+    · have : N = k + 1 := by omega
+      subst this
+      rfl
+
+/-- **Explicit Upper Bound on the Next Eventually White Diagonal (`D_next_white_explicit_bound`):**
+for every `N : Nat`, there exists `j` with `N < j`, `j ≤ 2 ^ (2 * 2 ^ whiteCount N)`, and
+`EvWhite (D j)`. -/
+theorem D_next_white_explicit_bound (N : Nat) :
+    ∃ j, N < j ∧ j ≤ 2 ^ (2 * 2 ^ whiteCount N) ∧ EvWhite (D j) := by
+  by_cases h : ∃ j, N < j ∧ j ≤ 2 ^ (2 * 2 ^ whiteCount N) ∧ EvWhite (D j)
+  · exact h
+  · exfalso
+    have hno : ∀ j, N < j → j ≤ 2 ^ (2 * 2 ^ whiteCount N) → ¬ EvWhite (D j) :=
+      fun j h1 h2 hw => h ⟨j, h1, h2, hw⟩
+    obtain ⟨j, hj_le, hj_nper⟩ :=
+      D_period_unbounded (2 ^ whiteCount N) (Nat.two_pow_pos _)
+    rcases Nat.lt_or_ge N j with hgt | hle
+    · have hwc := whiteCount_eq_of_no_white_range hno j (by omega) hj_le
+      have hper := D_evper_pow_whiteCount j
+      rw [hwc] at hper
+      exact hj_nper hper
+    · have hmono := whiteCount_mono hle
+      have hd : 2 ^ whiteCount j ∣ 2 ^ whiteCount N := Nat.pow_dvd_pow 2 hmono
+      exact hj_nper (EvPer.of_dvd (D_evper_pow_whiteCount j) hd)
+
+/-- **Explicit Upper Bound on the Next Settled White-Black Diagonal Pair (`D_next_settled_pair_explicit_bound`):**
+for every `N : Nat`, there exists `j` with `N < j` and `j ≤ 2 ^ (2 * 2 ^ whiteCount N)` such that
+`EvWhite (D j)` and `D (j + 2)` is eventually black. -/
+theorem D_next_settled_pair_explicit_bound (N : Nat) :
+    ∃ j, N < j ∧ j ≤ 2 ^ (2 * 2 ^ whiteCount N) ∧
+      EvWhite (D j) ∧ (∃ T, ∀ t, T ≤ t → D (j + 2) t = true) := by
+  obtain ⟨j, hj_gt, hj_le, hw⟩ := D_next_white_explicit_bound N
+  exact ⟨j, hj_gt, hj_le, hw, D_black_after_white hw⟩
+
+/-- **Explicit Upper Bound on the Next Eventually Black Diagonal (`D_next_black_explicit_bound`):**
+for every `N : Nat`, there exists `j` with `N < j` and `j ≤ 2 ^ (2 * 2 ^ whiteCount N) + 2` such
+that `D j` is eventually black (`∃ T, ∀ t, T ≤ t → D j t = true`). -/
+theorem D_next_black_explicit_bound (N : Nat) :
+    ∃ j, N < j ∧ j ≤ 2 ^ (2 * 2 ^ whiteCount N) + 2 ∧
+      ∃ T, ∀ t, T ≤ t → D j t = true := by
+  obtain ⟨j, hj_gt, hj_le, _, hb⟩ := D_next_settled_pair_explicit_bound N
+  exact ⟨j + 2, by omega, by omega, hb⟩
+
 end Rule30LeftUnbounded
 end Ruliology.CellularAutomata
