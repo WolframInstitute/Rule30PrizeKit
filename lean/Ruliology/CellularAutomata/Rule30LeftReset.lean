@@ -266,5 +266,98 @@ theorem D_evper_bounded_of_finite_white {N : Nat} (hN : ∀ j, N < j → ¬ EvWh
     rwa [Nat.mul_comm] at this
   · rw [← hc j h]; exact D_evper_pow_whiteCount j
 
+/-! ### Half-Depth Bound on `whiteCount` and Square-Root Eventual Period `2 ^ (j / 2)` for `D j` -/
+
+/-- **First Left Diagonal Is Never Eventually White (`D_one_not_evwhite`):** `¬ EvWhite (D 1)`. -/
+theorem D_one_not_evwhite : ¬ EvWhite (D 1) := by
+  rintro ⟨T, hT⟩
+  have h1 := hT (T + 1) (by omega)
+  rw [D_one] at h1
+  exact Bool.noConfusion h1
+
+/-- **Second Left Diagonal Is Eventually White (`D_two_evwhite`):** `EvWhite (D 2)`. -/
+theorem D_two_evwhite : EvWhite (D 2) := by
+  refine ⟨2, fun t ht => ?_⟩
+  obtain ⟨u, rfl⟩ : ∃ u, t = u + 2 := ⟨t - 2, by omega⟩
+  have e : D 2 (u + 2) = xor (D 0 (u + 1)) (D 1 (u + 1) || D 2 (u + 1)) := D_step 0 (u + 1)
+  rw [e, D_zero, D_one]
+  rfl
+
+/-- **No Two Consecutive Left Diagonals Are Eventually White (`no_two_consecutive_evwhite`):**
+for every `j : Nat`, `¬ (EvWhite (D j) ∧ EvWhite (D (j + 1)))`. -/
+theorem no_two_consecutive_evwhite : ∀ j, ¬ (EvWhite (D j) ∧ EvWhite (D (j + 1))) := by
+  intro j
+  induction j with
+  | zero =>
+    rintro ⟨⟨T, hT⟩, _⟩
+    have := hT T (Nat.le_refl T)
+    rw [D_zero] at this
+    exact Bool.noConfusion this
+  | succ j ih =>
+    rintro ⟨h1, h2⟩
+    apply ih
+    refine ⟨?_, h1⟩
+    obtain ⟨T2, hT2⟩ := h2
+    obtain ⟨T1, hT1⟩ := h1
+    refine ⟨max T1 T2, fun t ht => ?_⟩
+    rw [D_white_of_eq (s := T2) hT2 t (by omega)]
+    exact hT1 t (by omega)
+
+open Classical in
+/-- **Exact `whiteCount` Values up to Depth 3 (`whiteCount_one`, `whiteCount_two`, `whiteCount_three`):**
+`whiteCount 1 = 0`, `whiteCount 2 = 1`, and `whiteCount 3 = 1`. -/
+theorem whiteCount_one : whiteCount 1 = 0 := by
+  simp [whiteCount, D_one_not_evwhite]
+
+open Classical in
+/-- **Exact `whiteCount` at Depth 2 (`whiteCount_two`):** `whiteCount 2 = 1`. -/
+theorem whiteCount_two : whiteCount 2 = 1 := by
+  rw [show (2 : Nat) = 1 + 1 by rfl, whiteCount, whiteCount_one]
+  simp [D_two_evwhite]
+
+open Classical in
+/-- **Exact `whiteCount` at Depth 3 (`whiteCount_three`):** `whiteCount 3 = 1`. -/
+theorem whiteCount_three : whiteCount 3 = 1 := by
+  have hnot3 : ¬ EvWhite (D 3) := fun h3 => no_two_consecutive_evwhite 2 ⟨D_two_evwhite, h3⟩
+  rw [show (3 : Nat) = 2 + 1 by rfl, whiteCount, whiteCount_two]
+  simp [hnot3]
+
+open Classical in
+/-- **Two-Step Growth Bound on `whiteCount` (`whiteCount_add_two_le`):** because no two consecutive
+diagonals can both be eventually white, `whiteCount (j + 2) ≤ whiteCount j + 1` for every `j`. -/
+theorem whiteCount_add_two_le (j : Nat) : whiteCount (j + 2) ≤ whiteCount j + 1 := by
+  have hno := no_two_consecutive_evwhite (j + 1)
+  rw [show j + 2 = (j + 1) + 1 by rfl, whiteCount, whiteCount]
+  by_cases h1 : EvWhite (D (j + 1))
+  · have h2 : ¬ EvWhite (D (j + 1 + 1)) := fun h => hno ⟨h1, h⟩
+    simp [h1, h2]
+  · by_cases h2 : EvWhite (D (j + 1 + 1)) <;> simp [h1, h2]
+
+/-- **Half-Depth Upper Bound on `whiteCount` (`whiteCount_le_half`):** for every `j : Nat`,
+`whiteCount j ≤ j / 2`. -/
+theorem whiteCount_le_half : ∀ j, whiteCount j ≤ j / 2 := by
+  have pair : ∀ j, whiteCount j ≤ j / 2 ∧ whiteCount (j + 1) ≤ (j + 1) / 2 := by
+    intro j
+    induction j with
+    | zero =>
+      refine ⟨by simp [whiteCount], by rw [whiteCount_one]; decide⟩
+    | succ j ih =>
+      obtain ⟨h0, h1⟩ := ih
+      refine ⟨h1, ?_⟩
+      change whiteCount (j + 2) ≤ (j + 2) / 2
+      have hstep := whiteCount_add_two_le j
+      omega
+  exact fun j => (pair j).1
+
+/-- **Half-Rate Eventual Period `2 ^ (j / 2)` for Every Left Diagonal (`D_evper_pow_half`):**
+for every `j : Nat`, `EvPer (D j) (2 ^ (j / 2))`. -/
+theorem D_evper_pow_half (j : Nat) : EvPer (D j) (2 ^ (j / 2)) := by
+  obtain ⟨T, hT⟩ := D_evper_pow_whiteCount j
+  have hle := whiteCount_le_half j
+  obtain ⟨d, hd⟩ : ∃ d, j / 2 = whiteCount j + d := ⟨j / 2 - whiteCount j, by omega⟩
+  refine ⟨T, fun t ht => ?_⟩
+  rw [hd, Nat.pow_add, Nat.mul_comm]
+  exact periodic_iter hT (2 ^ d) t ht
+
 end Rule30LeftReset
 end Ruliology.CellularAutomata
