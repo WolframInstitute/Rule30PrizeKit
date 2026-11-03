@@ -6,9 +6,10 @@ public import Ruliology.CellularAutomata.Rule30Jen
 # Moving walls: exact front speeds of an inserted edge on two ring backgrounds
 
 Take a spatially periodic background orbit of rule 30 (a ring word `w`, evolved on the whole line) and insert one black
-cell, with white to its right. On the ring backgrounds `100100000` (temporal period 57) and `1010000` (temporal period 63)
+cell, with white to its right. On the ring backgrounds `100100000` and `1010000`, at the alignments `(0, 0)` and `(0, 4)`,
 the leftmost difference from the background moves left at an exact rational speed, for all time and whatever the damage
-behind it does:
+behind it does. (The ring orbits have periods 57 and 63 in the diagonal coordinate `t - x`; at a fixed column the
+backgrounds repeat every 171 and 63 ticks.)
 
 * `Ring57.edge_law`: for every `t ≥ 300` there is an anchor `A` with the background intact at and left of `A`, a
   difference within the 24 cells right of `A`, and `-14 ≤ 19 (A + 72) + 5 (t - 300) ≤ 22`: speed exactly `5/19`.
@@ -962,7 +963,7 @@ theorem law_from {H : Nat → Int → Bool} (hH : IsR30Z H) (hinv : Inv H 300 (-
   rw [show 300 + (t - 300) = t by omega] at hI
   refine ⟨A, hI.2.2.1, mismatch_of_ne hI hne', ?_, ?_⟩ <;> push_cast [show ((t - 300 : Nat) : Int) = (t : Int) - 300 by omega] at hψ <;> omega
 
-/-- **The front law of the inserted edge on the ring background `100100000` (temporal period 57).** For every `t ≥ 300`
+/-- **The front law of the inserted edge on the ring background `100100000` (ring orbit of period 57).** For every `t ≥ 300`
 there is an anchor `A` with the background intact at and left of `A`, a mismatch within the 24 cells right of it, and
 `-14 ≤ 19 (A + 72) + 5 (t - 300) ≤ 22`. So the leftmost difference moves left at exactly `5/19` cell per tick. -/
 theorem edge_law : ∀ t : Nat, 300 ≤ t → ∃ A : Int, (∀ x, x ≤ A → Gedge t x = E t x) ∧
@@ -1486,7 +1487,7 @@ theorem law_from {H : Nat → Int → Bool} (hH : IsR30Z H) (hinv : Inv H 300 (-
   rw [show 300 + (t - 300) = t by omega] at hI
   refine ⟨A, hI.2.2.1, mismatch_of_ne hI hne', ?_, ?_⟩ <;> push_cast [show ((t - 300 : Nat) : Int) = (t : Int) - 300 by omega] at hψ <;> omega
 
-/-- **The front law of the inserted edge on the ring background `1010000` (temporal period 63).** For every `t ≥ 300`
+/-- **The front law of the inserted edge on the ring background `1010000` (ring orbit of period 63).** For every `t ≥ 300`
 there is an anchor `A` with the background intact at and left of `A`, a mismatch within the 16 cells right of it, and
 `-20 ≤ 9 (A + 55) + 2 (t - 300) ≤ 4`. So the leftmost difference moves left at exactly `2/9` cell per tick. -/
 theorem edge_law : ∀ t : Nat, 300 ≤ t → ∃ A : Int, (∀ x, x ≤ A → Gedge t x = E t x) ∧
