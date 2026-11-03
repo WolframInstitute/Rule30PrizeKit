@@ -1248,5 +1248,225 @@ theorem hist_sym_eq_FG (x : Nat → Int → Bool) (hx : LeftStep x)
   rw [atDepth_W x p q n d hd] at hrec
   exact ⟨fun hn => hrec.1 (Or.inr ⟨hth, hn⟩), fun hn => hrec.2 (Or.inr ⟨hth, hn⟩)⟩
 
+/-! ## 4. Universal Terminal Pin at All Steps `n` and Shifted-Window Repeat Bounds -/
+
+/-- **Universal Pin of `W x p q n` at Every Step `n` (`terminalHigh_W`):** for any left-step history
+`x` with `1 ≤ p`, `flip`, `hpin`, and `x (q + 1 + p) 0 = false`, the terminal high bit
+`terminalHigh (W x p q n)` equals `true` at every update step `n : Nat`. -/
+theorem terminalHigh_W (x : Nat → Int → Bool)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true)
+    (p q : Nat) (hp : 1 ≤ p) (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) (n : Nat) :
+    terminalHigh (W x p q n) = true := by
+  unfold terminalHigh W
+  have hp_eq : p + n = (p + n - 1) + 1 := by omega
+  rw [hp_eq, getLast?_seg_succ]
+  simp only [Nat.zero_add, sym, symA]
+  have hev := center_even_hist x flip (q + 1 + p) hc n
+  have c2 : x (q + p + 2 * n + 1) 0 = false :=
+    (cell_congr x _ _ _ _ (by omega) rfl).trans hev
+  have c1 : x (q + p + 2 * n) 0 = true := by
+    have h := flip (q + p + 2 * n)
+    rw [c2] at h
+    revert h
+    cases x (q + p + 2 * n) 0 <;> simp
+  have hp_pin := hpin (q + p + 2 * n) c1 c2
+  exact (cell_congr x _ _ _ _ (by omega) (by omega)).trans hp_pin
+
+/-- Shifted scalar tape of length `L` emitted starting from update step `n₀`. -/
+def histTapeFrom (x : Nat → Int → Bool) (p q n₀ : Nat) : Nat → List Bool
+  | 0 => []
+  | L + 1 => histTapeFrom x p q n₀ L ++ [histScalar x p q (n₀ + L)]
+
+/-- **Shifted History Run Identity (`run_W_from`):** starting from the intermediate frontier
+`W x p q n₀`, running `L` updates reaches `W x p q (n₀ + L)` and emits `histTapeFrom x p q n₀ L`. -/
+theorem run_W_from (x : Nat → Int → Bool) (hx : LeftStep x)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true) (d : Int)
+    (hd : 1 ≤ d) (p q : Nat) (h1 : x 0 (-d) = true)
+    (h0 : ∀ j : Int, j < -d → x 0 j = false)
+    (hhi : d + (q : Int) + 1 ≤ (p : Int) + 1)
+    (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) (n₀ L : Nat) :
+    run (W x p q n₀) L = some (W x p q (n₀ + L), histTapeFrom x p q n₀ L) := by
+  induction L with
+  | zero => simp [ run, histTapeFrom ]
+  | succ L ih =>
+    simp only [run, ih, Z_W x hx hpin d hd p q h1 h0 hhi flip hc (n₀ + L),
+      histTapeFrom, histScalar, Nat.add_assoc]
+
+/-- **Shifted Alternating-Run Bound (`histTapeFrom_runBound_tight`):** on any window `[n₀, n₀ + L)`,
+if `repeats (histTapeFrom x p q n₀ L) = 0`, then `L ≤ p + n₀ + 1`. -/
+theorem histTapeFrom_runBound_tight (x : Nat → Int → Bool) (hx : LeftStep x)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true) (d : Int)
+    (hd : 1 ≤ d) (p q : Nat) (h1 : x 0 (-d) = true)
+    (h0 : ∀ j : Int, j < -d → x 0 j = false)
+    (hlo : (p : Int) ≤ d + (q : Int) + 1)
+    (hhi : d + (q : Int) + 1 ≤ (p : Int) + 1) (hp : 1 ≤ p)
+    (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) (n₀ L : Nat)
+    (hrep : repeats (histTapeFrom x p q n₀ L) = 0) :
+    L ≤ p + n₀ + 1 := by
+  have hleg := legal_W x hx d hd p q h1 h0 hlo hhi hp n₀
+  have hrun := run_W_from x hx hpin d hd p q h1 h0 hhi flip hc n₀ L
+  have hth := terminalHigh_W x hpin p q hp flip hc n₀
+  have hrb := (runBound_holds (W x p q n₀) (W x p q (n₀ + L)) L (histTapeFrom x p q n₀ L) hleg hrun hrep).2 hth
+  rwa [length_W] at hrb
+
+/-- **Guaranteed Column-`(-2)` Repeat Within `p + 2` Steps (`repeats_histTape_pos`):** in any
+left-step history `x` satisfying the `run_W` hypotheses, the scalar tape `histTape x p q (p + 2)` of
+length `p + 2` contains at least one adjacent repeat (`1 ≤ repeats (histTape x p q (p + 2))`). -/
+theorem repeats_histTape_pos (x : Nat → Int → Bool) (hx : LeftStep x)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true) (d : Int)
+    (hd : 1 ≤ d) (p q : Nat) (h1 : x 0 (-d) = true)
+    (h0 : ∀ j : Int, j < -d → x 0 j = false)
+    (hlo : (p : Int) ≤ d + (q : Int) + 1)
+    (hhi : d + (q : Int) + 1 ≤ (p : Int) + 1) (hp : 1 ≤ p)
+    (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) :
+    1 ≤ repeats (histTape x p q (p + 2)) := by
+  by_cases hpos : 1 ≤ repeats (histTape x p q (p + 2))
+  · exact hpos
+  · have hzero : repeats (histTape x p q (p + 2)) = 0 := by omega
+    have hle := histTape_runBound_tight x hx hpin d hd p q h1 h0 hlo hhi hp flip hc (p + 2) hzero
+    omega
+
+/-- **Shifted Exponential Survival Bound (`histTapeFrom_survival_tight`):** for every start step
+`n₀ : Nat` and window length `N ≥ 1`,
+`p + n₀ + N + 1 ≤ 2 ^ (repeats (histTapeFrom x p q n₀ N) + 1) * (p + n₀ + 1)`. -/
+theorem histTapeFrom_survival_tight (x : Nat → Int → Bool) (hx : LeftStep x)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true) (d : Int)
+    (hd : 1 ≤ d) (p q : Nat) (h1 : x 0 (-d) = true)
+    (h0 : ∀ j : Int, j < -d → x 0 j = false)
+    (hlo : (p : Int) ≤ d + (q : Int) + 1)
+    (hhi : d + (q : Int) + 1 ≤ (p : Int) + 1) (hp : 1 ≤ p)
+    (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) (n₀ N : Nat) (hN : 1 ≤ N) :
+    p + n₀ + N + 1 ≤ 2 ^ (repeats (histTapeFrom x p q n₀ N) + 1) * (p + n₀ + 1) := by
+  have hleg := legal_W x hx d hd p q h1 h0 hlo hhi hp n₀
+  have hrun := run_W_from x hx hpin d hd p q h1 h0 hhi flip hc n₀ N
+  have hth := terminalHigh_W x hpin p q hp flip hc n₀
+  have hsurv := (survival_holds (W x p q n₀) (W x p q (n₀ + N)) N (histTapeFrom x p q n₀ N) hleg hN hrun).2 hth
+  rwa [length_W] at hsurv
+
+/-- **Shifted Logarithmic Repeat Growth (`histTapeFrom_repeats_ge`):** from any start step `n₀ : Nat`,
+over the next `2 ^ K * (p + n₀ + 1)` updates the shifted scalar tape accumulates at least `K`
+adjacent repeats (`K ≤ repeats (histTapeFrom x p q n₀ (2 ^ K * (p + n₀ + 1)))`). -/
+theorem histTapeFrom_repeats_ge (x : Nat → Int → Bool) (hx : LeftStep x)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true) (d : Int)
+    (hd : 1 ≤ d) (p q : Nat) (h1 : x 0 (-d) = true)
+    (h0 : ∀ j : Int, j < -d → x 0 j = false)
+    (hlo : (p : Int) ≤ d + (q : Int) + 1)
+    (hhi : d + (q : Int) + 1 ≤ (p : Int) + 1) (hp : 1 ≤ p)
+    (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) (n₀ K : Nat) :
+    K ≤ repeats (histTapeFrom x p q n₀ (2 ^ K * (p + n₀ + 1))) := by
+  have hpow_pos : 1 ≤ 2 ^ K := Nat.one_le_pow K 2 (by omega)
+  have hN : 1 ≤ 2 ^ K * (p + n₀ + 1) := by
+    have : 1 * 2 ≤ 2 ^ K * (p + n₀ + 1) := Nat.mul_le_mul hpow_pos (by omega)
+    omega
+  have hsurv := histTapeFrom_survival_tight x hx hpin d hd p q h1 h0 hlo hhi hp flip hc
+    n₀ (2 ^ K * (p + n₀ + 1)) hN
+  have hpow_lt : 2 ^ K < 2 ^ (repeats (histTapeFrom x p q n₀ (2 ^ K * (p + n₀ + 1))) + 1) := by
+    by_cases hlt : 2 ^ K < 2 ^ (repeats (histTapeFrom x p q n₀ (2 ^ K * (p + n₀ + 1))) + 1)
+    · exact hlt
+    · exfalso
+      have hle : 2 ^ (repeats (histTapeFrom x p q n₀ (2 ^ K * (p + n₀ + 1))) + 1) * (p + n₀ + 1) ≤
+          2 ^ K * (p + n₀ + 1) :=
+        Nat.mul_le_mul_right (p + n₀ + 1) (by omega)
+      omega
+  have hlt := lt_of_pow_lt_pow_two hpow_lt
+  omega
+
+/-! ## 5. Closed-Form Algebraic Laws of `FG` at Depths `2, 3, 4` and Exact Spacetime Readout -/
+
+/-- **Closed Form of `FG` at Depth `2` (`FG_two`):** for every scalar stream `W : Nat → Bool` and
+offset `j : Nat`, `FG W 2 j = (!W j, !W j)`. -/
+theorem FG_two (W : Nat → Bool) (j : Nat) :
+    FG W 2 j = (!W j, !W j) := by
+  change (xor (W j) (W j || true), xor (W j) (W (j + 1) || !W (j + 1))) = (!W j, !W j)
+  cases W j <;> cases W (j + 1) <;> rfl
+
+/-- **Closed Form of `FG` at Depth `3` (`FG_three`):** for every scalar stream `W : Nat → Bool` and
+offset `j : Nat`, `FG W 3 j = (W j && W (j + 1), W j)`. -/
+theorem FG_three (W : Nat → Bool) (j : Nat) :
+    FG W 3 j = (W j && W (j + 1), W j) := by
+  change (xor (FG W 2 j).1 ((FG W 2 j).2 || (FG W 1 (j + 1)).1),
+    xor (FG W 2 j).2 ((FG W 2 (j + 1)).1 || (FG W 1 (j + 1)).2)) = _
+  rw [FG_two W j, FG_two W (j + 1)]
+  change (xor (!W j) (!W j || W (j + 1)), xor (!W j) (!W (j + 1) || W (j + 1))) = _
+  cases W j <;> cases W (j + 1) <;> rfl
+
+/-- **Closed Form of `FG` at Depth `4` (`FG_four`):** for every scalar stream `W : Nat → Bool` and
+offset `j : Nat`, `FG W 4 j = (!W (j + 1), xor (W j) (!W (j + 1) || W (j + 2)))`; in particular, the
+high bit `(FG W 4 j).1` is `!W (j + 1)`, independent of `W j`. -/
+theorem FG_four (W : Nat → Bool) (j : Nat) :
+    FG W 4 j = (!W (j + 1), xor (W j) (!W (j + 1) || W (j + 2))) := by
+  change (xor (FG W 3 j).1 ((FG W 3 j).2 || (FG W 2 (j + 1)).1),
+    xor (FG W 3 j).2 ((FG W 3 (j + 1)).1 || (FG W 2 (j + 1)).2)) = _
+  rw [FG_three W j, FG_three W (j + 1), FG_two W (j + 1)]
+  cases W j <;> cases W (j + 1) <;> cases W (j + 2) <;> rfl
+
+/-- Reversing `l ++ [b]` prepends `b` to `l.reverse` for Boolean tapes. -/
+theorem reverse_append_bool (l : List Bool) (b : Bool) :
+    (l ++ [b]).reverse = b :: l.reverse := by
+  simp
+
+/-- **Exact Reverse Indexing of `histTape` (`window_histTape_lt`):** for every `j < n`, the `j`-th
+recent scalar `window (histTape x p q n) j` equals `histScalar x p q (n - 1 - j)`. -/
+theorem window_histTape_lt (x : Nat → Int → Bool) (p q : Nat) :
+    ∀ (n j : Nat), j < n → window (histTape x p q n) j = histScalar x p q (n - 1 - j)
+  | 0, _, hj => by omega
+  | n + 1, 0, _ => by
+    unfold window histTape
+    rw [reverse_append_bool]
+    rfl
+  | n + 1, j + 1, hj => by
+    unfold window histTape
+    rw [reverse_append_bool]
+    change window (histTape x p q n) j = histScalar x p q (n + 1 - 1 - (j + 1))
+    rw [window_histTape_lt x p q n j (by omega)]
+    congr 1; omega
+
+/-- **Exact Depth-2 Spacetime Readout (`hist_sym_depth2_eq`):** for `2 < p + n` and `2 ≤ n`, the
+symbol at depth `2` of `W x p q n` is `(!histScalar x p q (n - 1), !histScalar x p q (n - 1))`. -/
+theorem hist_sym_depth2_eq (x : Nat → Int → Bool) (hx : LeftStep x)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true) (d0 : Int)
+    (hd0 : 1 ≤ d0) (p q : Nat) (h1 : x 0 (-d0) = true)
+    (h0 : ∀ j : Int, j < -d0 → x 0 j = false)
+    (hlo : (p : Int) ≤ d0 + (q : Int) + 1)
+    (hhi : d0 + (q : Int) + 1 ≤ (p : Int) + 1) (hp : 1 ≤ p)
+    (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) (n : Nat) (hd : 2 < p + n) (hn : 2 ≤ n) :
+    symA x p q n (p + n - 3) = !histScalar x p q (n - 1) ∧
+      symB x p q n (p + n - 3) = !histScalar x p q (n - 1) := by
+  have hfg := hist_sym_eq_FG x hx hpin d0 hd0 p q h1 h0 hlo hhi hp flip hc n 2 hd
+  have h1' := hfg.1 (by omega)
+  have h2' := hfg.2 (by omega)
+  rw [show p + n - 1 - 2 = p + n - 3 by omega, FG_two,
+    window_histTape_lt x p q n 0 (by omega), Nat.sub_zero] at h1' h2'
+  exact ⟨h1', h2'⟩
+
+/-- **Exact Depth-3 Spacetime `11`-Detector Readout (`hist_sym_depth3_eq`):** for `3 < p + n` and
+`2 ≤ n`, the high bit at depth `3` of `W x p q n` is the 2-tick `11`-detector
+`histScalar x p q (n - 1) && histScalar x p q (n - 2)` and the low bit is `histScalar x p q (n - 1)`. -/
+theorem hist_sym_depth3_eq (x : Nat → Int → Bool) (hx : LeftStep x)
+    (hpin : ∀ t : Nat, x t 0 = true → x (t + 1) 0 = false → x t (-1) = true) (d0 : Int)
+    (hd0 : 1 ≤ d0) (p q : Nat) (h1 : x 0 (-d0) = true)
+    (h0 : ∀ j : Int, j < -d0 → x 0 j = false)
+    (hlo : (p : Int) ≤ d0 + (q : Int) + 1)
+    (hhi : d0 + (q : Int) + 1 ≤ (p : Int) + 1) (hp : 1 ≤ p)
+    (flip : ∀ t : Nat, x (t + 1) 0 = !x t 0)
+    (hc : x (q + 1 + p) 0 = false) (n : Nat) (hd : 3 < p + n) (hn : 2 ≤ n) :
+    symA x p q n (p + n - 4) = (histScalar x p q (n - 1) && histScalar x p q (n - 2)) ∧
+      symB x p q n (p + n - 4) = histScalar x p q (n - 1) := by
+  have hfg := hist_sym_eq_FG x hx hpin d0 hd0 p q h1 h0 hlo hhi hp flip hc n 3 hd
+  have h1' := hfg.1 (by omega)
+  have h2' := hfg.2 (by omega)
+  rw [show p + n - 1 - 3 = p + n - 4 by omega, FG_three,
+    window_histTape_lt x p q n 0 (by omega),
+    window_histTape_lt x p q n 1 (by omega),
+    Nat.sub_zero, show n - 1 - 1 = n - 2 by omega] at h1' h2'
+  exact ⟨h1', h2'⟩
+
 end Rule30AlternatingTraceBridge
 end Ruliology.CellularAutomata
