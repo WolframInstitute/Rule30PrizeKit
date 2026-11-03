@@ -1093,6 +1093,102 @@ theorem wall_return (n k : Nat) (hk : k < n) : R (k + 1) (2 ^ B n) = false := by
   rw [h]
   exact R_init (Nat.le_add_left 1 k)
 
+/-! ### Stroboscopic alternation, multi-period half-black balance, and periodic wall return -/
+
+/-- **Monotonicity of `leastExp` (`leastExp_mono`):** for `i ≤ j`, `leastExp i ≤ leastExp j`. -/
+theorem leastExp_mono {i j : Nat} (hij : i ≤ j) : leastExp i ≤ leastExp j :=
+  (leastExp_spec i).le (per_mono_le hij (leastExp_spec j).1)
+
+/-- **Step Formula for `leastExp` (`leastExp_succ_eq`):** for every `j : Nat`,
+`leastExp (j + 1) = leastExp j + (if R (j + 1) (2 ^ leastExp j) then 1 else 0)`. -/
+theorem leastExp_succ_eq (j : Nat) :
+    leastExp (j + 1) = leastExp j + (if R (j + 1) (2 ^ leastExp j) then 1 else 0) :=
+  e_step (leastExp_spec j) (leastExp_spec (j + 1))
+
+/-- **Exact Period-Doubling Criterion for `leastExp` (`leastExp_succ_eq_succ_iff`):**
+`leastExp (j + 1) = leastExp j + 1` if and only if `R (j + 1) (2 ^ leastExp j) = true`. -/
+theorem leastExp_succ_eq_succ_iff (j : Nat) :
+    leastExp (j + 1) = leastExp j + 1 ↔ R (j + 1) (2 ^ leastExp j) = true := by
+  have h := leastExp_succ_eq j
+  cases hb : R (j + 1) (2 ^ leastExp j) <;> simp [hb] at h ⊢ <;> omega
+
+/-- **Exact Period-Preservation Criterion for `leastExp` (`leastExp_succ_eq_self_iff`):**
+`leastExp (j + 1) = leastExp j` if and only if `R (j + 1) (2 ^ leastExp j) = false`. -/
+theorem leastExp_succ_eq_self_iff (j : Nat) :
+    leastExp (j + 1) = leastExp j ↔ R (j + 1) (2 ^ leastExp j) = false := by
+  have h := leastExp_succ_eq j
+  cases hb : R (j + 1) (2 ^ leastExp j) <;> simp [hb] at h ⊢ <;> omega
+
+/-- **Shifted Stroboscopic Alternation at Period-Doubling Diagonals (`R_add_mul_pow_leastExp_of_succ`):**
+whenever `leastExp (j + 1) = leastExp j + 1`, for every `t, m : Nat`,
+`R (j + 1) (t + m * 2 ^ leastExp j) = xor (R (j + 1) t) (m % 2 == 1)`. -/
+theorem R_add_mul_pow_leastExp_of_succ {j : Nat} (h : leastExp (j + 1) = leastExp j + 1)
+    (t : Nat) : ∀ m : Nat,
+    R (j + 1) (t + m * 2 ^ leastExp j) = xor (R (j + 1) t) (m % 2 == 1)
+  | 0 => by simp
+  | m + 1 => by
+    rw [Nat.succ_mul, ← Nat.add_assoc, leastExp_antiperiod h,
+      R_add_mul_pow_leastExp_of_succ h t m, mod2_add m 1]
+    cases R (j + 1) t <;> cases (m % 2 == 1) <;> rfl
+
+/-- **Exact Stroboscopic Alternation from `t = 0` (`R_mul_pow_leastExp_of_succ`):** whenever
+`leastExp (j + 1) = leastExp j + 1`, sampling `R (j + 1)` at multiples `m * 2 ^ leastExp j` yields
+the alternating sequence `m % 2 == 1`. -/
+theorem R_mul_pow_leastExp_of_succ {j : Nat} (h : leastExp (j + 1) = leastExp j + 1)
+    (m : Nat) :
+    R (j + 1) (m * 2 ^ leastExp j) = (m % 2 == 1) := by
+  have h0 := R_add_mul_pow_leastExp_of_succ h 0 m
+  rw [Nat.zero_add, R_init (Nat.le_add_left 1 j)] at h0
+  simpa using h0
+
+/-- **Single-Period Half-Black Balance for `leastExp` (`cnt_leastExp_period_of_succ`):** whenever
+`leastExp (j + 1) = leastExp j + 1`, every window of length `2 ^ leastExp (j + 1)` on `R (j + 1)`
+contains exactly `2 ^ leastExp j` black cells. -/
+theorem cnt_leastExp_period_of_succ {j : Nat} (h : leastExp (j + 1) = leastExp j + 1)
+    (a : Nat) :
+    cnt (R (j + 1)) a (2 ^ leastExp (j + 1)) = 2 ^ leastExp j := by
+  rw [h]
+  exact half_black (leastExp_spec j).1 ((leastExp_succ_eq_succ_iff j).mp h) a
+
+/-- **Multi-Period Phase-Invariant Half-Black Balance (`cnt_leastExp_mul_period_of_succ`):**
+whenever `leastExp (j + 1) = leastExp j + 1`, for every start time `a : Nat` and multiple `m : Nat`,
+`cnt (R (j + 1)) a (m * 2 ^ leastExp (j + 1)) = m * 2 ^ leastExp j`. -/
+theorem cnt_leastExp_mul_period_of_succ {j : Nat} (h : leastExp (j + 1) = leastExp j + 1)
+    (a : Nat) : ∀ m : Nat,
+    cnt (R (j + 1)) a (m * 2 ^ leastExp (j + 1)) = m * 2 ^ leastExp j
+  | 0 => by simp [cnt]
+  | m + 1 => by
+    rw [Nat.succ_mul, cnt_add, cnt_leastExp_mul_period_of_succ h a m,
+      cnt_leastExp_period_of_succ h (a + m * 2 ^ leastExp (j + 1)), Nat.succ_mul]
+
+/-- **Common Half-Rate Period Across All Diagonals `k ≤ n` (`per_prefix_B`):** for every `k ≤ n`,
+diagonal `R k` has period `2 ^ B n`. -/
+theorem per_prefix_B (n k : Nat) (hk : k ≤ n) : Per k (2 ^ B n) :=
+  per_mono_le hk (per_upper_half n)
+
+/-- **Synchronized Multi-Period Shift Invariance of the Right Wall (`wall_shift_mul`):** for every
+`k ≤ n` and all `m, t : Nat`, `R k (t + m * 2 ^ B n) = R k t`. -/
+theorem wall_shift_mul (n k m t : Nat) (hk : k ≤ n) :
+    R k (t + m * 2 ^ B n) = R k t :=
+  (per_prefix_B n k hk).mul m t
+
+/-- **Multi-Period Return of the Right Wall (`wall_return_mul`):** at every multiple `2 ^ B n * m`
+(`m : Nat`), the diagonals `R 1, …, R n` are simultaneously white (`false`). -/
+theorem wall_return_mul (n k m : Nat) (hk : k < n) :
+    R (k + 1) (2 ^ B n * m) = false := by
+  rw [(per_prefix_B n (k + 1) (by omega)).at_mul m]
+  exact R_init (Nat.le_add_left 1 k)
+
+/-- **Explicit Multi-Period Wall Return Below `2 ^ 22 + 38` (`wall_return_explicit_mul`):** for
+`n < 2 ^ 22 + 38`, `k < n`, and every multiple `m : Nat`,
+`R (k + 1) (2 ^ ((n + 1) / 2 + 3) * m) = false`. -/
+theorem wall_return_explicit_mul {n : Nat} (hn : n < 2 ^ 22 + 38) (k m : Nat) (hk : k < n) :
+    R (k + 1) (2 ^ ((n + 1) / 2 + 3) * m) = false := by
+  have hp : Per (k + 1) (2 ^ ((n + 1) / 2 + 3)) :=
+    per_mono_le (show k + 1 ≤ n by omega) (per_upper_half_explicit hn)
+  rw [hp.at_mul m]
+  exact R_init (Nat.le_add_left 1 k)
+
 end HalfRate
 
 end Rule30RightPeriods
