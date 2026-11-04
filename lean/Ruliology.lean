@@ -172,6 +172,7 @@ public import Ruliology.CellularAutomata.Rule30RootedFront
 public import Ruliology.CellularAutomata.Rule30ClosingLaw
 public import Ruliology.CellularAutomata.Rule30MovingWall
 public import Ruliology.CellularAutomata.Rule30EpisodeBridge
+public import Ruliology.CellularAutomata.Rule30LeftCoincidence
 
 /-!
 # Rule 30 Prize: Lean snapshot
