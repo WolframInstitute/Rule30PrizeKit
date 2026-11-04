@@ -258,6 +258,168 @@ theorem no_period_black_run_then_white (T r t1 : Nat) (hr : 18 ≤ r)
       have : i = 0 := by simp at hi; omega
       subst this; simpa using hw)
 
+/-! ### Complete Center-Column Exclusions for All Certified Blocks and All White-Bounded Blocks of Length `≤ 4` -/
+
+/-- The center column is never eventually periodic with repeating word `1^r 00`, `r ≥ 18`. -/
+theorem no_period_black_run_then_00 (T r t1 : Nat) (hr : 18 ≤ r)
+    (hper : ∀ t, T ≤ t → center (t + (r + 2)) = center t) (ht1 : T ≤ t1)
+    (hrun : ∀ s, s < r → center (t1 + s) = true)
+    (hw0 : center (t1 + r) = false) (hw1 : center (t1 + r + 1) = false) : False :=
+  no_black_run_block [false, false] 2 det_00 (by decide) T r t1 hper ht1 (by omega) (by omega) hrun
+    (fun i hi => by
+      have hi2 : i = 0 ∨ i = 1 := by simp at hi; omega
+      rcases hi2 with rfl | rfl
+      · simpa using hw0
+      · simpa using hw1)
+
+/-- The center column is never eventually periodic with repeating word `1^r 000`, `r ≥ 18`. -/
+theorem no_period_black_run_then_000 (T r t1 : Nat) (hr : 18 ≤ r)
+    (hper : ∀ t, T ≤ t → center (t + (r + 3)) = center t) (ht1 : T ≤ t1)
+    (hrun : ∀ s, s < r → center (t1 + s) = true)
+    (hw0 : center (t1 + r) = false) (hw1 : center (t1 + r + 1) = false)
+    (hw2 : center (t1 + r + 2) = false) : False :=
+  no_black_run_block [false, false, false] 2 det_000 (by decide) T r t1 hper ht1 (by omega) (by omega) hrun
+    (fun i hi => by
+      have hi3 : i = 0 ∨ i = 1 ∨ i = 2 := by simp at hi; omega
+      rcases hi3 with rfl | rfl | rfl
+      · simpa using hw0
+      · simpa using hw1
+      · simpa using hw2)
+
+/-- The center column is never eventually periodic with repeating word `1^r 010`, `r ≥ 27`. -/
+theorem no_period_black_run_then_010 (T r t1 : Nat) (hr : 27 ≤ r)
+    (hper : ∀ t, T ≤ t → center (t + (r + 3)) = center t) (ht1 : T ≤ t1)
+    (hrun : ∀ s, s < r → center (t1 + s) = true)
+    (hw0 : center (t1 + r) = false) (hb1 : center (t1 + r + 1) = true)
+    (hw2 : center (t1 + r + 2) = false) : False :=
+  no_black_run_block [false, true, false] 3 det_010 (by decide) T r t1 hper ht1 (by omega) (by omega) hrun
+    (fun i hi => by
+      have hi3 : i = 0 ∨ i = 1 ∨ i = 2 := by simp at hi; omega
+      rcases hi3 with rfl | rfl | rfl
+      · simpa using hw0
+      · simpa using hb1
+      · simpa using hw2)
+
+/-- The center column is never eventually periodic with repeating word `1^r 0000`, `r ≥ 18`. -/
+theorem no_period_black_run_then_0000 (T r t1 : Nat) (hr : 18 ≤ r)
+    (hper : ∀ t, T ≤ t → center (t + (r + 4)) = center t) (ht1 : T ≤ t1)
+    (hrun : ∀ s, s < r → center (t1 + s) = true)
+    (hw0 : center (t1 + r) = false) (hw1 : center (t1 + r + 1) = false)
+    (hw2 : center (t1 + r + 2) = false) (hw3 : center (t1 + r + 3) = false) : False :=
+  no_black_run_block [false, false, false, false] 2 det_0000 (by decide) T r t1 hper ht1 (by omega) (by omega) hrun
+    (fun i hi => by
+      have hi4 : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 := by simp at hi; omega
+      rcases hi4 with rfl | rfl | rfl | rfl
+      · simpa using hw0
+      · simpa using hw1
+      · simpa using hw2
+      · simpa using hw3)
+
+/-- The center column is never eventually periodic with repeating word `1^r 0010`, `r ≥ 27`. -/
+theorem no_period_black_run_then_0010 (T r t1 : Nat) (hr : 27 ≤ r)
+    (hper : ∀ t, T ≤ t → center (t + (r + 4)) = center t) (ht1 : T ≤ t1)
+    (hrun : ∀ s, s < r → center (t1 + s) = true)
+    (hw0 : center (t1 + r) = false) (hw1 : center (t1 + r + 1) = false)
+    (hb2 : center (t1 + r + 2) = true) (hw3 : center (t1 + r + 3) = false) : False :=
+  no_black_run_block [false, false, true, false] 3 det_0010 (by decide) T r t1 hper ht1 (by omega) (by omega) hrun
+    (fun i hi => by
+      have hi4 : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 := by simp at hi; omega
+      rcases hi4 with rfl | rfl | rfl | rfl
+      · simpa using hw0
+      · simpa using hw1
+      · simpa using hb2
+      · simpa using hw3)
+
+/-- The center column is never eventually periodic with repeating word `1^r 0100`, `r ≥ 18`. -/
+theorem no_period_black_run_then_0100 (T r t1 : Nat) (hr : 18 ≤ r)
+    (hper : ∀ t, T ≤ t → center (t + (r + 4)) = center t) (ht1 : T ≤ t1)
+    (hrun : ∀ s, s < r → center (t1 + s) = true)
+    (hw0 : center (t1 + r) = false) (hb1 : center (t1 + r + 1) = true)
+    (hw2 : center (t1 + r + 2) = false) (hw3 : center (t1 + r + 3) = false) : False :=
+  no_black_run_block [false, true, false, false] 2 det_0100 (by decide) T r t1 hper ht1 (by omega) (by omega) hrun
+    (fun i hi => by
+      have hi4 : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 := by simp at hi; omega
+      rcases hi4 with rfl | rfl | rfl | rfl
+      · simpa using hw0
+      · simpa using hb1
+      · simpa using hw2
+      · simpa using hw3)
+
+/-- The center column is never eventually periodic with repeating word `1^r 0110`, `r ≥ 27`. -/
+theorem no_period_black_run_then_0110 (T r t1 : Nat) (hr : 27 ≤ r)
+    (hper : ∀ t, T ≤ t → center (t + (r + 4)) = center t) (ht1 : T ≤ t1)
+    (hrun : ∀ s, s < r → center (t1 + s) = true)
+    (hw0 : center (t1 + r) = false) (hb1 : center (t1 + r + 1) = true)
+    (hb2 : center (t1 + r + 2) = true) (hw3 : center (t1 + r + 3) = false) : False :=
+  no_black_run_block [false, true, true, false] 3 det_0110 (by decide) T r t1 hper ht1 (by omega) (by omega) hrun
+    (fun i hi => by
+      have hi4 : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 := by simp at hi; omega
+      rcases hi4 with rfl | rfl | rfl | rfl
+      · simpa using hw0
+      · simpa using hb1
+      · simpa using hb2
+      · simpa using hw3)
+
+/-- **Exhaustive Classification of White-Bounded Blocks of Length `1 ≤ |u| ≤ 4`
+(`white_bounded_len_le_4_classify`):** every Boolean list `u` of length `1 ≤ u.length ≤ 4` whose
+first and last entries are `false` is one of the 8 certified blocks `[false]`, `[false, false]`,
+`[false, false, false]`, `[false, true, false]`, `[false, false, false, false]`,
+`[false, false, true, false]`, `[false, true, false, false]`, or `[false, true, true, false]`. -/
+theorem white_bounded_len_le_4_classify (u : List Bool)
+    (h1 : 1 ≤ u.length) (h4 : u.length ≤ 4)
+    (hhead : u.getD 0 true = false) (hlast : u.getD (u.length - 1) true = false) :
+    (u = [false] ∨ u = [false, false] ∨ u = [false, false, false] ∨
+      u = [false, false, false, false] ∨ u = [false, true, false, false]) ∨
+    (u = [false, true, false] ∨ u = [false, false, true, false] ∨
+      u = [false, true, true, false]) := by
+  rcases u with _ | ⟨b0, _ | ⟨b1, _ | ⟨b2, _ | ⟨b3, _ | ⟨b4, tl⟩⟩⟩⟩⟩
+  · simp at h1
+  · simp at hhead; subst hhead; exact Or.inl (Or.inl rfl)
+  · simp at hhead hlast; subst hhead; subst hlast; exact Or.inl (Or.inr (Or.inl rfl))
+  · simp at hhead hlast; subst hhead; subst hlast
+    cases b1
+    · exact Or.inl (Or.inr (Or.inr (Or.inl rfl)))
+    · exact Or.inr (Or.inl rfl)
+  · simp at hhead hlast; subst hhead; subst hlast
+    cases b1 <;> cases b2
+    · exact Or.inl (Or.inr (Or.inr (Or.inr (Or.inl rfl))))
+    · exact Or.inr (Or.inr (Or.inl rfl))
+    · exact Or.inl (Or.inr (Or.inr (Or.inr (Or.inr rfl))))
+    · exact Or.inr (Or.inr (Or.inr rfl))
+  · simp at h4
+
+/-- **Universal Determinacy of White-Bounded Blocks of Length `≤ 4`
+(`determined_of_white_bounded_len_le_4`):** every white-bounded block `u` of length `1 ≤ u.length ≤ 4`
+satisfies `Determined u 2 = true` or `Determined u 3 = true`. -/
+theorem determined_of_white_bounded_len_le_4 (u : List Bool)
+    (h1 : 1 ≤ u.length) (h4 : u.length ≤ 4)
+    (hhead : u.getD 0 true = false) (hlast : u.getD (u.length - 1) true = false) :
+    Determined u 2 = true ∨ Determined u 3 = true := by
+  rcases white_bounded_len_le_4_classify u h1 h4 hhead hlast with
+    (rfl | rfl | rfl | rfl | rfl) | (rfl | rfl | rfl)
+  · exact Or.inl det_0
+  · exact Or.inl det_00
+  · exact Or.inl det_000
+  · exact Or.inl det_0000
+  · exact Or.inl det_0100
+  · exact Or.inr det_010
+  · exact Or.inr det_0010
+  · exact Or.inr det_0110
+
+/-- **Complete Exclusion of All White-Bounded Blocks of Length `1 ≤ |u| ≤ 4`
+(`no_period_black_run_then_white_bounded_le_4`):** for every white-bounded block `u` of length
+`1 ≤ u.length ≤ 4` and every black-run length `r ≥ 27`, the center column is never eventually
+periodic with repeating word `1^r u`. -/
+theorem no_period_black_run_then_white_bounded_le_4 (u : List Bool)
+    (h1 : 1 ≤ u.length) (h4 : u.length ≤ 4)
+    (hhead : u.getD 0 true = false) (hlast : u.getD (u.length - 1) true = false)
+    (T r t1 : Nat) (hr : 27 ≤ r)
+    (hper : ∀ t, T ≤ t → center (t + (r + u.length)) = center t)
+    (ht1 : T ≤ t1) (hrun : ∀ s, s < r → center (t1 + s) = true)
+    (hu : ∀ i, i < u.length → center (t1 + r + i) = u.getD i false) : False := by
+  rcases determined_of_white_bounded_len_le_4 u h1 h4 hhead hlast with hdet2 | hdet3
+  · exact no_black_run_block u 2 hdet2 (by omega) T r t1 hper ht1 (by omega) (by omega) hrun hu
+  · exact no_black_run_block u 3 hdet3 (by omega) T r t1 hper ht1 (by omega) (by omega) hrun hu
 
 end Rule30BlackRunBlocks
 end Ruliology.CellularAutomata
