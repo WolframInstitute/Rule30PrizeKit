@@ -1226,5 +1226,234 @@ theorem not_halts_dyadic_ray_of_box_repeat {M : Machine} {n m t₁ p B : Nat} {L
   have heq := (run_eq_of_init_eq_of_scansBelow hinit (htrap_n t).2).1 b
   exact hnh_n t b (heq.mp h)
 
+/-! ## 1. Unconditional `k ≤ 13` Canonical-Window and Infinitely-Often `RightSpan` Bounds for `center` -/
+
+/-- For every `k ≤ 13`, `center` is not `2^k`-periodic from `2^(k-1)` onward (`2^(k-1) + 2^k ≤ 12288 < 16359`). -/
+theorem not_center_period_two_pow_le_thirteen {k : Nat} (hk : k ≤ 13)
+    (hper : ∀ m, 2 ^ (k - 1) ≤ m → center (m + 2 ^ k) = center m) : False := by
+  have hwin : 16359 ≤ 2 ^ (k - 1) + 2 ^ k :=
+    Rule30FactorWindow.transient_add_period_ge (2 ^ (k - 1)) (2 ^ k) (Nat.two_pow_pos k)
+      fun t ht => hper t ht
+  have h1 : 2 ^ (k - 1) ≤ 2 ^ 12 := Nat.pow_le_pow_right (by decide) (by omega)
+  have h2 : 2 ^ k ≤ 2 ^ 13 := Nat.pow_le_pow_right (by decide) hk
+  have e12 : (2 : Nat) ^ 12 = 4096 := rfl
+  have e13 : (2 : Nat) ^ 13 = 8192 := rfl
+  omega
+
+/-- **Unconditional Canonical-Window Step Lower Bound for `center` (`center_canon_window_time_ge`):**
+for every `k ≤ 13` (without `Problem1`), every machine `M` computing `center` in time `T` takes at
+least `k + 1` steps on some input `r` in the finite canonical window `[2^(k-1), 2^(k-1) + 2^k)`. -/
+theorem center_canon_window_time_ge {M : Machine} {T : Nat → Nat} (hM : Computes M center T)
+    {k : Nat} (hk : k ≤ 13) :
+    ∃ r, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ T r := by
+  refine Classical.byContradiction fun hno => ?_
+  have hwin : ∀ r, 2 ^ (k - 1) ≤ r → r < 2 ^ (k - 1) + 2 ^ k → T r ≤ k := fun r hr1 hr2 =>
+    Nat.le_of_not_lt fun hlt => hno ⟨r, hr1, hr2, hlt⟩
+  exact not_center_period_two_pow_le_thirteen hk (period_of_canon_window_time_le hM hwin)
+
+/-- **Unconditional Canonical-Window Right-Head Lower Bound for `center` (`center_canon_window_head_ge`):**
+for every `k ≤ 13` (without `Problem1`), every machine `M` computing `center` in *any* time `T` must
+move its head to cell `k` or higher on some input `r` in `[2^(k-1), 2^(k-1) + 2^k)`. -/
+theorem center_canon_window_head_ge {M : Machine} {T : Nat → Nat} (hM : Computes M center T)
+    {k : Nat} (hk : k ≤ 13) :
+    ∃ r, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧
+      ∃ s < T r, ∃ c, M.run r s = .inr c ∧ (k : Int) ≤ c.head := by
+  refine Classical.byContradiction fun hno => ?_
+  have hwin : ∀ r, 2 ^ (k - 1) ≤ r → r < 2 ^ (k - 1) + 2 ^ k → ScansBelow M r (T r) (k : Int) :=
+    fun r hr1 hr2 s hs c hc =>
+      Int.lt_of_not_ge fun hge => hno ⟨r, hr1, hr2, s, hs, c, hc, hge⟩
+  exact not_center_period_two_pow_le_thirteen hk
+    (period_and_halt_of_canon_window_scansBelow hM hwin).1
+
+/-- **Unconditional Canonical-Window `RightSpan` Lower Bound for `center`
+(`center_canon_window_rightSpan_ge`):** for every `k ≤ 13` (without `Problem1`), every machine `M`
+computing `center` in *any* time `T` satisfies `k + 1 ≤ RightSpan M r (T r)` on some input `r` in
+`[2^(k-1), 2^(k-1) + 2^k)`. -/
+theorem center_canon_window_rightSpan_ge {M : Machine} {T : Nat → Nat} (hM : Computes M center T)
+    {k : Nat} (hk : k ≤ 13) :
+    ∃ r, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ RightSpan M r (T r) := by
+  obtain ⟨r, hr1, hr2, s, hs, c, hc, hge⟩ := center_canon_window_head_ge hM hk
+  refine ⟨r, hr1, hr2, Classical.byContradiction fun hlt => ?_⟩
+  have hscan : ScansBelow M r (T r) (k : Int) := scansBelow_iff_rightSpan_le.mpr (by omega)
+  have := hscan s hs c hc
+  omega
+
+/-- **Unconditional Infinitely-Often Right-Head Excursion for `k ≤ 13` (`head_unbounded_le_thirteen`):**
+for every `k ≤ 13` and every threshold `N : Nat` (without `Problem1`), every machine `M` computing
+`center` in *any* time `T` moves its head to cell `k` or higher on some input `n ≥ N`. -/
+theorem head_unbounded_le_thirteen {M : Machine} {T : Nat → Nat} (hM : Computes M center T)
+    {k : Nat} (hk : k ≤ 13) (N : Nat) :
+    ∃ n, N ≤ n ∧ ∃ s < T n, ∃ c, M.run n s = .inr c ∧ (k : Int) ≤ c.head := by
+  refine Classical.byContradiction fun hno => ?_
+  have hscan : ∀ n, N ≤ n → ScansBelow M n (T n) (k : Int) := fun n hn s hs c hc =>
+    Int.lt_of_not_ge fun hge => hno ⟨n, hn, s, hs, c, hc, hge⟩
+  exact not_center_period_two_pow_le_thirteen hk (period_of_eventually_scansBelow hM hscan)
+
+/-- **Unconditional Infinitely-Often `RightSpan` Bound for `k ≤ 13` (`rightSpan_unbounded_le_thirteen`):**
+for every `k ≤ 13` and every threshold `N : Nat` (without `Problem1`), every machine `M` computing
+`center` in *any* time `T` satisfies `k + 1 ≤ RightSpan M n (T n)` on some input `n ≥ N`. -/
+theorem rightSpan_unbounded_le_thirteen {M : Machine} {T : Nat → Nat} (hM : Computes M center T)
+    {k : Nat} (hk : k ≤ 13) (N : Nat) :
+    ∃ n, N ≤ n ∧ k + 1 ≤ RightSpan M n (T n) := by
+  obtain ⟨n, hn, s, hs, c, hc, hge⟩ := head_unbounded_le_thirteen hM hk N
+  refine ⟨n, hn, Classical.byContradiction fun hlt => ?_⟩
+  have hscan : ScansBelow M n (T n) (k : Int) := scansBelow_iff_rightSpan_le.mpr (by omega)
+  have := hscan s hs c hc
+  omega
+
+/-! ## 2. Uniform Spatial `RightSpan` Lower Bounds for All Inputs (`k = 1, 2, 3, 4` and `n < 16`) -/
+
+/-- Generic converter from a verified `List.all` residue-flip check to a uniform spatial bound
+`k + 1 ≤ RightSpan M n (T n)` for all `n ≥ 2^(k-1)`. -/
+theorem rightSpan_gt_of_all_flip {M : Machine} {T : Nat → Nat} (hM : Computes M center T)
+    {k : Nat} (hall : (List.range' (2 ^ (k - 1)) (2 ^ k)).all
+      (fun r => fastCenter r != fastCenter (r + flipWitness k r * 2 ^ k)) = true)
+    {n : Nat} (hn : 2 ^ (k - 1) ≤ n) : k + 1 ≤ RightSpan M n (T n) := by
+  obtain ⟨hmem, hr, hmod⟩ := canonRep_spec hn
+  have hu := List.all_eq_true.mp hall (canonRep k n) hmem
+  have hne : center (canonRep k n) ≠ center (canonRep k n + flipWitness k (canonRep k n) * 2 ^ k) := by
+    rw [center_eq_fastCenter, center_eq_fastCenter]
+    intro heq
+    rw [heq, bne_self_eq_false] at hu
+    exact Bool.noConfusion hu
+  exact k_lt_rightSpan_of_mod_two_pow_ne hM hr (by omega) hn
+    (by rw [Nat.add_mul_mod_self_right]) hne hmod
+
+/-- **Unconditional `2`-Cell `RightSpan` Bound (`two_le_rightSpan`):** every machine computing
+`center` satisfies `2 ≤ RightSpan M n (T n)` on every input `n ≥ 1`. -/
+theorem two_le_rightSpan {M : Machine} {T : Nat → Nat} (hM : Computes M center T)
+    {n : Nat} (hn : 1 ≤ n) : 2 ≤ RightSpan M n (T n) := by
+  have h := dyadic_residues_flip_up_to_four
+  rw [Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
+  exact rightSpan_gt_of_all_flip hM (k := 1) h.1.1.1 hn
+
+/-- **Unconditional `3`-Cell `RightSpan` Bound (`three_le_rightSpan`):** every machine computing
+`center` satisfies `3 ≤ RightSpan M n (T n)` on every input `n ≥ 2`. -/
+theorem three_le_rightSpan {M : Machine} {T : Nat → Nat} (hM : Computes M center T)
+    {n : Nat} (hn : 2 ≤ n) : 3 ≤ RightSpan M n (T n) := by
+  have h := dyadic_residues_flip_up_to_four
+  rw [Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true] at h
+  exact rightSpan_gt_of_all_flip hM (k := 2) h.1.1.2 hn
+
+/-- **Unconditional `4`-Cell `RightSpan` Bound (`four_le_rightSpan`):** every machine computing
+`center` satisfies `4 ≤ RightSpan M n (T n)` on every input `n ≥ 4`. -/
+theorem four_le_rightSpan {M : Machine} {T : Nat → Nat} (hM : Computes M center T)
+    {n : Nat} (hn : 4 ≤ n) : 4 ≤ RightSpan M n (T n) := by
+  have h := dyadic_residues_flip_up_to_four
+  rw [Bool.and_eq_true, Bool.and_eq_true] at h
+  exact rightSpan_gt_of_all_flip hM (k := 3) h.1.2 hn
+
+/-- **Unconditional `5`-Cell `RightSpan` Bound (`five_le_rightSpan`):** every machine computing
+`center` satisfies `5 ≤ RightSpan M n (T n)` on every input `n ≥ 8`. -/
+theorem five_le_rightSpan {M : Machine} {T : Nat → Nat} (hM : Computes M center T)
+    {n : Nat} (hn : 8 ≤ n) : 5 ≤ RightSpan M n (T n) := by
+  have h := dyadic_residues_flip_up_to_four
+  rw [Bool.and_eq_true] at h
+  exact rightSpan_gt_of_all_flip hM (k := 4) h.2 hn
+
+/-- **Full-Input Spatial Scan Bound up to `n < 16` (`log2_succ_succ_le_rightSpan_lt_16`):** on every
+input `1 ≤ n < 16`, every machine computing `center` satisfies `Nat.log2 n + 2 ≤ RightSpan M n (T n)`
+(scanning all binary digits of `n` plus the first blank cell). -/
+theorem log2_succ_succ_le_rightSpan_lt_16 {M : Machine} {T : Nat → Nat} (hM : Computes M center T)
+    {n : Nat} (hn1 : 1 ≤ n) (hn16 : n < 16) : Nat.log2 n + 2 ≤ RightSpan M n (T n) := by
+  by_cases h2 : n < 2
+  · have hn : n = 1 := by omega
+    have hlog : Nat.log2 n = 0 := by rw [hn]; rfl
+    rw [hlog]; exact two_le_rightSpan hM hn1
+  · by_cases h4 : n < 4
+    · have hlog : Nat.log2 n = 1 := by
+        rcases (show n = 2 ∨ n = 3 by omega) with rfl | rfl <;> rfl
+      rw [hlog]; exact three_le_rightSpan hM (by omega)
+    · by_cases h8 : n < 8
+      · have hlog : Nat.log2 n = 2 := by
+          rcases (show n = 4 ∨ n = 5 ∨ n = 6 ∨ n = 7 by omega) with rfl | rfl | rfl | rfl <;> rfl
+        rw [hlog]; exact four_le_rightSpan hM (by omega)
+      · have hlog : Nat.log2 n = 3 := by
+          have hge : 2 ^ 3 ≤ n := by omega
+          have hlt : n < 2 ^ 4 := by omega
+          exact Nat.le_antisymm (Nat.le_of_lt_succ ((Nat.log2_lt (by omega)).mpr hlt))
+            ((Nat.le_log2 (by omega)).mpr hge)
+        rw [hlog]; exact five_le_rightSpan hM (by omega)
+
+/-! ## 3. Two-Time Head-Distance Bound and Bidirectional Excursion Turnaround Inequality -/
+
+/-- A single head move changes the head position by at most `1` in either direction. -/
+theorem move_apply_bounds (d : Move) (h : Int) : h - 1 ≤ d.apply h ∧ d.apply h ≤ h + 1 := by
+  cases d <;> simp [Move.apply] <;> omega
+
+/-- **General Two-Time Head-Distance Bound (`run_head_dist_le`):** if `M.run n s₁ = .inr c₁` and
+`M.run n (s₁ + d) = .inr c₂`, then `c₁.head - d ≤ c₂.head ∧ c₂.head ≤ c₁.head + d`. -/
+theorem run_head_dist_le {M : Machine} {n s₁ : Nat} {c₁ : Cfg M}
+    (h1 : M.run n s₁ = .inr c₁) :
+    ∀ {d : Nat} {c₂ : Cfg M}, M.run n (s₁ + d) = .inr c₂ →
+      c₁.head - (d : Int) ≤ c₂.head ∧ c₂.head ≤ c₁.head + (d : Int)
+  | 0, c₂, h2 => by
+    rw [Nat.add_zero, h1] at h2
+    injection h2 with h
+    subst h
+    omega
+  | d + 1, c₂, h2 => by
+    rw [show s₁ + (d + 1) = (s₁ + d) + 1 by omega] at h2
+    simp only [Machine.run] at h2
+    cases hr : M.run n (s₁ + d) with
+    | inl b => rw [hr] at h2; cases h2
+    | inr c₀ =>
+      rw [hr] at h2
+      dsimp only at h2
+      have ih := run_head_dist_le h1 hr
+      unfold Cfg.step at h2
+      cases hδ : M.δ c₀.state (c₀.tape c₀.head) with
+      | inl b => rw [hδ] at h2; cases h2
+      | inr val =>
+        rcases val with ⟨p, a, mv⟩
+        rw [hδ] at h2
+        injection h2 with h
+        subst h
+        have hm := move_apply_bounds mv c₀.head
+        dsimp only
+        omega
+
+/-- **Bidirectional Excursion Turnaround Inequality (`time_ge_of_left_and_right_visit`):** if a run
+of length `T` from `head = 0` visits a cell `c₁.head ≤ -(L : Int)` at step `s₁ < T` and visits a
+cell `c₂.head ≥ (R : Int)` at step `s₂ < T`, then `(2 * L + R + 1 ≤ T) ∨ (2 * R + L + 1 ≤ T)`, and
+in particular `L + R + min L R + 1 ≤ T`. -/
+theorem time_ge_of_left_and_right_visit {M : Machine} {n s₁ s₂ T L R : Nat} {c₁ c₂ : Cfg M}
+    (hs₁ : s₁ < T) (hs₂ : s₂ < T)
+    (hr₁ : M.run n s₁ = .inr c₁) (hr₂ : M.run n s₂ = .inr c₂)
+    (hL : c₁.head ≤ -(L : Int)) (hR : (R : Int) ≤ c₂.head) :
+    ((2 * L + R + 1 ≤ T) ∨ (2 * R + L + 1 ≤ T)) ∧ L + R + min L R + 1 ≤ T := by
+  have h0 : M.run n 0 = .inr (M.init n) := rfl
+  have hinit_hd : (M.init n).head = 0 := rfl
+  have hd₁ := run_head_dist_le h0 (show M.run n (0 + s₁) = .inr c₁ by simpa using hr₁)
+  have hd₂ := run_head_dist_le h0 (show M.run n (0 + s₂) = .inr c₂ by simpa using hr₂)
+  rw [hinit_hd] at hd₁ hd₂
+  have hor : (2 * L + R + 1 ≤ T) ∨ (2 * R + L + 1 ≤ T) := by
+    by_cases hle : s₁ ≤ s₂
+    · left
+      have h12 := run_head_dist_le hr₁ (show M.run n (s₁ + (s₂ - s₁)) = .inr c₂ by
+        rwa [Nat.add_sub_cancel' hle])
+      omega
+    · right
+      have h21 := run_head_dist_le hr₂ (show M.run n (s₂ + (s₁ - s₂)) = .inr c₁ by
+        rwa [Nat.add_sub_cancel' (by omega)])
+      omega
+  refine ⟨hor, ?_⟩
+  have hmin : min L R ≤ L ∧ min L R ≤ R := ⟨Nat.min_le_left L R, Nat.min_le_right L R⟩
+  rcases hor with h | h <;> omega
+
+/-- **Negative-Worktape Turnaround Lower Bound Under Blank-Reach Flip (`time_ge_of_neg_visit_and_ray_flip`):**
+for any input `n ≥ 1` with `f (n + u * 2^(Nat.log2 n + 1)) ≠ f n`, if a machine `M` computing `f` in
+time `T` visits cell `-(L : Int)` or lower before halting (`s₁ < T n`), then
+`(Nat.log2 n + 1) + L + min L (Nat.log2 n + 1) + 1 ≤ T n`. -/
+theorem time_ge_of_neg_visit_and_ray_flip {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {n u s₁ L : Nat} {c₁ : Cfg M} (hn : 1 ≤ n)
+    (hflip : f (n + u * 2 ^ (Nat.log2 n + 1)) ≠ f n)
+    (hs₁ : s₁ < T n) (hr₁ : M.run n s₁ = .inr c₁) (hL : c₁.head ≤ -(L : Int)) :
+    L + (Nat.log2 n + 1) + min L (Nat.log2 n + 1) + 1 ≤ T n := by
+  obtain ⟨s₂, hs₂, c₂, hr₂, hR⟩ := exists_head_gt_log2_of_ray_flip hM hn hflip
+  have h := (time_ge_of_left_and_right_visit hs₁ hs₂ hr₁ hr₂ hL
+    (show ((Nat.log2 n + 1 : Nat) : Int) ≤ c₂.head by omega)).2
+  exact h
+
 end Rule30Problem3Bounds
 end Ruliology.CellularAutomata
