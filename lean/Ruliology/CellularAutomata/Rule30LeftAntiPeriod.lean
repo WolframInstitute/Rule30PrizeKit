@@ -685,5 +685,126 @@ theorem R_discrepancy_le_of_leastExp_succ {j : Nat} (h : leastExp (j + 1) = leas
   rw [h, Nat.pow_succ, Nat.mul_comm]
   exact hd
 
+/-! ## 8. Complement Discrepancy Symmetry, Odd-Multiple Antiperiodicity, and Odd-Stride Subsampling -/
+
+/-- **Window Sum Conservation Under Pointwise Negation (`winCount_not_add`):** for every sequence
+`f : Nat → Bool`, start `t : Nat`, and window length `d : Nat`, the black counts of `!f` and `f` on
+`[t, t + d)` sum to `d`. -/
+theorem winCount_not_add (f : Nat → Bool) (t : Nat) :
+    ∀ d, winCount (fun s => !f s) t d + winCount f t d = d
+  | 0 => rfl
+  | d + 1 => by
+    simp only [winCount]
+    have ih := winCount_not_add f t d
+    have hbit : (if (!f (t + d)) = true then 1 else 0) + (if f (t + d) = true then 1 else 0) = 1 := by
+      cases f (t + d) <;> rfl
+    omega
+
+/-- **Prefix Black-Count Conservation Under Pointwise Negation (`blackCountFor_not_add`):** for
+every sequence `f : Nat → Bool` and prefix length `n : Nat`,
+`blackCountFor (fun s => !f s) n + blackCountFor f n = n`. -/
+theorem blackCountFor_not_add (f : Nat → Bool) (n : Nat) :
+    blackCountFor (fun s => !f s) n + blackCountFor f n = n := by
+  have h1 := blackCountFor_add_eq_winCount (fun s => !f s) 0 n
+  have h2 := blackCountFor_add_eq_winCount f 0 n
+  have h0a : blackCountFor (fun s => !f s) 0 = 0 := rfl
+  have h0b : blackCountFor f 0 = 0 := rfl
+  rw [Nat.zero_add, h0a, Nat.zero_add] at h1
+  rw [Nat.zero_add, h0b, Nat.zero_add] at h2
+  rw [h1, h2]
+  exact winCount_not_add f 0 n
+
+/-- **Exact Discrepancy Invariance Under Pointwise Negation (`natAbs_discrepancy_not`):** for every
+sequence `f : Nat → Bool` and `n : Nat`, complementing `f` preserves the absolute discrepancy
+`(2 * (blackCountFor · n : Int) - n).natAbs`. -/
+theorem natAbs_discrepancy_not (f : Nat → Bool) (n : Nat) :
+    (2 * (blackCountFor (fun s => !f s) n : Int) - (n : Int)).natAbs =
+      (2 * (blackCountFor f n : Int) - (n : Int)).natAbs := by
+  have hsum := blackCountFor_not_add f n
+  omega
+
+/-- **`HalfDensity` Equivalence Under Pointwise Negation (`halfDensity_not_iff`):** for every
+sequence `f : Nat → Bool`, `HalfDensity (fun s => !f s) ↔ HalfDensity f`. -/
+theorem halfDensity_not_iff (f : Nat → Bool) :
+    HalfDensity (fun s => !f s) ↔ HalfDensity f := by
+  constructor <;> intro hf k hk <;> obtain ⟨N, hN⟩ := hf k hk <;> refine ⟨N, fun n hn => ?_⟩
+  · rw [← natAbs_discrepancy_not f n]; exact hN n hn
+  · rw [natAbs_discrepancy_not f n]; exact hN n hn
+
+/-- **Even-Multiple Periodicity of Antiperiodic Sequences (`apply_add_two_mul_mul_of_antiperiodic`):**
+if `f (t + L) = !f t` for all `t ≥ T`, then `f (t + 2 * m * L) = f t` for all `t ≥ T` and `m : Nat`. -/
+theorem apply_add_two_mul_mul_of_antiperiodic {f : Nat → Bool} {T L : Nat}
+    (ha : ∀ t, T ≤ t → f (t + L) = !f t) {t : Nat} (ht : T ≤ t) :
+    ∀ m, f (t + 2 * m * L) = f t
+  | 0 => by simp
+  | m + 1 => by
+    have hstep : t + 2 * (m + 1) * L = (t + 2 * m * L + L) + L := by
+      rw [show 2 * (m + 1) = 2 * m + 1 + 1 by omega, Nat.right_distrib, Nat.right_distrib, Nat.one_mul]
+      omega
+    rw [hstep, ha (t + 2 * m * L + L) (by omega), ha (t + 2 * m * L) (by omega),
+      Bool.not_not, apply_add_two_mul_mul_of_antiperiodic ha ht m]
+
+/-- **Odd-Multiple Antiperiodicity (`apply_add_odd_mul_of_antiperiodic`):** if `f (t + L) = !f t`
+for all `t ≥ T`, then `f (t + (2 * m + 1) * L) = !f t` for all `t ≥ T` and `m : Nat`. -/
+theorem apply_add_odd_mul_of_antiperiodic {f : Nat → Bool} {T L : Nat}
+    (ha : ∀ t, T ≤ t → f (t + L) = !f t) {t : Nat} (ht : T ≤ t) (m : Nat) :
+    f (t + (2 * m + 1) * L) = !f t := by
+  rw [Nat.right_distrib, Nat.one_mul, ← Nat.add_assoc,
+    ha (t + 2 * m * L) (by omega), apply_add_two_mul_mul_of_antiperiodic ha ht m]
+
+/-- **Closure of `EvAntiPer` Under Odd Multiples (`EvAntiPer.odd_mul`):** if `EvAntiPer f L` holds,
+then `EvAntiPer f ((2 * m + 1) * L)` holds for every `m : Nat`. -/
+theorem EvAntiPer.odd_mul {f : Nat → Bool} {L : Nat} (h : EvAntiPer f L) (m : Nat) :
+    EvAntiPer f ((2 * m + 1) * L) := by
+  obtain ⟨T, hT⟩ := h
+  exact ⟨T, fun t ht => apply_add_odd_mul_of_antiperiodic hT ht m⟩
+
+/-- Arithmetic-progression subsampling of a sequence `f` with stride `d` and phase offset `r`:
+`subseq f d r k = f (r + k * d)`. -/
+def subseq (f : Nat → Bool) (d r k : Nat) : Bool :=
+  f (r + k * d)
+
+/-- **Antiperiodicity of Odd-Stride Subsampled Sequences (`evAntiPer_subseq_odd`):** if
+`EvAntiPer f L` holds, then for every `m : Nat` and phase `r : Nat`, the odd-stride subsequence
+`subseq f (2 * m + 1) r` satisfies `EvAntiPer (subseq f (2 * m + 1) r) L`. -/
+theorem evAntiPer_subseq_odd {f : Nat → Bool} {L : Nat} (h : EvAntiPer f L) (m r : Nat) :
+    EvAntiPer (subseq f (2 * m + 1) r) L := by
+  obtain ⟨T, hT⟩ := h
+  refine ⟨T, fun k hk => ?_⟩
+  unfold subseq
+  have h1 : T ≤ r + k * (2 * m + 1) := by
+    have : k * 1 ≤ k * (2 * m + 1) := Nat.mul_le_mul_left k (by omega)
+    omega
+  have hrew : r + (k + L) * (2 * m + 1) = (r + k * (2 * m + 1)) + (2 * m + 1) * L := by
+    rw [Nat.right_distrib, Nat.mul_comm L (2 * m + 1), Nat.add_assoc]
+  rw [hrew]
+  exact apply_add_odd_mul_of_antiperiodic hT h1 m
+
+/-- **`HalfDensity` of Odd-Stride Subsampled Antiperiodic Sequences (`halfDensity_subseq_odd`):**
+if `EvAntiPer f L` holds with `0 < L`, then for every `m : Nat` and phase `r : Nat`, the odd-stride
+subsequence `subseq f (2 * m + 1) r` satisfies `HalfDensity`. -/
+theorem halfDensity_subseq_odd {f : Nat → Bool} {L : Nat} (hL : 0 < L)
+    (h : EvAntiPer f L) (m r : Nat) :
+    HalfDensity (subseq f (2 * m + 1) r) :=
+  halfDensity_of_antiperiodic hL (evAntiPer_subseq_odd h m r)
+
+/-- **Infinitely Many Left Diagonals Have `HalfDensity` Along Every Odd-Stride Progression
+(`D_subseq_odd_infinitely_many_halfDensity`):** for every odd stride `2 * m + 1`, phase `r : Nat`,
+and index bound `N : Nat`, there exists a left diagonal `j > N` such that `subseq (D j) (2 * m + 1) r`
+has asymptotic density `1/2` (`HalfDensity`). -/
+theorem D_subseq_odd_infinitely_many_halfDensity (m r N : Nat) :
+    ∃ j, N < j ∧ HalfDensity (subseq (D j) (2 * m + 1) r) := by
+  obtain ⟨j, hj, k, hanti, _, _⟩ := D_infinitely_many_halfDensity N
+  exact ⟨j, hj, halfDensity_subseq_odd (Nat.two_pow_pos k) hanti m r⟩
+
+/-- **Infinitely Many Right Diagonals Have `HalfDensity` Along Every Odd-Stride Progression
+(`R_subseq_odd_infinitely_many_halfDensity`):** for every odd stride `2 * m + 1`, phase `r : Nat`,
+and index bound `k : Nat`, there exists a right diagonal `j` with `k < j ≤ 2 ^ (k + 1) - 1` such
+that `subseq (R j) (2 * m + 1) r` has asymptotic density `1/2` (`HalfDensity`). -/
+theorem R_subseq_odd_infinitely_many_halfDensity (m r k : Nat) :
+    ∃ j, k < j ∧ j ≤ 2 ^ (k + 1) - 1 ∧ HalfDensity (subseq (R j) (2 * m + 1) r) := by
+  obtain ⟨j, hj, hjb, hanti, _, _⟩ := R_infinitely_many_halfDensity k
+  exact ⟨j, hj, hjb, halfDensity_subseq_odd (Nat.two_pow_pos k) ⟨0, fun t _ => hanti t⟩ m r⟩
+
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
