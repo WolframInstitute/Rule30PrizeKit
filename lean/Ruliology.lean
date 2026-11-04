@@ -175,6 +175,8 @@ public import Ruliology.CellularAutomata.Rule30EpisodeBridge
 public import Ruliology.CellularAutomata.Rule30LeftCoincidence
 public import Ruliology.CellularAutomata.Rule30UniversalLeftSide
 public import Ruliology.CellularAutomata.Rule30FourLeftSides
+public import Ruliology.CellularAutomata.Rule30FourFrontsBase
+public import Ruliology.CellularAutomata.Rule30FourFronts
 
 /-!
 # Rule 30 Prize: Lean snapshot
