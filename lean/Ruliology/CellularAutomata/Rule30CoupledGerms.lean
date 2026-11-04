@@ -704,4 +704,70 @@ theorem cofinal_Psi_free_oscillation_of_finSupp_Psi {R : Nat → Bool} (hfin : F
   · rw [Psi_free R s₁]; change (!u R s₁) = false; rw [hu₁]; rfl
   · rw [Psi_free R s₂]; change (!u R s₂) = true; rw [hu₂]; rfl
 
+/-! ### Direct Bridge from `Psi` to `CQ01`, `Psi` Prefix/Injectivity Laws, and the Coupled Ether Witness -/
+
+open Rule30ZeroBoundary Rule30PeriodTwoCoupled
+
+/-- **Definitional Identity of `Psi R` (`Psi_eq_theta_drv`):** `Psi R` is definitionally identical to
+`Theta (fun s => !drv altCol R (2 * s + 1) 1)`. -/
+theorem Psi_eq_theta_drv (R : Nat → Bool) :
+    Psi R = Theta (fun s => !drv altCol R (2 * s + 1) 1) := rfl
+
+/-- **Characterization of `CQ01` via `Psi` (`CQ01_iff_no_finSupp_Psi`):** the coupled period-2 question
+`CQ01` holds if and only if `Psi R` is not finitely supported for every finitely supported right half `R`. -/
+theorem CQ01_iff_no_finSupp_Psi :
+    CQ01 ↔ ∀ R : Nat → Bool, FinSupp R → ¬ FinSupp (Psi R) :=
+  CQ01_iff_no_finSupp_theta_drv
+
+/-- **Period-2 Center Exclusion from Infinite Support of `Psi`
+(`no_eventual_period_two_of_no_finSupp_Psi`):** if `¬ FinSupp (Psi R)` holds for every finitely
+supported right half `R`, then the center column is not eventually 2-periodic. -/
+theorem no_eventual_period_two_of_no_finSupp_Psi
+    (hPsi : ∀ R : Nat → Bool, FinSupp R → ¬ FinSupp (Psi R)) :
+    ¬ ∃ T0, ∀ t, T0 ≤ t → Rule30Prize.center (t + 2) = Rule30Prize.center t :=
+  no_eventual_period_two_of_CQ01 (CQ01_iff_no_finSupp_Psi.mpr hPsi)
+
+/-- **Causal Prefix Dependence of `Psi` (`Psi_eq_of_u_eq_le`):** if `u R1 s = u R2 s` for all `s` with
+`2 * s + 2 ≤ k`, then `Psi R1 k = Psi R2 k`. -/
+theorem Psi_eq_of_u_eq_le (R1 R2 : Nat → Bool) (k : Nat)
+    (h : ∀ s, 2 * s + 2 ≤ k → u R1 s = u R2 s) :
+    Psi R1 k = Psi R2 k :=
+  Theta_dep (fun s => !u R1 s) (fun s => !u R2 s) k (fun s hs => by rw [h s hs])
+
+/-- **Inverse Causal Prefix Dependence of `u` from `Psi` (`u_eq_of_Psi_eq_le`):** if `Psi R1 k = Psi R2 k`
+for all `k ≤ 2 * s + 2`, then `u R1 s = u R2 s`. -/
+theorem u_eq_of_Psi_eq_le (R1 R2 : Nat → Bool) (s : Nat)
+    (h : ∀ k, k ≤ 2 * s + 2 → Psi R1 k = Psi R2 k) :
+    u R1 s = u R2 s := by
+  have hnot := Theta_inverse_dep (fun j => !u R1 j) (fun j => !u R2 j) s h
+  simpa using congrArg Bool.not hnot
+
+/-- **Injectivity of `Psi` on Coupled Traces `u` (`u_eq_of_Psi_eq`):** if `Psi R1 k = Psi R2 k` for all
+`k ≥ 1`, then `u R1 = u R2`. -/
+theorem u_eq_of_Psi_eq {R1 R2 : Nat → Bool}
+    (h : ∀ k, 1 ≤ k → Psi R1 k = Psi R2 k) :
+    u R1 = u R2 := by
+  have hnot := Theta_inj (f := fun s => !u R1 s) (g := fun s => !u R2 s) h
+  funext s
+  have hs := congrFun hnot s
+  simpa using congrArg Bool.not hs
+
+/-- **Identification of `Psi (etherRight 1)` with `zrow (etherLeft 1) 0`
+(`Psi_etherRight_one_eq_zrow_etherLeft_one`):** on the infinite period-4 ether right half `etherRight 1`,
+`Psi (etherRight 1)` coincides with `zrow (etherLeft 1) 0`. -/
+theorem Psi_etherRight_one_eq_zrow_etherLeft_one :
+    Psi (etherRight 1) = zrow (etherLeft 1) 0 :=
+  (zrow_zero_eq_theta_of_coupled ether_coupled_witness.1 ether_coupled_witness.2).symm
+
+/-- **Infinite Support of `Psi (etherRight 1)` (`not_finSupp_Psi_etherRight_one`):** `Psi (etherRight 1)`
+is not finitely supported. -/
+theorem not_finSupp_Psi_etherRight_one :
+    ¬ FinSupp (Psi (etherRight 1)) := by
+  rw [Psi_etherRight_one_eq_zrow_etherLeft_one]
+  rintro ⟨N, hN⟩
+  refine not_finSupp_etherLeft_one ⟨N, fun k hk => ?_⟩
+  have hk0 : k ≠ 0 := by omega
+  have h := hN k hk
+  simpa [zrow, hk0] using h
+
 end Ruliology.CellularAutomata.Rule30CoupledGerms
