@@ -234,4 +234,281 @@ theorem recurrent_two_layer_escape (j s : Nat) (x y : Code) (hx : x 0=true)
     (by simpa only [iter_zero] using hx) (iter_agree below s) (iter_diff below different s)
   exact ⟨t,ht,by simpa only [iter_add] using ne⟩
 
+/-! ### Two-Color Quiet-Window Bounds, Apex Wavefront Laws, Black-Wall Shielding, and 12-State Apex Algebra -/
+
+/-- **White-Tick Window Bound (`white_within`):** for any infinite code `x` with `x 0 = true` and
+any positive digit `0 < j`, `iter (s + t) x j = false` holds within `t ≤ (j + 1) / 2` ticks from
+every starting time `s`. -/
+theorem white_within (j s : Nat) (hj : 0 < j) (x : Code) (hx : x 0 = true) :
+    ∃ t, t ≤ (j + 1) / 2 ∧ iter (s + t) x j = false := by
+  by_cases white : iter s x j = false
+  · exact ⟨0, by omega, white⟩
+  · obtain ⟨t, ht, ne⟩ := flip_bound_from j s hj x hx
+    have black : iter s x j = true := by cases h : iter s x j <;> simp_all
+    refine ⟨t, ht, ?_⟩
+    rw [black] at ne
+    cases h : iter (s + t) x j <;> simp_all
+
+/-- **Black-Tick Window Bound (`black_within_edge`):** for any infinite code `x` with `x 0 = true`
+and any digit `j : Nat`, `iter (s + t) x j = true` holds within `t ≤ (j + 1) / 2` ticks from every
+starting time `s`. -/
+theorem black_within_edge (j s : Nat) (x : Code) (hx : x 0 = true) :
+    ∃ t, t ≤ (j + 1) / 2 ∧ iter (s + t) x j = true := by
+  by_cases black : iter s x j = true
+  · exact ⟨0, by omega, black⟩
+  · by_cases zero : j = 0
+    · subst j
+      have e : iter s x 0 = true := by simpa only [iter_zero] using hx
+      exact False.elim (black e)
+    · obtain ⟨t, ht, ne⟩ := flip_bound_from j s (by omega) x hx
+      have white : iter s x j = false := by cases h : iter s x j <;> simp_all
+      refine ⟨t, ht, ?_⟩
+      rw [white] at ne
+      cases h : iter (s + t) x j <;> simp_all
+
+/-- **Two-Color Window Law (`both_colors_within`):** every positive digit `0 < j` of any infinite
+black-edge code visits both `false` and `true` within every window `[s, s + (j + 1) / 2]`. -/
+theorem both_colors_within (j s : Nat) (hj : 0 < j) (x : Code) (hx : x 0 = true) :
+    (∃ tw, tw ≤ (j + 1) / 2 ∧ iter (s + tw) x j = false) ∧
+    (∃ tb, tb ≤ (j + 1) / 2 ∧ iter (s + tb) x j = true) :=
+  ⟨white_within j s hj x hx, black_within_edge j s x hx⟩
+
+/-- **Public Pre-Horizon White Law of the Single Seed (`seed_white_before_horizon`):** for all
+`j, t : Nat` with `2 * t < j`, the single seed satisfies `iter t one j = false`. -/
+theorem seed_white_before_horizon (j t : Nat) (before : 2 * t < j) : iter t one j = false := by
+  induction t generalizing j with
+  | zero => simp only [iter, one, show j ≠ 0 by omega, decide_false]
+  | succ t ih =>
+    obtain ⟨k, rfl⟩ : ∃ k, j = k + 2 := ⟨j - 2, by omega⟩
+    change T (iter t one) (k + 2) = false
+    simp only [T, ih (k + 2) (by omega), ih (k + 1) (by omega), ih k (by omega)]
+    rfl
+
+/-- **Exact Even-Digit Horizon Activation of the Single Seed (`seed_even_horizon`):** for every
+`t : Nat`, digit `2 * t` of `one` is `true` at step `t` (`iter t one (2 * t) = true`). -/
+theorem seed_even_horizon (t : Nat) : iter t one (2 * t) = true := by
+  cases t with
+  | zero => rfl
+  | succ t =>
+    have h := seed_at_bound (2 * (t + 1)) (by omega)
+    have hdiv : (2 * (t + 1) + 1) / 2 = t + 1 := by omega
+    simpa only [hdiv] using h
+
+/-- **Exact Odd-Digit Horizon Activation of the Single Seed (`seed_odd_horizon`):** for every
+`t : Nat`, digit `2 * t + 1` of `one` is `true` at step `t + 1` (`iter (t + 1) one (2 * t + 1) = true`). -/
+theorem seed_odd_horizon (t : Nat) : iter (t + 1) one (2 * t + 1) = true := by
+  have h := seed_at_bound (2 * t + 1) (by omega)
+  have hdiv : (2 * t + 1 + 1) / 2 = t + 1 := by omega
+  simpa only [hdiv] using h
+
+/-- **Apex Row-1 Symmetric Triad (`seed_row1_triad`):** at `t = 1`, the single seed `one` forms the
+three-cell black block at digits `0, 1, 2` and is `false` for all `j > 2`. -/
+theorem seed_row1_triad :
+    iter 1 one 0 = true ∧ iter 1 one 1 = true ∧ iter 1 one 2 = true ∧
+    ∀ j, 2 < j → iter 1 one j = false := by
+  refine ⟨by decide, by decide, by decide, ?_⟩
+  intro j hj
+  exact seed_white_before_horizon j 1 (by omega)
+
+/-- **Apex Row-2 Two-Block Split (`seed_row2_split`):** at `t = 2`, the nonlinear OR-reset punches
+a two-cell white gap at digits `1, 2`, splitting the active cone `0..4` into the edge digit `0 = true`,
+the white gap `1, 2 = false`, and the leading pair `3, 4 = true`, with `false` for all `j > 4`. -/
+theorem seed_row2_split :
+    iter 2 one 0 = true ∧ iter 2 one 1 = false ∧ iter 2 one 2 = false ∧
+    iter 2 one 3 = true ∧ iter 2 one 4 = true ∧
+    ∀ j, 4 < j → iter 2 one j = false := by
+  refine ⟨by decide, by decide, by decide, by decide, by decide, ?_⟩
+  intro j hj
+  exact seed_white_before_horizon j 2 (by omega)
+
+/-- **Black-Wall Upper-Tail Shielding (`black_wall_shields_upper_tail`):** if `x` and `y` share a
+black cell at digit `k + 1` (`x (k + 1) = true` and `y (k + 1) = true`) and agree on all digits
+`j ≥ k + 1`, then the OR gate at `k + 2` saturates and masks any disagreement at or below `k`, so
+`T x j = T y j` for all `j ≥ k + 2`. -/
+theorem black_wall_shields_upper_tail (k : Nat) (x y : Code)
+    (hxk : x (k + 1) = true) (hyk : y (k + 1) = true)
+    (hagree : ∀ j, k + 1 ≤ j → x j = y j) :
+    ∀ j, k + 2 ≤ j → T x j = T y j := by
+  intro j hj
+  obtain ⟨m, rfl⟩ : ∃ m, j = m + 2 := ⟨j - 2, by omega⟩
+  rcases Nat.eq_or_lt_of_le (show k ≤ m by omega) with rfl | hlt
+  · simp only [T, hagree (k + 2) (by omega), hxk, hyk, Bool.true_or]
+  · simp only [T, hagree (m + 2) (by omega), hagree (m + 1) (by omega), hagree m (by omega)]
+
+/-- **Speed-Two Upper-Tail Causality Cone (`upper_cone_speed_two_shield`):** if `x` and `y` agree
+on all digits `j ≥ k`, then after `t` updates of `T` they agree on all digits `j ≥ k + 2 * t`
+regardless of arbitrary differences on `0 .. k - 1`. -/
+theorem upper_cone_speed_two_shield (k t : Nat) (x y : Code)
+    (hagree : ∀ j, k ≤ j → x j = y j) :
+    ∀ j, k + 2 * t ≤ j → iter t x j = iter t y j := by
+  induction t with
+  | zero =>
+    intro j hj
+    exact hagree j (by omega)
+  | succ t ih =>
+    intro j hj
+    obtain ⟨m, rfl⟩ : ∃ m, j = m + 2 := ⟨j - 2, by omega⟩
+    change T (iter t x) (m + 2) = T (iter t y) (m + 2)
+    simp only [T, ih (m + 2) (by omega), ih (m + 1) (by omega), ih m (by omega)]
+
+/-- **Symbolic 3-Cell Apex Seed (`apexSeed`):** places Boolean generators `(u0, u1, u2)` at digits
+`(0, 1, 2)` and `false` at all digits `j ≥ 3`. -/
+def apexSeed (u0 u1 u2 : Bool) : Code
+  | 0 => u0
+  | 1 => u1
+  | 2 => u2
+  | _ + 3 => false
+
+/-- **Row-1 Triad Identity (`apexSeed_ttt_eq_iter_one`):** the `(true, true, true)` apex seed is
+extensionally equal to `iter 1 one`. -/
+theorem apexSeed_ttt_eq_iter_one (j : Nat) :
+    apexSeed true true true j = iter 1 one j := by
+  match j with
+  | 0 => rfl
+  | 1 => rfl
+  | 2 => rfl
+  | m + 3 =>
+    have hw := seed_white_before_horizon (m + 3) 1 (by omega)
+    exact hw.symm
+
+/-- **One-Step Shielding of `101` by `001` (`apexSeed_101_shields_001_step`):** because `u2 = true`
+sits at digit `2`, `black_wall_shields_upper_tail` at `k = 1` guarantees that
+`T (apexSeed true false true)` and `T (apexSeed false false true)` agree on all `j ≥ 3`. -/
+theorem apexSeed_101_shields_001_step (j : Nat) (hj : 3 ≤ j) :
+    T (apexSeed true false true) j = T (apexSeed false false true) j := by
+  refine black_wall_shields_upper_tail 1 (apexSeed true false true) (apexSeed false false true) rfl rfl ?_ j hj
+  intro i hi
+  match i with
+  | 0 => omega
+  | 1 => omega
+  | 2 => rfl
+  | m + 3 => rfl
+
+/-- **One-Step Shielding of `110` by `010` (`apexSeed_110_shields_010_step`):** because `u1 = true`
+sits at digit `1`, `black_wall_shields_upper_tail` at `k = 0` guarantees that
+`T (apexSeed true true false)` and `T (apexSeed false true false)` agree on all `j ≥ 2`. -/
+theorem apexSeed_110_shields_010_step (j : Nat) (hj : 2 ≤ j) :
+    T (apexSeed true true false) j = T (apexSeed false true false) j := by
+  refine black_wall_shields_upper_tail 0 (apexSeed true true false) (apexSeed false true false) rfl rfl ?_ j hj
+  intro i hi
+  match i with
+  | 0 => omega
+  | 1 => rfl
+  | 2 => rfl
+  | m + 3 => rfl
+
+/-- **One-Step Shielding of `111` by `011` (`apexSeed_111_shields_011_step`):** because `u1 = true`
+sits at digit `1`, `black_wall_shields_upper_tail` at `k = 0` guarantees that
+`T (apexSeed true true true)` and `T (apexSeed false true true)` agree on all `j ≥ 2` (differing
+only at digits `0` and `1`). -/
+theorem apexSeed_111_shields_011_step (j : Nat) (hj : 2 ≤ j) :
+    T (apexSeed true true true) j = T (apexSeed false true true) j := by
+  refine black_wall_shields_upper_tail 0 (apexSeed true true true) (apexSeed false true true) rfl rfl ?_ j hj
+  intro i hi
+  match i with
+  | 0 => omega
+  | 1 => rfl
+  | 2 => rfl
+  | m + 3 => rfl
+
+/-- **Universal Interior ANF Polynomial over `F_2[u0, u1, u2]` (`apexInteriorPoly`):** given the
+three adjacent standard Rule 30 bits `(A, B, C)` representing `(100, 010, 001)`, evaluates the exact
+symbolic polynomial across all 8 seeds `(u0, u1, u2) : Bool`. -/
+def apexInteriorPoly (A B C u0 u1 u2 : Bool) : Bool :=
+  xor (xor (and A (and u0 (!(and u1 u2))))
+           (and B (and (!u0) u1)))
+      (xor (and C (and (!u0) (and (!u1) u2)))
+           (and (xor C (or B A)) (and u0 (and u1 u2))))
+
+/-- **Exact 8-Seed Evaluation of `apexInteriorPoly` (`apexInteriorPoly_eval_laws`):** verifies that
+`apexInteriorPoly A B C` evaluates to `false` on `(0,0,0)`, to `A` on `{100, 110, 101}`, to `B` on
+`{010, 011}`, to `C` on `001`, and to the Rule 30 step `xor C (or B A)` on `111`. -/
+theorem apexInteriorPoly_eval_laws (A B C : Bool) :
+    apexInteriorPoly A B C false false false = false ∧
+    apexInteriorPoly A B C true false false = A ∧
+    apexInteriorPoly A B C true true false = A ∧
+    apexInteriorPoly A B C true false true = A ∧
+    apexInteriorPoly A B C false true false = B ∧
+    apexInteriorPoly A B C false true true = B ∧
+    apexInteriorPoly A B C false false true = C ∧
+    apexInteriorPoly A B C true true true = xor C (or B A) := by
+  cases A <;> cases B <;> cases C <;> decide
+
+/-- **The 12-Element Closed Apex Polynomial Alphabet (`apexPoly12`):** enumerates the 12 exact
+8-bit truth tables (indexed `0..11`, with bit `m` corresponding to `(u0, u1, u2)`) that appear
+anywhere in the infinite Rule 30 light cone of `(u0, u1, u2)`. -/
+def apexPoly12 (k : Fin 12) (u0 u1 u2 : Bool) : Bool :=
+  match k.val with
+  | 0  => false
+  | 1  => apexInteriorPoly false false true u0 u1 u2
+  | 2  => u2
+  | 3  => apexInteriorPoly false true false u0 u1 u2
+  | 4  => apexInteriorPoly false true true u0 u1 u2
+  | 5  => u1
+  | 6  => xor u1 u2
+  | 7  => apexInteriorPoly true false false u0 u1 u2
+  | 8  => apexInteriorPoly true false true u0 u1 u2
+  | 9  => xor u0 (or u1 u2)
+  | 10 => apexInteriorPoly true true false u0 u1 u2
+  | _  => apexInteriorPoly true true true u0 u1 u2
+
+/-- **Membership of All 8 Interior `(A, B, C)` States in `apexPoly12` (`apexInteriorPoly_mem_12`):**
+every triple `(A, B, C) : Bool` produces one of the 12 polynomials in `apexPoly12` (`k ∈ {0,1,3,4,7,8,10,11}`). -/
+theorem apexInteriorPoly_mem_12 : ∀ A B C : Bool, ∃ k : Fin 12, ∀ u0 u1 u2 : Bool,
+    apexInteriorPoly A B C u0 u1 u2 = apexPoly12 k u0 u1 u2 := by decide
+
+/-- **Rule 30 Closure of the 8 Interior Polynomials (`apexInteriorPoly_step_closed`):** applying the
+symbolic Rule 30 update `xor P (or Q R)` pointwise to any three interior polynomials with parameters
+`(A1, B1, C1)`, `(A2, B2, C2)`, `(A3, B3, C3)` that satisfy the horizontal shift consistency
+`B1 = C2`, `A1 = B2`, `B2 = C3`, `A2 = B3` yields an exact interior polynomial in `apexPoly12`! -/
+theorem apexInteriorPoly_step_closed :
+    ∀ w0 w1 w2 w3 w4 u0 u1 u2 : Bool,
+      xor (apexInteriorPoly w2 w1 w0 u0 u1 u2)
+          (or (apexInteriorPoly w3 w2 w1 u0 u1 u2)
+              (apexInteriorPoly w4 w3 w2 u0 u1 u2)) =
+      apexInteriorPoly (xor w2 (or w3 w4)) (xor w1 (or w2 w3)) (xor w0 (or w1 w2)) u0 u1 u2 := by
+  decide
+
+/-- **Injectivity of the 8 Interior Polynomials (`apexInteriorPoly_injective`):** distinct 3-bit
+windows `(A1, B1, C1)` and `(A2, B2, C2)` produce distinct Boolean polynomials in `F_2[u0, u1, u2]`,
+establishing that there are exactly `2^3 = 8` interior states. -/
+theorem apexInteriorPoly_injective :
+    ∀ A1 B1 C1 A2 B2 C2 : Bool,
+      (∀ u0 u1 u2 : Bool, apexInteriorPoly A1 B1 C1 u0 u1 u2 = apexInteriorPoly A2 B2 C2 u0 u1 u2) →
+      (A1 = A2 ∧ B1 = B2 ∧ C1 = C2) := by
+  decide
+
+/-- **Injectivity of the 16 Interior de Bruijn Pairs (`apexDeBruijnPair_injective`):** every 4-bit
+word `(w0, w1, w2, w3)` is uniquely determined by the adjacent interior polynomial pair
+`(apexInteriorPoly w2 w1 w0, apexInteriorPoly w3 w2 w1)`, establishing the 16-edge de Bruijn core. -/
+theorem apexDeBruijnPair_injective :
+    ∀ w0 w1 w2 w3 v0 v1 v2 v3 : Bool,
+      (∀ u0 u1 u2 : Bool,
+        apexInteriorPoly w2 w1 w0 u0 u1 u2 = apexInteriorPoly v2 v1 v0 u0 u1 u2 ∧
+        apexInteriorPoly w3 w2 w1 u0 u1 u2 = apexInteriorPoly v3 v2 v1 u0 u1 u2) →
+      (w0 = v0 ∧ w1 = v1 ∧ w2 = v2 ∧ w3 = v3) := by
+  decide
+
+/-- **Exact Rule 30 Closure of the Right-Boundary Collar (`apexBoundaryCollar_closed`):** the
+right-boundary collar transitions `(2,0,0) -> 2`, `(5,2,0) -> 6`, `(6,2,0) -> 5`, `(7,5,2) -> 9`,
+and `(9,6,2) -> 7` hold identically across all 8 seeds `(u0, u1, u2)` in `apexPoly12`. -/
+theorem apexBoundaryCollar_closed :
+    ∀ u0 u1 u2 : Bool,
+      xor (apexPoly12 ⟨2, by decide⟩ u0 u1 u2)
+          (or (apexPoly12 ⟨0, by decide⟩ u0 u1 u2) (apexPoly12 ⟨0, by decide⟩ u0 u1 u2)) =
+        apexPoly12 ⟨2, by decide⟩ u0 u1 u2 ∧
+      xor (apexPoly12 ⟨5, by decide⟩ u0 u1 u2)
+          (or (apexPoly12 ⟨2, by decide⟩ u0 u1 u2) (apexPoly12 ⟨0, by decide⟩ u0 u1 u2)) =
+        apexPoly12 ⟨6, by decide⟩ u0 u1 u2 ∧
+      xor (apexPoly12 ⟨6, by decide⟩ u0 u1 u2)
+          (or (apexPoly12 ⟨2, by decide⟩ u0 u1 u2) (apexPoly12 ⟨0, by decide⟩ u0 u1 u2)) =
+        apexPoly12 ⟨5, by decide⟩ u0 u1 u2 ∧
+      xor (apexPoly12 ⟨7, by decide⟩ u0 u1 u2)
+          (or (apexPoly12 ⟨5, by decide⟩ u0 u1 u2) (apexPoly12 ⟨2, by decide⟩ u0 u1 u2)) =
+        apexPoly12 ⟨9, by decide⟩ u0 u1 u2 ∧
+      xor (apexPoly12 ⟨9, by decide⟩ u0 u1 u2)
+          (or (apexPoly12 ⟨6, by decide⟩ u0 u1 u2) (apexPoly12 ⟨2, by decide⟩ u0 u1 u2)) =
+        apexPoly12 ⟨7, by decide⟩ u0 u1 u2 := by
+  decide
+
 end Ruliology.CellularAutomata.Rule30EdgeClock
