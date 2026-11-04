@@ -173,5 +173,87 @@ theorem not_eventually_001_of_C3s (hC : C3s001) :
   · rw [ite_eq_right (by omega), ite_eq_right (by omega)]
   · rw [ite_eq_right (by omega), ite_eq_left h, s2 (by omega)]; rfl
 
+/-! ### Skeleton Pattern Monotonicity, Full Period-3 Exclusion, and `011` Phase Complementarity -/
+
+/-- **Skeleton Pattern Refinement (`fits3_001s_imp_fits3_001`):** fitting the skeleton pattern
+`colPattern001s` (`(0, *, 1)`) implies fitting the bare left-permutivity pattern `colPattern3 w001`
+(`(*, *, 1)`). -/
+theorem fits3_001s_imp_fits3_001 (φ : Nat) (b : Bool)
+    (h : fits3 colPattern001s φ b = true) :
+    fits3 (colPattern3 w001) φ b = true := by
+  rw [fits3_001s] at h
+  rcases Nat.lt_or_ge φ 3 with hlt | hge
+  · have : φ = 0 ∨ φ = 1 ∨ φ = 2 := by omega
+    rcases this with rfl | rfl | rfl
+    · rfl
+    · rfl
+    · simpa [fits3, colPattern3, w001] using h
+  · unfold fits3
+    rw [List.getD_eq_getElem?_getD, List.getElem?_eq_none (by simp [colPattern3, w001]; omega)]; rfl
+
+/-- **Effective Boundary Identity for `w001` (`wordAt3_effWord3_001`):** the effective boundary of
+`w001` is identically `false` at every time step `k`. -/
+theorem wordAt3_effWord3_001 (k : Nat) :
+    wordAt3 (effWord3 w001) k = false := by
+  rw [effWord3_001]
+  unfold wordAt3
+  have : k % 3 = 0 ∨ k % 3 = 1 ∨ k % 3 = 2 := by omega
+  rcases this with h | h | h <;> rw [h] <;> rfl
+
+/-- **`C3w w001` Implies `C3s001` (`C3s001_of_C3w_001`):** the skeleton-augmented statement `C3s001`
+follows unconditionally from the bare left-only statement `C3w w001`. -/
+theorem C3s001_of_C3w_001 (hC : C3w w001) : C3s001 := by
+  intro s hs ⟨K, hK⟩
+  have heff : (fun k => wordAt3 (effWord3 w001) k) = (fun _ => false) := by
+    funext k; exact wordAt3_effWord3_001 k
+  refine hC s hs ⟨K, fun k hk => ?_⟩
+  rw [heff]
+  exact fits3_001s_imp_fits3_001 (k % 3) _ (hK k hk)
+
+/-- **Universal Neighbor Complementarity Under `011^∞` (`col_m1_eq_not_p1_all_phases_011`):** if the
+center column is `011`-periodic from `T`, then once the right strip enters the bad class at `T'`,
+column `-1` is the exact complement `!cell t 1` of column `1` at **every** time `t ≥ T'` across all
+three phases `0, 1, 2`. -/
+theorem col_m1_eq_not_p1_all_phases_011 (T : Nat)
+    (h : ∀ t, T ≤ t → cell t 0 = wordAt3 w011 (t - T)) :
+    ∃ T', T ≤ T' ∧ ∀ t, T' ≤ t → cell t (-1) = !cell t 1 := by
+  obtain ⟨T', hT', hs⟩ := skeleton_011 T h
+  refine ⟨T', hT', fun t ht => ?_⟩
+  obtain ⟨m0, m1, m2⟩ := col_m1_011 T h t (by omega)
+  obtain ⟨s1, s2⟩ := hs t ht
+  have : (t - T) % 3 = 0 ∨ (t - T) % 3 = 1 ∨ (t - T) % 3 = 2 := by omega
+  rcases this with hφ | hφ | hφ
+  · exact m0 hφ
+  · rw [m1 hφ, s1 hφ]; rfl
+  · rw [m2 hφ, s2 hφ]; rfl
+
+/-- **Phase-Locked Opposite Values at Black Steps Under `011^∞` (`col_m1_p1_black_phases_011`):**
+under `011^∞`, for all `t ≥ T'`, `(cell t (-1), cell t 1) = (false, true)` at phase `1` and
+`(true, false)` at phase `2`. -/
+theorem col_m1_p1_black_phases_011 (T : Nat)
+    (h : ∀ t, T ≤ t → cell t 0 = wordAt3 w011 (t - T)) :
+    ∃ T', T ≤ T' ∧ ∀ t, T' ≤ t →
+      ((t - T) % 3 = 1 → cell t (-1) = false ∧ cell t 1 = true) ∧
+      ((t - T) % 3 = 2 → cell t (-1) = true ∧ cell t 1 = false) := by
+  obtain ⟨T', hT', hs⟩ := skeleton_011 T h
+  refine ⟨T', hT', fun t ht => ⟨fun h1 => ?_, fun h2 => ?_⟩⟩
+  · exact ⟨(col_m1_011 T h t (by omega)).2.1 h1, (hs t ht).1 h1⟩
+  · exact ⟨(col_m1_011 T h t (by omega)).2.2 h2, (hs t ht).2 h2⟩
+
+/-- **Three-Step Phase-Locking Under `001^∞` (`col_m1_001_skeleton_triple`):** under `001^∞`, for
+every `k` with `T' ≤ T + 3 * k`, column `-1` satisfies `cell (T + 3 * k) (-1) = false`,
+`cell (T + 3 * k + 1) (-1) = !cell (T + 3 * k + 1) 1`, and `cell (T + 3 * k + 2) (-1) = true`. -/
+theorem col_m1_001_skeleton_triple (T : Nat)
+    (h : ∀ t, T ≤ t → cell t 0 = wordAt3 w001 (t - T)) :
+    ∃ T', T ≤ T' ∧ ∀ k, T' ≤ T + 3 * k →
+      cell (T + 3 * k) (-1) = false ∧
+      cell (T + 3 * k + 1) (-1) = !cell (T + 3 * k + 1) 1 ∧
+      cell (T + 3 * k + 2) (-1) = true := by
+  obtain ⟨T', hT', hs⟩ := col_m1_001_skeleton T h
+  refine ⟨T', hT', fun k hk => ⟨?_, ?_, ?_⟩⟩
+  · exact (hs (T + 3 * k) hk).1 (by omega)
+  · exact (hs (T + 3 * k + 1) (by omega)).2.1 (by omega)
+  · exact (hs (T + 3 * k + 2) (by omega)).2.2 (by omega)
+
 end Rule30EtherThree
 end Ruliology.CellularAutomata

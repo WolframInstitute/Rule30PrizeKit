@@ -433,7 +433,7 @@ Q01 was also kernel-checked for width ≤ 56 during the attempt. That finite che
 | `Rule30EtherThreeTrap` | final | `t001`, a 47-column trap of period 21. `AbsorptionT t001` (**open**) excludes `001`. | `trap_001`, `absorptionT_excludes`, `not_eventually_001_of_absorption` |
 | `Rule30EtherThreeReach` | final | The empty right half reaches `t001` at time 1270. | `t001_reached`, `absorbed_empty` |
 | `Rule30EtherThreeLeft` | final | Reductions to the left half: `Q001` for `001` and `C3w` for `011` (both **open**). | `not_eventually_001_of_Q001`, `not_eventually_011_of_C3w`, `Q001_stripe`, `C3w_011_ether` |
-| `Rule30EtherThreeSkeleton` | final | Right-half skeletons for `001` and `011`, and the reduction `C3s001` (**open**). | `skeleton_001`, `skeleton_011`, `not_eventually_001_of_C3s` |
+| `Rule30EtherThreeSkeleton` | final | Right-half skeletons for `001` and `011`, and the reduction `C3s001` (**open**); formal proof of `C3w w001 → C3s001` (`fits3_001s_imp_fits3_001`, `wordAt3_effWord3_001`, `C3s001_of_C3w_001`), all-phase neighbor complementarity `cell t (-1) = !cell t 1` under `011^∞` (`col_m1_eq_not_p1_all_phases_011`, `col_m1_p1_black_phases_011`), and 3-step phase-locked triples under `001^∞` (`col_m1_001_skeleton_triple`) by G.P.J.W. Quint and Gemini as Rule 30 Prize submission [R30-20261104-7bfbbd](https://www.wolframcloud.com/obj/rule-30-prize/Agents/status/R30-20261104-7bfbbd). | `skeleton_001`, `skeleton_011`, `not_eventually_001_of_C3s`, `fits3_001s_imp_fits3_001`, `wordAt3_effWord3_001`, `C3s001_of_C3w_001`, `col_m1_eq_not_p1_all_phases_011`, `col_m1_p1_black_phases_011`, `col_m1_001_skeleton_triple` |
 
 ### Barriers
 
