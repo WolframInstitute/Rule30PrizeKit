@@ -275,5 +275,24 @@ theorem center_not_eventually_period_two_of_bwh (hb : BWH) (hs : SmallRW) :
   Rule30AlternatingTraceBridge.center_not_eventually_period_two_of_excluded
     (bwh_small_implies_period_two hb hs)
 
+/-! ## Discharging `SmallRW` via `Rule30WedgeBridge.smallRW` -/
+
+/-- **`BWH` Alone Implies `OrbitSeparator` (`bwh_implies_orbit_separator`):** `BWH` alone implies
+`OrbitSeparator`. -/
+theorem bwh_implies_orbit_separator (hb : BWH) : OrbitSeparator :=
+  rw_implies_orbit_separator (bwh_implies_rw_unconditional hb)
+
+/-- **`BWH` Alone Implies `PeriodTwoExcluded` (`bwh_implies_period_two`):** discharges `SmallRW`
+from `bwh_small_implies_period_two`. -/
+theorem bwh_implies_period_two (hb : BWH) : Rule30AlternatingTraceBridge.PeriodTwoExcluded :=
+  bwh_small_implies_period_two hb smallRW
+
+/-- **`BWH` Alone Excludes Eventual Period Two of the Center Column
+(`center_not_eventually_period_two_of_bwh_unconditional`):** discharges `SmallRW` from
+`center_not_eventually_period_two_of_bwh`. -/
+theorem center_not_eventually_period_two_of_bwh_unconditional (hb : BWH) :
+    ¬ ∃ T : Nat, ∀ t : Nat, T ≤ t → Rule30Prize.center (t + 2) = Rule30Prize.center t :=
+  center_not_eventually_period_two_of_bwh hb smallRW
+
 end Rule30SEPToPeriodTwo
 end Ruliology.CellularAutomata
