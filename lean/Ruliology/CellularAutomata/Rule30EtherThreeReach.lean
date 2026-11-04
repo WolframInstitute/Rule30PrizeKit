@@ -85,5 +85,57 @@ theorem absorbed_empty : ∃ t1 i, i < t001.n ∧ (t1 + 0) % 3 = t001.lab i % 3 
     EncF (drv (fun t => wordAt3 t001.w (t + 0)) (fun _ => false)) t001.b t1 0 (t001.st i) :=
   ⟨1270, t001_reached⟩
 
+/-! ### Exact Light-Cone Bit-Width Envelope, Semigroup Law, and Strip Encoding of `rowN` -/
+
+/-- **Quiescent Zero Step of `stepN` (`stepN_false_zero`):** stepping the empty bit mask `0` under a
+white driver `false` yields `0`. -/
+theorem stepN_false_zero : stepN false 0 = 0 := by decide
+
+/-- **Bitwise Light-Cone Bound for `stepN` (`testBit_stepN_eq_false_of_ge`):** if all bits of `r` at
+indices `≥ b` are `false`, then all bits of `stepN c r` at indices `≥ b + 1` are `false`. -/
+theorem testBit_stepN_eq_false_of_ge (c : Bool) (r b : Nat)
+    (hr : ∀ j, b ≤ j → r.testBit j = false) (i : Nat) (hi : b + 1 ≤ i) :
+    (stepN c r).testBit i = false := by
+  rw [testBit_stepN, ite_eq_right (by omega), hr (i - 1) (by omega), hr i (by omega), hr (i + 1) (by omega)]
+  rfl
+
+/-- **Iterated Light-Cone Bit Envelope for `rowN` (`testBit_rowN_eq_false_of_ge`):** if all bits of
+`x0` at indices `≥ b` are `false`, then at time `t` all bits of `rowN c x0 t` at indices `≥ b + t`
+are `false`. -/
+theorem testBit_rowN_eq_false_of_ge (c : Nat → Bool) (x0 b : Nat)
+    (hx0 : ∀ j, b ≤ j → x0.testBit j = false) :
+    ∀ t i, b + t ≤ i → (rowN c x0 t).testBit i = false
+  | 0, i, hi => hx0 i (by omega)
+  | t + 1, i, hi => by
+    show (stepN (c t) (rowN c x0 t)).testBit i = false
+    exact testBit_stepN_eq_false_of_ge (c t) (rowN c x0 t) (b + t)
+      (fun j hj => testBit_rowN_eq_false_of_ge c x0 b hx0 t j hj) i (by omega)
+
+/-- **Light-Cone Bit Envelope from Empty Start (`testBit_rowN_zero_eq_false_of_ge`):** starting from
+the empty right half `x0 = 0`, all bits of `rowN c 0 t` at indices `≥ t` are `false`. -/
+theorem testBit_rowN_zero_eq_false_of_ge (c : Nat → Bool) (t i : Nat) (hi : t ≤ i) :
+    (rowN c 0 t).testBit i = false :=
+  testBit_rowN_eq_false_of_ge c 0 0 (fun j _ => Nat.zero_testBit j) t i (by omega)
+
+/-- **Exact Time-Additivity (Semigroup Law) of `rowN` (`rowN_add`):** evolving `t1 + t2` steps from
+`x0` under driver `c` is identical to evolving `t2` steps from `rowN c x0 t1` under the shifted
+driver `fun t => c (t1 + t)`. -/
+theorem rowN_add (c : Nat → Bool) (x0 t1 : Nat) :
+    ∀ t2 : Nat, rowN c x0 (t1 + t2) = rowN (fun t => c (t1 + t)) (rowN c x0 t1) t2
+  | 0 => rfl
+  | t2 + 1 => by
+    show stepN (c (t1 + t2)) (rowN c x0 (t1 + t2)) =
+      stepN (c (t1 + t2)) (rowN (fun t => c (t1 + t)) (rowN c x0 t1) t2)
+    rw [rowN_add c x0 t1 t2]
+
+/-- **Universal Strip Encoding of `rowN` (`encF_rowN`):** for any driver `c`, initial mask `x0`, strip
+width `b`, and time `t`, the low `b` bits `rowN c x0 t % 2 ^ b` satisfy `EncF` for
+`drv c (fun p => x0.testBit (p - 1))`. -/
+theorem encF_rowN (c : Nat → Bool) (x0 b t : Nat) :
+    EncF (drv c (fun p => x0.testBit (p - 1))) b t 0 (rowN c x0 t % 2 ^ b) := by
+  refine ⟨Nat.mod_lt _ (Nat.two_pow_pos b), fun i hi => ?_⟩
+  rw [Nat.testBit_mod_two_pow, decide_eq_true hi, Bool.true_and, rowN_eq_drv,
+    show 0 + 1 + i = i + 1 by omega]
+
 end Rule30EtherThree
 end Ruliology.CellularAutomata

@@ -431,7 +431,7 @@ Q01 was also kernel-checked for width ≤ 56 during the attempt. That finite che
 | `Rule30EtherThree` | final | The 12×3 ether and the ether-and-wall framework for period 3. | `ether3_rule`, `alignments_001_complete`, `alignments_011_complete`, `absorption3_excludes` |
 | `Rule30EtherThreeNoWall` | final | The period-3 ether has no wall of width ≤ 12. | `no_wall_le_12` |
 | `Rule30EtherThreeTrap` | final | `t001`, a 47-column trap of period 21. `AbsorptionT t001` (**open**) excludes `001`. | `trap_001`, `absorptionT_excludes`, `not_eventually_001_of_absorption` |
-| `Rule30EtherThreeReach` | final | The empty right half reaches `t001` at time 1270. | `t001_reached`, `absorbed_empty` |
+| `Rule30EtherThreeReach` | final | The empty right half reaches `t001` at time 1270; bitwise light-cone bounds for `stepN` and `rowN` (`testBit_stepN_eq_false_of_ge`, `testBit_rowN_eq_false_of_ge`, `testBit_rowN_zero_eq_false_of_ge`), time-additivity (`rowN_add`), and universal strip encoding (`encF_rowN`) by G.P.J.W. Quint and Gemini as Rule 30 Prize submission [R30-20261104-174d46](https://www.wolframcloud.com/obj/rule-30-prize/Agents/status/R30-20261104-174d46). | `t001_reached`, `absorbed_empty`, `stepN_false_zero`, `testBit_stepN_eq_false_of_ge`, `testBit_rowN_eq_false_of_ge`, `testBit_rowN_zero_eq_false_of_ge`, `rowN_add`, `encF_rowN` |
 | `Rule30EtherThreeLeft` | final | Reductions to the left half: `Q001` for `001` and `C3w` for `011` (both **open**). | `not_eventually_001_of_Q001`, `not_eventually_011_of_C3w`, `Q001_stripe`, `C3w_011_ether` |
 | `Rule30EtherThreeSkeleton` | final | Right-half skeletons for `001` and `011`, and the reduction `C3s001` (**open**). | `skeleton_001`, `skeleton_011`, `not_eventually_001_of_C3s` |
 
