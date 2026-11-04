@@ -215,5 +215,119 @@ theorem problem1_of_CQ
   rw [this]
   exact hep
 
+/-! ### Shift Invariance of `CQ`, Unconditional Constant-Column Exclusion, and Nonconstant Reduction of `Problem1` -/
+
+/-- **Backward Time-Shift Transfer for `CQ` (`CQ_of_CQ_shift`):** if `CQ (fun t => ω (t + k))`
+holds for some shift `k : Nat`, then `CQ ω` holds. -/
+theorem CQ_of_CQ_shift {ω : Nat → Bool} (k : Nat)
+    (hk : CQ (fun t => ω (t + k))) : CQ ω := by
+  rw [CQ_iff_no_finite_config] at hk ⊢
+  rintro ⟨y, hfin, hy⟩
+  refine hk ⟨fun p => evol y k p, evol_finConfig hfin k, fun t => ?_⟩
+  rw [Rule30ZeroBoundaryBarriers.evol_restart y k t 0, hy (k + t), Nat.add_comm k t]
+
+/-- **One-Step Phase-Shift Invariance of `CQ` for Periodic Columns (`CQ_periodic_succ_iff`):**
+if `ω` is `P`-periodic (`0 < P`), then `CQ (fun t => ω (t + 1)) ↔ CQ ω`. -/
+theorem CQ_periodic_succ_iff {ω : Nat → Bool} {P : Nat} (hP : 0 < P)
+    (hper : ∀ t, ω (t + P) = ω t) :
+    CQ (fun t => ω (t + 1)) ↔ CQ ω := by
+  constructor
+  · exact CQ_of_CQ_shift 1
+  · intro hC
+    apply CQ_of_CQ_shift (P - 1) (ω := fun t => ω (t + 1))
+    have hback : (fun t => ω (t + (P - 1) + 1)) = ω := by
+      funext t
+      rw [show t + (P - 1) + 1 = t + P by omega]
+      exact hper t
+    rwa [hback]
+
+/-- **Exact Phase-Shift Invariance of `CQ` for Periodic Columns (`CQ_periodic_shift_iff`):**
+if `ω` is `P`-periodic (`0 < P`), then `CQ (fun t => ω (t + k)) ↔ CQ ω` for every phase shift `k : Nat`. -/
+theorem CQ_periodic_shift_iff {P : Nat} (hP : 0 < P) :
+    ∀ (k : Nat) {ω : Nat → Bool}, (∀ t, ω (t + P) = ω t) → (CQ (fun t => ω (t + k)) ↔ CQ ω)
+  | 0, ω, _ => by simp
+  | k + 1, ω, hper => by
+    have hper1 : ∀ t, (fun s => ω (s + 1)) (t + P) = (fun s => ω (s + 1)) t := fun t => by
+      show ω (t + P + 1) = ω (t + 1)
+      rw [show t + P + 1 = (t + 1) + P by omega, hper (t + 1)]
+    have ih := CQ_periodic_shift_iff hP k (ω := fun s => ω (s + 1)) hper1
+    have heq : (fun t => ω (t + k + 1)) = (fun t => ω (t + (k + 1))) := by
+      funext t; rw [Nat.add_assoc]
+    change CQ (fun t => ω (t + k + 1)) ↔ CQ (fun s => ω (s + 1)) at ih
+    rw [heq] at ih
+    exact ih.trans (CQ_periodic_succ_iff hP hper)
+
+/-- **Unconditional `CQ` for Eventually Constant Columns with a Black Cell
+(`CQ_of_eventually_constant`):** if `ω` is eventually constant (`∀ t, T ≤ t → ω t = b`) and has at
+least one black cell (`∃ t₀, ω t₀ = true`), then `CQ ω` holds unconditionally. -/
+theorem CQ_of_eventually_constant {ω : Nat → Bool} {T : Nat} {b : Bool}
+    (hconst : ∀ t, T ≤ t → ω t = b) (hblack : ∃ t₀, ω t₀ = true) : CQ ω := by
+  rw [CQ_iff_no_finite_config]
+  rintro ⟨y, hfin, hy⟩
+  obtain ⟨t₀, ht₀⟩ := hblack
+  have hne : ∃ p, y p = true := by
+    refine Classical.byContradiction fun hz => ?_
+    have hzero : ∀ p, y p = false := fun p => by
+      cases hyp : y p
+      · rfl
+      · exact absurd ⟨p, hyp⟩ hz
+    rw [← hy t₀, evol_zero hzero] at ht₀
+    exact absurd ht₀ (by decide)
+  exact no_column_eventually_constant_finite hfin hne 0 ⟨T, b, fun t ht => by
+    rw [hy t]
+    exact hconst t ht⟩
+
+/-- **Unconditional `CQ` for the Constant All-Black Column (`CQ_const_true`):**
+`CQ (fun _ => true)` holds unconditionally. -/
+theorem CQ_const_true : CQ (fun _ => true) :=
+  CQ_of_eventually_constant (T := 0) (b := true) (fun _ _ => rfl) ⟨0, rfl⟩
+
+/-- **Reduction of `Problem1` to Nonconstant Periodic Coupled Questions
+(`problem1_of_nonconstant_CQ`):** if `CQ ω` holds for every periodic `ω` that contains both a black
+cell and a white cell, then `Rule30Prize.Problem1` holds. -/
+theorem problem1_of_nonconstant_CQ
+    (h : ∀ ω : Nat → Bool, (∃ P, 0 < P ∧ ∀ t, ω (t + P) = ω t) →
+      (∃ t, ω t = true) → (∃ t, ω t = false) → CQ ω) :
+    Rule30Prize.Problem1 := by
+  refine problem1_of_CQ (fun ω hper hblack => ?_)
+  by_cases hwhite : ∃ t, ω t = false
+  · exact h ω hper hblack hwhite
+  · refine CQ_of_eventually_constant (T := 0) (b := true) (fun t _ => ?_) hblack
+    cases hω : ω t
+    · exact False.elim (hwhite ⟨t, hω⟩)
+    · rfl
+
+/-- Inductive phase-reduction helper (`CQ_of_canonical_CQ`): if `CQ` holds for every periodic
+sequence with `ω 0 = true` and a white cell, then it holds for every periodic sequence with
+`ω t₀ = true` and a white cell for any `t₀ : Nat`. -/
+theorem CQ_of_canonical_CQ
+    (h : ∀ ω : Nat → Bool, (∃ P, 0 < P ∧ ∀ t, ω (t + P) = ω t) →
+      ω 0 = true → (∃ t, ω t = false) → CQ ω)
+    {P : Nat} (hP : 0 < P) :
+    ∀ (t₀ : Nat) {ω : Nat → Bool}, (∀ t, ω (t + P) = ω t) →
+      ω t₀ = true → (∃ t, ω t = false) → CQ ω
+  | 0, ω, hper, ht0, hw => h ω ⟨P, hP, hper⟩ ht0 hw
+  | t₀ + 1, ω, hper, ht0, ⟨t₁, ht₁⟩ => by
+    have hper1 : ∀ t, (fun s => ω (s + 1)) (t + P) = (fun s => ω (s + 1)) t := fun t => by
+      show ω (t + P + 1) = ω (t + 1)
+      rw [show t + P + 1 = (t + 1) + P by omega, hper (t + 1)]
+    have hw1 : ∃ t, (fun s => ω (s + 1)) t = false := by
+      refine ⟨t₁ + (P - 1), ?_⟩
+      show ω (t₁ + (P - 1) + 1) = false
+      rw [show t₁ + (P - 1) + 1 = t₁ + P by omega, hper t₁, ht₁]
+    have ht01 : (fun s => ω (s + 1)) t₀ = true := ht0
+    exact CQ_of_CQ_shift 1 (CQ_of_canonical_CQ h hP t₀ (ω := fun s => ω (s + 1)) hper1 ht01 hw1)
+
+/-- **Canonical Phase-Anchored Reduction of `Problem1` (`problem1_of_canonical_CQ`):**
+since `CQ` is invariant under phase shifts of periodic columns (`CQ_periodic_shift_iff`), to prove
+`Rule30Prize.Problem1` it suffices to establish `CQ ω` for periodic sequences `ω` anchored with a
+black cell at `t = 0` (`ω 0 = true`) that also take the value `false`. -/
+theorem problem1_of_canonical_CQ
+    (h : ∀ ω : Nat → Bool, (∃ P, 0 < P ∧ ∀ t, ω (t + P) = ω t) →
+      ω 0 = true → (∃ t, ω t = false) → CQ ω) :
+    Rule30Prize.Problem1 :=
+  problem1_of_nonconstant_CQ (fun _ ⟨_, hP, hper⟩ ⟨t₀, ht₀⟩ hw =>
+    CQ_of_canonical_CQ h hP t₀ hper ht₀ hw)
+
 end Rule30Coupled
 end Ruliology.CellularAutomata
