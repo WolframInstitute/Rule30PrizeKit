@@ -383,5 +383,142 @@ theorem white_run_loglog_spaced (a L : Nat) (ha : 256 ≤ a)
   have := white_run_effective_spaced (m' - 2) (by omega) a L hA h
   omega
 
+/-! ## Exact Realization of the Unique Gap-Five Pair `(D 2, D 7)` and Sharp `whiteCount` Values Through Index 12 -/
+
+/-- **Diagonal `D 2` Is White from `t = 2` (`D_two_eq_false`):** for every `t ≥ 2`, `D 2 t = false`. -/
+theorem D_two_eq_false (t : Nat) (ht : 2 ≤ t) : D 2 t = false := by
+  obtain ⟨s, rfl⟩ : ∃ s, t = s + 2 := ⟨t - 2, by omega⟩
+  have hs := D_step 0 (s + 1)
+  rw [D_zero (s + 1), D_one s] at hs
+  simpa using hs
+
+/-- **Diagonal `D 2` Is Eventually White (`evWhite_D_two`):** `EvWhite (D 2)` holds with cutoff `2`. -/
+theorem evWhite_D_two : EvWhite (D 2) :=
+  ⟨2, D_two_eq_false⟩
+
+/-- **Diagonal `D 3` Alternates from `t = 2` (`D_three_succ`):** for every `t ≥ 2`,
+`D 3 (t + 1) = !D 3 t`. -/
+theorem D_three_succ (t : Nat) (ht : 2 ≤ t) : D 3 (t + 1) = !D 3 t := by
+  obtain ⟨s, rfl⟩ : ∃ s, t = s + 2 := ⟨t - 2, by omega⟩
+  have hs := D_step 1 (s + 2)
+  rw [D_one (s + 1), D_two_eq_false (s + 2) (by omega)] at hs
+  simpa using hs
+
+/-- **Diagonal `D 4` Is Black from `t = 3` (`D_four_eq_true`):** for every `t ≥ 3`, `D 4 t = true`. -/
+theorem D_four_eq_true : ∀ t : Nat, 3 ≤ t → D 4 t = true
+  | 0, ht => by omega
+  | 1, ht => by omega
+  | 2, ht => by omega
+  | 3, _ => by decide
+  | t + 4, _ => by
+    have hs := D_step 2 (t + 3)
+    rw [D_two_eq_false (t + 3) (by omega), D_four_eq_true (t + 3) (by omega)] at hs
+    cases D 3 (t + 3) <;> simpa using hs
+
+/-- **Diagonal `D 4` Is Eventually Black (`evBlack_D_four`):** `EvBlack (D 4)` holds with cutoff `3`. -/
+theorem evBlack_D_four : EvBlack (D 4) :=
+  ⟨3, D_four_eq_true⟩
+
+/-- **Diagonal `D 5` Agrees with `D 3` from `t = 4` (`D_five_eq_D_three`):** for every `t ≥ 4`,
+`D 5 t = D 3 t`. -/
+theorem D_five_eq_D_three (t : Nat) (ht : 4 ≤ t) : D 5 t = D 3 t := by
+  obtain ⟨s, rfl⟩ : ∃ s, t = (s + 3) + 1 := ⟨t - 4, by omega⟩
+  have hs := D_step 3 (s + 3)
+  have h3 := D_three_succ (s + 3) (by omega)
+  rw [D_four_eq_true (s + 3) (by omega)] at hs
+  cases D 3 (s + 3) <;> cases D 5 (s + 3) <;> simp_all
+
+/-- **Diagonal `D 6` Agrees with `D 3` from `t = 5` (`D_six_eq_D_three`):** for every `t ≥ 5`,
+`D 6 t = D 3 t`. -/
+theorem D_six_eq_D_three : ∀ t : Nat, 5 ≤ t → D 6 t = D 3 t
+  | 0, ht => by omega
+  | 1, ht => by omega
+  | 2, ht => by omega
+  | 3, ht => by omega
+  | 4, ht => by omega
+  | 5, _ => by decide
+  | t + 6, _ => by
+    have hs := D_step 4 (t + 5)
+    have h3 := D_three_succ (t + 5) (by omega)
+    rw [D_four_eq_true (t + 5) (by omega), D_five_eq_D_three (t + 5) (by omega),
+      D_six_eq_D_three (t + 5) (by omega)] at hs
+    cases D 3 (t + 5) <;> simp_all
+
+/-- **Diagonal `D 7` Is White from `t = 7` (`D_seven_eq_false`):** for every `t ≥ 7`, `D 7 t = false`. -/
+theorem D_seven_eq_false : ∀ t : Nat, 7 ≤ t → D 7 t = false
+  | 0, ht => by omega
+  | 1, ht => by omega
+  | 2, ht => by omega
+  | 3, ht => by omega
+  | 4, ht => by omega
+  | 5, ht => by omega
+  | 6, ht => by omega
+  | 7, _ => by decide
+  | t + 8, _ => by
+    have hs := D_step 5 (t + 7)
+    rw [D_five_eq_D_three (t + 7) (by omega), D_six_eq_D_three (t + 7) (by omega),
+      D_seven_eq_false (t + 7) (by omega)] at hs
+    cases D 3 (t + 7) <;> simpa using hs
+
+/-- **Diagonal `D 7` Is Eventually White (`evWhite_D_seven`):** `EvWhite (D 7)` holds with cutoff `7`. -/
+theorem evWhite_D_seven : EvWhite (D 7) :=
+  ⟨7, D_seven_eq_false⟩
+
+/-- **Exact Characterization of Gap-Five White Pairs (`gap_five_iff_eq_two`):** for every index
+`j : Nat`, `EvWhite (D j) ∧ EvWhite (D (j + 5))` holds if and only if `j = 2`. -/
+theorem gap_five_iff_eq_two (j : Nat) :
+    (EvWhite (D j) ∧ EvWhite (D (j + 5))) ↔ j = 2 := by
+  constructor
+  · rintro ⟨hw, h5⟩; exact gap_five_origin hw h5
+  · rintro rfl; exact ⟨evWhite_D_two, evWhite_D_seven⟩
+
+/-- **No Eventually White Left Diagonals Strictly Between `2` and `7` (`not_evWhite_between_two_and_seven`):**
+for `2 < j < 7`, `¬ EvWhite (D j)`. -/
+theorem not_evWhite_between_two_and_seven {j : Nat} (h1 : 2 < j) (h2 : j < 7) :
+    ¬ EvWhite (D j) := by
+  intro hj
+  have := white_spacing evWhite_D_two hj h1
+  omega
+
+/-- **No Eventually White Left Diagonals Strictly Between `7` and `13` (`not_evWhite_between_seven_and_thirteen`):**
+for `7 < j < 13`, `¬ EvWhite (D j)`. -/
+theorem not_evWhite_between_seven_and_thirteen {j : Nat} (h1 : 7 < j) (h2 : j < 13) :
+    ¬ EvWhite (D j) := by
+  intro hj
+  have := white_spacing_six evWhite_D_seven hj h1 (by decide)
+  omega
+
+/-- **Exact Value `whiteCount 2 = 1` (`whiteCount_two`):** `Rule30LeftReset.whiteCount 2 = 1`. -/
+theorem whiteCount_two : Rule30LeftReset.whiteCount 2 = 1 := by
+  have h1 : ¬ EvWhite (D 1) := fun h => by have := white_index_ge_two h; omega
+  simp [Rule30LeftReset.whiteCount, h1, evWhite_D_two]
+
+/-- **Exact Value of `whiteCount` on `[2, 6]` (`whiteCount_eq_one_of_two_le_le_six`):** for every
+`j` with `2 ≤ j ≤ 6`, `Rule30LeftReset.whiteCount j = 1`. -/
+theorem whiteCount_eq_one_of_two_le_le_six (j : Nat) (h1 : 2 ≤ j) (h2 : j ≤ 6) :
+    Rule30LeftReset.whiteCount j = 1 := by
+  have hconst := whiteCount_eq_of_no_white (m := 2) (N := 6)
+    (fun i hi1 hi2 => not_evWhite_between_two_and_seven hi1 (by omega))
+  rw [hconst j h1 h2, whiteCount_two]
+
+/-- **Exact Value `whiteCount 7 = 2` (`whiteCount_seven`):** `Rule30LeftReset.whiteCount 7 = 2`. -/
+theorem whiteCount_seven : Rule30LeftReset.whiteCount 7 = 2 := by
+  have hcount : Rule30LeftReset.whiteCount (6 + 1) = Rule30LeftReset.whiteCount 6 + 1 := by
+    simp [Rule30LeftReset.whiteCount, evWhite_D_seven]
+  rw [show (7 : Nat) = 6 + 1 by rfl, hcount, whiteCount_eq_one_of_two_le_le_six 6 (by omega) (by omega)]
+
+/-- **Exact Value of `whiteCount` on `[7, 12]` (`whiteCount_eq_two_of_seven_le_le_twelve`):** for
+every `j` with `7 ≤ j ≤ 12`, `Rule30LeftReset.whiteCount j = 2`. -/
+theorem whiteCount_eq_two_of_seven_le_le_twelve (j : Nat) (h1 : 7 ≤ j) (h2 : j ≤ 12) :
+    Rule30LeftReset.whiteCount j = 2 := by
+  have hconst := whiteCount_eq_of_no_white (m := 7) (N := 12)
+    (fun i hi1 hi2 => not_evWhite_between_seven_and_thirteen hi1 (by omega))
+  rw [hconst j h1 h2, whiteCount_seven]
+
+/-- **Sharpness of `6 * whiteCount j ≤ j + 5` at `j = 7` (`whiteCount_bound_sharp_at_seven`):** the
+upper bound `6 * whiteCount j ≤ j + 5` is attained with equality at `j = 7`. -/
+theorem whiteCount_bound_sharp_at_seven : 6 * Rule30LeftReset.whiteCount 7 = 7 + 5 := by
+  rw [whiteCount_seven]
+
 end Rule30WhiteSpacing
 end Ruliology.CellularAutomata
