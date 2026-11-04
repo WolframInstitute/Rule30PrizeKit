@@ -328,4 +328,114 @@ theorem closing_law_or (x : Nat → Bool) {n m : Nat}
         m + 1 = 2 ^ prefixExp (fun _ b s => b || s) x n) :=
   closing_law _ x (fun _ => quadratic_or) h1 hpair hlast
 
+/-! ### Monotonicity, Multi-Block `5k`-Column Growth Bounds, and Right-Edge OR Specializations -/
+
+/-- **Monotonicity of `prefixExp` (`prefixExp_mono`):** for any gate family `g`, seed `x`, base
+depth `a`, and offset `d`, `prefixExp g x a ≤ prefixExp g x (a + d)`. -/
+theorem prefixExp_mono (g : Nat → Bool → Bool → Bool) (x : Nat → Bool) (a : Nat) :
+    ∀ d, prefixExp g x a ≤ prefixExp g x (a + d)
+  | 0 => Nat.le_refl _
+  | d + 1 => by
+    have ih := prefixExp_mono g x a d
+    rw [← Nat.add_assoc]
+    rcases prefixExp_succ_cases g x (a + d) with h | h <;> omega
+
+/-- **Unit-Slope Upper Bound on `prefixExp` (`prefixExp_add_le`):** advancing `d` columns raises
+`prefixExp g x` by at most `d`. -/
+theorem prefixExp_add_le (g : Nat → Bool → Bool → Bool) (x : Nat → Bool) (a : Nat) :
+    ∀ d, prefixExp g x (a + d) ≤ prefixExp g x a + d
+  | 0 => Nat.le_refl _
+  | d + 1 => by
+    have ih := prefixExp_add_le g x a d
+    rw [← Nat.add_assoc]
+    rcases prefixExp_succ_cases g x (a + d) with h | h <;> omega
+
+/-- **Multi-Block `5k`-Column Bound (`five_letter_mul`):** once `2 ≤ prefixExp g x n`, advancing
+`5 * k` columns for any quadratic gate family `g` raises `prefixExp g x` by at most `3 * k`. -/
+theorem five_letter_mul (g : Nat → Bool → Bool → Bool) (x : Nat → Bool) (hq : ∀ j, Quadratic (g j))
+    {n : Nat} (hE : 2 ≤ prefixExp g x n) :
+    ∀ k, prefixExp g x (n + 5 * k) ≤ prefixExp g x n + 3 * k
+  | 0 => by simp
+  | k + 1 => by
+    have ih := five_letter_mul g x hq hE k
+    have hmono : 2 ≤ prefixExp g x (n + 5 * k) :=
+      Nat.le_trans hE (prefixExp_mono g x n (5 * k))
+    have hstep := five_letter g x hq hmono
+    rw [show n + 5 * (k + 1) = (n + 5 * k) + 5 by omega]
+    omega
+
+/-- **Arbitrary-Offset `3/5`-Slope Bound (`prefixExp_add_five_div_le`):** once `2 ≤ prefixExp g x n`,
+for every offset `m : Nat` and quadratic gate family `g`,
+`prefixExp g x (n + m) ≤ prefixExp g x n + 3 * (m / 5) + m % 5`. -/
+theorem prefixExp_add_five_div_le (g : Nat → Bool → Bool → Bool) (x : Nat → Bool)
+    (hq : ∀ j, Quadratic (g j)) {n : Nat} (hE : 2 ≤ prefixExp g x n) (m : Nat) :
+    prefixExp g x (n + m) ≤ prefixExp g x n + 3 * (m / 5) + m % 5 := by
+  have hm : n + m = (n + 5 * (m / 5)) + m % 5 := by omega
+  have h1 := five_letter_mul g x hq hE (m / 5)
+  have h2 := prefixExp_add_le g x (n + 5 * (m / 5)) (m % 5)
+  rw [hm]
+  omega
+
+/-- **Scaled Linear `3/5`-Slope Inequality (`five_mul_prefixExp_sub_le`):** once `2 ≤ prefixExp g x n`,
+for every offset `m : Nat` and quadratic gate family `g`,
+`5 * (prefixExp g x (n + m) - prefixExp g x n) ≤ 3 * m + 8`. -/
+theorem five_mul_prefixExp_sub_le (g : Nat → Bool → Bool → Bool) (x : Nat → Bool)
+    (hq : ∀ j, Quadratic (g j)) {n : Nat} (hE : 2 ≤ prefixExp g x n) (m : Nat) :
+    5 * (prefixExp g x (n + m) - prefixExp g x n) ≤ 3 * m + 8 := by
+  have h := prefixExp_add_five_div_le g x hq hE m
+  omega
+
+/-- **Exact Order Countdown for Rule 30's OR Gate (`order_countdown_exact_or`):** if `s` has period
+`2 ^ v` (`1 ≤ v`) with `order s (2 ^ v) + 1 < 2 ^ v`, `b` is `2 ^ v`-antiperiodic, and
+`h (t + 1) = xor (h t) (b t || s t)` keeps period `2 * 2 ^ v`, then
+`order h (2 * 2 ^ v) + 1 = order s (2 ^ v)`. -/
+theorem order_countdown_exact_or {s b h : Nat → Bool} {v : Nat}
+    (hv : 1 ≤ v) (hs : ∀ t, s (t + 2 ^ v) = s t) (hb : ∀ t, b (t + 2 ^ v) = !b t)
+    (hh : ∀ t, h (t + 1) = xor (h t) (b t || s t))
+    (hper : ∀ t, h (t + 2 * 2 ^ v) = h t) (hlt : order s (2 ^ v) + 1 < 2 ^ v) :
+    order h (2 * 2 ^ v) + 1 = order s (2 ^ v) :=
+  order_countdown_exact quadratic_or hv hs hb hh hper hlt
+
+/-- **No Three Consecutive Doublings for Rule 30's Right Edge (`no_three_at_or`):** once
+`1 ≤ prefixExp (fun _ b s => b || s) x p`, no three consecutive columns can all double the period. -/
+theorem no_three_at_or (x : Nat → Bool) {p : Nat}
+    (hE : 1 ≤ prefixExp (fun _ b s => b || s) x p) :
+    prefixExp (fun _ b s => b || s) x (p + 1) = prefixExp (fun _ b s => b || s) x p ∨
+      prefixExp (fun _ b s => b || s) x (p + 2) = prefixExp (fun _ b s => b || s) x (p + 1) ∨
+      prefixExp (fun _ b s => b || s) x (p + 3) = prefixExp (fun _ b s => b || s) x (p + 2) :=
+  no_three_at _ x (fun _ => quadratic_or) hE
+
+/-- **No `11011` Doubling Pattern for Rule 30's Right Edge (`no_11011_at_or`):** once
+`2 ≤ prefixExp (fun _ b s => b || s) x p`, the 5-column doubling word `11011` cannot occur. -/
+theorem no_11011_at_or (x : Nat → Bool) {p : Nat}
+    (hE : 2 ≤ prefixExp (fun _ b s => b || s) x p) :
+    prefixExp (fun _ b s => b || s) x (p + 1) = prefixExp (fun _ b s => b || s) x p ∨
+      prefixExp (fun _ b s => b || s) x (p + 2) = prefixExp (fun _ b s => b || s) x (p + 1) ∨
+      prefixExp (fun _ b s => b || s) x (p + 3) = prefixExp (fun _ b s => b || s) x (p + 2) + 1 ∨
+      prefixExp (fun _ b s => b || s) x (p + 4) = prefixExp (fun _ b s => b || s) x (p + 3) ∨
+      prefixExp (fun _ b s => b || s) x (p + 5) = prefixExp (fun _ b s => b || s) x (p + 4) :=
+  no_11011_at _ x (fun _ => quadratic_or) hE
+
+/-- **Five-Letter Bound for Rule 30's Right Edge (`five_letter_or`):** once
+`2 ≤ prefixExp (fun _ b s => b || s) x n`, any 5 consecutive columns raise `prefixExp` by at most 3. -/
+theorem five_letter_or (x : Nat → Bool) {n : Nat}
+    (hE : 2 ≤ prefixExp (fun _ b s => b || s) x n) :
+    prefixExp (fun _ b s => b || s) x (n + 5) ≤ prefixExp (fun _ b s => b || s) x n + 3 :=
+  five_letter _ x (fun _ => quadratic_or) hE
+
+/-- **Multi-Block `5k`-Column Bound for Rule 30's Right Edge (`five_letter_mul_or`):** once
+`2 ≤ prefixExp (fun _ b s => b || s) x n`, advancing `5 * k` columns raises `prefixExp` by at most `3 * k`. -/
+theorem five_letter_mul_or (x : Nat → Bool) {n : Nat}
+    (hE : 2 ≤ prefixExp (fun _ b s => b || s) x n) (k : Nat) :
+    prefixExp (fun _ b s => b || s) x (n + 5 * k) ≤ prefixExp (fun _ b s => b || s) x n + 3 * k :=
+  five_letter_mul _ x (fun _ => quadratic_or) hE k
+
+/-- **Scaled Linear `3/5`-Slope Inequality for Rule 30's Right Edge (`five_mul_prefixExp_sub_le_or`):**
+once `2 ≤ prefixExp (fun _ b s => b || s) x n`, for every `m : Nat`,
+`5 * (prefixExp (fun _ b s => b || s) x (n + m) - prefixExp (fun _ b s => b || s) x n) ≤ 3 * m + 8`. -/
+theorem five_mul_prefixExp_sub_le_or (x : Nat → Bool) {n : Nat}
+    (hE : 2 ≤ prefixExp (fun _ b s => b || s) x n) (m : Nat) :
+    5 * (prefixExp (fun _ b s => b || s) x (n + m) - prefixExp (fun _ b s => b || s) x n) ≤ 3 * m + 8 :=
+  five_mul_prefixExp_sub_le _ x (fun _ => quadratic_or) hE m
+
 end Ruliology.CellularAutomata.Rule30ClosingLaw
