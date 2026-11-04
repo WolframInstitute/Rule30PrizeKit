@@ -1516,5 +1516,192 @@ theorem R_infinitely_many_energy_forms (k₀ : Nat) :
   · exact blockEnergy_eq_zero_of_antiperiodic (T := 0) (fun s _ => ha0 s) (Nat.zero_le _) hj
   · exact shellMax_le_two_mul_of_antiperiodic (T := 0) (Nat.two_pow_pos k₀) (fun s _ => ha0 s) (Nat.zero_le _)
 
+open Rule30Jen Rule30Prize Rule30Diagonals Rule30LeftReset Rule30LeftUnbounded Rule30LeftAntiPeriod
+
+/-! ## 1. Multiplicative Spin-Shield Negotiation Identities -/
+
+/-- Local 3-cell Rule 30 collision operator `p ^^ (q || r)`. -/
+def rule30 (p q r : Bool) : Bool := p ^^ (q || r)
+
+/-- **Multiplicative Character of XOR (`sign_xor_eq_mul`):** `sign (a ^^ b) = sign a * sign b` for all
+`a, b : Bool`. -/
+theorem sign_xor_eq_mul (a b : Bool) :
+    sign (a ^^ b) = sign a * sign b := by
+  cases a <;> cases b <;> rfl
+
+/-- **Multiplicative Spin-Shield Law for Rule 30 (`sign_rule30_eq_mul_shield`):** the output spin
+`sign (rule30 p q r)` is the product of the left input spin `sign p` and the right-coalition shield
+spin `sign (q || r)`. -/
+theorem sign_rule30_eq_mul_shield (p q r : Bool) :
+    sign (rule30 p q r) = sign p * sign (q || r) := by
+  cases p <;> cases q <;> cases r <;> rfl
+
+/-- **Left-Output Spin Coupling Identity (`sign_left_mul_rule30_eq_shield`):** the product of the left
+input spin `sign p` and the output spin `sign (rule30 p q r)` equals the right-coalition shield spin
+`sign (q || r)`. -/
+theorem sign_left_mul_rule30_eq_shield (p q r : Bool) :
+    sign p * sign (rule30 p q r) = sign (q || r) := by
+  cases p <;> cases q <;> cases r <;> rfl
+
+/-! ## 2. Universal Cross-Correlation and Shield-Balance Orthogonality -/
+
+/-- Cumulative `T`-step spin cross-correlation `crossCorr f g T = sumTo (fun t => z f t * z g t) T`
+measuring the negotiation alignment between two Boolean trajectories `f` and `g`. -/
+def crossCorr (f g : Nat → Bool) (T : Nat) : Int :=
+  sumTo (fun t => z f t * z g t) T
+
+/-- **Cross-Correlation vs. XOR Signed Sum (`crossCorr_eq_S_xor`):** for any two Boolean sequences
+`f, g : Nat → Bool` and horizon `T`, `crossCorr f g T` equals the signed sum `S (fun t => f t ^^ g t) T`,
+which equals `T - 2 * ones (fun t => f t ^^ g t) T`. -/
+theorem crossCorr_eq_S_xor (f g : Nat → Bool) (T : Nat) :
+    crossCorr f g T = S (fun t => f t ^^ g t) T ∧
+    crossCorr f g T = (T : Int) - 2 * (ones (fun t => f t ^^ g t) T : Int) := by
+  have h1 : crossCorr f g T = S (fun t => f t ^^ g t) T := by
+    unfold crossCorr S
+    refine sumTo_congr _ _ T (fun t _ => ?_)
+    dsimp only [z]
+    exact (sign_xor_eq_mul (f t) (g t)).symm
+  exact ⟨h1, h1.trans (signedSum_eq (fun t => f t ^^ g t) T)⟩
+
+/-- **Universal Negotiation Conservation Law (`crossCorr_rule30_eq_S_shield`):** for any three
+sequences `p, q, r : Nat → Bool` and horizon `T`, the cross-correlation between the left input `p`
+and the Rule 30 output `fun t => rule30 (p t) (q t) (r t)` equals the signed sum `S (fun t => q t || r t) T`
+of the right coalition shield, which is `T - 2 * ones (fun t => q t || r t) T`. -/
+theorem crossCorr_rule30_eq_S_shield (p q r : Nat → Bool) (T : Nat) :
+    crossCorr p (fun t => rule30 (p t) (q t) (r t)) T =
+      S (fun t => q t || r t) T ∧
+    crossCorr p (fun t => rule30 (p t) (q t) (r t)) T =
+      (T : Int) - 2 * (ones (fun t => q t || r t) T : Int) := by
+  have h1 : crossCorr p (fun t => rule30 (p t) (q t) (r t)) T =
+      S (fun t => q t || r t) T := by
+    unfold crossCorr S
+    refine sumTo_congr _ _ T (fun t _ => ?_)
+    dsimp only [z]
+    exact sign_left_mul_rule30_eq_shield (p t) (q t) (r t)
+  exact ⟨h1, h1.trans (signedSum_eq (fun t => q t || r t) T)⟩
+
+/-- **True-Balance Orthogonality Criterion (`shield_balanced_iff_crossCorr_zero`):** over any finite
+horizon `T`, the right coalition shield `fun t => q t || r t` achieves exact `1/2` balance
+(`2 * ones (fun t => q t || r t) T = T`, or `S = 0`) if and only if the Rule 30 output is
+statistically orthogonal to its left parent `p` (`crossCorr p (fun t => rule30 (p t) (q t) (r t)) T = 0`). -/
+theorem shield_balanced_iff_crossCorr_zero (p q r : Nat → Bool) (T : Nat) :
+    2 * ones (fun t => q t || r t) T = T ↔
+      crossCorr p (fun t => rule30 (p t) (q t) (r t)) T = 0 := by
+  have h := (crossCorr_rule30_eq_S_shield p q r T).2
+  omega
+
+/-! ## 3. Global Spacetime, Center-Column, Diagonal, and Energy-Form Transfer Laws -/
+
+/-- **Spacetime Column Cross-Correlation Law (`cell_crossCorr_eq_shield_S`):** at every spatial column
+`x : Int` and time horizon `T : Nat`, the cross-correlation between the left parent column
+`fun t => cell t (x - 1)` and `fun t => cell (t + 1) x` equals `S (fun t => cell t x || cell t (x + 1)) T`
+and `T - 2 * ones (fun t => cell t x || cell t (x + 1)) T`. -/
+theorem cell_crossCorr_eq_shield_S (x : Int) (T : Nat) :
+    crossCorr (fun t => cell t (x - 1)) (fun t => cell (t + 1) x) T =
+      S (fun t => cell t x || cell t (x + 1)) T ∧
+    crossCorr (fun t => cell t (x - 1)) (fun t => cell (t + 1) x) T =
+      (T : Int) - 2 * (ones (fun t => cell t x || cell t (x + 1)) T : Int) := by
+  have hcell : (fun t => cell (t + 1) x) =
+      (fun t => rule30 (cell t (x - 1)) (cell t x) (cell t (x + 1))) := rfl
+  rw [hcell]
+  exact crossCorr_rule30_eq_S_shield
+    (fun t => cell t (x - 1)) (fun t => cell t x) (fun t => cell t (x + 1)) T
+
+/-- **Center-Column Negotiation Balance Law (`center_crossCorr_eq_right_shield_S`):** for every
+horizon `T : Nat`, the cross-correlation between `fun t => cell t (-1)` and the shifted center column
+`fun t => center (t + 1)` equals `S (fun t => center t || cell t 1) T` and
+`T - 2 * ones (fun t => center t || cell t 1) T`. -/
+theorem center_crossCorr_eq_right_shield_S (T : Nat) :
+    crossCorr (fun t => cell t (-1)) (fun t => center (t + 1)) T =
+      S (fun t => center t || cell t 1) T ∧
+    crossCorr (fun t => cell t (-1)) (fun t => center (t + 1)) T =
+      (T : Int) - 2 * (ones (fun t => center t || cell t 1) T : Int) := by
+  simpa [center] using cell_crossCorr_eq_shield_S 0 T
+
+/-- **Left-Diagonal Cross-Correlation Law (`D_crossCorr_eq_shield_S`):** for every diagonal index
+`j : Nat` and horizon `T : Nat`, the cross-correlation between `D j` and `fun t => D (j + 2) (t + 1)`
+equals `S (fun t => D (j + 1) t || D (j + 2) t) T` and
+`T - 2 * ones (fun t => D (j + 1) t || D (j + 2) t) T`. -/
+theorem D_crossCorr_eq_shield_S (j T : Nat) :
+    crossCorr (D j) (fun t => D (j + 2) (t + 1)) T =
+      S (fun t => D (j + 1) t || D (j + 2) t) T ∧
+    crossCorr (D j) (fun t => D (j + 2) (t + 1)) T =
+      (T : Int) - 2 * (ones (fun t => D (j + 1) t || D (j + 2) t) T : Int) := by
+  have hD : ∀ t, (D j t ^^ D (j + 2) (t + 1)) = (D (j + 1) t || D (j + 2) t) := by
+    intro t
+    have hstep := D_step j t
+    revert hstep
+    cases D j t <;> cases D (j + 1) t <;> cases D (j + 2) t <;> cases D (j + 2) (t + 1) <;> decide
+  have hfun : (fun t => D j t ^^ D (j + 2) (t + 1)) = (fun t => D (j + 1) t || D (j + 2) t) :=
+    funext hD
+  have h := crossCorr_eq_S_xor (D j) (fun t => D (j + 2) (t + 1)) T
+  rw [hfun] at h
+  exact h
+
+/-- **Bidirectional Parity-Balance Transfer (`rule30_antiperiodic_iff_shield_periodic_of_left_antiperiodic`):**
+if the left channel `p` is `L`-antiperiodic from `T₀` on (`∀ t ≥ T₀, p (t + L) = !p t`), then the
+negotiated output `fun t => rule30 (p t) (q t) (r t)` is `L`-antiperiodic from `T₀` on if and only if
+the right coalition shield `fun t => q t || r t` is `L`-periodic from `T₀` on. -/
+theorem rule30_antiperiodic_iff_shield_periodic_of_left_antiperiodic
+    {p q r : Nat → Bool} {T₀ L : Nat} (hp : ∀ t, T₀ ≤ t → p (t + L) = !p t) :
+    (∀ t, T₀ ≤ t → rule30 (p (t + L)) (q (t + L)) (r (t + L)) = !rule30 (p t) (q t) (r t)) ↔
+      (∀ t, T₀ ≤ t → (q (t + L) || r (t + L)) = (q t || r t)) := by
+  constructor
+  · intro hout t ht
+    have hpt := hp t ht
+    have hot := hout t ht
+    unfold rule30 at hot
+    rw [hpt] at hot
+    revert hot
+    cases p t <;> cases (q (t + L) || r (t + L)) <;> cases (q t || r t) <;> decide
+  · intro hsh t ht
+    have hpt := hp t ht
+    have hsht := hsh t ht
+    unfold rule30
+    rw [hpt, hsht]
+    cases p t <;> cases (q t || r t) <;> rfl
+
+/-- **Dual Parity-Balance Transfer (`rule30_antiperiodic_iff_shield_antiperiodic_of_left_periodic`):**
+if the left channel `p` is `L`-periodic from `T₀` on (`∀ t ≥ T₀, p (t + L) = p t`), then the
+negotiated output `fun t => rule30 (p t) (q t) (r t)` is `L`-antiperiodic from `T₀` on if and only if
+the right coalition shield `fun t => q t || r t` is `L`-antiperiodic from `T₀` on. -/
+theorem rule30_antiperiodic_iff_shield_antiperiodic_of_left_periodic
+    {p q r : Nat → Bool} {T₀ L : Nat} (hp : ∀ t, T₀ ≤ t → p (t + L) = p t) :
+    (∀ t, T₀ ≤ t → rule30 (p (t + L)) (q (t + L)) (r (t + L)) = !rule30 (p t) (q t) (r t)) ↔
+      (∀ t, T₀ ≤ t → (q (t + L) || r (t + L)) = !(q t || r t)) := by
+  constructor
+  · intro hout t ht
+    have hpt := hp t ht
+    have hot := hout t ht
+    unfold rule30 at hot
+    rw [hpt] at hot
+    revert hot
+    cases p t <;> cases (q (t + L) || r (t + L)) <;> cases (q t || r t) <;> decide
+  · intro hsh t ht
+    have hpt := hp t ht
+    have hsht := hsh t ht
+    unfold rule30
+    rw [hpt, hsht]
+    cases p t <;> cases (q t || r t) <;> rfl
+
+/-- **All-Energy-Forms Transfer under Shapley Shield Periodicity (`energy_forms_of_left_antiperiodic_of_shield_periodic`):**
+for any `L > 0`, if the left channel `p` is `L`-antiperiodic from `T₀` on and the right coalition
+shield `fun t => q t || r t` is `L`-periodic from `T₀` on, then the negotiated Rule 30 output
+`out := fun t => rule30 (p t) (q t) (r t)` satisfies all six Problem 2 balance and energy conditions:
+`HalfDensity`, `DensityHalf`, `ShellMaxLittleO`, `FlexibleEnergyToZero`, `OrderedEnergyLittleO`, and
+`MaxBlockEnergyLittleO`. -/
+theorem energy_forms_of_left_antiperiodic_of_shield_periodic
+    {p q r : Nat → Bool} {T₀ L : Nat} (hL : 0 < L)
+    (hp : ∀ t, T₀ ≤ t → p (t + L) = !p t)
+    (hsh : ∀ t, T₀ ≤ t → (q (t + L) || r (t + L)) = (q t || r t)) :
+    HalfDensity (fun t => rule30 (p t) (q t) (r t)) ∧
+      DensityHalf (fun t => rule30 (p t) (q t) (r t)) ∧
+      ShellMaxLittleO (fun t => rule30 (p t) (q t) (r t)) ∧
+      FlexibleEnergyToZero (fun t => rule30 (p t) (q t) (r t)) ∧
+      OrderedEnergyLittleO (fun t => rule30 (p t) (q t) (r t)) ∧
+      MaxBlockEnergyLittleO (fun t => rule30 (p t) (q t) (r t)) := by
+  have hout := (rule30_antiperiodic_iff_shield_periodic_of_left_antiperiodic hp).mpr hsh
+  exact energy_forms_of_antiperiodic hL ⟨T₀, hout⟩
+
 end Rule30P2Bridge
 end Ruliology.CellularAutomata
