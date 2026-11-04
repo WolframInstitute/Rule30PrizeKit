@@ -581,4 +581,127 @@ theorem u_drought_clock_bound {R : Nat → Bool} {m : Nat}
       (s₀ := s₀) (ℓ := ℓ - 1) (p := 1) (by decide) hconst
     omega
 
+/-! ## 7. The Double 2-Cell White Corridor, Active-Germ Lockout, and the `101` Free-Bit Sandwich Law -/
+
+/-- **Two-Sided Pulse Isolation of `u R` (`u_eq_false_of_u_succ_true`):** whenever
+`u R (s + 1) = true`, both adjacent white-step column-1 cells `u R s` and `u R (s + 2)` are `false`. -/
+theorem u_eq_false_of_u_succ_true (R : Nat → Bool) (s : Nat)
+    (hu : u R (s + 1) = true) :
+    u R s = false ∧ u R (s + 2) = false := by
+  have h1 := u_no11 R s
+  have h2 := u_no11 R (s + 1)
+  rw [hu] at h1 h2
+  revert h1 h2
+  cases u R s <;> cases u R (s + 2) <;> decide
+
+/-- **Active Preceding Germ Forced by `u R (s + 1) = true` (`drivenGamma_true_of_u_succ_true`):**
+whenever `u R (s + 1) = true`, the preceding even right germ `drivenGamma altCol R (2 * s)` is
+forced `true`. -/
+theorem drivenGamma_true_of_u_succ_true (R : Nat → Bool) (s : Nat)
+    (hu : u R (s + 1) = true) :
+    drivenGamma altCol R (2 * s) = true := by
+  have h := u_succ_eq_drivenGamma_and_not_col2 R s
+  rw [hu] at h
+  cases h1 : drivenGamma altCol R (2 * s)
+  · rw [h1] at h; contradiction
+  · rfl
+
+/-- **Immediate Even-Germ Extinction Forced by `u R (s + 1) = true` (`drivenGamma_succ_false_of_u_succ_true`):**
+whenever `u R (s + 1) = true`, the even right germ `drivenGamma altCol R (2 * (s + 1))` at step
+`2 * s + 2` is forced `false`. -/
+theorem drivenGamma_succ_false_of_u_succ_true (R : Nat → Bool) (s : Nat)
+    (hu : u R (s + 1) = true) :
+    drivenGamma altCol R (2 * (s + 1)) = false :=
+  drivenGamma_succ_false_of_true R s (drivenGamma_true_of_u_succ_true R s hu)
+
+/-- **Odd-Step Column-3 Vanishing Forced by `u R (s + 1) = true` (`col3_odd_false_of_u_succ_true`):**
+whenever `u R (s + 1) = true`, the odd-step column-`3` cell `drv altCol R (2 * s + 1) 3` is `false`. -/
+theorem col3_odd_false_of_u_succ_true (R : Nat → Bool) (s : Nat)
+    (hu : u R (s + 1) = true) :
+    drv altCol R (2 * s + 1) 3 = false := by
+  have hg := drivenGamma_true_of_u_succ_true R s hu
+  rw [col3_odd_eq_not_u_of_drivenGamma_true R s hg, hu]
+  rfl
+
+/-- **The Double 2-Cell White Corridor of `u R (s + 1) = true` (`double_corridor_of_u_succ_true`):**
+whenever `u R (s + 1) = true`, a 2-cell white corridor opens across columns `1` and `2` at BOTH the
+odd step `2 * s + 1` and the even step `2 * s + 2`, AND column `3` at the odd step `2 * s + 1`
+vanishes (`drv altCol R (2 * s + 1) 3 = false`). -/
+theorem double_corridor_of_u_succ_true (R : Nat → Bool) (s : Nat)
+    (hu : u R (s + 1) = true) :
+    u R s = false ∧
+      drv altCol R (2 * s + 1) 2 = false ∧
+      drv altCol R (2 * s + 1) 3 = false ∧
+      drv altCol R (2 * s + 2) 1 = false ∧
+      drv altCol R (2 * s + 2) 2 = false := by
+  have hg := drivenGamma_true_of_u_succ_true R s hu
+  obtain ⟨ho1, ho2⟩ := white_corridor_of_drivenGamma_true R s hg
+  obtain ⟨he1, he2⟩ := even_white_corridor_of_u_succ_true R s hu
+  exact ⟨ho1, ho2, col3_odd_false_of_u_succ_true R s hu, he1, he2⟩
+
+/-- **Four-Tick Germ Recovery After `u R (s + 1) = true` (`drivenGamma_add_two_of_u_succ_true`):**
+whenever `u R (s + 1) = true`, the even right germ two periods later at `2 * (s + 2)` reduces to
+`drv altCol R (2 * s + 4) 2 || drv altCol R (2 * s + 4) 3`. -/
+theorem drivenGamma_add_two_of_u_succ_true (R : Nat → Bool) (s : Nat)
+    (hu : u R (s + 1) = true) :
+    drivenGamma altCol R (2 * (s + 2)) =
+      (drv altCol R (2 * s + 4) 2 || drv altCol R (2 * s + 4) 3) := by
+  have hg1 := drivenGamma_succ_false_of_u_succ_true R s hu
+  have h := drivenGamma_succ_of_false R (s + 1) hg1
+  simpa [show 2 * (s + 1) + 2 = 2 * s + 4 by omega] using h
+
+/-- **Inactive Germ Forces Next `u R` Pulse False (`u_succ_false_of_drivenGamma_false`):**
+whenever `drivenGamma altCol R (2 * s) = false`, `u R (s + 1) = false`. -/
+theorem u_succ_false_of_drivenGamma_false (R : Nat → Bool) (s : Nat)
+    (hg : drivenGamma altCol R (2 * s) = false) :
+    u R (s + 1) = false := by
+  rw [u_succ_eq_drivenGamma_and_not_col2 R s, hg]
+  rfl
+
+/-- **Inactive Germ Forces Next Free Bit of `Psi R` True (`Psi_free_true_of_drivenGamma_false`):**
+whenever `drivenGamma altCol R (2 * s) = false`, the free bit `zrow (Psi R) (2 * (s + 1) + 1) 1` is `true`. -/
+theorem Psi_free_true_of_drivenGamma_false (R : Nat → Bool) (s : Nat)
+    (hg : drivenGamma altCol R (2 * s) = false) :
+    zrow (Psi R) (2 * (s + 1) + 1) 1 = true := by
+  rw [Psi_free R (s + 1)]
+  change (!u R (s + 1)) = true
+  rw [u_succ_false_of_drivenGamma_false R s hg]
+  rfl
+
+/-- **The `101` Free-Bit Sandwich Law (`Psi_free_sandwich_of_u_succ_true`):** whenever
+`u R (s + 1) = true`, the free bit `zrow (Psi R) (2 * (s + 1) + 1) 1` is `false` while both
+adjacent free bits `zrow (Psi R) (2 * s + 1) 1` and `zrow (Psi R) (2 * (s + 2) + 1) 1` are `true`. -/
+theorem Psi_free_sandwich_of_u_succ_true (R : Nat → Bool) (s : Nat)
+    (hu : u R (s + 1) = true) :
+    zrow (Psi R) (2 * s + 1) 1 = true ∧
+      zrow (Psi R) (2 * (s + 1) + 1) 1 = false ∧
+      zrow (Psi R) (2 * (s + 2) + 1) 1 = true := by
+  obtain ⟨hu0, hu2⟩ := u_eq_false_of_u_succ_true R s hu
+  rw [Psi_free R s, Psi_free R (s + 1), Psi_free R (s + 2)]
+  change ((!u R s) = true) ∧ ((!u R (s + 1)) = false) ∧ ((!u R (s + 2)) = true)
+  rw [hu0, hu, hu2]
+  decide
+
+/-- **Cofinal White Steps of `u R` from `FinSupp (Psi R)` (`cofinal_u_false_of_finSupp_Psi`):**
+because `u_no11` forbids consecutive `true` values of `u R`, `FinSupp (Psi R)` forces `u R s = false`
+cofinally as well as `u R s = true` cofinally. -/
+theorem cofinal_u_false_of_finSupp_Psi {R : Nat → Bool} (hfin : FinSupp (Psi R)) (N : Nat) :
+    ∃ s, N ≤ s ∧ u R s = false := by
+  obtain ⟨s, hs, hu⟩ := cofinal_u_true_of_finSupp_Psi hfin N
+  have hno := u_no11 R s
+  rw [hu] at hno
+  exact ⟨s + 1, by omega, by simpa using hno⟩
+
+/-- **Cofinal Free-Bit Oscillation of `Psi R` (`cofinal_Psi_free_oscillation_of_finSupp_Psi`):**
+if `FinSupp (Psi R)` holds, then for every `N : Nat` there exist `s₁ ≥ N` and `s₂ ≥ N` such that
+`zrow (Psi R) (2 * s₁ + 1) 1 = false` and `zrow (Psi R) (2 * s₂ + 1) 1 = true`. -/
+theorem cofinal_Psi_free_oscillation_of_finSupp_Psi {R : Nat → Bool} (hfin : FinSupp (Psi R)) (N : Nat) :
+    (∃ s₁, N ≤ s₁ ∧ zrow (Psi R) (2 * s₁ + 1) 1 = false) ∧
+    (∃ s₂, N ≤ s₂ ∧ zrow (Psi R) (2 * s₂ + 1) 1 = true) := by
+  obtain ⟨s₁, hs₁, hu₁⟩ := cofinal_u_true_of_finSupp_Psi hfin N
+  obtain ⟨s₂, hs₂, hu₂⟩ := cofinal_u_false_of_finSupp_Psi hfin N
+  refine ⟨⟨s₁, hs₁, ?_⟩, ⟨s₂, hs₂, ?_⟩⟩
+  · rw [Psi_free R s₁]; change (!u R s₁) = false; rw [hu₁]; rfl
+  · rw [Psi_free R s₂]; change (!u R s₂) = true; rw [hu₂]; rfl
+
 end Ruliology.CellularAutomata.Rule30CoupledGerms
