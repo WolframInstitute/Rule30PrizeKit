@@ -611,5 +611,149 @@ theorem least_period_four_of_C3 (h1 : C3 w0001) (h2 : C3 w0011) (h3 : C3 w0111) 
     (¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt w0111 (t - T)) :=
   ⟨not_eventually_0001_of_C3 h1, not_eventually_0011_of_C3 h2, not_eventually_0111_of_C3 h3⟩
 
+/-! ### Exhaustive Period-4 Necklace Classification, Reduction to Period 2, and Conditional Period-4 Exclusion -/
+
+/-- **Exhaustive 4-Bit Necklace Classification (`word4_classify`):** for any four Booleans
+`(b0, b1, b2, b3)`, either they are 2-periodic (`b2 = b0 ∧ b3 = b1`), or one of the four cyclic
+shifts matches `w0001`, `w0011`, or `w0111`. -/
+theorem word4_classify (b0 b1 b2 b3 : Bool) :
+    (b2 = b0 ∧ b3 = b1) ∨
+    (∃ w : List Bool, (w = w0001 ∨ w = w0011 ∨ w = w0111) ∧
+      ((b0 = wordAt w 0 ∧ b1 = wordAt w 1 ∧ b2 = wordAt w 2 ∧ b3 = wordAt w 3) ∨
+       (b1 = wordAt w 0 ∧ b2 = wordAt w 1 ∧ b3 = wordAt w 2 ∧ b0 = wordAt w 3) ∨
+       (b2 = wordAt w 0 ∧ b3 = wordAt w 1 ∧ b0 = wordAt w 2 ∧ b1 = wordAt w 3) ∨
+       (b3 = wordAt w 0 ∧ b0 = wordAt w 1 ∧ b1 = wordAt w 2 ∧ b2 = wordAt w 3))) := by
+  cases b0 <;> cases b1 <;> cases b2 <;> cases b3
+  · left; exact ⟨rfl, rfl⟩
+  · right; refine ⟨w0001, Or.inl rfl, Or.inl ⟨rfl, rfl, rfl, rfl⟩⟩
+  · right; refine ⟨w0001, Or.inl rfl, Or.inr (Or.inr (Or.inr ⟨rfl, rfl, rfl, rfl⟩))⟩
+  · right; refine ⟨w0011, Or.inr (Or.inl rfl), Or.inl ⟨rfl, rfl, rfl, rfl⟩⟩
+  · right; refine ⟨w0001, Or.inl rfl, Or.inr (Or.inr (Or.inl ⟨rfl, rfl, rfl, rfl⟩))⟩
+  · left; exact ⟨rfl, rfl⟩
+  · right; refine ⟨w0011, Or.inr (Or.inl rfl), Or.inr (Or.inr (Or.inr ⟨rfl, rfl, rfl, rfl⟩))⟩
+  · right; refine ⟨w0111, Or.inr (Or.inr rfl), Or.inl ⟨rfl, rfl, rfl, rfl⟩⟩
+  · right; refine ⟨w0001, Or.inl rfl, Or.inr (Or.inl ⟨rfl, rfl, rfl, rfl⟩)⟩
+  · right; refine ⟨w0011, Or.inr (Or.inl rfl), Or.inr (Or.inl ⟨rfl, rfl, rfl, rfl⟩)⟩
+  · left; exact ⟨rfl, rfl⟩
+  · right; refine ⟨w0111, Or.inr (Or.inr rfl), Or.inr (Or.inl ⟨rfl, rfl, rfl, rfl⟩)⟩
+  · right; refine ⟨w0011, Or.inr (Or.inl rfl), Or.inr (Or.inr (Or.inl ⟨rfl, rfl, rfl, rfl⟩))⟩
+  · right; refine ⟨w0111, Or.inr (Or.inr rfl), Or.inr (Or.inr (Or.inl ⟨rfl, rfl, rfl, rfl⟩))⟩
+  · right; refine ⟨w0111, Or.inr (Or.inr rfl), Or.inr (Or.inr (Or.inr ⟨rfl, rfl, rfl, rfl⟩))⟩
+  · left; exact ⟨rfl, rfl⟩
+
+/-- **Multi-Period Shift by Multiples of `4` (`periodic4_shift`):** if `c` has period `4` from `T`
+on, then `c (r + 4 * q) = c r` for all `r ≥ T` and `q : Nat`. -/
+theorem periodic4_shift {c : Nat → Bool} {T : Nat}
+    (hper : ∀ t, T ≤ t → c (t + 4) = c t) (r : Nat) (hr : T ≤ r) :
+    ∀ q, c (r + 4 * q) = c r
+  | 0 => rfl
+  | q + 1 => by
+    rw [show r + 4 * (q + 1) = (r + 4 * q) + 4 by omega,
+      hper (r + 4 * q) (by omega), periodic4_shift hper r hr q]
+
+/-- **Modulo-`4` Anchor Reduction (`periodic4_mod`):** if `c` has period `4` from `T` on, then
+`c t = c (T + (t - T) % 4)` for all `t ≥ T`. -/
+theorem periodic4_mod {c : Nat → Bool} {T : Nat}
+    (hper : ∀ t, T ≤ t → c (t + 4) = c t) {t : Nat} (ht : T ≤ t) :
+    c t = c (T + (t - T) % 4) := by
+  have hdiv : t = (T + (t - T) % 4) + 4 * ((t - T) / 4) := by omega
+  conv => lhs; rw [hdiv]
+  exact periodic4_shift hper (T + (t - T) % 4) (by omega) ((t - T) / 4)
+
+/-- **Period-2 Inheritance from 2-Periodic Base Window (`periodic2_of_periodic4_base`):** if `c` has
+period `4` from `T` on and `c (T + 2) = c T` and `c (T + 3) = c (T + 1)`, then `c` has period `2`
+from `T` on. -/
+theorem periodic2_of_periodic4_base {c : Nat → Bool} {T : Nat}
+    (hper : ∀ t, T ≤ t → c (t + 4) = c t)
+    (h02 : c (T + 2) = c T) (h13 : c (T + 3) = c (T + 1)) :
+    ∀ t, T ≤ t → c (t + 2) = c t := by
+  intro t ht
+  rw [periodic4_mod hper (by omega : T ≤ t + 2), periodic4_mod hper ht]
+  have hmod : (t - T) % 4 = 0 ∨ (t - T) % 4 = 1 ∨ (t - T) % 4 = 2 ∨ (t - T) % 4 = 3 := by omega
+  rcases hmod with h | h | h | h
+  · have h2 : (t + 2 - T) % 4 = 2 := by omega
+    rw [h, h2, h02]; rfl
+  · have h2 : (t + 2 - T) % 4 = 3 := by omega
+    rw [h, h2, h13]
+  · have h2 : (t + 2 - T) % 4 = 0 := by omega
+    rw [h, h2, h02]; rfl
+  · have h2 : (t + 2 - T) % 4 = 1 := by omega
+    rw [h, h2, h13]
+
+/-- **Matching `wordAt w` from a 4-Tick Base Window (`eq_wordAt_of_periodic4_base`):** if `c` has
+period `4` from `T'` on and matches `wordAt w` at `T', T' + 1, T' + 2, T' + 3`, then
+`c t = wordAt w (t - T')` for all `t ≥ T'`. -/
+theorem eq_wordAt_of_periodic4_base {c : Nat → Bool} {T' : Nat} {w : List Bool}
+    (hper : ∀ t, T' ≤ t → c (t + 4) = c t)
+    (h0 : c T' = wordAt w 0) (h1 : c (T' + 1) = wordAt w 1)
+    (h2 : c (T' + 2) = wordAt w 2) (h3 : c (T' + 3) = wordAt w 3) :
+    ∀ t, T' ≤ t → c t = wordAt w (t - T') := by
+  intro t ht
+  rw [periodic4_mod hper ht]
+  have hwmod : wordAt w (t - T') = wordAt w ((t - T') % 4) := by
+    unfold wordAt
+    rw [Nat.mod_mod]
+  rw [hwmod]
+  have hmod : (t - T') % 4 = 0 ∨ (t - T') % 4 = 1 ∨ (t - T') % 4 = 2 ∨ (t - T') % 4 = 3 := by omega
+  rcases hmod with h | h | h | h <;> rw [h]
+  · simpa using h0
+  · exact h1
+  · exact h2
+  · exact h3
+
+/-- **Period-4 Sequence Normalization (`periodic4_normalize`):** any sequence `c` that is 4-periodic
+from `T` on is either 2-periodic from `T` on, or matches `wordAt w (t - T')` from some shifted
+anchor `T' ∈ [T, T + 3]` for `w ∈ {w0001, w0011, w0111}`. -/
+theorem periodic4_normalize {c : Nat → Bool} {T : Nat}
+    (hper : ∀ t, T ≤ t → c (t + 4) = c t) :
+    (∀ t, T ≤ t → c (t + 2) = c t) ∨
+    (∃ w T', (w = w0001 ∨ w = w0011 ∨ w = w0111) ∧ T ≤ T' ∧ T' ≤ T + 3 ∧
+      ∀ t, T' ≤ t → c t = wordAt w (t - T')) := by
+  rcases word4_classify (c T) (c (T + 1)) (c (T + 2)) (c (T + 3)) with ⟨h02, h13⟩ | ⟨w, hw, hrot⟩
+  · exact Or.inl (periodic2_of_periodic4_base hper h02 h13)
+  · right
+    rcases hrot with ⟨h0, h1, h2, h3⟩ | ⟨h0, h1, h2, h3⟩ | ⟨h0, h1, h2, h3⟩ | ⟨h0, h1, h2, h3⟩
+    · refine ⟨w, T, hw, by omega, by omega,
+        eq_wordAt_of_periodic4_base hper h0 h1 h2 h3⟩
+    · refine ⟨w, T + 1, hw, by omega, by omega,
+        eq_wordAt_of_periodic4_base (fun t ht => hper t (by omega)) h0 ?_ ?_ ?_⟩
+      · simpa [Nat.add_assoc] using h1
+      · simpa [Nat.add_assoc] using h2
+      · rw [show T + 1 + 3 = T + 4 by omega, hper T (by omega), h3]
+    · refine ⟨w, T + 2, hw, by omega, by omega,
+        eq_wordAt_of_periodic4_base (fun t ht => hper t (by omega)) h0 ?_ ?_ ?_⟩
+      · simpa [Nat.add_assoc] using h1
+      · rw [show T + 2 + 2 = T + 4 by omega, hper T (by omega), h2]
+      · rw [show T + 2 + 3 = (T + 1) + 4 by omega, hper (T + 1) (by omega), h3]
+    · refine ⟨w, T + 3, hw, by omega, by omega,
+        eq_wordAt_of_periodic4_base (fun t ht => hper t (by omega)) h0 ?_ ?_ ?_⟩
+      · rw [show T + 3 + 1 = T + 4 by omega, hper T (by omega), h1]
+      · rw [show T + 3 + 2 = (T + 1) + 4 by omega, hper (T + 1) (by omega), h2]
+      · rw [show T + 3 + 3 = (T + 2) + 4 by omega, hper (T + 2) (by omega), h3]
+
+/-- **Reduction of Eventual Period 4 to Period 2 under `C3` (`period_two_of_period_four_of_C3`):**
+if `C3 w0001`, `C3 w0011`, and `C3 w0111` hold, then any 4-periodic center tail from `T` on is
+already 2-periodic from `T` on. -/
+theorem period_two_of_period_four_of_C3
+    (h1 : C3 w0001) (h2 : C3 w0011) (h3 : C3 w0111)
+    {T : Nat} (hper : ∀ t, T ≤ t → cell (t + 4) 0 = cell t 0) :
+    ∀ t, T ≤ t → cell (t + 2) 0 = cell t 0 := by
+  rcases periodic4_normalize (c := fun t => cell t 0) hper with hper2 | ⟨w, T', hw, _, _, htail⟩
+  · exact hper2
+  · rcases hw with rfl | rfl | rfl
+    · exact False.elim (not_eventually_0001_of_C3 h1 ⟨T', htail⟩)
+    · exact False.elim (not_eventually_0011_of_C3 h2 ⟨T', htail⟩)
+    · exact False.elim (not_eventually_0111_of_C3 h3 ⟨T', htail⟩)
+
+/-- **Conditional Exclusion of Eventual Period 4 (`no_period_four_of_no_period_two_and_C3`):**
+if the center column is not eventually periodic of period `2` and `C3 w0001`, `C3 w0011`, and
+`C3 w0111` (**open**) hold, then the center column is not eventually periodic of period `4`. -/
+theorem no_period_four_of_no_period_two_and_C3
+    (hno2 : ¬ ∃ T, ∀ t, T ≤ t → cell (t + 2) 0 = cell t 0)
+    (h1 : C3 w0001) (h2 : C3 w0011) (h3 : C3 w0111) :
+    ¬ ∃ T, ∀ t, T ≤ t → cell (t + 4) 0 = cell t 0 := by
+  rintro ⟨T, hper⟩
+  exact hno2 ⟨T, period_two_of_period_four_of_C3 h1 h2 h3 hper⟩
+
 end Rule30PeriodFourSkeleton
 end Ruliology.CellularAutomata
