@@ -220,4 +220,62 @@ theorem no_period_with_short_complement {x : Int → Bool} {lo : Int} (hlo : x l
     (hwhite : ∀ s, s < r → evol x (a + s) i = false) : False :=
   no_short_complement_of_111_certificate certificate111 hlo hzero i hP hper ha hr hrP hcomp hwhite
 
+/-! ### Finite-Configuration, Single-Seed Column, and Official `center` Periodic Short-Complement Exclusions -/
+
+/-- **Unconditional Short-Core Strip Certificate (`short_core_certificate_unconditional`):**
+every core `u ∈ shortCores` has a valid strip certificate `stripCert (List.replicate r false ++ u) K 2 = true`
+with `1 ≤ K` for every white-run length `r ≥ 49`. -/
+theorem short_core_certificate_unconditional (u : List Bool) (hu : u ∈ shortCores)
+    (r : Nat) (hr : 49 ≤ r) :
+    ∃ K, 1 ≤ K ∧ stripCert (List.replicate r false ++ u) K 2 = true :=
+  short_core_certificate certificate111 u hu r hr
+
+/-- **Periodic Short-Complement Exclusion for Nonzero Finite Configurations
+(`no_period_with_short_complement_finite`):** in every column `i : Int` of every nonzero finite
+configuration `x`, no eventual period `P > 0` can contain a white run of length `r ≥ 49` leaving at
+most four remaining phases (`P - r ≤ 4`). -/
+theorem no_period_with_short_complement_finite {x : Int → Bool}
+    (hfin : Rule30PeriodTwoSideways.FinConfig x) (hne : ∃ p, x p = true)
+    (i : Int) {T P a r : Nat}
+    (hP : 0 < P) (hper : ∀ t, T ≤ t → evol x (t + P) i = evol x t i)
+    (ha : T ≤ a) (hr : 49 ≤ r) (hrP : r ≤ P) (hcomp : P - r ≤ 4)
+    (hwhite : ∀ s, s < r → evol x (a + s) i = false) : False := by
+  obtain ⟨lo, hlo, hzero⟩ := Rule30FiniteConfigs.exists_leftmost hfin hne
+  exact no_period_with_short_complement hlo hzero i hP hper ha hr hrP hcomp hwhite
+
+/-- **Periodic Short-Complement Exclusion for Every Column `i` of `cell`
+(`no_cell_period_with_short_complement`):** in every column `i : Int` of the standard single-seed
+evolution `cell`, no eventual period `P > 0` can contain a white run of length `r ≥ 49` leaving at
+most four remaining phases (`P - r ≤ 4`). -/
+theorem no_cell_period_with_short_complement (i : Int) {T P a r : Nat}
+    (hP : 0 < P) (hper : ∀ t, T ≤ t → cell (t + P) i = cell t i)
+    (ha : T ≤ a) (hr : 49 ≤ r) (hrP : r ≤ P) (hcomp : P - r ≤ 4)
+    (hwhite : ∀ s, s < r → cell (a + s) i = false) : False := by
+  have hlo : seed 0 = true := by decide
+  have hzero : ∀ p : Int, p < 0 → seed p = false := by
+    intro p hp
+    simp [seed, show p ≠ 0 by omega]
+  refine no_period_with_short_complement hlo hzero i hP (fun t ht => ?_) ha hr hrP hcomp (fun s hs => ?_)
+  · rw [evol_seed, evol_seed]; exact hper t ht
+  · rw [evol_seed]; exact hwhite s hs
+
+/-- **Periodic Short-Complement Exclusion for the Official `Rule30Prize.center` Column
+(`no_center_period_with_short_complement`):** the center column `Rule30Prize.center` is never
+eventually `P`-periodic (`0 < P`) with a white run of length `r ≥ 49` (`r ≤ P`) leaving at most
+four remaining phases (`P - r ≤ 4`). -/
+theorem no_center_period_with_short_complement {T P a r : Nat}
+    (hP : 0 < P) (hper : ∀ t, T ≤ t → Rule30Prize.center (t + P) = Rule30Prize.center t)
+    (ha : T ≤ a) (hr : 49 ≤ r) (hrP : r ≤ P) (hcomp : P - r ≤ 4)
+    (hwhite : ∀ s, s < r → Rule30Prize.center (a + s) = false) : False :=
+  no_cell_period_with_short_complement 0 hP hper ha hr hrP hcomp hwhite
+
+/-- **Direct Additive Form for `Rule30Prize.center` (`no_center_period_white_run_add_le_four`):**
+for any white-run length `r ≥ 49` and complement length `k ≤ 4` (`0 < r + k`), `Rule30Prize.center`
+is never eventually `(r + k)`-periodic with `r` consecutive white cells in a period window. -/
+theorem no_center_period_white_run_add_le_four {T a r k : Nat}
+    (hr : 49 ≤ r) (hk : k ≤ 4)
+    (hper : ∀ t, T ≤ t → Rule30Prize.center (t + (r + k)) = Rule30Prize.center t)
+    (ha : T ≤ a) (hwhite : ∀ s, s < r → Rule30Prize.center (a + s) = false) : False :=
+  no_center_period_with_short_complement (P := r + k) (by omega) hper ha hr (by omega) (by omega) hwhite
+
 end Ruliology.CellularAutomata.Rule30ShortTail
