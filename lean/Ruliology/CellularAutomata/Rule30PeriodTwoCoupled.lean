@@ -225,5 +225,110 @@ theorem ether_coupled_witness :
     ether_congr (j := 3 + 1) (j' := 4) (φ' := (2 * s + 2) % 4) (by omega) (by omega)]
   exact ether_check.2.2.1 _ (Nat.mod_lt _ (by decide)) (by omega)
 
+/-! ### Single-Variable `Theta` Reformulation of `CQ01` and Ether Spatio-Temporal Laws -/
+
+/-- **Uniqueness of the Left Start in `CQ01` (`left_eq_theta_of_coupled`):** if `L` and `R` satisfy
+the two coupling equations of `CQ01`, then `L` is uniquely determined by `R` via
+`L = Theta (fun s => !drv altCol R (2 * s + 1) 1)` on all positive depths (and `zrow L 0 = Theta ...`). -/
+theorem zrow_zero_eq_theta_of_coupled {L R : Nat → Bool}
+    (h1 : ∀ s, zrow L (2 * s) 1 = true)
+    (h2 : ∀ s, zrow L (2 * s + 1) 1 = !drv altCol R (2 * s + 1) 1) :
+    zrow L 0 = Theta (fun s => !drv altCol R (2 * s + 1) 1) :=
+  Theta_unique h1 h2
+
+/-- **Single-Variable `Theta` Characterization of `CQ01` (`CQ01_iff_no_finSupp_theta_drv`):** `CQ01`
+holds if and only if for every finitely supported right half `R`, the constrained left start
+`Theta (fun s => !drv altCol R (2 * s + 1) 1)` is not finitely supported. -/
+theorem CQ01_iff_no_finSupp_theta_drv :
+    CQ01 ↔ ∀ R : Nat → Bool, FinSupp R → ¬ FinSupp (Theta (fun s => !drv altCol R (2 * s + 1) 1)) := by
+  unfold CQ01
+  constructor
+  · intro hC R hR hTh
+    refine hC ⟨Theta (fun s => !drv altCol R (2 * s + 1) 1), R, hTh, hR, ?_, ?_⟩
+    · exact Theta_inX (fun s => !drv altCol R (2 * s + 1) 1)
+    · exact Theta_free (fun s => !drv altCol R (2 * s + 1) 1)
+  · rintro hTh ⟨L, R, hL, hR, h1, h2⟩
+    have heq := zrow_zero_eq_theta_of_coupled h1 h2
+    obtain ⟨N, hN⟩ := hL
+    refine hTh R hR ⟨N, fun k hk => ?_⟩
+    rw [← heq]
+    have hk0 : k ≠ 0 := by omega
+    simp [zrow, hk0, hN k hk]
+
+/-- **Bridge from Staged `Rule30PeriodTwo.Q01` to `CQ01` (`CQ01_of_staged_Q01`):** the staged
+left-half hypothesis `Rule30PeriodTwo.Q01` implies the coupled period-2 question `CQ01`. -/
+theorem CQ01_of_staged_Q01 (hQ : Rule30PeriodTwo.Q01) : CQ01 :=
+  CQ01_of_Q01 (Q01_iff_staged.mpr hQ)
+
+/-- **Period-2 Law of `altCol` (`altCol_add_two`):** `altCol (t + 2) = altCol t`. -/
+theorem altCol_add_two (t : Nat) : altCol (t + 2) = altCol t := by
+  unfold altCol
+  rw [Nat.add_mod_right]
+
+/-- **Step-Flip Law of `altCol` (`altCol_succ`):** `altCol (t + 1) = !altCol t`. -/
+theorem altCol_succ (t : Nat) : altCol (t + 1) = !altCol t := by
+  unfold altCol
+  rcases Nat.mod_two_eq_zero_or_one t with h | h <;> simp [h, show (t + 1) % 2 = (t % 2 + 1) % 2 by omega]
+
+/-- **Temporal Period 4 of `etherLeft` (`etherLeft_period_four`):** `etherLeft (φ + 4) = etherLeft φ`. -/
+theorem etherLeft_period_four (φ : Nat) :
+    etherLeft (φ + 4) = etherLeft φ := by
+  funext k
+  unfold etherLeft
+  split
+  · rfl
+  · exact ether_congr rfl (by omega)
+
+/-- **Spatial Period 7 of `etherLeft` for Positive Depths (`etherLeft_depth_add_seven`):** for every
+`k ≥ 1`, `etherLeft φ (k + 7) = etherLeft φ k`. -/
+theorem etherLeft_depth_add_seven (φ : Nat) {k : Nat} (hk : 0 < k) :
+    etherLeft φ (k + 7) = etherLeft φ k := by
+  have hk0 : k ≠ 0 := by omega
+  have hk7 : k + 7 ≠ 0 := by omega
+  simp only [etherLeft, hk0, hk7, ↓reduceIte]
+  exact ether_congr (by omega) rfl
+
+/-- **Temporal Period 4 of `etherRight` (`etherRight_period_four`):** `etherRight (φ + 4) = etherRight φ`. -/
+theorem etherRight_period_four (φ : Nat) :
+    etherRight (φ + 4) = etherRight φ := by
+  funext p
+  unfold etherRight
+  exact ether_congr rfl (by omega)
+
+/-- **Spatial Period 7 of `etherRight` (`etherRight_col_add_seven`):** `etherRight φ (p + 7) = etherRight φ p`. -/
+theorem etherRight_col_add_seven (φ p : Nat) :
+    etherRight φ (p + 7) = etherRight φ p := by
+  unfold etherRight
+  exact ether_congr (by omega) rfl
+
+/-- **Infinite Support of `etherLeft 1` (`not_finSupp_etherLeft_one`):** `etherLeft 1` is not
+finitely supported (`¬ FinSupp (etherLeft 1)`). -/
+theorem not_finSupp_etherLeft_one : ¬ FinSupp (etherLeft 1) := by
+  rintro ⟨N, hN⟩
+  let k := 7 * (N + 1)
+  have hk : N < k := by dsimp [k]; omega
+  have hfalse := hN k hk
+  have hk0 : k ≠ 0 := by dsimp [k]; omega
+  have he : etherLeft 1 k = true := by
+    simp only [etherLeft, hk0, ↓reduceIte]
+    rw [ether_congr (j := 3 + 6 * k) (j' := 3) (φ := 1) (φ' := 1) (by dsimp [k]; omega) rfl]
+    decide
+  rw [he] at hfalse
+  exact Bool.noConfusion hfalse
+
+/-- **Infinite Support of `etherRight 1` (`not_finSupp_etherRight_one`):** `etherRight 1` is not
+finitely supported (`¬ FinSupp (etherRight 1)`). -/
+theorem not_finSupp_etherRight_one : ¬ FinSupp (etherRight 1) := by
+  rintro ⟨N, hN⟩
+  let p := 7 * (N + 1)
+  have hp : N < p := by dsimp [p]; omega
+  have hfalse := hN p hp
+  have he : etherRight 1 p = true := by
+    unfold etherRight
+    rw [ether_congr (j := 3 + p) (j' := 3) (φ := 1) (φ' := 1) (by dsimp [p]; omega) rfl]
+    decide
+  rw [he] at hfalse
+  exact Bool.noConfusion hfalse
+
 end Rule30PeriodTwoCoupled
 end Ruliology.CellularAutomata
