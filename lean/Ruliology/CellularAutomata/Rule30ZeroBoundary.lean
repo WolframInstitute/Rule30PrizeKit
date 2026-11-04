@@ -1509,5 +1509,80 @@ theorem free_bits_no00_no11111 {T : Nat}
     rw [Rule30PeriodTwo.p1_odd h (k + i), hall i hi] at hb
     exact absurd hb (by decide)
 
+/-! ### Zero Fixed Points, Light-Cone Bit Bounds, Top-Bit Shift, and 1-Step Parity of `IntegerForm` -/
+
+namespace IntegerForm
+
+/-- **Zero Fixed Point of `F` (`F_zero`):** the empty start `0` is fixed by `F`. -/
+theorem F_zero : F 0 = 0 := rfl
+
+/-- **Zero Fixed Point of `G` (`G_zero`):** the empty start `0` is fixed by `G = F ∘ F`. -/
+theorem G_zero : G 0 = 0 := rfl
+
+/-- **Zero Fixed Point of `iter F` (`iter_F_zero`):** `0` is fixed by all iterates of `F`. -/
+theorem iter_F_zero : ∀ t : Nat, iter F t 0 = 0
+  | 0 => rfl
+  | t + 1 => by simp [iter, iter_F_zero t, F_zero]
+
+/-- **Zero Fixed Point of `iter G` (`iter_G_zero`):** `0` is fixed by all iterates of `G`. -/
+theorem iter_G_zero : ∀ s : Nat, iter G s 0 = 0
+  | 0 => rfl
+  | s + 1 => by simp [iter, iter_G_zero s, G_zero]
+
+/-- **Bitwise Light-Cone Bound for `F` (`testBit_F_eq_false_of_ge`):** if `Y` has no bits set at or
+above index `b`, then `F Y` has no bits set at or above index `b + 1`. -/
+theorem testBit_F_eq_false_of_ge {Y b : Nat} (hY : ∀ i, b ≤ i → Y.testBit i = false)
+    {k : Nat} (hk : b + 1 ≤ k) : (F Y).testBit k = false := by
+  obtain ⟨j, rfl⟩ : ∃ j, k = j + 1 := ⟨k - 1, by omega⟩
+  rw [testBit_F_succ, hY (j + 2) (by omega), hY (j + 1) (by omega), hY j (by omega)]
+  rfl
+
+/-- **Bitwise Light-Cone Bound for `G` (`testBit_G_eq_false_of_ge`):** if `Y` has no bits set at or
+above index `b`, then `G Y` has no bits set at or above index `b + 2`. -/
+theorem testBit_G_eq_false_of_ge {Y b : Nat} (hY : ∀ i, b ≤ i → Y.testBit i = false)
+    {k : Nat} (hk : b + 2 ≤ k) : (G Y).testBit k = false := by
+  unfold G
+  exact testBit_F_eq_false_of_ge (fun i hi => testBit_F_eq_false_of_ge hY hi) hk
+
+/-- **Outward Top-Bit Shift of `F` (`testBit_F_succ_of_top`):** if bit `m` of `Y` is `true` and all
+bits above `m` are `false`, then bit `m + 1` of `F Y` is `true`. -/
+theorem testBit_F_succ_of_top {Y m : Nat} (hm : Y.testBit m = true)
+    (htop : ∀ i, m < i → Y.testBit i = false) :
+    (F Y).testBit (m + 1) = true := by
+  rw [testBit_F_succ, htop (m + 2) (by omega), htop (m + 1) (by omega), hm]
+  rfl
+
+/-- **Exact Bit-0 Formula for `G Y` on Odd Integers (`testBit_G_zero_of_testBit_zero`):** if bit `0`
+of `Y` is `true`, then bit `0` of `G Y` equals `xor (Y.testBit 2) (Y.testBit 1)`. -/
+theorem testBit_G_zero_of_testBit_zero {Y : Nat} (h0 : Y.testBit 0 = true) :
+    (G Y).testBit 0 = xor (Y.testBit 2) (Y.testBit 1) := by
+  unfold G
+  rw [testBit_F_zero, testBit_F_succ Y 0, testBit_F_zero, h0]
+  cases Y.testBit 1 <;> cases Y.testBit 2 <;> rfl
+
+/-- **Immediate 1-Step Even Termination Criterion (`G_mod_two_eq_zero_of_testBit_one_eq_two`):**
+if bit `0` of `Y` is `true` and `Y.testBit 1 = Y.testBit 2`, then `G Y % 2 = 0`. -/
+theorem G_mod_two_eq_zero_of_testBit_one_eq_two {Y : Nat} (h0 : Y.testBit 0 = true)
+    (h12 : Y.testBit 1 = Y.testBit 2) :
+    G Y % 2 = 0 := by
+  have hg := testBit_G_zero_of_testBit_zero h0
+  rw [h12, Bool.xor_self] at hg
+  rw [Nat.testBit_zero] at hg
+  revert hg
+  have : G Y % 2 = 0 ∨ G Y % 2 = 1 := by omega
+  rcases this with h | h <;> rw [h] <;> decide
+
+/-- **Two-Step Linearized Bit-2 Formula (`testBit_F_two_of_survive_one`):** if `Y` survives both step
+`0` (`Y.testBit 0 = true`) and step `1` (`(G Y).testBit 0 = true`), then `(F Y).testBit 2 = !Y.testBit 3`. -/
+theorem testBit_F_two_of_survive_one {Y : Nat} (h0 : Y.testBit 0 = true)
+    (h1 : (G Y).testBit 0 = true) :
+    (F Y).testBit 2 = !Y.testBit 3 := by
+  rw [testBit_G_zero_of_testBit_zero h0] at h1
+  rw [testBit_F_succ Y 1]
+  revert h1
+  cases Y.testBit 1 <;> cases Y.testBit 2 <;> cases Y.testBit 3 <;> decide
+
+end IntegerForm
+
 end Rule30ZeroBoundary
 end Ruliology.CellularAutomata
