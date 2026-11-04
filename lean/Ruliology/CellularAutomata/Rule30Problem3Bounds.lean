@@ -1455,5 +1455,303 @@ theorem time_ge_of_neg_visit_and_ray_flip {M : Machine} {f : Nat → Bool} {T : 
     (show ((Nat.log2 n + 1 : Nat) : Int) ≤ c₂.head by omega)).2
   exact h
 
+/-! ## 1. Finite Inverse Light-Cone Triangle (Triangular Domain of Dependence) -/
+
+/-- **One-Step Inverse Light-Cone Contraction (`step_congr_triangle`):** if `c₁` and `c₂` agree on
+`state`, `head`, and the open interval `(L, B)` containing `c₁.head`, then one step either halts with
+the same answer on both or produces configurations agreeing on `state`, `head`, and `(L, B)` with
+`|c₁'.head - c₁.head| ≤ 1`. -/
+theorem step_congr_triangle {M : Machine} {c₁ c₂ : Cfg M} {L B : Int}
+    (hs : c₁.state = c₂.state) (hh : c₁.head = c₂.head)
+    (hL : L < c₁.head) (hB : c₁.head < B)
+    (ht : ∀ i : Int, L < i → i < B → c₁.tape i = c₂.tape i) :
+    (∃ b, c₁.step = .inl b ∧ c₂.step = .inl b) ∨
+      ∃ c₁' c₂', c₁.step = .inr c₁' ∧ c₂.step = .inr c₂' ∧
+        c₁'.state = c₂'.state ∧ c₁'.head = c₂'.head ∧
+        c₁.head - 1 ≤ c₁'.head ∧ c₁'.head ≤ c₁.head + 1 ∧
+        (∀ i : Int, L < i → i < B → c₁'.tape i = c₂'.tape i) := by
+  have hread : c₁.tape c₁.head = c₂.tape c₂.head := by
+    rw [← hh]
+    exact ht c₁.head hL hB
+  unfold Cfg.step
+  rw [hs, hread]
+  cases hδ : M.δ c₂.state (c₂.tape c₂.head) with
+  | inl b => exact Or.inl ⟨b, rfl, rfl⟩
+  | inr val =>
+    rcases val with ⟨p, a, d⟩
+    have hmv := move_apply_bounds d c₁.head
+    refine Or.inr ⟨_, _, rfl, rfl, rfl, by rw [hh], hmv.1, hmv.2, fun i hiL hiB => ?_⟩
+    dsimp only
+    rw [hh]
+    by_cases hih : i = c₂.head
+    · simp [hih]
+    · simp [hih, ht i hiL hiB]
+
+/-- **Universal Finite Inverse Light-Cone Theorem (`run_add_congr_triangle`):** if `M.run m s = .inr c₁`
+and `M.run n s = .inr c₂` agree on `state`, `head`, and the finite discrete triangle
+`c₁.head - d < i < c₁.head + d` of width `2 * d - 1` around `c₁.head`, then after `d` additional
+steps they either both halt with the same answer or remain in configurations with identical `state`
+and `head` (regardless of any tape disturbances outside `(c₁.head - d, c₁.head + d)`). -/
+theorem run_add_congr_triangle {M : Machine} (m n : Nat) :
+    ∀ (d s : Nat) {c₁ c₂ : Cfg M},
+      M.run m s = .inr c₁ → M.run n s = .inr c₂ →
+      c₁.state = c₂.state → c₁.head = c₂.head →
+      (∀ i : Int, c₁.head - (d : Int) < i → i < c₁.head + (d : Int) → c₁.tape i = c₂.tape i) →
+      (∃ b, M.run m (s + d) = .inl b ∧ M.run n (s + d) = .inl b) ∨
+        ∃ c₁' c₂', M.run m (s + d) = .inr c₁' ∧ M.run n (s + d) = .inr c₂' ∧
+          c₁'.state = c₂'.state ∧ c₁'.head = c₂'.head
+  | 0, s, c₁, c₂, hm, hn, hs, hh, _ => Or.inr ⟨c₁, c₂, hm, hn, hs, hh⟩
+  | d + 1, s, c₁, c₂, hm, hn, hs, hh, ht => by
+    have hstep := step_congr_triangle
+      (L := c₁.head - ((d + 1 : Nat) : Int)) (B := c₁.head + ((d + 1 : Nat) : Int))
+      hs hh (by omega) (by omega) ht
+    rcases hstep with ⟨b, hb₁, hb₂⟩ | ⟨c₁', c₂', hc₁', hc₂', hs', hh', hlo, hhi, ht'⟩
+    · left
+      have hm1 : M.run m (s + 1) = .inl b := by simp [Machine.run, hm, hb₁]
+      have hn1 : M.run n (s + 1) = .inl b := by simp [Machine.run, hn, hb₂]
+      refine ⟨b, ?_, ?_⟩
+      · have := Machine.run_add hm1 d
+        rwa [show s + 1 + d = s + (d + 1) by omega] at this
+      · have := Machine.run_add hn1 d
+        rwa [show s + 1 + d = s + (d + 1) by omega] at this
+    · have hm1 : M.run m (s + 1) = .inr c₁' := by simp [Machine.run, hm, hc₁']
+      have hn1 : M.run n (s + 1) = .inr c₂' := by simp [Machine.run, hn, hc₂']
+      have ih := run_add_congr_triangle m n d (s + 1) hm1 hn1 hs' hh'
+        (fun i hi1 hi2 => ht' i (by omega) (by omega))
+      rwa [show s + 1 + d = s + (d + 1) by omega] at ih
+
+/-- **Inverse Light-Cone Initial-Tape Corollary (`run_eq_of_init_eq_triangle`):** proven directly from
+the finite inverse light cone `(-t, t)` around `head = 0`. -/
+theorem run_eq_of_init_eq_triangle {M : Machine} {m n t : Nat}
+    (htape : ∀ i : Int, 0 ≤ i → i < (t : Int) → (M.init m).tape i = (M.init n).tape i)
+    (b : Bool) : M.run m t = .inl b ↔ M.run n t = .inl b := by
+  have hcongr := run_add_congr_triangle (M := M) m n t 0 (c₁ := M.init m) (c₂ := M.init n)
+    rfl rfl rfl rfl (fun i hi1 hi2 => by
+      have h0 : (M.init m).head = 0 := rfl
+      rw [h0] at hi1 hi2
+      by_cases hneg : i < 0
+      · rw [init_tape_neg M m hneg, init_tape_neg M n hneg]
+      · exact htape i (by omega) (by omega))
+  rw [Nat.zero_add] at hcongr
+  rcases hcongr with ⟨b', hb₁, hb₂⟩ | ⟨c₁', c₂', hc₁', hc₂', _, _⟩
+  · rw [hb₁, hb₂]
+  · rw [hc₁', hc₂']; simp
+
+/-! ## 2. Cherenkov / Causal-Wavefront Residual-Time Law -/
+
+/-- **Forward Light-Cone Propagation from an Intermediate Step (`scansBelow_add_of_head_add_le`):**
+if `ScansBelow M n s B` holds, `M.run n s = .inr c`, and `c.head + d ≤ B`, then the head cannot
+reach `B` during the next `d` steps either (`ScansBelow M n (s + d) B`). -/
+theorem scansBelow_add_of_head_add_le {M : Machine} {n s d : Nat} {B : Int} {c : Cfg M}
+    (hscan : ScansBelow M n s B) (hr : M.run n s = .inr c)
+    (hB : c.head + (d : Int) ≤ B) :
+    ScansBelow M n (s + d) B := by
+  intro u hu cu hcu
+  by_cases hus : u < s
+  · exact hscan u hus cu hcu
+  · have hdist := run_head_dist_le hr (show M.run n (s + (u - s)) = .inr cu by
+      rwa [Nat.add_sub_cancel' (by omega)])
+    omega
+
+/-- **Cherenkov / Causal-Wavefront Residual-Time Inequality (`residual_time_gt_of_scansBelow_of_mod_two_pow_ne`):**
+if `r, m ≥ 2^(k-1)` agree modulo `2^k` with `f r ≠ f m`, then on every `n ≥ 2^(k-1)` in that residue
+class and at EVERY intermediate step `s < T n` before cell `k` has been reached (`ScansBelow M n s k`),
+the remaining time-to-halt `T n - s` must exceed the spatial distance `k - c.head` to the causal
+wavefront at cell `k`: `(k : Int) + 1 ≤ c.head + ((T n - s : Nat) : Int)`. -/
+theorem residual_time_gt_of_scansBelow_of_mod_two_pow_ne {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {k r m n s : Nat} {c : Cfg M}
+    (hr : 2 ^ (k - 1) ≤ r) (hm : 2 ^ (k - 1) ≤ m) (hn : 2 ^ (k - 1) ≤ n)
+    (hrm : r % 2 ^ k = m % 2 ^ k) (hneq : f r ≠ f m) (hrn : r % 2 ^ k = n % 2 ^ k)
+    (hs : s < T n) (hscan : ScansBelow M n s (k : Int)) (hrun : M.run n s = .inr c) :
+    (k : Int) + 1 ≤ c.head + ((T n - s : Nat) : Int) := by
+  refine Classical.byContradiction fun hlt => ?_
+  have hle : c.head + ((T n - s : Nat) : Int) ≤ (k : Int) := by omega
+  have hscan_all : ScansBelow M n (T n) (k : Int) := by
+    have h := scansBelow_add_of_head_add_le hscan hrun hle
+    rwa [Nat.add_sub_cancel' (by omega)] at h
+  obtain ⟨u, hu, cu, hcu, hge⟩ := exists_head_ge_of_mod_two_pow_ne hM hr hm hn hrm hneq hrn
+  have := hscan_all u hu cu hcu
+  omega
+
+/-- **Cherenkov Residual-Time Bound for Blank-Reach Flips (`residual_time_gt_of_scansBelow_of_ray_flip`):**
+for any `n ≥ 1` with `f (n + u * 2^(Nat.log2 n + 1)) ≠ f n`, at every step `s < T n` before the
+blank cell `L = Nat.log2 n + 1` is visited (`ScansBelow M n s L`), the remaining time-to-halt `T n - s`
+satisfies `(Nat.log2 n + 2 : Int) ≤ c.head + ((T n - s : Nat) : Int)`. -/
+theorem residual_time_gt_of_scansBelow_of_ray_flip {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {n u s : Nat} {c : Cfg M} (hn : 1 ≤ n)
+    (hflip : f (n + u * 2 ^ (Nat.log2 n + 1)) ≠ f n)
+    (hs : s < T n) (hscan : ScansBelow M n s ((Nat.log2 n + 1 : Nat) : Int))
+    (hrun : M.run n s = .inr c) :
+    ((Nat.log2 n + 2 : Nat) : Int) ≤ c.head + ((T n - s : Nat) : Int) := by
+  let L := Nat.log2 n + 1
+  have hpow : 2 ^ (L - 1) ≤ n := Nat.log2_self_le (by omega)
+  have hpow2 : 2 ^ (L - 1) ≤ n + u * 2 ^ L := Nat.le_trans hpow (Nat.le_add_right n (u * 2 ^ L))
+  have hmod : (n + u * 2 ^ L) % 2 ^ L = n % 2 ^ L := Nat.add_mul_mod_self_right n u (2 ^ L)
+  have h := residual_time_gt_of_scansBelow_of_mod_two_pow_ne hM hpow2 hpow hpow hmod hflip
+    (hmod.trans rfl) hs hscan hrun
+  omega
+
+/-! ## 3. Write-Energy / Tape-Disturbance Coupling & Pure Reflection Lower Bounds -/
+
+/-- Whether a single step from configuration `c` disturbs (mutates) the tape cell under the head
+(`a ≠ c.tape c.head`). -/
+def stepDisturbs {M : Machine} (c : Cfg M) : Bool :=
+  match M.δ c.state (c.tape c.head) with
+  | .inl _ => false
+  | .inr (_, a, _) => decide (a ≠ c.tape c.head)
+
+/-- Cumulative write-energy (tape-disturbance) count `WriteEnergy M n t` during the first `t` steps
+on input `n`: the number of steps `s < t` that actually modify a tape symbol. -/
+def WriteEnergy (M : Machine) (n : Nat) : Nat → Nat
+  | 0 => 0
+  | t + 1 =>
+      match M.run n t with
+      | .inl _ => WriteEnergy M n t
+      | .inr c => WriteEnergy M n t + if stepDisturbs c then 1 else 0
+
+/-- `WriteEnergy M n` is monotonically non-decreasing in the step count. -/
+theorem writeEnergy_mono (M : Machine) (n : Nat) {t₁ t₂ : Nat} (ht : t₁ ≤ t₂) :
+    WriteEnergy M n t₁ ≤ WriteEnergy M n t₂ := by
+  obtain ⟨d, rfl⟩ : ∃ d, t₂ = t₁ + d := ⟨t₂ - t₁, by omega⟩
+  induction d with
+  | zero => simp
+  | succ d ih =>
+    rw [show t₁ + (d + 1) = (t₁ + d) + 1 by omega]
+    simp only [WriteEnergy]
+    cases h : M.run n (t₁ + d)
+    · dsimp only; exact ih (by omega)
+    · rename_i c
+      dsimp only
+      have := ih (by omega)
+      cases stepDisturbs c <;> simp <;> omega
+
+/-- If `stepDisturbs c₀ = false` and `c₀.step = .inr c₁`, then `c₁.tape i = c₀.tape i` for all `i : Int`. -/
+theorem tape_eq_of_stepDisturbs_false {M : Machine} {c₀ c₁ : Cfg M}
+    (hstep : c₀.step = .inr c₁) (hdist : stepDisturbs c₀ = false) :
+    ∀ i : Int, c₁.tape i = c₀.tape i := by
+  intro i
+  unfold Cfg.step at hstep
+  unfold stepDisturbs at hdist
+  cases hδ : M.δ c₀.state (c₀.tape c₀.head) with
+  | inl b => rw [hδ] at hstep; cases hstep
+  | inr val =>
+    rcases val with ⟨p, a, d⟩
+    rw [hδ] at hstep hdist
+    injection hstep with h; subst h
+    dsimp only at hdist ⊢
+    have hnot : ¬ (a ≠ c₀.tape c₀.head) := of_decide_eq_false hdist
+    have ha : a = c₀.tape c₀.head := Decidable.of_not_not hnot
+    by_cases hih : i = c₀.head
+    · subst hih; simp [ha]
+    · simp [hih]
+
+/-- **Zero-Disturbance Tape Conservation (`tape_eq_of_writeEnergy_eq`):** if the cumulative write
+energy does not increase between step `t₁` and step `t₁ + d` (`WriteEnergy M n (t₁ + d) = WriteEnergy M n t₁`),
+then the entire infinite tape at step `t₁ + d` is identical to the tape at step `t₁`
+(`∀ i : Int, c₁.tape i = c₂.tape i`). -/
+theorem tape_eq_of_writeEnergy_eq {M : Machine} {n t₁ : Nat} :
+    ∀ {d : Nat} {c₁ c₂ : Cfg M},
+      M.run n t₁ = .inr c₁ → M.run n (t₁ + d) = .inr c₂ →
+      WriteEnergy M n (t₁ + d) = WriteEnergy M n t₁ →
+      ∀ i : Int, c₁.tape i = c₂.tape i
+  | 0, c₁, c₂, hr₁, hr₂, _, i => by
+    rw [Nat.add_zero, hr₁] at hr₂
+    injection hr₂ with h; subst h; rfl
+  | d + 1, c₁, c₂, hr₁, hr₂, hwe, i => by
+    rw [show t₁ + (d + 1) = (t₁ + d) + 1 by omega] at hr₂ hwe
+    simp only [Machine.run] at hr₂
+    simp only [WriteEnergy] at hwe
+    cases hr : M.run n (t₁ + d) with
+    | inl b => rw [hr] at hr₂; cases hr₂
+    | inr c₀ =>
+      rw [hr] at hr₂ hwe
+      dsimp only at hr₂ hwe
+      have hmono : WriteEnergy M n t₁ ≤ WriteEnergy M n (t₁ + d) :=
+        writeEnergy_mono M n (by omega)
+      have hdist : stepDisturbs c₀ = false := by
+        cases h : stepDisturbs c₀
+        · rfl
+        · simp [h] at hwe; omega
+      have hwe_d : WriteEnergy M n (t₁ + d) = WriteEnergy M n t₁ := by
+        simp [hdist] at hwe; omega
+      have ih := tape_eq_of_writeEnergy_eq hr₁ hr hwe_d i
+      have hstep := tape_eq_of_stepDisturbs_false hr₂ hdist i
+      exact ih.trans hstep.symm
+
+/-- **Zero-Energy State-Head Collision Non-Halting Theorem (`not_halts_of_writeEnergy_eq_of_state_head_repeat`):**
+if `M` repeats `(state, head)` at steps `t₁` and `t₁ + p` (`0 < p`) without expending any write
+energy (`WriteEnergy M n (t₁ + p) = WriteEnergy M n t₁`), then `M` NEVER halts on input `n`. -/
+theorem not_halts_of_writeEnergy_eq_of_state_head_repeat {M : Machine} {n t₁ p : Nat} {c₁ c₂ : Cfg M}
+    (hp : 0 < p) (hr₁ : M.run n t₁ = .inr c₁) (hr₂ : M.run n (t₁ + p) = .inr c₂)
+    (hwe : WriteEnergy M n (t₁ + p) = WriteEnergy M n t₁)
+    (hst : c₁.state = c₂.state) (hhd : c₁.head = c₂.head) :
+    ∀ t b, M.run n t ≠ .inl b := by
+  have htall := tape_eq_of_writeEnergy_eq hr₁ hr₂ hwe
+  have hper : ∀ k d,
+      match M.run n (t₁ + d), M.run n (t₁ + d + k * p) with
+      | .inl b₁, .inl b₂ => b₁ = b₂
+      | .inr c, .inr c' => c.state = c'.state ∧ c.head = c'.head ∧ ∀ i : Int, c.tape i = c'.tape i
+      | _, _ => False := by
+    intro k
+    induction k with
+    | zero =>
+      intro d; simp only [Nat.zero_mul, Nat.add_zero]; cases M.run n (t₁ + d) <;> simp
+    | succ k ih =>
+      intro d
+      have hstep := run_shift_congr_all (d + k * p) t₁ (t₁ + p) hr₁ hr₂ hst hhd htall
+      rw [show t₁ + (d + k * p) = t₁ + d + k * p by omega,
+        show t₁ + p + (d + k * p) = t₁ + d + (k + 1) * p by rw [Nat.succ_mul]; omega] at hstep
+      have ih_d := ih d
+      cases h0 : M.run n (t₁ + d) <;>
+        cases h1 : M.run n (t₁ + d + k * p) <;>
+        cases h2 : M.run n (t₁ + d + (k + 1) * p) <;>
+        rw [h0, h1] at ih_d <;> rw [h1, h2] at hstep
+      · exact Eq.trans ih_d hstep
+      · exact False.elim hstep
+      · exact False.elim ih_d
+      · exact False.elim ih_d
+      · exact False.elim ih_d
+      · exact False.elim ih_d
+      · exact False.elim hstep
+      · exact ⟨Eq.trans ih_d.1 hstep.1, Eq.trans ih_d.2.1 hstep.2.1,
+          fun i => Eq.trans (ih_d.2.2 i) (hstep.2.2 i)⟩
+  intro t b hhalt
+  by_cases ht : t ≤ t₁ + p
+  · have hadd := Machine.run_add hhalt (t₁ + p - t)
+    rw [show t + (t₁ + p - t) = t₁ + p by omega, hr₂] at hadd
+    cases hadd
+  · let d := (t - t₁) % p
+    let k := (t - t₁) / p
+    have hdiv : (t - t₁) % p + p * ((t - t₁) / p) = t - t₁ := Nat.mod_add_div (t - t₁) p
+    have ht_eq : t = t₁ + d + k * p := by
+      dsimp only [d, k]; rw [Nat.mul_comm] at hdiv; omega
+    have hd_lt : d < p := Nat.mod_lt (t - t₁) hp
+    obtain ⟨c₀, hc₀⟩ := run_inr_of_le (s := t₁ + d) (t := t₁ + p) (by omega) hr₂
+    have hp_kd := hper k d
+    rw [← ht_eq, hc₀, hhalt] at hp_kd
+    exact hp_kd
+
+/-- **Minimum Write-Energy Coupling to Escape a `(state, head)` Repeat (`writeEnergy_gt_of_halts_of_state_head_repeat`):**
+if `M` halts on input `n` at step `T` (`M.run n T = .inl b`) and revisits the same `(state, head)`
+pair at steps `t₁ < t₂` (`M.run n t₁ = .inr c₁`, `M.run n t₂ = .inr c₂`), then `M` MUST expend at
+least `1` unit of write energy (tape disturbance) between `t₁` and `t₂`:
+`WriteEnergy M n t₁ + 1 ≤ WriteEnergy M n t₂`. -/
+theorem writeEnergy_gt_of_halts_of_state_head_repeat {M : Machine} {n t₁ t₂ T : Nat}
+    {b : Bool} {c₁ c₂ : Cfg M}
+    (hhalt : M.run n T = .inl b) (hlt : t₁ < t₂)
+    (hr₁ : M.run n t₁ = .inr c₁) (hr₂ : M.run n t₂ = .inr c₂)
+    (hst : c₁.state = c₂.state) (hhd : c₁.head = c₂.head) :
+    WriteEnergy M n t₁ + 1 ≤ WriteEnergy M n t₂ := by
+  have hmono : WriteEnergy M n t₁ ≤ WriteEnergy M n t₂ :=
+    writeEnergy_mono M n (by omega)
+  by_cases heq : WriteEnergy M n t₂ = WriteEnergy M n t₁
+  · exfalso
+    have hr₂' : M.run n (t₁ + (t₂ - t₁)) = .inr c₂ := by
+      rwa [Nat.add_sub_cancel' (by omega)]
+    have hwe' : WriteEnergy M n (t₁ + (t₂ - t₁)) = WriteEnergy M n t₁ := by
+      rwa [Nat.add_sub_cancel' (by omega)]
+    exact not_halts_of_writeEnergy_eq_of_state_head_repeat (by omega) hr₁ hr₂' hwe' hst hhd T b hhalt
+  · omega
+
 end Rule30Problem3Bounds
 end Ruliology.CellularAutomata
