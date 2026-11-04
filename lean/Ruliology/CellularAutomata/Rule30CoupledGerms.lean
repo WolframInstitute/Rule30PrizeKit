@@ -770,4 +770,292 @@ theorem not_finSupp_Psi_etherRight_one :
   have h := hN k hk
   simpa [zrow, hk0] using h
 
+/-! ### Semiflow of `drv`, Stationary Right-Wall Shielding, Universal Right-Edge Twin Invariance, and Non-Injectivity of `Psi` -/
+
+/-- **One-Step Positive-Column Recurrence for `drv` (`drv_succ_of_pos`):** for any column `p ≥ 1`,
+`drv c x (t + 1) p = rule (drv c x t (p - 1)) (drv c x t p) (drv c x t (p + 1))`. -/
+theorem drv_succ_of_pos (c x : Nat → Bool) (t : Nat) {p : Nat} (hp : 1 ≤ p) :
+    drv c x (t + 1) p = rule (drv c x t (p - 1)) (drv c x t p) (drv c x t (p + 1)) := by
+  obtain ⟨k, rfl⟩ : ∃ k, p = k + 1 := ⟨p - 1, by omega⟩
+  rfl
+
+/-- **Semiflow (Time-Additivity) Law for `drv` (`drv_add`):** evolving `s + t` steps under `c` from `x`
+is identical to evolving `t` steps under `fun k => c (s + k)` from `drv c x s`. -/
+theorem drv_add (c x : Nat → Bool) (s : Nat) :
+    ∀ t p, drv c x (s + t) p = drv (fun k => c (s + k)) (drv c x s) t p
+  | 0, 0 => by simp [drv_col0]
+  | 0, p + 1 => by rw [Rule30Ether.drv_init (fun k => c (s + k)) (drv c x s) (p + 1) (by omega)]; rfl
+  | t + 1, 0 => by simp [drv_col0]
+  | t + 1, p + 1 => by
+    rw [show s + (t + 1) = (s + t) + 1 by omega]
+    change rule (drv c x (s + t) p) (drv c x (s + t) (p + 1)) (drv c x (s + t) (p + 2)) =
+      rule (drv (fun k => c (s + k)) (drv c x s) t p)
+        (drv (fun k => c (s + k)) (drv c x s) t (p + 1))
+        (drv (fun k => c (s + k)) (drv c x s) t (p + 2))
+    rw [drv_add c x s t p, drv_add c x s t (p + 1), drv_add c x s t (p + 2)]
+
+/-- **Depth-2 Even-Step Identity of `Psi` (`zrow_Psi_even_two_eq_u`):** at every even step `2 * s`,
+depth `2` of the reconstructed left half `zrow (Psi R) (2 * s) 2` equals `u R s`. -/
+theorem zrow_Psi_even_two_eq_u (R : Nat → Bool) (s : Nat) :
+    zrow (Psi R) (2 * s) 2 = u R s := by
+  have hinv := zrow_inv (Psi R) (2 * s) 0
+  have hev : zrow (Psi R) (2 * s) 1 = true := Theta_inX (fun j => !u R j) s
+  rw [zrow_wall, Bool.or_false, hev, Psi_free] at hinv
+  change zrow (Psi R) (2 * s) 2 = xor (!u R s) true at hinv
+  rw [hinv]
+  cases u R s <;> rfl
+
+/-- **Initial Depth-2 Formula for `Psi` (`Psi_two_eq_u_zero`):** depth `2` of `Psi R` equals
+`u R 0 = !(R 1 || R 2)`. -/
+theorem Psi_two_eq_u_zero (R : Nat → Bool) :
+    Psi R 2 = !(R 1 || R 2) := by
+  have h := zrow_Psi_even_two_eq_u R 0
+  rw [zrow_zero_of_pos (Psi R) (by omega : 1 ≤ 2)] at h
+  rw [h, u_eq_not_or_even R 0, Rule30Ether.drv_init altCol R 1 (by omega), Rule30Ether.drv_init altCol R 2 (by omega)]
+
+/-- **One-Step Stationary `(false, true)` Right-Wall Shielding (`drv_one_eq_of_zero_one_wall`):**
+if `R1` and `R2` agree on columns `≤ M` (`2 ≤ M`) and have `(R1 (M - 1), R1 M) = (false, true)`,
+then for any driver `c`, `drv c R1 1` and `drv c R2 1` agree on all columns `≤ M` and both have
+`true` at column `M`. -/
+theorem drv_one_eq_of_zero_one_wall (c : Nat → Bool) {M : Nat} (hM : 2 ≤ M)
+    {R1 R2 : Nat → Bool} (hag : ∀ p, p ≤ M → R1 p = R2 p)
+    (hm1 : R1 (M - 1) = false) (hm : R1 M = true) :
+    (∀ p, p ≤ M → drv c R1 1 p = drv c R2 1 p) ∧
+      drv c R1 1 M = true ∧ drv c R2 1 M = true := by
+  have hm1' : R2 (M - 1) = false := by rw [← hag (M - 1) (by omega), hm1]
+  have hm' : R2 M = true := by rw [← hag M (by omega), hm]
+  have hcolM1 : drv c R1 1 M = true := by
+    rw [drv_succ_of_pos c R1 0 (by omega), Rule30Ether.drv_init c R1 (M - 1) (by omega),
+      Rule30Ether.drv_init c R1 M (by omega), hm1, hm]
+    rfl
+  have hcolM2 : drv c R2 1 M = true := by
+    rw [drv_succ_of_pos c R2 0 (by omega), Rule30Ether.drv_init c R2 (M - 1) (by omega),
+      Rule30Ether.drv_init c R2 M (by omega), hm1', hm']
+    rfl
+  refine ⟨fun p hp => ?_, hcolM1, hcolM2⟩
+  rcases Nat.eq_or_lt_of_le hp with rfl | hlt
+  · rw [hcolM1, hcolM2]
+  · rcases p with _ | p
+    · simp [drv_col0]
+    · rw [drv_succ_of_pos c R1 0 (by omega), drv_succ_of_pos c R2 0 (by omega)]
+      have h0 : drv c R1 0 p = drv c R2 0 p := by
+        rcases p with _ | q
+        · simp [drv_col0]
+        · rw [Rule30Ether.drv_init c R1 (q + 1) (by omega), Rule30Ether.drv_init c R2 (q + 1) (by omega),
+            hag (q + 1) (by omega)]
+      rw [show p + 1 - 1 = p by omega, h0,
+        Rule30Ether.drv_init c R1 (p + 1) (by omega), Rule30Ether.drv_init c R2 (p + 1) (by omega),
+        Rule30Ether.drv_init c R1 (p + 2) (by omega), Rule30Ether.drv_init c R2 (p + 2) (by omega),
+        hag (p + 1) (by omega), hag (p + 2) (by omega)]
+
+/-- **Two-Step Stationary `(false, true)` Right-Wall Shielding (`drv_two_eq_of_zero_one_wall`):**
+under the hypotheses of `drv_one_eq_of_zero_one_wall`, `drv c R1 2` and `drv c R2 2` still agree
+on all columns `≤ M` regardless of how `R1` and `R2` behave above column `M`. -/
+theorem drv_two_eq_of_zero_one_wall (c : Nat → Bool) {M : Nat} (hM : 2 ≤ M)
+    {R1 R2 : Nat → Bool} (hag : ∀ p, p ≤ M → R1 p = R2 p)
+    (hm1 : R1 (M - 1) = false) (hm : R1 M = true) :
+    ∀ p, p ≤ M → drv c R1 2 p = drv c R2 2 p := by
+  obtain ⟨hag1, hM1, hM2⟩ := drv_one_eq_of_zero_one_wall c hM hag hm1 hm
+  intro p hp
+  rcases Nat.eq_or_lt_of_le hp with rfl | hlt
+  · rw [drv_succ_of_pos c R1 1 (by omega), drv_succ_of_pos c R2 1 (by omega),
+      hag1 (p - 1) (by omega), hM1, hM2]
+    unfold rule
+    simp
+  · rcases p with _ | p
+    · simp [drv_col0]
+    · rw [drv_succ_of_pos c R1 1 (by omega), drv_succ_of_pos c R2 1 (by omega),
+        show p + 1 - 1 = p by omega,
+        hag1 p (by omega), hag1 (p + 1) (by omega), hag1 (p + 2) (by omega)]
+
+/-- **The Right-Edge Twin Relation (`RightEdgeTwin`):** two right halves `R1` and `R2` form a
+right-edge twin pair at column `M ≥ 2` if they agree up to `M`, have `(false, true)` at
+`(M - 1, M)`, and beyond `M` have `(false, false, …)` vs `(true, false, …)`. -/
+def RightEdgeTwin (M : Nat) (R1 R2 : Nat → Bool) : Prop :=
+  2 ≤ M ∧
+  (∀ p, p ≤ M → R1 p = R2 p) ∧
+  R1 (M - 1) = false ∧
+  R1 M = true ∧
+  R1 (M + 1) = false ∧
+  R2 (M + 1) = true ∧
+  (∀ p, M + 2 ≤ p → R1 p = false ∧ R2 p = false)
+
+/-- **Two-Step Outward Shift of `RightEdgeTwin` (`rightEdgeTwin_step_two`):** for any driver `c`,
+if `RightEdgeTwin M R1 R2` holds at time `0`, then `RightEdgeTwin (M + 2) (drv c R1 2) (drv c R2 2)`
+holds at time `2`. -/
+theorem rightEdgeTwin_step_two (c : Nat → Bool) {M : Nat} {R1 R2 : Nat → Bool}
+    (htwin : RightEdgeTwin M R1 R2) :
+    RightEdgeTwin (M + 2) (drv c R1 2) (drv c R2 2) := by
+  rcases htwin with ⟨hM, hag, hm1, hm, h1_M1, h2_M1, htail⟩
+  obtain ⟨hag1, hM1_1, hM2_1⟩ := drv_one_eq_of_zero_one_wall c hM hag hm1 hm
+  have hm_2 : R2 M = true := by rw [← hag M (by omega), hm]
+  have h1_M2 : R1 (M + 2) = false := (htail (M + 2) (by omega)).1
+  have h2_M2 : R2 (M + 2) = false := (htail (M + 2) (by omega)).2
+  have h1_M3 : R1 (M + 3) = false := (htail (M + 3) (by omega)).1
+  have h2_M3 : R2 (M + 3) = false := (htail (M + 3) (by omega)).2
+  have hd1_M1 : drv c R1 1 (M + 1) = true := by
+    rw [drv_succ_of_pos c R1 0 (by omega), show M + 1 - 1 = M by omega,
+      Rule30Ether.drv_init c R1 M (by omega), Rule30Ether.drv_init c R1 (M + 1) (by omega),
+      Rule30Ether.drv_init c R1 (M + 2) (by omega), hm, h1_M1, h1_M2]
+    rfl
+  have hd2_M1 : drv c R2 1 (M + 1) = false := by
+    rw [drv_succ_of_pos c R2 0 (by omega), show M + 1 - 1 = M by omega,
+      Rule30Ether.drv_init c R2 M (by omega), Rule30Ether.drv_init c R2 (M + 1) (by omega),
+      Rule30Ether.drv_init c R2 (M + 2) (by omega), hm_2, h2_M1, h2_M2]
+    rfl
+  have hd1_M2 : drv c R1 1 (M + 2) = false := by
+    rw [drv_succ_of_pos c R1 0 (by omega), show M + 2 - 1 = M + 1 by omega,
+      Rule30Ether.drv_init c R1 (M + 1) (by omega), Rule30Ether.drv_init c R1 (M + 2) (by omega),
+      Rule30Ether.drv_init c R1 (M + 3) (by omega), h1_M1, h1_M2, h1_M3]
+    rfl
+  have hd2_M2 : drv c R2 1 (M + 2) = true := by
+    rw [drv_succ_of_pos c R2 0 (by omega), show M + 2 - 1 = M + 1 by omega,
+      Rule30Ether.drv_init c R2 (M + 1) (by omega), Rule30Ether.drv_init c R2 (M + 2) (by omega),
+      Rule30Ether.drv_init c R2 (M + 3) (by omega), h2_M1, h2_M2, h2_M3]
+    rfl
+  have htail1 : ∀ p, M + 3 ≤ p → drv c R1 1 p = false ∧ drv c R2 1 p = false := by
+    intro p hp
+    have hk1 := htail (p - 1) (by omega)
+    have hk2 := htail p (by omega)
+    have hk3 := htail (p + 1) (by omega)
+    constructor
+    · rw [drv_succ_of_pos c R1 0 (by omega),
+        Rule30Ether.drv_init c R1 (p - 1) (by omega), Rule30Ether.drv_init c R1 p (by omega),
+        Rule30Ether.drv_init c R1 (p + 1) (by omega), hk1.1, hk2.1, hk3.1]
+      rfl
+    · rw [drv_succ_of_pos c R2 0 (by omega),
+        Rule30Ether.drv_init c R2 (p - 1) (by omega), Rule30Ether.drv_init c R2 p (by omega),
+        Rule30Ether.drv_init c R2 (p + 1) (by omega), hk1.2, hk2.2, hk3.2]
+      rfl
+  have hd1_M3 : drv c R1 1 (M + 3) = false := (htail1 (M + 3) (by omega)).1
+  have hd2_M3 : drv c R2 1 (M + 3) = false := (htail1 (M + 3) (by omega)).2
+  have hd1_M4 : drv c R1 1 (M + 4) = false := (htail1 (M + 4) (by omega)).1
+  have hd2_M4 : drv c R2 1 (M + 4) = false := (htail1 (M + 4) (by omega)).2
+  have h2_colM1_1 : drv c R1 2 (M + 1) = false := by
+    rw [drv_succ_of_pos c R1 1 (by omega), show M + 1 - 1 = M by omega,
+      hM1_1, hd1_M1, hd1_M2]; rfl
+  have h2_colM1_2 : drv c R2 2 (M + 1) = false := by
+    rw [drv_succ_of_pos c R2 1 (by omega), show M + 1 - 1 = M by omega,
+      hM2_1, hd2_M1, hd2_M2]; rfl
+  have h2_colM2_1 : drv c R1 2 (M + 2) = true := by
+    rw [drv_succ_of_pos c R1 1 (by omega), show M + 2 - 1 = M + 1 by omega,
+      hd1_M1, hd1_M2, hd1_M3]; rfl
+  have h2_colM2_2 : drv c R2 2 (M + 2) = true := by
+    rw [drv_succ_of_pos c R2 1 (by omega), show M + 2 - 1 = M + 1 by omega,
+      hd2_M1, hd2_M2, hd2_M3]; rfl
+  have h2_colM3_1 : drv c R1 2 (M + 3) = false := by
+    rw [drv_succ_of_pos c R1 1 (by omega), show M + 3 - 1 = M + 2 by omega,
+      hd1_M2, hd1_M3, hd1_M4]; rfl
+  have h2_colM3_2 : drv c R2 2 (M + 3) = true := by
+    rw [drv_succ_of_pos c R2 1 (by omega), show M + 3 - 1 = M + 2 by omega,
+      hd2_M2, hd2_M3, hd2_M4]; rfl
+  have hag2_le_M := drv_two_eq_of_zero_one_wall c hM hag hm1 hm
+  refine ⟨by omega, ?_, ?_, h2_colM2_1, h2_colM3_1, h2_colM3_2, ?_⟩
+  · intro p hp
+    by_cases hpM : p ≤ M
+    · exact hag2_le_M p hpM
+    · have : p = M + 1 ∨ p = M + 2 := by omega
+      rcases this with rfl | rfl
+      · rw [h2_colM1_1, h2_colM1_2]
+      · rw [h2_colM2_1, h2_colM2_2]
+  · rw [show M + 2 - 1 = M + 1 by omega]
+    exact h2_colM1_1
+  · intro p hp
+    have hk1 := htail1 (p - 1) (by omega)
+    have hk2 := htail1 p (by omega)
+    have hk3 := htail1 (p + 1) (by omega)
+    constructor
+    · rw [drv_succ_of_pos c R1 1 (by omega), hk1.1, hk2.1, hk3.1]; rfl
+    · rw [drv_succ_of_pos c R2 1 (by omega), hk1.2, hk2.2, hk3.2]; rfl
+
+/-- **Iterated Even-Step `RightEdgeTwin` Invariance (`rightEdgeTwin_drv_two_mul`):** for any driver
+`c`, `RightEdgeTwin M R1 R2` implies `RightEdgeTwin (M + 2 * s) (drv c R1 (2 * s)) (drv c R2 (2 * s))`
+for every `s : Nat`. -/
+theorem rightEdgeTwin_drv_two_mul :
+    ∀ (s : Nat) (c : Nat → Bool) {M : Nat} {R1 R2 : Nat → Bool},
+      RightEdgeTwin M R1 R2 → RightEdgeTwin (M + 2 * s) (drv c R1 (2 * s)) (drv c R2 (2 * s))
+  | 0, c, M, R1, R2, htwin => by
+    rcases htwin with ⟨hM, hag, hm1, hm, h1_M1, h2_M1, htail⟩
+    change RightEdgeTwin M (drv c R1 0) (drv c R2 0)
+    refine ⟨hM, ?_, ?_, ?_, ?_, ?_, ?_⟩
+    · intro p hp
+      rcases p with _ | p
+      · simp [drv_col0]
+      · rw [Rule30Ether.drv_init c R1 (p + 1) (by omega), Rule30Ether.drv_init c R2 (p + 1) (by omega), hag (p + 1) hp]
+    · rw [Rule30Ether.drv_init c R1 (M - 1) (by omega), hm1]
+    · rw [Rule30Ether.drv_init c R1 M (by omega), hm]
+    · rw [Rule30Ether.drv_init c R1 (M + 1) (by omega), h1_M1]
+    · rw [Rule30Ether.drv_init c R2 (M + 1) (by omega), h2_M1]
+    · intro p hp
+      rw [Rule30Ether.drv_init c R1 p (by omega), Rule30Ether.drv_init c R2 p (by omega)]
+      exact htail p hp
+  | s + 1, c, M, R1, R2, htwin => by
+    have hstep := rightEdgeTwin_step_two c htwin
+    have ih := rightEdgeTwin_drv_two_mul s (fun k => c (2 + k)) hstep
+    have hshift1 : drv (fun k => c (2 + k)) (drv c R1 2) (2 * s) = drv c R1 (2 * (s + 1)) := by
+      funext p
+      rw [← drv_add c R1 2 (2 * s) p, show 2 + 2 * s = 2 * (s + 1) by omega]
+    have hshift2 : drv (fun k => c (2 + k)) (drv c R2 2) (2 * s) = drv c R2 (2 * (s + 1)) := by
+      funext p
+      rw [← drv_add c R2 2 (2 * s) p, show 2 + 2 * s = 2 * (s + 1) by omega]
+    rw [hshift1, hshift2, show M + 2 + 2 * s = M + 2 * (s + 1) by omega] at ih
+    exact ih
+
+/-- **All-Time Interior Indistinguishability of Right-Edge Twins (`drv_eq_of_rightEdgeTwin`):** if
+`RightEdgeTwin M R1 R2` holds, then for any driver `c`, every time `t`, and every column
+`p ≤ M + 2 * (t / 2)`, `drv c R1 t p = drv c R2 t p`. -/
+theorem drv_eq_of_rightEdgeTwin (c : Nat → Bool) {M : Nat} {R1 R2 : Nat → Bool}
+    (htwin : RightEdgeTwin M R1 R2) (t p : Nat) (hp : p ≤ M + 2 * (t / 2)) :
+    drv c R1 t p = drv c R2 t p := by
+  obtain ⟨s, rfl | rfl⟩ : ∃ s, t = 2 * s ∨ t = 2 * s + 1 := ⟨t / 2, by omega⟩
+  · have hp' : p ≤ M + 2 * s := by simpa [Nat.mul_div_right s (by omega : 0 < 2)] using hp
+    exact (rightEdgeTwin_drv_two_mul s c htwin).2.1 p hp'
+  · have hd : (2 * s + 1) / 2 = s := by omega
+    rw [hd] at hp
+    rcases rightEdgeTwin_drv_two_mul s c htwin with ⟨hMs, hags, hm1s, hms, _⟩
+    have hone := (drv_one_eq_of_zero_one_wall (fun k => c (2 * s + k)) hMs hags hm1s hms).1 p hp
+    rw [← drv_add c R1 (2 * s) 1 p, ← drv_add c R2 (2 * s) 1 p] at hone
+    exact hone
+
+/-- **Trace Equality `u R1 = u R2` for Right-Edge Twins (`u_eq_of_rightEdgeTwin`):** if
+`RightEdgeTwin M R1 R2` holds, then `u R1 = u R2`. -/
+theorem u_eq_of_rightEdgeTwin {M : Nat} {R1 R2 : Nat → Bool} (htwin : RightEdgeTwin M R1 R2) :
+    u R1 = u R2 := by
+  funext s
+  have hM : 2 ≤ M := htwin.1
+  exact drv_eq_of_rightEdgeTwin altCol htwin (2 * s + 1) 1 (by omega)
+
+/-- **`Psi R1 = Psi R2` for Right-Edge Twins (`Psi_eq_of_rightEdgeTwin`):** if `RightEdgeTwin M R1 R2`
+holds, then `Psi R1 = Psi R2`. -/
+theorem Psi_eq_of_rightEdgeTwin {M : Nat} {R1 R2 : Nat → Bool} (htwin : RightEdgeTwin M R1 R2) :
+    Psi R1 = Psi R2 := by
+  unfold Psi
+  rw [u_eq_of_rightEdgeTwin htwin]
+
+/-- **Explicit Non-Injectivity of `Psi` on Finitely Supported Right Halves
+(`exists_finSupp_ne_and_Psi_eq`):** there exist distinct finitely supported right halves `R1 ≠ R2`
+such that `u R1 = u R2` and `Psi R1 = Psi R2` (witnessed by `R1 = {2}` and `R2 = {2, 3}`). -/
+theorem exists_finSupp_ne_and_Psi_eq :
+    ∃ R1 R2 : Nat → Bool, FinSupp R1 ∧ FinSupp R2 ∧ R1 ≠ R2 ∧ u R1 = u R2 ∧ Psi R1 = Psi R2 := by
+  let R1 : Nat → Bool := fun p => p == 2
+  let R2 : Nat → Bool := fun p => (p == 2) || (p == 3)
+  have htwin : RightEdgeTwin 2 R1 R2 := by
+    refine ⟨by omega, ?_, rfl, rfl, rfl, rfl, ?_⟩
+    · intro p hp
+      have : p = 0 ∨ p = 1 ∨ p = 2 := by omega
+      rcases this with rfl | rfl | rfl <;> rfl
+    · intro p hp
+      have hp2 : (p == 2) = false := beq_false_of_ne (by omega)
+      have hp3 : (p == 3) = false := beq_false_of_ne (by omega)
+      simp [R1, R2, hp2, hp3]
+  refine ⟨R1, R2, ⟨2, fun k hk => beq_false_of_ne (by omega)⟩, ⟨3, fun k hk => ?_⟩, ?_,
+    u_eq_of_rightEdgeTwin htwin, Psi_eq_of_rightEdgeTwin htwin⟩
+  · have hk2 : (k == 2) = false := beq_false_of_ne (by omega)
+    have hk3 : (k == 3) = false := beq_false_of_ne (by omega)
+    simp [R2, hk2, hk3]
+  · intro h
+    have h3 := congrFun h 3
+    revert h3
+    decide
+
 end Ruliology.CellularAutomata.Rule30CoupledGerms
