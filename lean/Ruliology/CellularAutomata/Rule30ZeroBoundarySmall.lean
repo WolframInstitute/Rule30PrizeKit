@@ -164,5 +164,65 @@ theorem q01_width_le_15_odd (x : Nat → Bool) (hx : ∀ k, 15 < k → x k = fal
   rw [show 2 * j + 1 = 1 + 2 * j by omega, zrow_shift]
   exact h
 
+/-! ### Exact Isomorphism with `IntegerForm`, Semiflow, and One-Step Bitwise Light-Cone Bounds -/
+
+/-- `toFun r` coincides with `IntegerForm.rowOfNat r`. -/
+theorem toFun_eq_rowOfNat (r : Nat) : toFun r = IntegerForm.rowOfNat r := by
+  funext k
+  cases k with
+  | zero => rfl
+  | succ j => rfl
+
+/-- `pstep r` coincides with `IntegerForm.F r`. -/
+theorem pstep_eq_F (r : Nat) : pstep r = IntegerForm.F r := rfl
+
+/-- `prun r t` coincides with `IntegerForm.iter IntegerForm.F t r`. -/
+theorem prun_eq_iter_F (r : Nat) : ∀ t : Nat, prun r t = IntegerForm.iter IntegerForm.F t r
+  | 0 => rfl
+  | t + 1 => by
+    show pstep (prun r t) = IntegerForm.F (IntegerForm.iter IntegerForm.F t r)
+    rw [prun_eq_iter_F r t, pstep_eq_F]
+
+/-- `prun r (2 * s)` coincides with `IntegerForm.iter IntegerForm.G s r`. -/
+theorem prun_two_mul_eq_iter_G (r s : Nat) :
+    prun r (2 * s) = IntegerForm.iter IntegerForm.G s r := by
+  rw [prun_eq_iter_F, ← IntegerForm.iter_G_eq_iter_F_two_mul]
+
+/-- Time-additivity semiflow of `prun`: `prun r (s + t) = prun (prun r s) t`. -/
+theorem prun_add (r s : Nat) : ∀ t : Nat, prun r (s + t) = prun (prun r s) t
+  | 0 => rfl
+  | t + 1 => by
+    show pstep (prun r (s + t)) = pstep (prun (prun r s) t)
+    rw [prun_add r s t]
+
+/-- `0` is a fixed point of `pstep`. -/
+theorem pstep_zero : pstep 0 = 0 := by decide
+
+/-- `0` is a fixed point of `prun` at every step `t`. -/
+theorem prun_zero : ∀ t : Nat, prun 0 t = 0
+  | 0 => rfl
+  | t + 1 => by show pstep (prun 0 t) = 0; rw [prun_zero t, pstep_zero]
+
+/-- If `checkBelow n m = true`, then every natural number `Y < m` reaches an even integer under
+`IntegerForm.iter IntegerForm.G s Y` at some step `s` with `2 * s < n`. -/
+theorem iter_G_even_of_check {n m Y : Nat} (h : checkBelow n m = true) (hY : Y < m) :
+    ∃ s : Nat, 2 * s < n ∧ IntegerForm.iter IntegerForm.G s Y % 2 = 0 := by
+  obtain ⟨i, hi, hti, hpi⟩ := diesBy_sound n 0 Y (checkBelow_sound n m h Y hY)
+  refine ⟨i / 2, by omega, ?_⟩
+  rw [← prun_two_mul_eq_iter_G, show 2 * (i / 2) = i by omega]
+  exact hpi
+
+/-- **Bitwise light-cone bound for `pstep` (`testBit_pstep_ge_of_lt`):** if `Y < 2 ^ W`, then
+every bit `k ≥ W + 1` of `pstep Y` is `false`. -/
+theorem testBit_pstep_ge_of_lt {Y W k : Nat} (hY : Y < 2 ^ W) (hk : W + 1 ≤ k) :
+    (pstep Y).testBit k = false := by
+  unfold pstep
+  simp only [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_shiftRight, Nat.testBit_shiftLeft]
+  have h1 : Y.testBit (1 + k) = false := testBit_ge_of_lt hY (by omega)
+  have h2 : Y.testBit k = false := testBit_ge_of_lt hY (by omega)
+  have h3 : Y.testBit (k - 1) = false := testBit_ge_of_lt hY (by omega)
+  rw [h1, h2, h3]
+  simp
+
 end Rule30ZeroBoundarySmall
 end Ruliology.CellularAutomata
