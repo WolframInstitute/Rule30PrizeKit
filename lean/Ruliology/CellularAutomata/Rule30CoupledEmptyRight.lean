@@ -591,5 +591,185 @@ theorem lc_empty_infinite_001 (φ M : Nat) :
     ∃ m, M < m ∧ lc (fun _ => false) (fun t => wordAt3 w001 (t + φ)) m 0 = true :=
   lc_infinite_of_no_coupled (no_empty_right_coupled_001 φ) M
 
+/-! ## 12. Unconditional All-Black Coupled Exclusion, Complete Period-4 Empty-Right Closure, and Finite Divergence Bounds -/
+
+/-- **Unconditional Coupled Exclusion for Eventually All-Black Columns (`not_coupled_of_eventually_all_black`):**
+if `ω` is all-black from some time `T₁` on (`∀ t, T₁ ≤ t → ω t = true`), then **no** right half
+`x : Nat → Bool` and left-finite `s : Int → Bool` can be coupled to produce `ω`. -/
+theorem not_coupled_of_eventually_all_black {ω x : Nat → Bool} {T₁ : Nat}
+    (hall : ∀ t, T₁ ≤ t → ω t = true)
+    (s : Int → Bool) (hs : ∃ W : Nat, ∀ p : Int, p < -(W : Int) → s p = false) :
+    ¬ Rule30Coupled.Coupled ω s x := by
+  refine not_coupled_of_right_masked_periodic ⟨T₁, hall T₁ (Nat.le_refl T₁)⟩ (T₁ := T₁) (Q := 1)
+    (by omega) (fun t ht => by rw [hall (t + 1) (by omega), hall t ht])
+    (fun t ht hw => by rw [hall t ht] at hw; cases hw) s hs
+
+/-- **Unconditional `CQ` for Eventually All-Black Columns (`CQ_of_eventually_all_black`):**
+every sequence `ω` that is all-black from some time `T₁` on satisfies `Rule30Coupled.CQ ω`. -/
+theorem CQ_of_eventually_all_black {ω : Nat → Bool} {T₁ : Nat}
+    (hall : ∀ t, T₁ ≤ t → ω t = true) : Rule30Coupled.CQ ω := by
+  rintro ⟨s, x, hs, _, hc⟩
+  exact not_coupled_of_eventually_all_black hall s hs hc
+
+/-- **Unconditional `CQ` for the Constant All-Black Column (`CQ_all_black`):**
+`Rule30Coupled.CQ (fun _ => true)` holds unconditionally. -/
+theorem CQ_all_black : Rule30Coupled.CQ (fun _ => true) :=
+  CQ_of_eventually_all_black (T₁ := 0) (fun _ _ => rfl)
+
+/-- **Infinite Sideways Left-Cone Support for Eventually All-Black Columns (`lc_infinite_of_eventually_all_black`):**
+for every right half `R : Int → Bool` and every eventually all-black `ω`, `lc R ω · 0` has
+infinitely many black cells. -/
+theorem lc_infinite_of_eventually_all_black (R : Int → Bool) {ω : Nat → Bool} {T₁ : Nat}
+    (hall : ∀ t, T₁ ≤ t → ω t = true) (M : Nat) :
+    ∃ m, M < m ∧ lc R ω m 0 = true :=
+  lc_infinite_of_no_coupled (not_coupled_of_eventually_all_black hall) M
+
+/-- Modulo-4 reduction for globally 4-periodic sequences (`periodic4_mod_zero`):
+if `∀ t, ω (t + 4) = ω t`, then `ω t = ω (t % 4)` for every `t : Nat`. -/
+theorem periodic4_mod_zero {ω : Nat → Bool} (hper : ∀ t, ω (t + 4) = ω t) (t : Nat) :
+    ω t = ω (t % 4) := by
+  have hshift : ∀ k s, ω (s + 4 * k) = ω s := by
+    intro k
+    induction k with
+    | zero => intro s; simp
+    | succ k ih =>
+      intro s
+      rw [show s + 4 * (k + 1) = (s + 4 * k) + 4 by omega, hper, ih]
+  have hdiv : t = t % 4 + 4 * (t / 4) := by omega
+  conv => lhs; rw [hdiv]
+  exact hshift (t / 4) (t % 4)
+
+/-- **Strict Period-4 Sequence Representation (`periodic4_strict_eq_wordAt`):** every 4-periodic
+sequence `ω : Nat → Bool` (`∀ t, ω (t + 4) = ω t`) that is not 2-periodic on its base window
+(`¬ (ω 2 = ω 0 ∧ ω 3 = ω 1)`) equals `fun t => wordAt w (t + φ)` for some
+`w ∈ {w0001, w0011, w0111}` and phase `φ ∈ {0, 1, 2, 3}`. -/
+theorem periodic4_strict_eq_wordAt {ω : Nat → Bool}
+    (hper : ∀ t, ω (t + 4) = ω t) (hnot2 : ¬ (ω 2 = ω 0 ∧ ω 3 = ω 1)) :
+    ∃ w : List Bool, (w = w0001 ∨ w = w0011 ∨ w = w0111) ∧
+      ∃ φ : Nat, φ < 4 ∧ ∀ t, ω t = wordAt w (t + φ) := by
+  have hmod : ∀ t, ω t = ω (t % 4) := periodic4_mod_zero hper
+  rcases h0 : ω 0 <;> rcases h1 : ω 1 <;> rcases h2 : ω 2 <;> rcases h3 : ω 3
+  · exfalso; exact hnot2 ⟨by rw [h2, h0], by rw [h3, h1]⟩
+  · refine ⟨w0001, Or.inl rfl, 0, by omega, fun t => ?_⟩
+    rw [hmod t]; unfold wordAt w0001
+    have ht4 : t % 4 = 0 ∨ t % 4 = 1 ∨ t % 4 = 2 ∨ t % 4 = 3 := by omega
+    rcases ht4 with h | h | h | h <;> simp [h, h0, h1, h2, h3]
+  · refine ⟨w0001, Or.inl rfl, 1, by omega, fun t => ?_⟩
+    rw [hmod t]; unfold wordAt w0001
+    have ht4 : (t % 4 = 0 ∧ (t + 1) % 4 = 1) ∨ (t % 4 = 1 ∧ (t + 1) % 4 = 2) ∨
+               (t % 4 = 2 ∧ (t + 1) % 4 = 3) ∨ (t % 4 = 3 ∧ (t + 1) % 4 = 0) := by omega
+    rcases ht4 with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ <;> simp [ha, hb, h0, h1, h2, h3]
+  · refine ⟨w0011, Or.inr (Or.inl rfl), 0, by omega, fun t => ?_⟩
+    rw [hmod t]; unfold wordAt w0011
+    have ht4 : t % 4 = 0 ∨ t % 4 = 1 ∨ t % 4 = 2 ∨ t % 4 = 3 := by omega
+    rcases ht4 with h | h | h | h <;> simp [h, h0, h1, h2, h3]
+  · refine ⟨w0001, Or.inl rfl, 2, by omega, fun t => ?_⟩
+    rw [hmod t]; unfold wordAt w0001
+    have ht4 : (t % 4 = 0 ∧ (t + 2) % 4 = 2) ∨ (t % 4 = 1 ∧ (t + 2) % 4 = 3) ∨
+               (t % 4 = 2 ∧ (t + 2) % 4 = 0) ∨ (t % 4 = 3 ∧ (t + 2) % 4 = 1) := by omega
+    rcases ht4 with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ <;> simp [ha, hb, h0, h1, h2, h3]
+  · exfalso; exact hnot2 ⟨by rw [h2, h0], by rw [h3, h1]⟩
+  · refine ⟨w0011, Or.inr (Or.inl rfl), 1, by omega, fun t => ?_⟩
+    rw [hmod t]; unfold wordAt w0011
+    have ht4 : (t % 4 = 0 ∧ (t + 1) % 4 = 1) ∨ (t % 4 = 1 ∧ (t + 1) % 4 = 2) ∨
+               (t % 4 = 2 ∧ (t + 1) % 4 = 3) ∨ (t % 4 = 3 ∧ (t + 1) % 4 = 0) := by omega
+    rcases ht4 with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ <;> simp [ha, hb, h0, h1, h2, h3]
+  · refine ⟨w0111, Or.inr (Or.inr rfl), 0, by omega, fun t => ?_⟩
+    rw [hmod t]; unfold wordAt w0111
+    have ht4 : t % 4 = 0 ∨ t % 4 = 1 ∨ t % 4 = 2 ∨ t % 4 = 3 := by omega
+    rcases ht4 with h | h | h | h <;> simp [h, h0, h1, h2, h3]
+  · refine ⟨w0001, Or.inl rfl, 3, by omega, fun t => ?_⟩
+    rw [hmod t]; unfold wordAt w0001
+    have ht4 : (t % 4 = 0 ∧ (t + 3) % 4 = 3) ∨ (t % 4 = 1 ∧ (t + 3) % 4 = 0) ∨
+               (t % 4 = 2 ∧ (t + 3) % 4 = 1) ∨ (t % 4 = 3 ∧ (t + 3) % 4 = 2) := by omega
+    rcases ht4 with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ <;> simp [ha, hb, h0, h1, h2, h3]
+  · refine ⟨w0011, Or.inr (Or.inl rfl), 3, by omega, fun t => ?_⟩
+    rw [hmod t]; unfold wordAt w0011
+    have ht4 : (t % 4 = 0 ∧ (t + 3) % 4 = 3) ∨ (t % 4 = 1 ∧ (t + 3) % 4 = 0) ∨
+               (t % 4 = 2 ∧ (t + 3) % 4 = 1) ∨ (t % 4 = 3 ∧ (t + 3) % 4 = 2) := by omega
+    rcases ht4 with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ <;> simp [ha, hb, h0, h1, h2, h3]
+  · exfalso; exact hnot2 ⟨by rw [h2, h0], by rw [h3, h1]⟩
+  · refine ⟨w0111, Or.inr (Or.inr rfl), 3, by omega, fun t => ?_⟩
+    rw [hmod t]; unfold wordAt w0111
+    have ht4 : (t % 4 = 0 ∧ (t + 3) % 4 = 3) ∨ (t % 4 = 1 ∧ (t + 3) % 4 = 0) ∨
+               (t % 4 = 2 ∧ (t + 3) % 4 = 1) ∨ (t % 4 = 3 ∧ (t + 3) % 4 = 2) := by omega
+    rcases ht4 with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ <;> simp [ha, hb, h0, h1, h2, h3]
+  · refine ⟨w0011, Or.inr (Or.inl rfl), 2, by omega, fun t => ?_⟩
+    rw [hmod t]; unfold wordAt w0011
+    have ht4 : (t % 4 = 0 ∧ (t + 2) % 4 = 2) ∨ (t % 4 = 1 ∧ (t + 2) % 4 = 3) ∨
+               (t % 4 = 2 ∧ (t + 2) % 4 = 0) ∨ (t % 4 = 3 ∧ (t + 2) % 4 = 1) := by omega
+    rcases ht4 with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ <;> simp [ha, hb, h0, h1, h2, h3]
+  · refine ⟨w0111, Or.inr (Or.inr rfl), 2, by omega, fun t => ?_⟩
+    rw [hmod t]; unfold wordAt w0111
+    have ht4 : (t % 4 = 0 ∧ (t + 2) % 4 = 2) ∨ (t % 4 = 1 ∧ (t + 2) % 4 = 3) ∨
+               (t % 4 = 2 ∧ (t + 2) % 4 = 0) ∨ (t % 4 = 3 ∧ (t + 2) % 4 = 1) := by omega
+    rcases ht4 with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ <;> simp [ha, hb, h0, h1, h2, h3]
+  · refine ⟨w0111, Or.inr (Or.inr rfl), 1, by omega, fun t => ?_⟩
+    rw [hmod t]; unfold wordAt w0111
+    have ht4 : (t % 4 = 0 ∧ (t + 1) % 4 = 1) ∨ (t % 4 = 1 ∧ (t + 1) % 4 = 2) ∨
+               (t % 4 = 2 ∧ (t + 1) % 4 = 3) ∨ (t % 4 = 3 ∧ (t + 1) % 4 = 0) := by omega
+    rcases ht4 with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb⟩ <;> simp [ha, hb, h0, h1, h2, h3]
+  · exfalso; exact hnot2 ⟨by rw [h2, h0], by rw [h3, h1]⟩
+
+/-- **Unconditional Empty-Right-Half Coupled Exclusion for All Strictly 4-Periodic Columns
+(`no_empty_right_coupled_of_periodic4_strict`):** for every 4-periodic sequence `ω : Nat → Bool`
+that is not 2-periodic (`¬ (ω 2 = ω 0 ∧ ω 3 = ω 1)`), no left-finite configuration `s` is coupled
+with the empty right half `fun _ => false` to produce `ω`. -/
+theorem no_empty_right_coupled_of_periodic4_strict {ω : Nat → Bool}
+    (hper : ∀ t, ω (t + 4) = ω t) (hnot2 : ¬ (ω 2 = ω 0 ∧ ω 3 = ω 1))
+    (s : Int → Bool) (hs : ∃ W : Nat, ∀ p : Int, p < -(W : Int) → s p = false) :
+    ¬ Rule30Coupled.Coupled ω s (fun _ => false) := by
+  obtain ⟨w, hw, φ, _, hω⟩ := periodic4_strict_eq_wordAt hper hnot2
+  have heq : ω = fun t => wordAt w (t + φ) := funext hω
+  rw [heq]
+  rcases hw with rfl | rfl | rfl
+  · exact no_empty_right_coupled_0001 φ s hs
+  · exact no_empty_right_coupled_0011 φ s hs
+  · exact no_empty_right_coupled_0111 φ s hs
+
+/-- **Infinite Sideways Support for All Strictly 4-Periodic Columns (`lc_empty_infinite_of_periodic4_strict`):**
+for every strictly 4-periodic sequence `ω`, `lc (fun _ => false) ω · 0` has infinitely many black cells. -/
+theorem lc_empty_infinite_of_periodic4_strict {ω : Nat → Bool}
+    (hper : ∀ t, ω (t + 4) = ω t) (hnot2 : ¬ (ω 2 = ω 0 ∧ ω 3 = ω 1)) (M : Nat) :
+    ∃ m, M < m ∧ lc (fun _ => false) ω m 0 = true :=
+  lc_infinite_of_no_coupled (no_empty_right_coupled_of_periodic4_strict hper hnot2) M
+
+/-- **Finite-Time Center Divergence from Coupled Exclusion (`finite_divergence_of_no_coupled`):**
+whenever no left-finite configuration is coupled with `R` to produce `ω`, every configuration `x`
+with right half `R` (`∀ p ≥ 1, x p = R p`), `x 0 = ω 0`, and left-finite support (`∀ p < -W, x p = false`)
+diverges from `ω` at column `0` at some first time `d ≥ 1`. -/
+theorem finite_divergence_of_no_coupled {R : Int → Bool} {ω : Nat → Bool}
+    (hno : ∀ s : Int → Bool, (∃ W : Nat, ∀ p : Int, p < -(W : Int) → s p = false) →
+      ¬ Rule30Coupled.Coupled ω s (fun p => R (p : Int)))
+    {x : Int → Bool} {W : Nat} (hR : ∀ p : Int, 1 ≤ p → x p = R p)
+    (h0 : x 0 = ω 0) (hW : ∀ p : Int, p < -(W : Int) → x p = false) :
+    ∃ d, 1 ≤ d ∧ (∀ t, t < d → evol x t 0 = ω t) ∧ evol x d 0 ≠ ω d := by
+  obtain ⟨D, hD, hlc⟩ := lc_infinite_of_no_coupled hno W
+  have hxD : x (-(D : Int)) = false := hW (-(D : Int)) (by omega)
+  obtain ⟨d, hd1, _, hbefore, hdiff⟩ := survival_bounded_of_lc_black (by omega) hR h0 hlc hxD
+  exact ⟨d, hd1, hbefore, hdiff⟩
+
+/-- **Finite-Time Center Divergence for `w001` with Empty Right Half (`finite_divergence_empty_right_001`):**
+every left-finite configuration `x` with empty right half (`∀ p ≥ 1, x p = false`) and
+`x 0 = wordAt3 w001 φ` diverges at column `0` from `fun t => wordAt3 w001 (t + φ)` at some finite
+step `d ≥ 1`. -/
+theorem finite_divergence_empty_right_001 (φ : Nat) {x : Int → Bool} {W : Nat}
+    (hR : ∀ p : Int, 1 ≤ p → x p = false) (h0 : x 0 = wordAt3 w001 (0 + φ))
+    (hW : ∀ p : Int, p < -(W : Int) → x p = false) :
+    ∃ d, 1 ≤ d ∧ (∀ t, t < d → evol x t 0 = wordAt3 w001 (t + φ)) ∧
+      evol x d 0 ≠ wordAt3 w001 (d + φ) :=
+  finite_divergence_of_no_coupled (R := fun _ => false) (no_empty_right_coupled_001 φ) hR h0 hW
+
+/-- **Finite-Time Center Divergence for Strictly 4-Periodic Columns with Empty Right Half
+(`finite_divergence_empty_right_periodic4_strict`):** every left-finite configuration `x` with
+empty right half (`∀ p ≥ 1, x p = false`) and `x 0 = ω 0` diverges at column `0` from any strictly
+4-periodic sequence `ω` at some finite step `d ≥ 1`. -/
+theorem finite_divergence_empty_right_periodic4_strict {ω : Nat → Bool}
+    (hper : ∀ t, ω (t + 4) = ω t) (hnot2 : ¬ (ω 2 = ω 0 ∧ ω 3 = ω 1))
+    {x : Int → Bool} {W : Nat} (hR : ∀ p : Int, 1 ≤ p → x p = false)
+    (h0 : x 0 = ω 0) (hW : ∀ p : Int, p < -(W : Int) → x p = false) :
+    ∃ d, 1 ≤ d ∧ (∀ t, t < d → evol x t 0 = ω t) ∧ evol x d 0 ≠ ω d :=
+  finite_divergence_of_no_coupled (R := fun _ => false)
+    (no_empty_right_coupled_of_periodic4_strict hper hnot2) hR h0 hW
 
 end Ruliology.CellularAutomata.Rule30CoupledEmptyRight
