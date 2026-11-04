@@ -284,5 +284,272 @@ theorem small_bwh_control :
     (by intro t ht; exact hard_core_guard_control.2.1 t (by omega))
 
 
+/-! ## 1. Polynomial-Time Row-Stepping Evaluation of `cone`, `inverse`, `peelPow`, and `wedge` -/
+
+/-- Tabulate `k` consecutive values `[x t, x (t + 1), ..., x (t + k - 1)]` of a function `x : Nat → Sym`. -/
+def tabulate (x : Nat → Sym) (t : Nat) : Nat → List Sym
+  | 0 => []
+  | k + 1 => x t :: tabulate x (t + 1) k
+
+/-- Pairwise `phi` combination of two lists of `Sym`. -/
+def zipPhi : List Sym → List Sym → List Sym
+  | a :: as, b :: bs => phi a b :: zipPhi as bs
+  | _, _ => []
+
+/-- **Exact Cone Row-Step Identity (`zipPhi_tabulate_cone`):** combining row `t` (length `k + 1`
+from `j + 1`) and row `t + 1` (length `k` from `j + 1`) with `zipPhi` produces row `t + 2`
+(length `k` from `j`). -/
+theorem zipPhi_tabulate_cone (e : Stream) (t : Nat) : ∀ (k j : Nat),
+    zipPhi (tabulate (cone e t) (j + 1) (k + 1)) (tabulate (cone e (t + 1)) (j + 1) k) =
+      tabulate (cone e (t + 2)) j k
+  | 0, _ => rfl
+  | k + 1, j => by
+    have h1 : tabulate (cone e t) (j + 1) (k + 1 + 1) =
+        cone e t (j + 1) :: tabulate (cone e t) (j + 1 + 1) (k + 1) := rfl
+    have h2 : tabulate (cone e (t + 1)) (j + 1) (k + 1) =
+        cone e (t + 1) (j + 1) :: tabulate (cone e (t + 1)) (j + 1 + 1) k := rfl
+    have h3 : tabulate (cone e (t + 2)) j (k + 1) =
+        cone e (t + 2) j :: tabulate (cone e (t + 2)) (j + 1) k := rfl
+    rw [h1, h2, h3, zipPhi, zipPhi_tabulate_cone e t k (j + 1)]
+    rfl
+
+/-- Collect `k` diagonal entries `cone e t j, cone e (t + 1) j, ...` from two adjacent rows `r0, r1`. -/
+def collectHead : Nat → List Sym → List Sym → List Sym
+  | 0, _, _ => []
+  | k + 1, r0, r1 => r0.headD 0 :: collectHead k r1 (zipPhi r0.tail r1.tail)
+
+/-- **Exact Linear Row-Stepping Identity for `cone` (`collectHead_tabulate_cone`):** starting from
+`r0 = tabulate (cone e t) j k` and `r1 = tabulate (cone e (t + 1)) j (k - 1)`, `collectHead`
+returns `[cone e t j, cone e (t + 1) j, ..., cone e (t + k - 1) j]`. -/
+theorem collectHead_tabulate_cone (e : Stream) : ∀ (k t j : Nat),
+    collectHead k (tabulate (cone e t) j k) (tabulate (cone e (t + 1)) j (k - 1)) =
+      tabulate (fun s => cone e s j) t k
+  | 0, _, _ => rfl
+  | 1, t, j => rfl
+  | k + 2, t, j => by
+    have h0 : tabulate (cone e t) j (k + 2) =
+        cone e t j :: tabulate (cone e t) (j + 1) (k + 1) := rfl
+    have h1 : tabulate (cone e (t + 1)) j (k + 2 - 1) =
+        cone e (t + 1) j :: tabulate (cone e (t + 1)) (j + 1) k := rfl
+    rw [collectHead, h0, List.headD_cons, List.tail_cons]
+    conv => lhs; rhs; rw [h1, List.tail_cons, zipPhi_tabulate_cone e t k j, ← h1]
+    have ih := collectHead_tabulate_cone e (k + 1) (t + 1) j
+    simp only [Nat.add_sub_cancel] at ih
+    rw [show k + 2 - 1 = k + 1 by omega, ih]
+    rfl
+
+/-- Fast `O(M^2)` computation of `[inverse e 0, inverse e 1, ..., inverse e (M - 1)]`. -/
+def fastInverseList (M : Nat) (e : Stream) : List Sym :=
+  collectHead M (tabulate (cone e 0) 0 M) (tabulate (cone e 1) 0 (M - 1))
+
+/-- **Fast Inverse List Equivalence (`fastInverseList_eq`):** `fastInverseList M e` equals
+`tabulate (inverse e) 0 M`. -/
+theorem fastInverseList_eq (M : Nat) (e : Stream) :
+    fastInverseList M e = tabulate (inverse e) 0 M :=
+  collectHead_tabulate_cone e M 0 0
+
+/-- One-step `phi` contraction on a finite list of stream values. -/
+def peelList : List Sym → List Sym
+  | a :: b :: rest => phi a b :: peelList (b :: rest)
+  | _ => []
+
+/-- `n`-fold iteration of `peelList`. -/
+def iterPeelList : Nat → List Sym → List Sym
+  | 0, l => l
+  | n + 1, l => iterPeelList n (peelList l)
+
+/-- Contracting `tabulate x t (k + 1)` with `peelList` yields `tabulate (peel x) t k`. -/
+theorem peelList_tabulate (x : Stream) : ∀ (k t : Nat),
+    peelList (tabulate x t (k + 1)) = tabulate (peel x) t k
+  | 0, _ => rfl
+  | k + 1, t => by
+    have h : tabulate x t (k + 1 + 1) = x t :: x (t + 1) :: tabulate x (t + 1 + 1) k := rfl
+    rw [h, peelList]
+    have ih := peelList_tabulate x k (t + 1)
+    have h2 : tabulate x (t + 1) (k + 1) = x (t + 1) :: tabulate x (t + 1 + 1) k := rfl
+    rw [← h2, ih]
+    rfl
+
+/-- **Exact Tabulated Peel Identity (`iterPeelList_tabulate`):** applying `iterPeelList n` to
+`tabulate x t (k + n)` yields `tabulate (peelPow n x) t k`. -/
+theorem iterPeelList_tabulate : ∀ (n k t : Nat) (x : Stream),
+    iterPeelList n (tabulate x t (k + n)) = tabulate (peelPow n x) t k
+  | 0, k, t, x => by simp [iterPeelList, peelPow]
+  | n + 1, k, t, x => by
+    rw [show k + (n + 1) = (k + n) + 1 by omega, iterPeelList,
+      peelList_tabulate x (k + n) t, iterPeelList_tabulate n k t (peel x), peelPow_inside]
+
+/-- Fast `O((n + K)^2)` computation of `[wedge n e 0, ..., wedge n e (K - 1)]`. -/
+def fastWedgeList (n K : Nat) (e : Stream) : List Sym :=
+  iterPeelList n (fastInverseList (K + n) e)
+
+/-- **Fast Wedge List Equivalence (`fastWedgeList_eq`):** `fastWedgeList n K e` equals
+`tabulate (wedge n e) 0 K`. -/
+theorem fastWedgeList_eq (n K : Nat) (e : Stream) :
+    fastWedgeList n K e = tabulate (wedge n e) 0 K := by
+  unfold fastWedgeList wedge
+  rw [fastInverseList_eq, iterPeelList_tabulate]
+
+/-- All elements of `tabulate x t K` equal `c` iff `∀ i < K, x (t + i) = c`. -/
+theorem all_tabulate_eq_true_iff (x : Stream) (c : Sym) : ∀ (K t : Nat),
+    ((tabulate x t K).all (fun s => decide (s = c)) = true) ↔ (∀ i, i < K → x (t + i) = c)
+  | 0, _ => by simp [tabulate]
+  | K + 1, t => by
+    simp only [tabulate, List.all_cons, Bool.and_eq_true, decide_eq_true_eq,
+      all_tabulate_eq_true_iff x c K (t + 1)]
+    constructor
+    · rintro ⟨h0, hrest⟩ i hi
+      rcases i with _ | i
+      · simpa using h0
+      · have h := hrest i (by omega)
+        rwa [show t + 1 + i = t + (i + 1) by omega] at h
+    · intro h
+      refine ⟨by simpa using h 0 (by omega), fun i hi => ?_⟩
+      have h1 := h (i + 1) (by omega)
+      rwa [show t + (i + 1) = t + 1 + i by omega] at h1
+
+/-- **Decidable ConstantWedge Criterion (`constantWedge_iff_fastWedgeList`):** `ConstantWedge n K c e`
+holds iff `(fastWedgeList n K e).all (fun s => decide (s = c)) = true`. -/
+theorem constantWedge_iff_fastWedgeList (n K : Nat) (c : Sym) (e : Stream) :
+    ConstantWedge n K c e ↔ (fastWedgeList n K e).all (fun s => decide (s = c)) = true := by
+  rw [fastWedgeList_eq, all_tabulate_eq_true_iff]
+  simp only [Nat.zero_add, ConstantWedge]
+
+/-! ## 2. Finite Prefix Enumeration & Completeness for `BinaryPrefix` and `HardCoreJunction` -/
+
+/-- Stream backed by a finite list `w : List Sym` padded with `0`. -/
+def listStream (w : List Sym) (i : Nat) : Sym :=
+  w.getD i 0
+
+/-- Extract the length-`L` prefix of a stream `e` as a `List Sym`. -/
+def streamPrefix : Stream → Nat → List Sym
+  | _, 0 => []
+  | e, L + 1 => e 0 :: streamPrefix (shift e) L
+
+/-- `listStream (streamPrefix e L)` agrees with `e` on all `i < L`. -/
+theorem listStream_streamPrefix : ∀ (L : Nat) (e : Stream) (i : Nat), i < L →
+    listStream (streamPrefix e L) i = e i
+  | 0, _, _, hi => by omega
+  | _ + 1, _, 0, _ => rfl
+  | L + 1, e, i + 1, hi => listStream_streamPrefix L (shift e) i (by omega)
+
+/-- Exhaustive generator of all binary words (`1` or `2`) of length `L`. -/
+def genBin : Nat → List (List Sym)
+  | 0 => [[]]
+  | L + 1 => (genBin L).map (1 :: ·) ++ (genBin L).map (2 :: ·)
+
+/-- **Completeness of `genBin` (`streamPrefix_mem_genBin`):** if `BinaryPrefix e L`, then
+`streamPrefix e L ∈ genBin L`. -/
+theorem streamPrefix_mem_genBin : ∀ (L : Nat) (e : Stream),
+    BinaryPrefix e L → streamPrefix e L ∈ genBin L
+  | 0, _, _ => List.Mem.head []
+  | L + 1, e, hb => by
+    have hshift : BinaryPrefix (shift e) L := fun i hi => hb (i + 1) (by omega)
+    have ih := streamPrefix_mem_genBin L (shift e) hshift
+    simp only [streamPrefix, genBin, List.mem_append, List.mem_map]
+    rcases hb 0 (by omega) with h1 | h2
+    · left; exact ⟨streamPrefix (shift e) L, ih, by rw [h1]⟩
+    · right; exact ⟨streamPrefix (shift e) L, ih, by rw [h2]⟩
+
+/-- Boolean check that `w` has no adjacent `1, 1` at indices `(i - 1, i)` for `n ≤ i < L`. -/
+def checkHC (n L : Nat) (w : List Sym) : Bool :=
+  (List.range (L - n)).all (fun d =>
+    !(decide (listStream w (n + d - 1) = 1) && decide (listStream w (n + d) = 1)))
+
+/-- If `HardCoreJunction n L e` holds, then `checkHC n L (streamPrefix e L) = true`. -/
+theorem checkHC_streamPrefix {n L : Nat} {e : Stream} (hn : 1 ≤ n)
+    (hhc : HardCoreJunction n L e) : checkHC n L (streamPrefix e L) = true := by
+  unfold checkHC
+  rw [List.all_eq_true]
+  intro d hd
+  rw [List.mem_range] at hd
+  rw [Bool.not_eq_true', Bool.and_eq_false_iff, decide_eq_false_iff_not, decide_eq_false_iff_not]
+  rw [listStream_streamPrefix L e (n + d - 1) (by omega),
+      listStream_streamPrefix L e (n + d) (by omega)]
+  have h := hhc (n + d) (by omega) (by omega)
+  by_cases ha : e (n + d - 1) = 1
+  · right; intro hb; exact h ⟨ha, hb⟩
+  · left; exact ha
+
+/-- Boolean certificate checking that NO word in `genBin (n + K)` satisfies both `checkHC n (n + K)`
+and `ConstantWedge n K c`. -/
+def certNoHCWedge (n K : Nat) (c : Sym) : Bool :=
+  (genBin (n + K)).all (fun w =>
+    !(checkHC n (n + K) w && (fastWedgeList n K (listStream w)).all (fun s => decide (s = c))))
+
+/-- **Soundness of `certNoHCWedge` (`no_hc_wedge_of_cert`):** if `certNoHCWedge n K c = true`, then
+no stream `e` satisfies `BinaryPrefix e (n + K)`, `HardCoreJunction n (n + K) e`, and `ConstantWedge n K c e`. -/
+theorem no_hc_wedge_of_cert {n K : Nat} {c : Sym} (hn : 1 ≤ n)
+    (hcert : certNoHCWedge n K c = true) :
+    ∀ e : Stream, BinaryPrefix e (n + K) → HardCoreJunction n (n + K) e → ¬ ConstantWedge n K c e := by
+  intro e hb hhc hcw
+  unfold certNoHCWedge at hcert
+  rw [List.all_eq_true] at hcert
+  have hmem := streamPrefix_mem_genBin (n + K) e hb
+  have hw := hcert (streamPrefix e (n + K)) hmem
+  have hhc_b : checkHC n (n + K) (streamPrefix e (n + K)) = true := checkHC_streamPrefix hn hhc
+  have hcw_list : ConstantWedge n K c (listStream (streamPrefix e (n + K))) := by
+    intro t ht
+    rw [wedge_prefix (listStream (streamPrefix e (n + K))) e (n + K) n t
+      (fun i hi => listStream_streamPrefix (n + K) e i hi) (by omega)]
+    exact hcw t ht
+  have hcw_b : (fastWedgeList n K (listStream (streamPrefix e (n + K)))).all
+      (fun s => decide (s = c)) = true :=
+    (constantWedge_iff_fastWedgeList n K c _).mp hcw_list
+  rw [hhc_b, hcw_b] at hw
+  contradiction
+
+/-! ## 3. Unconditional Proof of `SmallRW` and Discharging `SmallRW` Across the Bridge Ladder -/
+
+set_option maxRecDepth 100000 in
+set_option maxHeartbeats 2000000 in
+/-- All 12 certificates `(1 ≤ n ≤ 6, c ∈ {2, 3})` pass at horizon `n + K ≤ 10`. -/
+theorem smallRW_certs :
+    certNoHCWedge 1 2 2 = true ∧ certNoHCWedge 1 2 3 = true ∧
+    certNoHCWedge 2 2 2 = true ∧ certNoHCWedge 2 2 3 = true ∧
+    certNoHCWedge 3 5 2 = true ∧ certNoHCWedge 3 5 3 = true ∧
+    certNoHCWedge 4 3 2 = true ∧ certNoHCWedge 4 3 3 = true ∧
+    certNoHCWedge 5 5 2 = true ∧ certNoHCWedge 5 5 3 = true ∧
+    certNoHCWedge 6 4 2 = true ∧ certNoHCWedge 6 4 3 = true := by
+  decide
+
+/-- Helper: if `n + K ≤ 2 * n + r + 2` and `K ≤ n + r + 2`, any `RWWitness n r c e` restricts to
+`BinaryPrefix e (n + K)`, `HardCoreJunction n (n + K) e`, and `ConstantWedge n K c e`. -/
+theorem no_rwWitness_of_cert {n K r : Nat} {c : Sym} {e : Stream}
+    (hn : 1 ≤ n) (hK : K ≤ n + r + 2) (hcert : certNoHCWedge n K c = true)
+    (hw : RWWitness n r c e) : False := by
+  apply no_hc_wedge_of_cert hn hcert e
+  · intro i hi; exact hw.1 i (by omega)
+  · intro i hni hi; exact hw.2.1 i hni (by omega)
+  · intro t ht; exact hw.2.2.1 t (by omega)
+
+/-- **Unconditional Proof of `SmallRW` (`smallRW`):** for all `1 ≤ n < 7`, `r ≤ 2`, and
+`c ∈ {2, 3}`, there is no `RWWitness n r c e`. -/
+theorem smallRW : SmallRW := by
+  intro n hn1 hn7 r hr c hc e hw
+  obtain ⟨c12, c13, c22, c23, c32, c33, c42, c43, c52, c53, c62, c63⟩ := smallRW_certs
+  have hn_cases : n = 1 ∨ n = 2 ∨ n = 3 ∨ n = 4 ∨ n = 5 ∨ n = 6 := by omega
+  rcases hc with rfl | rfl
+  · rcases hn_cases with rfl | rfl | rfl | rfl | rfl | rfl
+    · exact no_rwWitness_of_cert (by omega) (by omega) c12 hw
+    · exact no_rwWitness_of_cert (by omega) (by omega) c22 hw
+    · exact no_rwWitness_of_cert (by omega) (by omega) c32 hw
+    · exact no_rwWitness_of_cert (by omega) (by omega) c42 hw
+    · exact no_rwWitness_of_cert (by omega) (by omega) c52 hw
+    · exact no_rwWitness_of_cert (by omega) (by omega) c62 hw
+  · rcases hn_cases with rfl | rfl | rfl | rfl | rfl | rfl
+    · exact no_rwWitness_of_cert (by omega) (by omega) c13 hw
+    · exact no_rwWitness_of_cert (by omega) (by omega) c23 hw
+    · exact no_rwWitness_of_cert (by omega) (by omega) c33 hw
+    · exact no_rwWitness_of_cert (by omega) (by omega) c43 hw
+    · exact no_rwWitness_of_cert (by omega) (by omega) c53 hw
+    · exact no_rwWitness_of_cert (by omega) (by omega) c63 hw
+
+/-- **`BWH` Alone Implies `RW` (`bwh_implies_rw_unconditional`):** with `smallRW` proved, the
+`SmallRW` hypothesis is discharged from `bwh_implies_rw`. -/
+theorem bwh_implies_rw_unconditional (hb : BWH) : RW :=
+  bwh_implies_rw hb smallRW
+
 end Rule30WedgeBridge
+
 end Ruliology.CellularAutomata
