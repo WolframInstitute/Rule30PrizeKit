@@ -199,5 +199,180 @@ theorem recurrent_four_layer_escape (j s : Nat) (x y : Code) (hx : x 0=true)
     (by simpa only [iter_zero] using hx) (iter_agree low s) (iter_diff low different s)
   exact ⟨t,ht,by simpa only [iter_add] using ne⟩
 
+/-! ### Six-Window Escape Sharpening (`6 * ((j + 1) / 2 + 1) + 1`) and Five-Window Isolated-Defect Bounds -/
+
+/-- **White-Clock Rank Upper Bound (`rank_bound_white_clock`):** whenever the lower clock bit
+`c = false`, the Boolean rank is at most `5` (`rank = 6` occurs only when `c = true`). -/
+theorem rank_bound_white_clock : ∀ x0 x1 x2 x3 x4 x5 d1 d2 d3 h : Bool,
+    rank x0 x1 x2 x3 x4 x5 d1 d2 d3 false h ≤ 5 := by decide
+
+/-- **Isolated-Defect Rank Upper Bound (`rank_bound_isolated`):** whenever the three intermediate
+relative-difference bits `d1, d2, d3` are all `false` (i.e., `x` and `y` agree on `j + 2, j + 3, j + 4`),
+the Boolean rank is at most `4`. -/
+theorem rank_bound_isolated : ∀ x0 x1 x2 x3 x4 x5 c h : Bool,
+    rank x0 x1 x2 x3 x4 x5 false false false c h ≤ 4 := by decide
+
+/-- **Measure Bound under a White Lower Clock (`measure_bound_of_white`):** if `x j = false`, then
+`measure j x y ≤ 5`. -/
+theorem measure_bound_of_white (j : Nat) (x y : Code) (hw : x j = false) :
+    measure j x y ≤ 5 := by
+  unfold Rule30DefectClockBudget.measure
+  rw [hw]
+  exact rank_bound_white_clock _ _ _ _ _ _ _ _ _ _
+
+/-- **Measure Bound for an Isolated First Difference (`measure_bound_isolated`):** if `x` and `y`
+agree at digits `j + 2`, `j + 3`, and `j + 4`, then `measure j x y ≤ 4`. -/
+theorem measure_bound_isolated (j : Nat) (x y : Code)
+    (h2 : x (j + 2) = y (j + 2)) (h3 : x (j + 3) = y (j + 3)) (h4 : x (j + 4) = y (j + 4)) :
+    measure j x y ≤ 4 := by
+  unfold Rule30DefectClockBudget.measure
+  rw [h2, h3, h4, Bool.xor_self, Bool.xor_self, Bool.xor_self]
+  exact rank_bound_isolated _ _ _ _ _ _ _ _
+
+/-- **Six-Window Clock-Rank Contradiction (`clock_rank_contradiction_five`):** if `r 0 ≤ 5`,
+`r` never increases and drops on every black clock tick over `6 * (B + 1)` steps, and every
+window of length `B + 1` contains a black clock tick, then `False` follows after six windows. -/
+theorem clock_rank_contradiction_five (r : Nat → Nat) (c : Nat → Bool) (B : Nat)
+    (initial : r 0 ≤ 5)
+    (step : ∀ t, t < 6 * (B + 1) → r (t + 1) + (if c t then 1 else 0) ≤ r t)
+    (black : ∀ s, s ≤ 5 * (B + 1) → ∃ u, u ≤ B ∧ c (s + u) = true) : False := by
+  have weak : ∀ t, t < 6 * (B + 1) → r (t + 1) ≤ r t := by
+    intro t ht; have h := step t ht; omega
+  have mono (a b : Nat) (hab : a ≤ b) (hb : b ≤ 6 * (B + 1)) : r b ≤ r a := by
+    have h := rank_chain r _ weak (b - a) a (by omega)
+    have idx : a + (b - a) = b := by omega
+    simpa only [idx] using h
+  have blocks (k : Nat) (hk : k < 6) : r ((k + 1) * (B + 1)) + 1 ≤ r (k * (B + 1)) := by
+    have startbound : k * (B + 1) ≤ 5 * (B + 1) := Nat.mul_le_mul_right _ (by omega)
+    have endbound : (k + 1) * (B + 1) ≤ 6 * (B + 1) := Nat.mul_le_mul_right _ (by omega)
+    have endpoint : (k + 1) * (B + 1) = k * (B + 1) + (B + 1) := by rw [Nat.add_mul, Nat.one_mul]
+    obtain ⟨u, hu, bc⟩ := black (k * (B + 1)) startbound
+    have before := mono (k * (B + 1)) (k * (B + 1) + u) (by omega) (by omega)
+    have after := mono (k * (B + 1) + u + 1) ((k + 1) * (B + 1)) (by omega) endbound
+    have strict := step (k * (B + 1) + u) (by omega)
+    rw [bc] at strict
+    change r (k * (B + 1) + u + 1) + 1 ≤ r (k * (B + 1) + u) at strict
+    omega
+  have h0 := blocks 0 (by decide)
+  have h1 := blocks 1 (by decide)
+  have h2 := blocks 2 (by decide)
+  have h3 := blocks 3 (by decide)
+  have h4 := blocks 4 (by decide)
+  have h5 := blocks 5 (by decide)
+  simp only [Nat.zero_mul, Nat.one_mul, Nat.reduceAdd] at h0 h1 h2 h3 h4 h5
+  omega
+
+/-- **Five-Window Clock-Rank Contradiction (`clock_rank_contradiction_four`):** if `r 0 ≤ 4`,
+then under the same hypotheses `False` follows after five windows (`5 * (B + 1)` ticks). -/
+theorem clock_rank_contradiction_four (r : Nat → Nat) (c : Nat → Bool) (B : Nat)
+    (initial : r 0 ≤ 4)
+    (step : ∀ t, t < 5 * (B + 1) → r (t + 1) + (if c t then 1 else 0) ≤ r t)
+    (black : ∀ s, s ≤ 4 * (B + 1) → ∃ u, u ≤ B ∧ c (s + u) = true) : False := by
+  have weak : ∀ t, t < 5 * (B + 1) → r (t + 1) ≤ r t := by
+    intro t ht; have h := step t ht; omega
+  have mono (a b : Nat) (hab : a ≤ b) (hb : b ≤ 5 * (B + 1)) : r b ≤ r a := by
+    have h := rank_chain r _ weak (b - a) a (by omega)
+    have idx : a + (b - a) = b := by omega
+    simpa only [idx] using h
+  have blocks (k : Nat) (hk : k < 5) : r ((k + 1) * (B + 1)) + 1 ≤ r (k * (B + 1)) := by
+    have startbound : k * (B + 1) ≤ 4 * (B + 1) := Nat.mul_le_mul_right _ (by omega)
+    have endbound : (k + 1) * (B + 1) ≤ 5 * (B + 1) := Nat.mul_le_mul_right _ (by omega)
+    have endpoint : (k + 1) * (B + 1) = k * (B + 1) + (B + 1) := by rw [Nat.add_mul, Nat.one_mul]
+    obtain ⟨u, hu, bc⟩ := black (k * (B + 1)) startbound
+    have before := mono (k * (B + 1)) (k * (B + 1) + u) (by omega) (by omega)
+    have after := mono (k * (B + 1) + u + 1) ((k + 1) * (B + 1)) (by omega) endbound
+    have strict := step (k * (B + 1) + u) (by omega)
+    rw [bc] at strict
+    change r (k * (B + 1) + u + 1) + 1 ≤ r (k * (B + 1) + u) at strict
+    omega
+  have h0 := blocks 0 (by decide)
+  have h1 := blocks 1 (by decide)
+  have h2 := blocks 2 (by decide)
+  have h3 := blocks 3 (by decide)
+  have h4 := blocks 4 (by decide)
+  simp only [Nat.zero_mul, Nat.one_mul, Nat.reduceAdd] at h0 h1 h2 h3 h4
+  omega
+
+/-- **Sharpened Six-Window Four-Layer Escape (`four_layer_escape_six_windows`):** because `rank = 6`
+only occurs when the lower clock `x j` is already black at `t = 0` (which immediately reduces the
+rank to `≤ 5` at `t = 1`), every persistent first difference at `j + 1` escapes into `j + 5` or
+`j + 6` within `6 * ((j + 1) / 2 + 1) + 1` ticks (strictly improving `7 * ((j + 1) / 2 + 1)` for
+every positive `j`). -/
+theorem four_layer_escape_six_windows (j : Nat) (x y : Code) (hx : x 0 = true)
+    (low : AgreeBelow (j + 1) x y) (different : x (j + 1) ≠ y (j + 1)) :
+    ∃ t, t ≤ 6 * ((j + 1) / 2 + 1) + 1 ∧
+      (iter t x (j + 5) ≠ iter t y (j + 5) ∨ iter t x (j + 6) ≠ iter t y (j + 6)) := by
+  apply Classical.byContradiction
+  intro none
+  have same : ∀ t, t ≤ 6 * ((j + 1) / 2 + 1) + 1 →
+      iter t x (j + 5) = iter t y (j + 5) ∧ iter t x (j + 6) = iter t y (j + 6) := by
+    intro t ht
+    constructor
+    · by_cases eq : iter t x (j + 5) = iter t y (j + 5)
+      · exact eq
+      · exact False.elim (none ⟨t, ht, Or.inl eq⟩)
+    · by_cases eq : iter t x (j + 6) = iter t y (j + 6)
+      · exact eq
+      · exact False.elim (none ⟨t, ht, Or.inr eq⟩)
+  cases hxj : x j with
+  | false =>
+    apply clock_rank_contradiction_five (fun t => measure j (iter t x) (iter t y))
+      (fun t => iter t x j) ((j + 1) / 2) (measure_bound_of_white j x y hxj)
+    · intro t ht
+      exact measure_step j (iter t x) (iter t y) (iter_agree low t) (iter_diff low different t)
+        (same t (by omega)).1 (same t (by omega)).2
+        (same (t + 1) (by omega)).1 (same (t + 1) (by omega)).2
+    · intro s hs
+      exact black_within j s x hx
+  | true =>
+    have hstep0 := measure_step j x y low different
+      (same 0 (by omega)).1 (same 0 (by omega)).2
+      (same 1 (by omega)).1 (same 1 (by omega)).2
+    have hb0 := measure_bound j x y
+    rw [hxj] at hstep0
+    change measure j (iter 1 x) (iter 1 y) + 1 ≤ measure j x y at hstep0
+    have hinit1 : measure j (iter 1 x) (iter 1 y) ≤ 5 := by omega
+    apply clock_rank_contradiction_five (fun t => measure j (iter (1 + t) x) (iter (1 + t) y))
+      (fun t => iter (1 + t) x j) ((j + 1) / 2) hinit1
+    · intro t ht
+      change measure j (T (iter (1 + t) x)) (T (iter (1 + t) y)) +
+        (if iter (1 + t) x j then 1 else 0) ≤ measure j (iter (1 + t) x) (iter (1 + t) y)
+      exact measure_step j (iter (1 + t) x) (iter (1 + t) y)
+        (iter_agree low (1 + t)) (iter_diff low different (1 + t))
+        (same (1 + t) (by omega)).1 (same (1 + t) (by omega)).2
+        (same (1 + t + 1) (by omega)).1 (same (1 + t + 1) (by omega)).2
+    · intro s hs
+      obtain ⟨u, hu, hbu⟩ := black_within j (1 + s) x hx
+      refine ⟨u, hu, ?_⟩
+      simpa only [Nat.add_assoc] using hbu
+
+/-- **Five-Window Four-Layer Escape for Isolated Defects (`four_layer_escape_isolated`):** if `x`
+and `y` agree below `j + 1`, differ at `j + 1`, and agree at `j + 2, j + 3, j + 4`, then a
+difference reaches `j + 5` or `j + 6` within `5 * ((j + 1) / 2 + 1)` ticks. -/
+theorem four_layer_escape_isolated (j : Nat) (x y : Code) (hx : x 0 = true)
+    (low : AgreeBelow (j + 1) x y) (different : x (j + 1) ≠ y (j + 1))
+    (h2 : x (j + 2) = y (j + 2)) (h3 : x (j + 3) = y (j + 3)) (h4 : x (j + 4) = y (j + 4)) :
+    ∃ t, t ≤ 5 * ((j + 1) / 2 + 1) ∧
+      (iter t x (j + 5) ≠ iter t y (j + 5) ∨ iter t x (j + 6) ≠ iter t y (j + 6)) := by
+  apply Classical.byContradiction
+  intro none
+  have same : ∀ t, t ≤ 5 * ((j + 1) / 2 + 1) →
+      iter t x (j + 5) = iter t y (j + 5) ∧ iter t x (j + 6) = iter t y (j + 6) := by
+    intro t ht
+    constructor
+    · by_cases eq : iter t x (j + 5) = iter t y (j + 5)
+      · exact eq
+      · exact False.elim (none ⟨t, ht, Or.inl eq⟩)
+    · by_cases eq : iter t x (j + 6) = iter t y (j + 6)
+      · exact eq
+      · exact False.elim (none ⟨t, ht, Or.inr eq⟩)
+  apply clock_rank_contradiction_four (fun t => measure j (iter t x) (iter t y))
+    (fun t => iter t x j) ((j + 1) / 2) (measure_bound_isolated j x y h2 h3 h4)
+  · intro t ht
+    exact measure_step j (iter t x) (iter t y) (iter_agree low t) (iter_diff low different t)
+      (same t (by omega)).1 (same t (by omega)).2
+      (same (t + 1) (by omega)).1 (same (t + 1) (by omega)).2
+  · intro s hs
+    exact black_within j s x hx
 
 end Ruliology.CellularAutomata.Rule30DefectClockBudget
