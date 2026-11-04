@@ -445,4 +445,140 @@ theorem germ_drought_clock_bound {R : Nat → Bool} {m : Nat}
       (s₀ := s₀ + 1) (ℓ := ℓ - 1) (p := 1) (by decide) hconst
     omega
 
+/-! ## 4. Universal `11`-Freeness and 2-Tick Recurrence of Even Right Germs -/
+
+/-- **Exact 2-Tick Recurrence for Even Right Germs (`drivenGamma_succ_eq`):** for every right half
+`R` and step `s`, the next even germ `drivenGamma altCol R (2 * (s + 1))` equals
+`!drivenGamma altCol R (2 * s) && (drv altCol R (2 * s + 2) 2 || drv altCol R (2 * s + 2) 3)`. -/
+theorem drivenGamma_succ_eq (R : Nat → Bool) (s : Nat) :
+    drivenGamma altCol R (2 * (s + 1)) =
+      (!drivenGamma altCol R (2 * s) &&
+        (drv altCol R (2 * s + 2) 2 || drv altCol R (2 * s + 2) 3)) := by
+  have hcol1 := drv_even_succ_col1_eq_not_drivenGamma R s
+  change (drv altCol R (2 * (s + 1)) 1 &&
+    (drv altCol R (2 * (s + 1)) 2 || drv altCol R (2 * (s + 1)) 3)) = _
+  rw [show 2 * (s + 1) = 2 * s + 2 by omega, hcol1]
+
+/-- **Universal `11`-Freeness of Even Right Germs (`drivenGamma_even_no11`):** for every right half
+`R : Nat → Bool` and step `s : Nat`, two consecutive even steps cannot both have active germs:
+`(drivenGamma altCol R (2 * s) && drivenGamma altCol R (2 * (s + 1))) = false`. -/
+theorem drivenGamma_even_no11 (R : Nat → Bool) (s : Nat) :
+    (drivenGamma altCol R (2 * s) && drivenGamma altCol R (2 * (s + 1))) = false := by
+  rw [drivenGamma_succ_eq R s]
+  cases drivenGamma altCol R (2 * s) <;> simp
+
+/-- **Immediate Extinction After an Active Germ (`drivenGamma_succ_false_of_true`):** whenever
+`drivenGamma altCol R (2 * s) = true`, the next even germ `drivenGamma altCol R (2 * (s + 1))` is
+`false`. -/
+theorem drivenGamma_succ_false_of_true (R : Nat → Bool) (s : Nat)
+    (hg : drivenGamma altCol R (2 * s) = true) :
+    drivenGamma altCol R (2 * (s + 1)) = false := by
+  rw [drivenGamma_succ_eq R s, hg]; rfl
+
+/-- **Even-Germ Reduction After an Inactive Germ (`drivenGamma_succ_of_false`):** whenever
+`drivenGamma altCol R (2 * s) = false`, column `1` at `2 * s + 2` is `true` and the next even germ
+reduces to `drv altCol R (2 * s + 2) 2 || drv altCol R (2 * s + 2) 3`. -/
+theorem drivenGamma_succ_of_false (R : Nat → Bool) (s : Nat)
+    (hg : drivenGamma altCol R (2 * s) = false) :
+    drivenGamma altCol R (2 * (s + 1)) =
+      (drv altCol R (2 * s + 2) 2 || drv altCol R (2 * s + 2) 3) := by
+  rw [drivenGamma_succ_eq R s, hg]; rfl
+
+/-! ## 5. The Dual Even-Step 2-Cell White Corridor and Column-3 Free-Bit Identity -/
+
+/-- **The Even-Step 2-Cell White Corridor of `u R (s + 1) = true` (`even_white_corridor_of_u_succ_true`):**
+whenever `u R (s + 1) = true`, both column `1` and column `2` of `drv altCol R` vanish at the even
+step `2 * s + 2` (`drv altCol R (2 * s + 2) 1 = false` and `drv altCol R (2 * s + 2) 2 = false`). -/
+theorem even_white_corridor_of_u_succ_true (R : Nat → Bool) (s : Nat)
+    (hu : u R (s + 1) = true) :
+    drv altCol R (2 * s + 2) 1 = false ∧ drv altCol R (2 * s + 2) 2 = false := by
+  have h1 := u_succ_eq_drivenGamma_and_not_col2 R s
+  rw [hu] at h1
+  have h2 := drv_even_succ_col1_eq_not_drivenGamma R s
+  revert h1 h2
+  cases drivenGamma altCol R (2 * s) <;> cases drv altCol R (2 * s + 2) 2 <;>
+    cases drv altCol R (2 * s + 2) 1 <;> decide
+
+/-- **Even-to-Odd Corridor Transmission (`col2_odd_succ_of_u_succ_true`):** whenever
+`u R (s + 1) = true`, the even-step 2-cell white corridor at `(2 * s + 2, 1..2)` transmits column
+`3` at time `2 * s + 2` directly into column `2` at time `2 * s + 3`. -/
+theorem col2_odd_succ_of_u_succ_true (R : Nat → Bool) (s : Nat)
+    (hu : u R (s + 1) = true) :
+    drv altCol R (2 * s + 3) 2 = drv altCol R (2 * s + 2) 3 := by
+  obtain ⟨hc1, hc2⟩ := even_white_corridor_of_u_succ_true R s hu
+  change rule (drv altCol R (2 * s + 2) 1) (drv altCol R (2 * s + 2) 2) (drv altCol R (2 * s + 2) 3) = _
+  rw [hc1, hc2]
+  cases drv altCol R (2 * s + 2) 3 <;> rfl
+
+/-- **Active-Germ Column-3 Determination (`col3_odd_eq_not_u_of_drivenGamma_true`):** whenever
+`drivenGamma altCol R (2 * s) = true`, the odd-step column-`3` cell `drv altCol R (2 * s + 1) 3`
+equals `!u R (s + 1)`. -/
+theorem col3_odd_eq_not_u_of_drivenGamma_true (R : Nat → Bool) (s : Nat)
+    (hg : drivenGamma altCol R (2 * s) = true) :
+    drv altCol R (2 * s + 1) 3 = !u R (s + 1) := by
+  have h := u_succ_eq_drivenGamma_and_not_col3_odd R s
+  rw [hg] at h
+  revert h
+  cases u R (s + 1) <;> cases drv altCol R (2 * s + 1) 3 <;> decide
+
+/-- **Direct Free-Bit Readout from Column 3 (`Psi_free_succ_eq_col3_odd_of_drivenGamma_true`):**
+whenever `drivenGamma altCol R (2 * s) = true`, the next free bit `zrow (Psi R) (2 * (s + 1) + 1) 1`
+of `Psi R` is identically equal to `drv altCol R (2 * s + 1) 3`. -/
+theorem Psi_free_succ_eq_col3_odd_of_drivenGamma_true (R : Nat → Bool) (s : Nat)
+    (hg : drivenGamma altCol R (2 * s) = true) :
+    zrow (Psi R) (2 * (s + 1) + 1) 1 = drv altCol R (2 * s + 1) 3 := by
+  rw [Psi_free R (s + 1), col3_odd_eq_not_u_of_drivenGamma_true R s hg]
+  rfl
+
+/-! ## 6. Cofinal Germ Oscillation and `u R` Pulse-Drought Clock Bounds for `Psi R` -/
+
+/-- **Infinite Support of `Psi R` When `u R` is Eventually False (`not_finSupp_Psi_of_eventuallyFalse_u`):**
+if `u R s = false` for all `s ≥ T`, then `u R` is eventually periodic of period `1` and `Psi R` is
+not finitely supported (`¬ FinSupp (Psi R)`). -/
+theorem not_finSupp_Psi_of_eventuallyFalse_u (R : Nat → Bool)
+    (hu : ∃ T, ∀ s, T ≤ s → u R s = false) :
+    ¬ FinSupp (Psi R) := by
+  obtain ⟨T, hT⟩ := hu
+  apply not_finSupp_Psi_of_eventuallyPeriodic R
+  refine ⟨T, 1, by decide, fun s hs => ?_⟩
+  rw [hT (s + 1) (by omega), hT s hs]
+
+/-- **Cofinal Black Pulses of `u R` from `FinSupp (Psi R)` (`cofinal_u_true_of_finSupp_Psi`):** if
+`FinSupp (Psi R)` holds for a right half `R`, then for every `N : Nat` there exists `s ≥ N` with
+`u R s = true`. -/
+theorem cofinal_u_true_of_finSupp_Psi {R : Nat → Bool} (hfin : FinSupp (Psi R)) (N : Nat) :
+    ∃ s, N ≤ s ∧ u R s = true := by
+  refine Classical.byContradiction fun hne => ?_
+  apply not_finSupp_Psi_of_eventuallyFalse_u R ⟨N, fun s hs => ?_⟩ hfin
+  cases hu : u R s
+  · rfl
+  · exact False.elim (hne ⟨s, hs, hu⟩)
+
+/-- **Cofinal Inactive Right Germs from `FinSupp (Psi R)` (`cofinal_drivenGamma_false_of_finSupp_Psi`):**
+because `drivenGamma_even_no11` extinguishes the germ after every active step, `FinSupp (Psi R)`
+forces `drivenGamma altCol R (2 * s)` to be both `true` cofinally and `false` cofinally. -/
+theorem cofinal_drivenGamma_false_of_finSupp_Psi {R : Nat → Bool} (hfin : FinSupp (Psi R)) (N : Nat) :
+    ∃ s, N ≤ s ∧ drivenGamma altCol R (2 * s) = false := by
+  obtain ⟨s, hs, hg⟩ := cofinal_drivenGamma_of_finSupp_Psi hfin N
+  exact ⟨s + 1, by omega, drivenGamma_succ_false_of_true R s hg⟩
+
+/-- **Quantitative `u R` Pulse-Drought Clock Bound (`u_drought_clock_bound`):** if `Psi R` has its
+last black cell at depth `m ≥ 1`, then on any interval `[s₀, s₀ + ℓ)` where `u R s = false` for all
+`s₀ ≤ s < s₀ + ℓ`, the drought length `ℓ` is bounded by `2 * ℓ ≤ 2 * s₀ + m + 4`. -/
+theorem u_drought_clock_bound {R : Nat → Bool} {m : Nat}
+    (hm : 1 ≤ m) (hedge : Psi R m = true) (hfin : ∀ k, m < k → Psi R k = false)
+    {s₀ ℓ : Nat} (hdrought : ∀ s, s₀ ≤ s → s < s₀ + ℓ → u R s = false) :
+    2 * ℓ ≤ 2 * s₀ + m + 4 := by
+  rcases Nat.eq_zero_or_pos ℓ with rfl | hℓ
+  · omega
+  · have hconst : ∀ s, s₀ ≤ s → s + 1 ≤ s₀ + (ℓ - 1) →
+        zrow (Psi R) (2 * (s + 1) + 1) 1 = zrow (Psi R) (2 * s + 1) 1 := by
+      intro s hs1 hs2
+      rw [Psi_free, Psi_free]
+      change (!u R (s + 1)) = (!u R s)
+      rw [hdrought (s + 1) (by omega) (by omega), hdrought s hs1 (by omega)]
+    have hclock := free_bits_clock hm hedge hfin (Psi_inX R)
+      (s₀ := s₀) (ℓ := ℓ - 1) (p := 1) (by decide) hconst
+    omega
+
 end Ruliology.CellularAutomata.Rule30CoupledGerms
