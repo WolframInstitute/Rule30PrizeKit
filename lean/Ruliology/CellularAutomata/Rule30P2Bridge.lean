@@ -1919,5 +1919,113 @@ theorem R_subseq_odd_infinitely_many_energy_forms (m r₀ k₀ : Nat) :
   have hL : 0 < 2 ^ k₀ := Nat.two_pow_pos k₀
   exact ⟨j, hj1, hj2, energy_forms_subseq_odd_of_antiperiodic hL ⟨0, fun t _ => ha0 t⟩ m r₀⟩
 
+/-! ### Direct Energy-Form Bridges to Odd-Period Exclusion and Full Problem 1 Closure -/
+
+/-- **Equivalence of `HalfDensity` and `ShellMaxLittleO` (`halfDensity_iff_shellMaxLittleO`):** for
+any sequence `c`, `HalfDensity c ↔ ShellMaxLittleO c`. -/
+theorem halfDensity_iff_shellMaxLittleO (c : Nat → Bool) :
+    HalfDensity c ↔ ShellMaxLittleO c :=
+  (halfDensity_iff_densityHalf c).trans (densityHalf_iff_shellMaxLittleO c)
+
+/-- **Equivalence of `HalfDensity` and `FlexibleEnergyToZero` (`halfDensity_iff_flexibleEnergyToZero`):**
+for any sequence `c`, `HalfDensity c ↔ FlexibleEnergyToZero c`. -/
+theorem halfDensity_iff_flexibleEnergyToZero (c : Nat → Bool) :
+    HalfDensity c ↔ FlexibleEnergyToZero c :=
+  (halfDensity_iff_densityHalf c).trans (densityHalf_iff_flexibleEnergyToZero c)
+
+/-- **Equivalence of `HalfDensity` and `OrderedEnergyLittleO` (`halfDensity_iff_orderedEnergyLittleO`):**
+for any sequence `c`, `HalfDensity c ↔ OrderedEnergyLittleO c`. -/
+theorem halfDensity_iff_orderedEnergyLittleO (c : Nat → Bool) :
+    HalfDensity c ↔ OrderedEnergyLittleO c :=
+  (halfDensity_iff_densityHalf c).trans (densityHalf_iff_orderedEnergyLittleO c)
+
+/-- **Equivalence of `HalfDensity` and `MaxBlockEnergyLittleO` (`halfDensity_iff_maxBlockEnergyLittleO`):**
+for any sequence `c`, `HalfDensity c ↔ MaxBlockEnergyLittleO c`. -/
+theorem halfDensity_iff_maxBlockEnergyLittleO (c : Nat → Bool) :
+    HalfDensity c ↔ MaxBlockEnergyLittleO c :=
+  (halfDensity_iff_orderedEnergyLittleO c).trans (orderedEnergyLittleO_iff_maxBlockEnergyLittleO c)
+
+/-- **Odd-Period Exclusion from `DensityHalf` (`not_evPer_odd_of_densityHalf`):** any sequence `f`
+satisfying `DensityHalf f` has no odd eventual period `2 * m + 1`. -/
+theorem not_evPer_odd_of_densityHalf {f : Nat → Bool}
+    (h : DensityHalf f) (m : Nat) :
+    ¬ EvPer f (2 * m + 1) :=
+  Rule30LeftAntiPeriod.not_evPer_odd_of_halfDensity ((halfDensity_iff_densityHalf f).mpr h) m
+
+/-- **Odd-Period Exclusion from `ShellMaxLittleO` (`not_evPer_odd_of_shellMaxLittleO`):** any
+sequence `f` satisfying `ShellMaxLittleO f` has no odd eventual period `2 * m + 1`. -/
+theorem not_evPer_odd_of_shellMaxLittleO {f : Nat → Bool}
+    (h : ShellMaxLittleO f) (m : Nat) :
+    ¬ EvPer f (2 * m + 1) :=
+  Rule30LeftAntiPeriod.not_evPer_odd_of_halfDensity ((halfDensity_iff_shellMaxLittleO f).mpr h) m
+
+/-- **Odd-Period Exclusion from `FlexibleEnergyToZero` (`not_evPer_odd_of_flexibleEnergyToZero`):**
+any sequence `f` satisfying `FlexibleEnergyToZero f` has no odd eventual period `2 * m + 1`. -/
+theorem not_evPer_odd_of_flexibleEnergyToZero {f : Nat → Bool}
+    (h : FlexibleEnergyToZero f) (m : Nat) :
+    ¬ EvPer f (2 * m + 1) :=
+  Rule30LeftAntiPeriod.not_evPer_odd_of_halfDensity ((halfDensity_iff_flexibleEnergyToZero f).mpr h) m
+
+/-- **Odd-Period Exclusion from `OrderedEnergyLittleO` (`not_evPer_odd_of_orderedEnergyLittleO`):**
+any sequence `f` satisfying `OrderedEnergyLittleO f` has no odd eventual period `2 * m + 1`. -/
+theorem not_evPer_odd_of_orderedEnergyLittleO {f : Nat → Bool}
+    (h : OrderedEnergyLittleO f) (m : Nat) :
+    ¬ EvPer f (2 * m + 1) :=
+  Rule30LeftAntiPeriod.not_evPer_odd_of_halfDensity ((halfDensity_iff_orderedEnergyLittleO f).mpr h) m
+
+/-- **Odd-Period Exclusion from `MaxBlockEnergyLittleO` (`not_evPer_odd_of_maxBlockEnergyLittleO`):**
+any sequence `f` satisfying `MaxBlockEnergyLittleO f` has no odd eventual period `2 * m + 1`. -/
+theorem not_evPer_odd_of_maxBlockEnergyLittleO {f : Nat → Bool}
+    (h : MaxBlockEnergyLittleO f) (m : Nat) :
+    ¬ EvPer f (2 * m + 1) :=
+  Rule30LeftAntiPeriod.not_evPer_odd_of_halfDensity ((halfDensity_iff_maxBlockEnergyLittleO f).mpr h) m
+
+/-- **Full `Problem1` Closure from `ShellMaxLittleO` on Progressions (`problem1_of_subseq_shellMaxLittleO`):**
+if for every modulus `L > 0` there is a canonical remainder `r < L` with `ShellMaxLittleO (subseq center L r)`,
+then `Problem1` holds unconditionally. -/
+theorem problem1_of_subseq_shellMaxLittleO
+    (h : ∀ L : Nat, 0 < L → ∃ r : Nat, r < L ∧ ShellMaxLittleO (subseq center L r)) :
+    Problem1 :=
+  Rule30LeftAntiPeriod.problem1_of_subseq_halfDensity_lt (fun L hL => by
+    obtain ⟨r, hr, hs⟩ := h L hL
+    exact ⟨r, hr, (halfDensity_iff_shellMaxLittleO _).mpr hs⟩)
+
+/-- **Full `Problem1` Closure from `MaxBlockEnergyLittleO` on Progressions
+(`problem1_of_subseq_maxBlockEnergyLittleO`):** if for every modulus `L > 0` there is a canonical
+remainder `r < L` with `MaxBlockEnergyLittleO (subseq center L r)`, then `Problem1` holds unconditionally. -/
+theorem problem1_of_subseq_maxBlockEnergyLittleO
+    (h : ∀ L : Nat, 0 < L → ∃ r : Nat, r < L ∧ MaxBlockEnergyLittleO (subseq center L r)) :
+    Problem1 :=
+  Rule30LeftAntiPeriod.problem1_of_subseq_halfDensity_lt (fun L hL => by
+    obtain ⟨r, hr, hs⟩ := h L hL
+    exact ⟨r, hr, (halfDensity_iff_maxBlockEnergyLittleO _).mpr hs⟩)
+
+/-- **Reduction of `Problem1` to Center + Even-Stride `ShellMaxLittleO`
+(`problem1_of_shellMaxLittleO_and_even_subseq`):** `ShellMaxLittleO center` together with an even-stride
+canonical remainder satisfying `ShellMaxLittleO (subseq center (2 * m) r)` for each `m > 0` implies `Problem1`. -/
+theorem problem1_of_shellMaxLittleO_and_even_subseq
+    (h0 : ShellMaxLittleO center)
+    (heven : ∀ m : Nat, 0 < m → ∃ r : Nat, r < 2 * m ∧ ShellMaxLittleO (subseq center (2 * m) r)) :
+    Problem1 :=
+  Rule30LeftAntiPeriod.problem1_of_problem2_and_even_subseq_halfDensity_lt
+    (problem2_iff_shellMaxLittleO.mpr h0)
+    (fun m hm => by
+      obtain ⟨r, hr, hs⟩ := heven m hm
+      exact ⟨r, hr, (halfDensity_iff_shellMaxLittleO _).mpr hs⟩)
+
+/-- **Reduction of `Problem1` to Center + Even-Stride `MaxBlockEnergyLittleO`
+(`problem1_of_maxBlockEnergyLittleO_and_even_subseq`):** `MaxBlockEnergyLittleO center` together
+with an even-stride canonical remainder satisfying `MaxBlockEnergyLittleO (subseq center (2 * m) r)`
+for each `m > 0` implies `Problem1`. -/
+theorem problem1_of_maxBlockEnergyLittleO_and_even_subseq
+    (h0 : MaxBlockEnergyLittleO center)
+    (heven : ∀ m : Nat, 0 < m → ∃ r : Nat, r < 2 * m ∧ MaxBlockEnergyLittleO (subseq center (2 * m) r)) :
+    Problem1 :=
+  Rule30LeftAntiPeriod.problem1_of_problem2_and_even_subseq_halfDensity_lt
+    (problem2_iff_maxBlockEnergyLittleO.mpr h0)
+    (fun m hm => by
+      obtain ⟨r, hr, hs⟩ := heven m hm
+      exact ⟨r, hr, (halfDensity_iff_maxBlockEnergyLittleO _).mpr hs⟩)
+
 end Rule30P2Bridge
 end Ruliology.CellularAutomata
