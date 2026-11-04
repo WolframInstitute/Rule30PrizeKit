@@ -272,4 +272,148 @@ theorem rightDiag_shift_law (x : Int → Bool) (j : Int) (q : Nat) (hq : q % 2 =
     have := rightDiag_step x (j + 3) t
     rwa [show j + 3 - 1 = j + 2 by omega, show j + 3 - 2 = j + 1 by omega] at this
 
+/-! ### Doubling-Word Exclusion Laws, Unconditional `8q`-Periodicity, and Actual Right-Diagonal Profiles -/
+
+/-- **Two-Period Cancellation of Running Shift (`running_shift_double`):** for any `p`-periodic
+forcing `g`, two consecutive windows of length `p` cancel in XOR, so `D (t + 2 * p) = D t`. -/
+theorem running_shift_double {D g : Nat → Bool} {p : Nat}
+    (hs : ∀ t, D (t + 1) = xor (D t) (g t))
+    (hg : ∀ t, g (t + p) = g t) (t : Nat) :
+    D (t + 2 * p) = D t := by
+  have h1 := running_shift hs hg (t + p)
+  have h2 := running_shift hs hg t
+  rw [show t + 2 * p = (t + p) + p by omega, h1, h2]
+  cases D t <;> cases xr g p <;> rfl
+
+/-- **Antiperiod-to-Period Doubling of `d` (`period_of_antiperiod_half`):** if `q` is even and `d`
+complements at `q / 2`, then `d` is `q`-periodic (`d (t + q) = d t`). -/
+theorem period_of_antiperiod_half (q : Nat) (hq : q % 2 = 0) (d : Nat → Bool)
+    (hd : ∀ t, d (t + q / 2) = !d t) (t : Nat) :
+    d (t + q) = d t := by
+  have h1 := hd (t + q / 2)
+  have h2 := hd t
+  rw [show t + q = (t + q / 2) + q / 2 by omega, h1, h2, Bool.not_not]
+
+/-- **Period-Half-to-Period Doubling of `d` (`period_of_period_half`):** if `q` is even and `d` has
+period `q / 2`, then `d` has period `q` (`d (t + q) = d t`). -/
+theorem period_of_period_half (q : Nat) (hq : q % 2 = 0) (d : Nat → Bool)
+    (hd : ∀ t, d (t + q / 2) = d t) (t : Nat) :
+    d (t + q) = d t := by
+  have h1 := hd (t + q / 2)
+  have h2 := hd t
+  rw [show t + q = (t + q / 2) + q / 2 by omega, h1, h2]
+
+/-- **Unconditional `8q`-Periodicity under the 101 Shift Law (`shift_law_period_eight_q`):** under
+the hypotheses of `shift_law`, `z` is unconditionally `8q`-periodic (`z (t + 8 * q) = z t`)
+regardless of the value of `eta q d`. -/
+theorem shift_law_period_eight_q (q : Nat) (hq : q % 2 = 0) (d a b c z : Nat → Bool)
+    (hd : ∀ t, d (t + q) = d t) (ha : ∀ t, a (t + q) = !a t)
+    (hb : ∀ t, b (t + 2 * q) = b t) (hc : ∀ t, c (t + 2 * q) = !c t)
+    (hbs : ∀ t, b (t + 1) = xor (b t) (a t || d t))
+    (hzs : ∀ t, z (t + 1) = xor (z t) (c t || b t)) (t : Nat) :
+    z (t + 8 * q) = z t := by
+  have h1 := shift_law q hq d a b c z hd ha hb hc hbs hzs (t + 4 * q)
+  have h2 := shift_law q hq d a b c z hd ha hb hc hbs hzs t
+  rw [show t + 8 * q = (t + 4 * q) + 4 * q by omega, h1, h2]
+  cases z t <;> cases eta q d <;> rfl
+
+/-- **Abstract 11011 Exclusion (`shift_law_period_four_q_of_antiperiod`):** when `q ≡ 0 (mod 8)` and
+`d` complements at `q / 2`, the 101 shift law forces `z` to have period `4q` (`z (t + 4 * q) = z t`),
+preventing a period doubling at `z`. -/
+theorem shift_law_period_four_q_of_antiperiod (q : Nat) (hq : q % 8 = 0) (d a b c z : Nat → Bool)
+    (hd : ∀ t, d (t + q / 2) = !d t) (ha : ∀ t, a (t + q) = !a t)
+    (hb : ∀ t, b (t + 2 * q) = b t) (hc : ∀ t, c (t + 2 * q) = !c t)
+    (hbs : ∀ t, b (t + 1) = xor (b t) (a t || d t))
+    (hzs : ∀ t, z (t + 1) = xor (z t) (c t || b t)) (t : Nat) :
+    z (t + 4 * q) = z t := by
+  have hdq := period_of_antiperiod_half q (by omega) d hd
+  have hsl := shift_law q (by omega) d a b c z hdq ha hb hc hbs hzs t
+  have heta := eta_false_of_antiperiod q hq d hd
+  rw [hsl, heta, Bool.xor_false]
+
+/-- **Abstract 01011 Exclusion (`shift_law_period_four_q_of_period_half`):** when `q ≡ 0 (mod 4)`
+and `d` has period `q / 2`, the 101 shift law forces `z` to have period `4q` (`z (t + 4 * q) = z t`). -/
+theorem shift_law_period_four_q_of_period_half (q : Nat) (hq : q % 4 = 0) (d a b c z : Nat → Bool)
+    (hd : ∀ t, d (t + q / 2) = d t) (ha : ∀ t, a (t + q) = !a t)
+    (hb : ∀ t, b (t + 2 * q) = b t) (hc : ∀ t, c (t + 2 * q) = !c t)
+    (hbs : ∀ t, b (t + 1) = xor (b t) (a t || d t))
+    (hzs : ∀ t, z (t + 1) = xor (z t) (c t || b t)) (t : Nat) :
+    z (t + 4 * q) = z t := by
+  have hdq := period_of_period_half q (by omega) d hd
+  have hsl := shift_law q (by omega) d a b c z hdq ha hb hc hbs hzs t
+  have heta := eta_false_of_period_half q hq d hd
+  rw [hsl, heta, Bool.xor_false]
+
+/-- **The `q = 4` Antiperiod-16 Doubling Law (`shift_law_antiperiod_sixteen_at_four`):** at `q = 4`,
+if `d` complements at `2`, `a` complements at `4`, `b` has period `8`, and `c` complements at `8`,
+then `z` complements at `16` (`z (t + 16) = !z t`). -/
+theorem shift_law_antiperiod_sixteen_at_four (d a b c z : Nat → Bool)
+    (hd : ∀ t, d (t + 2) = !d t) (ha : ∀ t, a (t + 4) = !a t)
+    (hb : ∀ t, b (t + 8) = b t) (hc : ∀ t, c (t + 8) = !c t)
+    (hbs : ∀ t, b (t + 1) = xor (b t) (a t || d t))
+    (hzs : ∀ t, z (t + 1) = xor (z t) (c t || b t)) (t : Nat) :
+    z (t + 16) = !z t := by
+  have hdq := period_of_antiperiod_half 4 (by decide) d hd
+  have hsl := shift_law 4 (by decide) d a b c z hdq ha hb hc hbs hzs t
+  have heta := eta_four d hd
+  rw [show t + 16 = t + 4 * 4 by omega, hsl, heta, Bool.xor_true]
+
+/-- **Actual Right-Diagonal Unconditional `8q`-Periodicity (`rightDiag_period_eight_q`):** under the
+hypotheses of `rightDiag_shift_law`, `rightDiag x (j + 3)` has period `8 * q`. -/
+theorem rightDiag_period_eight_q (x : Int → Bool) (j : Int) (q : Nat) (hq : q % 2 = 0)
+    (hd : ∀ t, rightDiag x (j - 1) (t + q) = rightDiag x (j - 1) t)
+    (ha : ∀ t, rightDiag x j (t + q) = !rightDiag x j t)
+    (hb : ∀ t, rightDiag x (j + 1) (t + 2 * q) = rightDiag x (j + 1) t)
+    (hc : ∀ t, rightDiag x (j + 2) (t + 2 * q) = !rightDiag x (j + 2) t) (t : Nat) :
+    rightDiag x (j + 3) (t + 8 * q) = rightDiag x (j + 3) t := by
+  have h1 := rightDiag_shift_law x j q hq hd ha hb hc (t + 4 * q)
+  have h2 := rightDiag_shift_law x j q hq hd ha hb hc t
+  rw [show t + 8 * q = (t + 4 * q) + 4 * q by omega, h1, h2]
+  cases rightDiag x (j + 3) t <;> cases eta q (rightDiag x (j - 1)) <;> rfl
+
+/-- **Actual Right-Diagonal 11011 Exclusion (`rightDiag_period_four_q_of_antiperiod_mod8`):** for
+`q ≡ 0 (mod 8)`, if `rightDiag x (j - 1)` complements at `q / 2`, `rightDiag x j` complements at `q`,
+`rightDiag x (j + 1)` has period `2 * q`, and `rightDiag x (j + 2)` complements at `2 * q`, then
+`rightDiag x (j + 3)` has period `4 * q`. -/
+theorem rightDiag_period_four_q_of_antiperiod_mod8 (x : Int → Bool) (j : Int) (q : Nat) (hq : q % 8 = 0)
+    (hd : ∀ t, rightDiag x (j - 1) (t + q / 2) = !rightDiag x (j - 1) t)
+    (ha : ∀ t, rightDiag x j (t + q) = !rightDiag x j t)
+    (hb : ∀ t, rightDiag x (j + 1) (t + 2 * q) = rightDiag x (j + 1) t)
+    (hc : ∀ t, rightDiag x (j + 2) (t + 2 * q) = !rightDiag x (j + 2) t) (t : Nat) :
+    rightDiag x (j + 3) (t + 4 * q) = rightDiag x (j + 3) t := by
+  have hdq := period_of_antiperiod_half q (by omega) (rightDiag x (j - 1)) hd
+  have hsl := rightDiag_shift_law x j q (by omega) hdq ha hb hc t
+  have heta := eta_false_of_antiperiod q hq (rightDiag x (j - 1)) hd
+  rw [hsl, heta, Bool.xor_false]
+
+/-- **Actual Right-Diagonal 01011 Exclusion (`rightDiag_period_four_q_of_period_half`):** for
+`q ≡ 0 (mod 4)`, if `rightDiag x (j - 1)` has period `q / 2`, `rightDiag x j` complements at `q`,
+`rightDiag x (j + 1)` has period `2 * q`, and `rightDiag x (j + 2)` complements at `2 * q`, then
+`rightDiag x (j + 3)` has period `4 * q`. -/
+theorem rightDiag_period_four_q_of_period_half (x : Int → Bool) (j : Int) (q : Nat) (hq : q % 4 = 0)
+    (hd : ∀ t, rightDiag x (j - 1) (t + q / 2) = rightDiag x (j - 1) t)
+    (ha : ∀ t, rightDiag x j (t + q) = !rightDiag x j t)
+    (hb : ∀ t, rightDiag x (j + 1) (t + 2 * q) = rightDiag x (j + 1) t)
+    (hc : ∀ t, rightDiag x (j + 2) (t + 2 * q) = !rightDiag x (j + 2) t) (t : Nat) :
+    rightDiag x (j + 3) (t + 4 * q) = rightDiag x (j + 3) t := by
+  have hdq := period_of_period_half q (by omega) (rightDiag x (j - 1)) hd
+  have hsl := rightDiag_shift_law x j q (by omega) hdq ha hb hc t
+  have heta := eta_false_of_period_half q hq (rightDiag x (j - 1)) hd
+  rw [hsl, heta, Bool.xor_false]
+
+/-- **Actual Right-Diagonal `q = 4` Antiperiod-16 Law (`rightDiag_antiperiod_sixteen_at_four`):** at
+`q = 4`, if `rightDiag x (j - 1)` complements at `2`, `rightDiag x j` complements at `4`,
+`rightDiag x (j + 1)` has period `8`, and `rightDiag x (j + 2)` complements at `8`, then
+`rightDiag x (j + 3)` complements at `16` (`rightDiag x (j + 3) (t + 16) = !rightDiag x (j + 3) t`). -/
+theorem rightDiag_antiperiod_sixteen_at_four (x : Int → Bool) (j : Int)
+    (hd : ∀ t, rightDiag x (j - 1) (t + 2) = !rightDiag x (j - 1) t)
+    (ha : ∀ t, rightDiag x j (t + 4) = !rightDiag x j t)
+    (hb : ∀ t, rightDiag x (j + 1) (t + 8) = rightDiag x (j + 1) t)
+    (hc : ∀ t, rightDiag x (j + 2) (t + 8) = !rightDiag x (j + 2) t) (t : Nat) :
+    rightDiag x (j + 3) (t + 16) = !rightDiag x (j + 3) t := by
+  have hdq := period_of_antiperiod_half 4 (by decide) (rightDiag x (j - 1)) hd
+  have hsl := rightDiag_shift_law x j 4 (by decide) hdq ha hb hc t
+  have heta := eta_four (rightDiag x (j - 1)) hd
+  rw [show t + 16 = t + 4 * 4 by omega, hsl, heta, Bool.xor_true]
+
 end Ruliology.CellularAutomata.Rule30RightProfiles
