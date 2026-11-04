@@ -1703,5 +1703,221 @@ theorem energy_forms_of_left_antiperiodic_of_shield_periodic
   have hout := (rule30_antiperiodic_iff_shield_periodic_of_left_antiperiodic hp).mpr hsh
   exact energy_forms_of_antiperiodic hL ⟨T₀, hout⟩
 
+/-! ## 4. Negation Invariance of Energy Forms, Stroboscopic Spin-Shield Negotiation, and Odd-Stride Diagonal Energy Hierarchies -/
+
+/-- **Pointwise Negation Flips the Signed Sum (`S_not_eq_neg`):** for every sequence `c : Nat → Bool`
+and horizon `T : Nat`, complementing `c` negates its signed sum:
+`S (fun t => !c t) T = - S c T`. -/
+theorem S_not_eq_neg (c : Nat → Bool) :
+    ∀ T : Nat, S (fun t => !c t) T = - S c T
+  | 0 => rfl
+  | T + 1 => by
+    unfold S
+    rw [sumTo_succ, sumTo_succ]
+    change S (fun t => !c t) T + z (fun t => !c t) T = - (S c T + z c T)
+    rw [S_not_eq_neg c T]
+    dsimp only [z]
+    rw [sign_not]
+    omega
+
+/-- **Pointwise Negation Flips `shellPrefix` (`shellPrefix_not_eq_neg`):** for every sequence
+`c : Nat → Bool`, shell index `k : Nat`, and offset `u : Nat`,
+`shellPrefix (fun t => !c t) k u = - shellPrefix c k u`. -/
+theorem shellPrefix_not_eq_neg (c : Nat → Bool) (k u : Nat) :
+    shellPrefix (fun t => !c t) k u = - shellPrefix c k u := by
+  rw [shellPrefix_eq, shellPrefix_eq, S_not_eq_neg, S_not_eq_neg]
+  omega
+
+/-- **Exact Invariance of `shellMax` Under Pointwise Negation (`shellMax_not_eq`):** for every
+sequence `c : Nat → Bool` and shell `k : Nat`,
+`shellMax (fun t => !c t) k = shellMax c k`. -/
+theorem shellMax_not_eq (c : Nat → Bool) (k : Nat) :
+    shellMax (fun t => !c t) k = shellMax c k := by
+  unfold shellMax
+  have hfun : (fun u => (shellPrefix (fun t => !c t) k u).natAbs) =
+      (fun u => (shellPrefix c k u).natAbs) := by
+    funext u
+    rw [shellPrefix_not_eq_neg, Int.natAbs_neg]
+  rw [hfun]
+
+/-- **Pointwise Negation Flips `blockSum` (`blockSum_not_eq_neg`):** for every sequence
+`c : Nat → Bool` and indices `k, j, a : Nat`,
+`blockSum (fun t => !c t) k j a = - blockSum c k j a`. -/
+theorem blockSum_not_eq_neg (c : Nat → Bool) (k j a : Nat) :
+    blockSum (fun t => !c t) k j a = - blockSum c k j a := by
+  have h1 := shellPrefix_succ_block (fun t => !c t) k j a
+  have h2 := shellPrefix_succ_block c k j a
+  rw [shellPrefix_not_eq_neg, shellPrefix_not_eq_neg] at h1
+  omega
+
+/-- **Exact Invariance of `blockEnergy` Under Pointwise Negation (`blockEnergy_not_eq`):** for every
+sequence `c : Nat → Bool` and scales `k, j : Nat`,
+`blockEnergy (fun t => !c t) k j = blockEnergy c k j`. -/
+theorem blockEnergy_not_eq (c : Nat → Bool) (k j : Nat) :
+    blockEnergy (fun t => !c t) k j = blockEnergy c k j := by
+  unfold blockEnergy
+  refine sumTo_congr _ _ (2 ^ (k - j)) (fun a _ => ?_)
+  rw [blockSum_not_eq_neg]
+  exact Int.neg_mul_neg (blockSum c k j a) (blockSum c k j a)
+
+/-- **Exact Invariance of `orderedEnergy` Under Pointwise Negation (`orderedEnergy_not_eq`):** for
+every sequence `c : Nat → Bool` and scale `k : Nat`,
+`orderedEnergy (fun t => !c t) k = orderedEnergy c k`. -/
+theorem orderedEnergy_not_eq (c : Nat → Bool) (k : Nat) :
+    orderedEnergy (fun t => !c t) k = orderedEnergy c k := by
+  unfold orderedEnergy
+  refine sumTo_congr _ _ (k + 1) (fun j _ => ?_)
+  rw [blockEnergy_not_eq]
+
+/-- **Equivalence of All Problem 2 Energy Forms Under Pointwise Negation (`energy_forms_not_iff`):**
+for every sequence `c : Nat → Bool`, complementing `c` preserves `DensityHalf`, `ShellMaxLittleO`,
+`FlexibleEnergyToZero`, `OrderedEnergyLittleO`, and `MaxBlockEnergyLittleO`. -/
+theorem energy_forms_not_iff (c : Nat → Bool) :
+    (DensityHalf (fun t => !c t) ↔ DensityHalf c) ∧
+    (ShellMaxLittleO (fun t => !c t) ↔ ShellMaxLittleO c) ∧
+    (FlexibleEnergyToZero (fun t => !c t) ↔ FlexibleEnergyToZero c) ∧
+    (OrderedEnergyLittleO (fun t => !c t) ↔ OrderedEnergyLittleO c) ∧
+    (MaxBlockEnergyLittleO (fun t => !c t) ↔ MaxBlockEnergyLittleO c) := by
+  have hd : DensityHalf (fun t => !c t) ↔ DensityHalf c := by
+    rw [← halfDensity_iff_densityHalf, ← halfDensity_iff_densityHalf]
+    exact halfDensity_not_iff c
+  have hs : ShellMaxLittleO (fun t => !c t) ↔ ShellMaxLittleO c := by
+    rw [← densityHalf_iff_shellMaxLittleO, ← densityHalf_iff_shellMaxLittleO]
+    exact hd
+  have hf : FlexibleEnergyToZero (fun t => !c t) ↔ FlexibleEnergyToZero c := by
+    rw [← densityHalf_iff_flexibleEnergyToZero, ← densityHalf_iff_flexibleEnergyToZero]
+    exact hd
+  have ho : OrderedEnergyLittleO (fun t => !c t) ↔ OrderedEnergyLittleO c := by
+    rw [← densityHalf_iff_orderedEnergyLittleO, ← densityHalf_iff_orderedEnergyLittleO]
+    exact hd
+  have hm : MaxBlockEnergyLittleO (fun t => !c t) ↔ MaxBlockEnergyLittleO c := by
+    rw [← orderedEnergyLittleO_iff_maxBlockEnergyLittleO, ← orderedEnergyLittleO_iff_maxBlockEnergyLittleO]
+    exact ho
+  exact ⟨hd, hs, hf, ho, hm⟩
+
+/-- **Arithmetic-Progression Subsampling Commutes with `rule30` (`subseq_rule30`):** for any three
+sequences `p, q, r : Nat → Bool`, stride `d : Nat`, and phase `r₀ : Nat`,
+`subseq (fun t => rule30 (p t) (q t) (r t)) d r₀ = fun k => rule30 (subseq p d r₀ k) (subseq q d r₀ k) (subseq r d r₀ k)`. -/
+theorem subseq_rule30 (p q r : Nat → Bool) (d r₀ : Nat) :
+    subseq (fun t => rule30 (p t) (q t) (r t)) d r₀ =
+      fun k => rule30 (subseq p d r₀ k) (subseq q d r₀ k) (subseq r d r₀ k) := rfl
+
+/-- **Stroboscopic Negotiation Conservation Law Along Arithmetic Progressions (`crossCorr_subseq_rule30_eq_S_shield`):**
+for any sequences `p, q, r : Nat → Bool`, stride `d : Nat`, phase `r₀ : Nat`, and horizon `T : Nat`,
+the cross-correlation between `subseq p d r₀` and `subseq (fun t => rule30 (p t) (q t) (r t)) d r₀`
+equals the signed sum `S (subseq (fun t => q t || r t) d r₀) T` and
+`T - 2 * ones (subseq (fun t => q t || r t) d r₀) T`. -/
+theorem crossCorr_subseq_rule30_eq_S_shield (p q r : Nat → Bool) (d r₀ T : Nat) :
+    crossCorr (subseq p d r₀) (subseq (fun t => rule30 (p t) (q t) (r t)) d r₀) T =
+      S (subseq (fun t => q t || r t) d r₀) T ∧
+    crossCorr (subseq p d r₀) (subseq (fun t => rule30 (p t) (q t) (r t)) d r₀) T =
+      (T : Int) - 2 * (ones (subseq (fun t => q t || r t) d r₀) T : Int) :=
+  crossCorr_rule30_eq_S_shield (subseq p d r₀) (subseq q d r₀) (subseq r d r₀) T
+
+/-- **Stroboscopic Shield-Balance Orthogonality Criterion (`shield_subseq_balanced_iff_crossCorr_zero`):**
+over any horizon `T : Nat`, the subsampled right coalition shield `subseq (fun t => q t || r t) d r₀`
+achieves exact `1/2` balance (`2 * ones (subseq (fun t => q t || r t) d r₀) T = T`) if and only if
+`crossCorr (subseq p d r₀) (subseq (fun t => rule30 (p t) (q t) (r t)) d r₀) T = 0`. -/
+theorem shield_subseq_balanced_iff_crossCorr_zero (p q r : Nat → Bool) (d r₀ T : Nat) :
+    2 * ones (subseq (fun t => q t || r t) d r₀) T = T ↔
+      crossCorr (subseq p d r₀) (subseq (fun t => rule30 (p t) (q t) (r t)) d r₀) T = 0 :=
+  shield_balanced_iff_crossCorr_zero (subseq p d r₀) (subseq q d r₀) (subseq r d r₀) T
+
+/-- **Stroboscopic Spacetime Column Cross-Correlation Law (`cell_subseq_crossCorr_eq_shield_S`):**
+at every column `x : Int`, stride `d : Nat`, phase `r₀ : Nat`, and horizon `T : Nat`, the
+cross-correlation between `subseq (fun t => cell t (x - 1)) d r₀` and `subseq (fun t => cell (t + 1) x) d r₀`
+equals `S (subseq (fun t => cell t x || cell t (x + 1)) d r₀) T` and
+`T - 2 * ones (subseq (fun t => cell t x || cell t (x + 1)) d r₀) T`. -/
+theorem cell_subseq_crossCorr_eq_shield_S (x : Int) (d r₀ T : Nat) :
+    crossCorr (subseq (fun t => cell t (x - 1)) d r₀) (subseq (fun t => cell (t + 1) x) d r₀) T =
+      S (subseq (fun t => cell t x || cell t (x + 1)) d r₀) T ∧
+    crossCorr (subseq (fun t => cell t (x - 1)) d r₀) (subseq (fun t => cell (t + 1) x) d r₀) T =
+      (T : Int) - 2 * (ones (subseq (fun t => cell t x || cell t (x + 1)) d r₀) T : Int) :=
+  crossCorr_subseq_rule30_eq_S_shield
+    (fun t => cell t (x - 1)) (fun t => cell t x) (fun t => cell t (x + 1)) d r₀ T
+
+/-- **Stroboscopic Center-Column Cross-Correlation Law (`center_subseq_crossCorr_eq_right_shield_S`):**
+for every stride `d : Nat`, phase `r₀ : Nat`, and horizon `T : Nat`, the cross-correlation between
+`subseq (fun t => cell t (-1)) d r₀` and `subseq (fun t => center (t + 1)) d r₀` equals
+`S (subseq (fun t => center t || cell t 1) d r₀) T` and
+`T - 2 * ones (subseq (fun t => center t || cell t 1) d r₀) T`. -/
+theorem center_subseq_crossCorr_eq_right_shield_S (d r₀ T : Nat) :
+    crossCorr (subseq (fun t => cell t (-1)) d r₀) (subseq (fun t => center (t + 1)) d r₀) T =
+      S (subseq (fun t => center t || cell t 1) d r₀) T ∧
+    crossCorr (subseq (fun t => cell t (-1)) d r₀) (subseq (fun t => center (t + 1)) d r₀) T =
+      (T : Int) - 2 * (ones (subseq (fun t => center t || cell t 1) d r₀) T : Int) := by
+  simpa [center] using cell_subseq_crossCorr_eq_shield_S 0 d r₀ T
+
+/-- **Stroboscopic Left-Diagonal Cross-Correlation Law (`D_subseq_crossCorr_eq_shield_S`):**
+for every diagonal index `j : Nat`, stride `d : Nat`, phase `r₀ : Nat`, and horizon `T : Nat`,
+the cross-correlation between `subseq (D j) d r₀` and `subseq (fun t => D (j + 2) (t + 1)) d r₀`
+equals `S (subseq (fun t => D (j + 1) t || D (j + 2) t) d r₀) T` and
+`T - 2 * ones (subseq (fun t => D (j + 1) t || D (j + 2) t) d r₀) T`. -/
+theorem D_subseq_crossCorr_eq_shield_S (j d r₀ T : Nat) :
+    crossCorr (subseq (D j) d r₀) (subseq (fun t => D (j + 2) (t + 1)) d r₀) T =
+      S (subseq (fun t => D (j + 1) t || D (j + 2) t) d r₀) T ∧
+    crossCorr (subseq (D j) d r₀) (subseq (fun t => D (j + 2) (t + 1)) d r₀) T =
+      (T : Int) - 2 * (ones (subseq (fun t => D (j + 1) t || D (j + 2) t) d r₀) T : Int) := by
+  have hD : ∀ k, (subseq (D j) d r₀ k ^^ subseq (fun t => D (j + 2) (t + 1)) d r₀ k) =
+      subseq (fun t => D (j + 1) t || D (j + 2) t) d r₀ k := by
+    intro k
+    dsimp only [subseq]
+    have hstep := D_step j (r₀ + k * d)
+    revert hstep
+    cases D j (r₀ + k * d) <;> cases D (j + 1) (r₀ + k * d) <;>
+      cases D (j + 2) (r₀ + k * d) <;> cases D (j + 2) (r₀ + k * d + 1) <;> decide
+  have hfun : (fun k => subseq (D j) d r₀ k ^^ subseq (fun t => D (j + 2) (t + 1)) d r₀ k) =
+      subseq (fun t => D (j + 1) t || D (j + 2) t) d r₀ := funext hD
+  have h := crossCorr_eq_S_xor (subseq (D j) d r₀) (subseq (fun t => D (j + 2) (t + 1)) d r₀) T
+  rw [hfun] at h
+  exact h
+
+/-- **All Problem 2 Energy Forms Along Odd-Stride Progressions of Antiperiodic Sequences
+(`energy_forms_subseq_odd_of_antiperiodic`):** if `EvAntiPer c L` holds (`0 < L`), then for every
+odd stride `2 * m + 1` and phase `r₀ : Nat`, the subsequence `subseq c (2 * m + 1) r₀` satisfies
+`HalfDensity`, `DensityHalf`, `ShellMaxLittleO`, `FlexibleEnergyToZero`, `OrderedEnergyLittleO`,
+and `MaxBlockEnergyLittleO`. -/
+theorem energy_forms_subseq_odd_of_antiperiodic {c : Nat → Bool} {L : Nat}
+    (hL : 0 < L) (ha : EvAntiPer c L) (m r₀ : Nat) :
+    HalfDensity (subseq c (2 * m + 1) r₀) ∧
+      DensityHalf (subseq c (2 * m + 1) r₀) ∧
+      ShellMaxLittleO (subseq c (2 * m + 1) r₀) ∧
+      FlexibleEnergyToZero (subseq c (2 * m + 1) r₀) ∧
+      OrderedEnergyLittleO (subseq c (2 * m + 1) r₀) ∧
+      MaxBlockEnergyLittleO (subseq c (2 * m + 1) r₀) :=
+  energy_forms_of_antiperiodic hL (evAntiPer_subseq_odd ha m r₀)
+
+/-- **Infinitely Many Left Diagonals Satisfy All Problem 2 Energy Forms Along Every Odd-Stride Progression
+(`D_subseq_odd_infinitely_many_energy_forms`):** for every odd stride `2 * m + 1`, phase `r₀ : Nat`,
+and index bound `N : Nat`, there exists a left diagonal `j > N` such that `subseq (D j) (2 * m + 1) r₀`
+satisfies all six Problem 2 balance and energy conditions. -/
+theorem D_subseq_odd_infinitely_many_energy_forms (m r₀ N : Nat) :
+    ∃ j : Nat, N < j ∧
+      HalfDensity (subseq (D j) (2 * m + 1) r₀) ∧
+      DensityHalf (subseq (D j) (2 * m + 1) r₀) ∧
+      ShellMaxLittleO (subseq (D j) (2 * m + 1) r₀) ∧
+      FlexibleEnergyToZero (subseq (D j) (2 * m + 1) r₀) ∧
+      OrderedEnergyLittleO (subseq (D j) (2 * m + 1) r₀) ∧
+      MaxBlockEnergyLittleO (subseq (D j) (2 * m + 1) r₀) := by
+  obtain ⟨j, hj, k, hanti, _, _⟩ := D_infinitely_many_halfDensity N
+  have hL : 0 < 2 ^ k := Nat.two_pow_pos k
+  exact ⟨j, hj, energy_forms_subseq_odd_of_antiperiodic hL hanti m r₀⟩
+
+/-- **Infinitely Many Right Diagonals Satisfy All Problem 2 Energy Forms Along Every Odd-Stride Progression
+(`R_subseq_odd_infinitely_many_energy_forms`):** for every odd stride `2 * m + 1`, phase `r₀ : Nat`,
+and exponent `k₀ : Nat`, there exists a right diagonal `R j` (`k₀ < j ≤ 2 ^ (k₀ + 1) - 1`) such that
+`subseq (R j) (2 * m + 1) r₀` satisfies all six Problem 2 balance and energy conditions. -/
+theorem R_subseq_odd_infinitely_many_energy_forms (m r₀ k₀ : Nat) :
+    ∃ j : Nat, k₀ < j ∧ j ≤ 2 ^ (k₀ + 1) - 1 ∧
+      HalfDensity (subseq (R j) (2 * m + 1) r₀) ∧
+      DensityHalf (subseq (R j) (2 * m + 1) r₀) ∧
+      ShellMaxLittleO (subseq (R j) (2 * m + 1) r₀) ∧
+      FlexibleEnergyToZero (subseq (R j) (2 * m + 1) r₀) ∧
+      OrderedEnergyLittleO (subseq (R j) (2 * m + 1) r₀) ∧
+      MaxBlockEnergyLittleO (subseq (R j) (2 * m + 1) r₀) := by
+  obtain ⟨j, hj1, hj2, ha0, _, _⟩ := R_infinitely_many_halfDensity k₀
+  have hL : 0 < 2 ^ k₀ := Nat.two_pow_pos k₀
+  exact ⟨j, hj1, hj2, energy_forms_subseq_odd_of_antiperiodic hL ⟨0, fun t _ => ha0 t⟩ m r₀⟩
+
 end Rule30P2Bridge
 end Ruliology.CellularAutomata
