@@ -1753,5 +1753,703 @@ theorem writeEnergy_gt_of_halts_of_state_head_repeat {M : Machine} {n t₁ t₂ 
     exact not_halts_of_writeEnergy_eq_of_state_head_repeat (by omega) hr₁ hr₂' hwe' hst hhd T b hhalt
   · omega
 
+/-- **Monotonicity Squeeze for `WriteEnergy` (`writeEnergy_eq_of_le_of_eq`):** if
+`WriteEnergy M n (t₀ + d) = WriteEnergy M n t₀`, then `WriteEnergy M n t = WriteEnergy M n t₀` for
+every intermediate step `t` with `t₀ ≤ t ≤ t₀ + d`. -/
+theorem writeEnergy_eq_of_le_of_eq {M : Machine} {n t₀ d t : Nat}
+    (heq : WriteEnergy M n (t₀ + d) = WriteEnergy M n t₀)
+    (ht1 : t₀ ≤ t) (ht2 : t ≤ t₀ + d) :
+    WriteEnergy M n t = WriteEnergy M n t₀ := by
+  have h1 := writeEnergy_mono M n ht1
+  have h2 := writeEnergy_mono M n ht2
+  omega
+
+/-- **Single-Step Non-Disturbance from Constant `WriteEnergy` (`stepDisturbs_false_of_writeEnergy_succ_eq`):**
+if `M.run n t = .inr c` and `WriteEnergy M n (t + 1) = WriteEnergy M n t`, then step `t` does not
+disturb the tape (`stepDisturbs c = false`). -/
+theorem stepDisturbs_false_of_writeEnergy_succ_eq {M : Machine} {n t : Nat} {c : Cfg M}
+    (hc : M.run n t = .inr c) (heq : WriteEnergy M n (t + 1) = WriteEnergy M n t) :
+    stepDisturbs c = false := by
+  simp only [WriteEnergy, hc] at heq
+  cases h : stepDisturbs c
+  · rfl
+  · simp [h] at heq
+
+/-- **Read-Only Phase `(state, head)` Non-Repetition (`state_head_ne_of_writeEnergy_eq_of_halts`):**
+during any interval `[t₀, t₀ + d]` of a halting run (`M.run n T = .inl b`) where
+`WriteEnergy M n (t₀ + d) = WriteEnergy M n t₀`, no two distinct steps `t₁ < t₂` in `[t₀, t₀ + d]`
+can share both `state` and `head`. -/
+theorem state_head_ne_of_writeEnergy_eq_of_halts {M : Machine} {n t₀ d t₁ t₂ T : Nat}
+    {c₁ c₂ : Cfg M} {b : Bool}
+    (heq : WriteEnergy M n (t₀ + d) = WriteEnergy M n t₀)
+    (ht0 : t₀ ≤ t₁) (hlt : t₁ < t₂) (htd : t₂ ≤ t₀ + d)
+    (h₁ : M.run n t₁ = .inr c₁) (h₂ : M.run n t₂ = .inr c₂)
+    (hT : M.run n T = .inl b) :
+    c₁.state ≠ c₂.state ∨ c₁.head ≠ c₂.head := by
+  by_cases hst : c₁.state = c₂.state
+  · right
+    intro hhd
+    obtain ⟨p, hp, rfl⟩ : ∃ p, 0 < p ∧ t₂ = t₁ + p := ⟨t₂ - t₁, by omega, by omega⟩
+    have he1 := writeEnergy_eq_of_le_of_eq heq ht0 (by omega)
+    have he2 := writeEnergy_eq_of_le_of_eq heq (by omega) htd
+    have hwe : WriteEnergy M n (t₁ + p) = WriteEnergy M n t₁ := by omega
+    exact not_halts_of_writeEnergy_eq_of_state_head_repeat hp h₁ h₂ hwe hst hhd T b hT
+  · exact Or.inl hst
+
+/-- **Global `(WriteEnergy, state, head)` Trajectory Injectivity (`writeEnergy_state_head_inj_of_halts`):**
+in any halting run `M.run n T = .inl b`, for any two active steps `t₁ < t₂` (`M.run n t₁ = .inr c₁`,
+`M.run n t₂ = .inr c₂`), the triples `(WriteEnergy M n t₁, c₁.state, c₁.head)` and
+`(WriteEnergy M n t₂, c₂.state, c₂.head)` cannot be equal. -/
+theorem writeEnergy_state_head_inj_of_halts {M : Machine} {n t₁ t₂ T : Nat}
+    {c₁ c₂ : Cfg M} {b : Bool}
+    (h₁ : M.run n t₁ = .inr c₁) (h₂ : M.run n t₂ = .inr c₂)
+    (hlt : t₁ < t₂) (hT : M.run n T = .inl b) :
+    WriteEnergy M n t₁ ≠ WriteEnergy M n t₂ ∨ c₁.state ≠ c₂.state ∨ c₁.head ≠ c₂.head := by
+  by_cases hwe : WriteEnergy M n t₁ = WriteEnergy M n t₂
+  · by_cases hst : c₁.state = c₂.state
+    · right; right
+      intro hhd
+      obtain ⟨p, hp, rfl⟩ : ∃ p, 0 < p ∧ t₂ = t₁ + p := ⟨t₂ - t₁, by omega, by omega⟩
+      exact not_halts_of_writeEnergy_eq_of_state_head_repeat hp h₁ h₂ hwe.symm hst hhd T b hT
+    · exact Or.inr (Or.inl hst)
+  · exact Or.inl hwe
+
+/-! ## 7. Initial Tape Bit-Extraction and Constructive All-`k` Dyadic-Period Deciders -/
+
+/-- **Exact Initial-Tape Bit Extraction (`init_tape_val_eq_two_iff_testBit`):** for every machine
+`M`, input `n : Nat`, and cell index `t : Nat`, `((M.init n).tape (t : Int)).val == 2` equals
+`n.testBit t`. -/
+theorem init_tape_val_eq_two_iff_testBit (M : Machine) (n t : Nat) :
+    (((M.init n).tape (t : Int)).val == 2) = n.testBit t := by
+  simp only [Machine.init, Int.natCast_nonneg, true_and, Int.toNat_natCast]
+  by_cases hpow : 2 ^ t ≤ n
+  · rw [ite_eq_left hpow]
+    by_cases hbit : n.testBit t <;> simp [hbit]
+  · rw [ite_eq_right hpow]
+    have hlt : n < 2 ^ t := by omega
+    rw [Nat.testBit_lt_two_pow hlt]
+    rfl
+
+/-- **Exact Initial-Tape Blank Horizon (`init_tape_val_eq_zero_iff_lt_two_pow`):** for every
+machine `M`, input `n : Nat`, and cell index `t : Nat`, `((M.init n).tape (t : Int)).val == 0`
+equals `decide (n < 2 ^ t)`. -/
+theorem init_tape_val_eq_zero_iff_lt_two_pow (M : Machine) (n t : Nat) :
+    (((M.init n).tape (t : Int)).val == 0) = decide (n < 2 ^ t) := by
+  simp only [Machine.init, Int.natCast_nonneg, true_and, Int.toNat_natCast]
+  by_cases hpow : 2 ^ t ≤ n
+  · rw [ite_eq_left hpow, decide_eq_false (by omega)]
+    by_cases hbit : n.testBit t <;> simp [hbit]
+  · rw [ite_eq_right hpow, decide_eq_true (by omega)]
+    rfl
+
+/-- **Binary Remainder Step Identity (`mod_two_pow_succ_eq`):** for every `n t : Nat`,
+`n % 2 ^ (t + 1) = n % 2 ^ t + (if n.testBit t then 2 ^ t else 0)`. -/
+theorem mod_two_pow_succ_eq (n t : Nat) :
+    n % 2 ^ (t + 1) = n % 2 ^ t + (if n.testBit t then 2 ^ t else 0) := by
+  rw [Nat.pow_succ, Nat.mod_mul, Nat.testBit_eq_decide_div_mod_eq]
+  rcases Nat.mod_two_eq_zero_or_one (n / 2 ^ t) with h | h <;> simp [h] <;> omega
+
+/-- **Tail-Periodic Dyadic Folding (`tail_period_two_pow_eq`):** if `f : Nat → Bool` has period
+`2 ^ k` from `2 ^ k` onward (`∀ m, 2 ^ k ≤ m → f (m + 2 ^ k) = f m`), then for every `n ≥ 2 ^ k`,
+`f n = f (2 ^ k + n % 2 ^ k)`. -/
+theorem tail_period_two_pow_eq {f : Nat → Bool} {k : Nat}
+    (hper : ∀ m, 2 ^ k ≤ m → f (m + 2 ^ k) = f m) {n : Nat} (hn : 2 ^ k ≤ n) :
+    f n = f (2 ^ k + n % 2 ^ k) := by
+  have hmul : ∀ q, f (2 ^ k + n % 2 ^ k + q * 2 ^ k) = f (2 ^ k + n % 2 ^ k) := by
+    intro q
+    induction q with
+    | zero => simp
+    | succ q ih =>
+      rw [Nat.succ_mul, ← Nat.add_assoc, hper _ (by omega), ih]
+  have hp : 0 < 2 ^ k := Nat.two_pow_pos k
+  have hdiv := Nat.div_add_mod n (2 ^ k)
+  rw [Nat.mul_comm] at hdiv
+  have hq : 1 ≤ n / 2 ^ k := (Nat.le_div_iff_mul_le hp).mpr (by omega)
+  obtain ⟨c, hc⟩ : ∃ c, n / 2 ^ k = c + 1 := ⟨n / 2 ^ k - 1, by omega⟩
+  rw [hc, Nat.succ_mul] at hdiv
+  have hn_eq : n = 2 ^ k + n % 2 ^ k + c * 2 ^ k := by omega
+  conv => lhs; rw [hn_eq]
+  exact hmul c
+
+/-- **Constructive All-`k` Dyadic-Period Decider (`dyadicMachine`):** for any sequence
+`f : Nat → Bool` and exponent `k : Nat`, `dyadicMachine f k` has `(k + 1) * 2 ^ k` states
+indexing `(t, r)` via `t * 2 ^ k + r`. For `t < k` it reads bit `t` of `n` on cell `t`, updates
+`r ↦ r + (if a.val == 2 then 2 ^ t else 0)`, and moves right; at `t = k` it halts with `f r` if
+cell `k` is blank (`n < 2 ^ k`) and `f (2 ^ k + r)` otherwise (`n ≥ 2 ^ k`). -/
+def dyadicMachine (f : Nat → Bool) (k : Nat) : Machine where
+  q := (k + 1) * 2 ^ k - 1
+  s := 0
+  δ := fun p a =>
+    let t := p.val / 2 ^ k
+    let r := p.val % 2 ^ k
+    if h : t < k then
+      let r' := (r + if a.val == 2 then 2 ^ t else 0) % 2 ^ k
+      have hpos : 0 < 2 ^ k := Nat.two_pow_pos k
+      have hr' : r' < 2 ^ k := Nat.mod_lt _ hpos
+      have hp' : (t + 1) * 2 ^ k + r' < (k + 1) * 2 ^ k - 1 + 1 := by
+        have h1 : (t + 1) * 2 ^ k + 2 ^ k ≤ (k + 1) * 2 ^ k := by
+          rw [← Nat.succ_mul]
+          exact Nat.mul_le_mul_right (2 ^ k) (by omega)
+        omega
+      .inr (⟨(t + 1) * 2 ^ k + r', hp'⟩, a, .right)
+    else
+      .inl (if a.val == 0 then f r else f (2 ^ k + r))
+
+/-- Quot-rem recovery for `t * 2 ^ k + r` when `r < 2 ^ k`. -/
+theorem mul_two_pow_add_div_mod {k t r : Nat} (hr : r < 2 ^ k) :
+    (t * 2 ^ k + r) / 2 ^ k = t ∧ (t * 2 ^ k + r) % 2 ^ k = r := by
+  have hpos : 0 < 2 ^ k := Nat.two_pow_pos k
+  constructor
+  · rw [Nat.add_comm, Nat.add_mul_div_right _ _ hpos, Nat.div_eq_of_lt hr, Nat.zero_add]
+  · rw [Nat.add_comm, Nat.add_mul_mod_self_right, Nat.mod_eq_of_lt hr]
+
+/-- State bound helper `t * 2 ^ k + n % 2 ^ t < (dyadicMachine f k).q + 1` for `t ≤ k`. -/
+theorem dyadicMachine_state_lt (f : Nat → Bool) {k n t : Nat} (ht : t ≤ k) :
+    t * 2 ^ k + n % 2 ^ t < (dyadicMachine f k).q + 1 := by
+  dsimp only [dyadicMachine]
+  have hpos_t : 0 < 2 ^ t := Nat.two_pow_pos t
+  have hpos_k : 0 < 2 ^ k := Nat.two_pow_pos k
+  have hmod : n % 2 ^ t < 2 ^ t := Nat.mod_lt n hpos_t
+  have hpow : 2 ^ t ≤ 2 ^ k := Nat.pow_le_pow_right (by omega) ht
+  have hmul : (t + 1) * 2 ^ k ≤ (k + 1) * 2 ^ k := Nat.mul_le_mul_right (2 ^ k) (by omega)
+  rw [Nat.succ_mul] at hmul
+  omega
+
+/-- Active transition reduction for `dyadicMachine` when `t < k`. -/
+theorem dyadicMachine_delta_lt (f : Nat → Bool) {k n t : Nat} (ht : t < k)
+    (a : Fin ((dyadicMachine f k).s + 3)) (ha : (a.val == 2) = n.testBit t) :
+    (dyadicMachine f k).δ ⟨t * 2 ^ k + n % 2 ^ t, dyadicMachine_state_lt f (by omega)⟩ a =
+      .inr (⟨(t + 1) * 2 ^ k + n % 2 ^ (t + 1), dyadicMachine_state_lt f (by omega)⟩, a, .right) := by
+  have hlt_pow : n % 2 ^ t < 2 ^ k :=
+    Nat.lt_of_lt_of_le (Nat.mod_lt n (Nat.two_pow_pos t)) (Nat.pow_le_pow_right (by omega) (by omega))
+  obtain ⟨hdiv, hmod⟩ := mul_two_pow_add_div_mod hlt_pow
+  have htk : (t * 2 ^ k + n % 2 ^ t) / 2 ^ k < k := by rw [hdiv]; exact ht
+  dsimp only [dyadicMachine]
+  rw [dite_eq_left htk]
+  congr 1
+  congr 1
+  apply Fin.ext
+  dsimp only
+  rw [hdiv, hmod, ha, ← mod_two_pow_succ_eq n t]
+  rw [Nat.mod_eq_of_lt (Nat.lt_of_lt_of_le (Nat.mod_lt n (Nat.two_pow_pos (t + 1)))
+    (Nat.pow_le_pow_right (by omega) (by omega)))]
+
+/-- Halting transition reduction for `dyadicMachine` at `t = k`. -/
+theorem dyadicMachine_delta_eq (f : Nat → Bool) (k n : Nat)
+    (a : Fin ((dyadicMachine f k).s + 3)) :
+    (dyadicMachine f k).δ ⟨k * 2 ^ k + n % 2 ^ k, dyadicMachine_state_lt f (Nat.le_refl k)⟩ a =
+      .inl (if a.val == 0 then f (n % 2 ^ k) else f (2 ^ k + n % 2 ^ k)) := by
+  have hlt_pow : n % 2 ^ k < 2 ^ k := Nat.mod_lt n (Nat.two_pow_pos k)
+  obtain ⟨hdiv, hmod⟩ := mul_two_pow_add_div_mod hlt_pow
+  have hnk : ¬ ((k * 2 ^ k + n % 2 ^ k) / 2 ^ k < k) := by rw [hdiv]; omega
+  dsimp only [dyadicMachine]
+  rw [dite_eq_right hnk, hmod]
+
+/-- Helper for `Cfg.step` when `M.δ` returns `.inr`. -/
+theorem step_eq_inr_of_delta_eq_inr {M : Machine} {c : Cfg M}
+    {p : Fin (M.q + 1)} {a : Fin (M.s + 3)} {d : Move}
+    (hδ : M.δ c.state (c.tape c.head) = .inr (p, a, d)) :
+    c.step = .inr ⟨p, d.apply c.head, fun i => if i = c.head then a else c.tape i⟩ := by
+  unfold Cfg.step
+  rw [hδ]
+
+/-- Helper for `Cfg.step` when `M.δ` returns `.inl`. -/
+theorem step_eq_inl_of_delta_eq_inl {M : Machine} {c : Cfg M} {b : Bool}
+    (hδ : M.δ c.state (c.tape c.head) = .inl b) :
+    c.step = .inl b := by
+  unfold Cfg.step
+  rw [hδ]
+
+/-- **Step-by-Step Run Invariant of `dyadicMachine` (`run_dyadicMachine_le`):** for every `t ≤ k`,
+after `t` steps on input `n`, `dyadicMachine f k` is in state `t * 2 ^ k + n % 2 ^ t` with head at
+`(t : Int)` and the initial tape unchanged. -/
+theorem run_dyadicMachine_le (f : Nat → Bool) (k n : Nat) :
+    ∀ t (ht : t ≤ k),
+      (dyadicMachine f k).run n t = .inr {
+        state := ⟨t * 2 ^ k + n % 2 ^ t, dyadicMachine_state_lt f ht⟩
+        head := (t : Int)
+        tape := ((dyadicMachine f k).init n).tape
+      }
+  | 0, _ => by
+    simp only [Machine.run, Machine.init, Nat.zero_mul, Nat.zero_add, Nat.pow_zero, Nat.mod_one]
+    rfl
+  | t + 1, ht => by
+    have ih := run_dyadicMachine_le f k n t (by omega)
+    simp only [Machine.run, ih]
+    have hδ := dyadicMachine_delta_lt f (k := k) (n := n) (t := t) (by omega)
+      (((dyadicMachine f k).init n).tape (t : Int))
+      (init_tape_val_eq_two_iff_testBit (dyadicMachine f k) n t)
+    rw [step_eq_inr_of_delta_eq_inr hδ]
+    congr 1
+    have hhead : Move.right.apply (t : Int) = ((t + 1 : Nat) : Int) := by
+      simp [Move.apply]
+    have htape : (fun i : Int => if i = (t : Int) then ((dyadicMachine f k).init n).tape (t : Int)
+        else ((dyadicMachine f k).init n).tape i) = ((dyadicMachine f k).init n).tape := by
+      funext i
+      split
+      · next hi => subst hi; rfl
+      · rfl
+    rw [hhead, htape]
+
+/-- **All-`k` Correctness of `dyadicMachine` (`computes_dyadicMachine`):** if `f : Nat → Bool` has
+period `2 ^ k` from `2 ^ k` onward (`∀ m, 2 ^ k ≤ m → f (m + 2 ^ k) = f m`), then `dyadicMachine f k`
+computes `f` on all inputs in constant time `T n = k + 1`. -/
+theorem computes_dyadicMachine {f : Nat → Bool} {k : Nat}
+    (hper : ∀ m, 2 ^ k ≤ m → f (m + 2 ^ k) = f m) :
+    Computes (dyadicMachine f k) f (fun _ => k + 1) := by
+  intro n
+  have hrun := run_dyadicMachine_le f k n k (Nat.le_refl k)
+  simp only [Machine.run, hrun]
+  have hδ := dyadicMachine_delta_eq f k n (((dyadicMachine f k).init n).tape (k : Int))
+  rw [step_eq_inl_of_delta_eq_inl hδ, init_tape_val_eq_zero_iff_lt_two_pow]
+  by_cases hlt : n < 2 ^ k
+  · simp [decide_eq_true hlt, Nat.mod_eq_of_lt hlt]
+  · have hge : 2 ^ k ≤ n := by omega
+    simp [decide_eq_false hlt, ← tail_period_two_pow_eq (n := n) hper hge]
+
+/-- Elementary inequality `m ≤ 2 ^ m` for all `m : Nat`. -/
+theorem self_le_two_pow : ∀ m : Nat, m ≤ 2 ^ m
+  | 0 => by decide
+  | m + 1 => by
+    have ih := self_le_two_pow m
+    have hpos := Nat.two_pow_pos m
+    rw [Nat.pow_succ]
+    omega
+
+/-- **`Problem3Robust` Excludes All Eventual Power-of-Two Periods (`not_evPer_two_pow_of_problem3Robust`):**
+if `Problem3Robust` holds, then for every `k : Nat`, `center` cannot be eventually `2 ^ k`-periodic
+(`¬ EvPer center (2 ^ k)`). -/
+theorem not_evPer_two_pow_of_problem3Robust (hP3 : Problem3Robust) (k : Nat) :
+    ¬ EvPer center (2 ^ k) := by
+  rintro ⟨T₀, hT₀⟩
+  let M := k + T₀
+  have hlt : T₀ ≤ 2 ^ M := by
+    have := self_le_two_pow M
+    omega
+  have hdvd : 2 ^ k ∣ 2 ^ M := Nat.pow_dvd_pow 2 (by omega)
+  have htail : ∀ m, 2 ^ M ≤ m → center (m + 2 ^ M) = center m := by
+    intro m hm
+    obtain ⟨q, hq⟩ := hdvd
+    have hmul : ∀ c s, T₀ ≤ s → center (s + c * 2 ^ k) = center s := by
+      intro c
+      induction c with
+      | zero => intro s _; simp
+      | succ c ih =>
+        intro s hs
+        rw [Nat.succ_mul, ← Nat.add_assoc, hT₀ _ (by omega), ih s hs]
+    rw [hq, Nat.mul_comm (2 ^ k) q]
+    exact hmul q m (by omega)
+  refine hP3 ⟨dyadicMachine center M, fun _ => M + 1, computes_dyadicMachine htail, fun m => ?_⟩
+  exact ⟨(M + 1) ^ m, fun n hn => hn⟩
+
+/-- **`Problem3Verbal` Excludes All Eventual Power-of-Two Periods (`not_evPer_two_pow_of_problem3Verbal`):**
+if `Problem3Verbal` holds, then for every `k : Nat`, `¬ EvPer center (2 ^ k)`. -/
+theorem not_evPer_two_pow_of_problem3Verbal (hP3 : Problem3Verbal) (k : Nat) :
+    ¬ EvPer center (2 ^ k) :=
+  not_evPer_two_pow_of_problem3Robust (problem3Robust_of_problem3Verbal hP3) k
+
+/-- **`Problem3` Excludes All Eventual Power-of-Two Periods (`not_evPer_two_pow_of_problem3`):**
+if `Problem3` holds, then for every `k : Nat`, `¬ EvPer center (2 ^ k)`. -/
+theorem not_evPer_two_pow_of_problem3 (hP3 : Problem3) (k : Nat) :
+    ¬ EvPer center (2 ^ k) :=
+  not_evPer_two_pow_of_problem3Robust (problem3Robust_of_problem3 hP3) k
+
+/-! ## 8. Closed-Form Tail-Wrapping Arithmetic and 1-Pass `O(log n)` Decider for Arbitrary Periods -/
+
+/-- Canonical wrapped representative of `n : Nat` in `[0, T₀ + P)`: equal to `n` below the
+transient `T₀`, and `T₀ + (n - T₀) % P` in the periodic tail `n ≥ T₀`. -/
+def wrapIter (T₀ P n : Nat) : Nat :=
+  if n < T₀ then n else T₀ + (n - T₀) % P
+
+/-- Binary addition on wrapped representatives in `[0, T₀ + P)`. -/
+def wrapAdd (T₀ P x y : Nat) : Nat :=
+  wrapIter T₀ P (x + y)
+
+/-- Reduction of `wrapIter T₀ P n` below `T₀`. -/
+theorem wrapIter_eq_of_lt {T₀ P n : Nat} (h : n < T₀) :
+    wrapIter T₀ P n = n := by
+  unfold wrapIter
+  exact ite_eq_left h
+
+/-- Reduction of `wrapIter T₀ P n` from `T₀` onward. -/
+theorem wrapIter_eq_of_not_lt {T₀ P n : Nat} (h : ¬ n < T₀) :
+    wrapIter T₀ P n = T₀ + (n - T₀) % P := by
+  unfold wrapIter
+  exact ite_eq_right h
+
+/-- `wrapIter T₀ P 0 = 0` for all `T₀ P : Nat`. -/
+theorem wrapIter_zero (T₀ P : Nat) : wrapIter T₀ P 0 = 0 := by
+  unfold wrapIter
+  split
+  · rfl
+  · next h =>
+    have h0 : T₀ = 0 := by omega
+    subst h0
+    simp
+
+/-- `wrapIter T₀ P n < T₀ + P` whenever `0 < P`. -/
+theorem wrapIter_lt {T₀ P : Nat} (hP : 0 < P) (n : Nat) :
+    wrapIter T₀ P n < T₀ + P := by
+  by_cases hn : n < T₀
+  · rw [wrapIter_eq_of_lt hn]; omega
+  · rw [wrapIter_eq_of_not_lt hn]
+    have hmod := Nat.mod_lt (n - T₀) hP
+    omega
+
+/-- Decomposition `n = wrapIter T₀ P n + q * P` with `wrapIter T₀ P n < T₀ ↔ n < T₀`. -/
+theorem wrapIter_decomp (T₀ P n : Nat) :
+    (wrapIter T₀ P n < T₀ ↔ n < T₀) ∧
+      ∃ q, n = wrapIter T₀ P n + q * P := by
+  by_cases hn : n < T₀
+  · rw [wrapIter_eq_of_lt hn]
+    exact ⟨⟨fun _ => hn, fun _ => hn⟩, 0, by simp⟩
+  · rw [wrapIter_eq_of_not_lt hn]
+    refine ⟨⟨fun h => by omega, fun h => absurd h hn⟩, (n - T₀) / P, ?_⟩
+    have hdiv := Nat.div_add_mod (n - T₀) P
+    rw [Nat.mul_comm] at hdiv
+    omega
+
+/-- Left-wrapped addition identity `wrapIter T₀ P (wrapIter T₀ P a + b) = wrapIter T₀ P (a + b)`. -/
+theorem wrapIter_add_left (T₀ P a b : Nat) :
+    wrapIter T₀ P (wrapIter T₀ P a + b) = wrapIter T₀ P (a + b) := by
+  obtain ⟨hxa, qa, ha⟩ := wrapIter_decomp T₀ P a
+  by_cases hab : a + b < T₀
+  · have ha_lt : a < T₀ := by omega
+    rw [wrapIter_eq_of_lt ha_lt]
+  · have hwab_not_lt : ¬ (wrapIter T₀ P a + b < T₀) := by
+      intro hlt
+      have hx_lt : wrapIter T₀ P a < T₀ := by omega
+      have ha_lt : a < T₀ := hxa.mp hx_lt
+      have hwa := wrapIter_eq_of_lt (P := P) ha_lt
+      omega
+    rw [wrapIter_eq_of_not_lt hwab_not_lt, wrapIter_eq_of_not_lt hab]
+    have hdiff : a + b - T₀ = (wrapIter T₀ P a + b - T₀) + qa * P := by omega
+    rw [hdiff, Nat.add_mul_mod_self_right]
+
+/-- **Homomorphism Law for `wrapIter` (`wrapIter_add`):** for every `T₀ P a b : Nat`,
+`wrapAdd T₀ P (wrapIter T₀ P a) (wrapIter T₀ P b) = wrapIter T₀ P (a + b)`. -/
+theorem wrapIter_add (T₀ P a b : Nat) :
+    wrapAdd T₀ P (wrapIter T₀ P a) (wrapIter T₀ P b) = wrapIter T₀ P (a + b) := by
+  unfold wrapAdd
+  rw [wrapIter_add_left, Nat.add_comm a, wrapIter_add_left, Nat.add_comm]
+
+/-- Combined step identity `wrapIter T₀ P (wrapIter T₀ P a + (wrapIter T₀ P b + 1)) = wrapIter T₀ P (a + (b + 1))`. -/
+theorem wrapIter_add_succ (T₀ P a b : Nat) :
+    wrapIter T₀ P (wrapIter T₀ P a + (wrapIter T₀ P b + 1)) = wrapIter T₀ P (a + (b + 1)) := by
+  rw [wrapIter_add_left, ← Nat.add_assoc, Nat.add_comm a (wrapIter T₀ P b), Nat.add_assoc,
+    wrapIter_add_left, ← Nat.add_assoc, Nat.add_comm b a, Nat.add_assoc]
+
+/-- **Exact Evaluation via `wrapIter` (`f_wrapIter_eq`):** if `f` has period `P` from `T₀` onward
+(`∀ t, T₀ ≤ t → f (t + P) = f t`), then `f (wrapIter T₀ P n) = f n` for every `n : Nat`. -/
+theorem f_wrapIter_eq {f : Nat → Bool} {T₀ P : Nat}
+    (hper : ∀ t, T₀ ≤ t → f (t + P) = f t) (n : Nat) :
+    f (wrapIter T₀ P n) = f n := by
+  have hmul : ∀ q s, T₀ ≤ s → f (s + q * P) = f s := by
+    intro q
+    induction q with
+    | zero => intro s _; simp
+    | succ q ih =>
+      intro s hs
+      rw [Nat.succ_mul, ← Nat.add_assoc, hper _ (by omega), ih s hs]
+  by_cases hn : n < T₀
+  · rw [wrapIter_eq_of_lt hn]
+  · obtain ⟨_, q, hq⟩ := wrapIter_decomp T₀ P n
+    have hw_ge : T₀ ≤ wrapIter T₀ P n := by
+      rw [wrapIter_eq_of_not_lt hn]; omega
+    conv => rhs; rw [hq]
+    exact (hmul q (wrapIter T₀ P n) hw_ge).symm
+
+/-- Quot-rem recovery for `r * N + u` when `u < N`. -/
+theorem mul_add_div_mod {N r u : Nat} (hu : u < N) :
+    (r * N + u) / N = r ∧ (r * N + u) % N = u := by
+  have hpos : 0 < N := by omega
+  constructor
+  · rw [Nat.add_comm, Nat.add_mul_div_right _ _ hpos, Nat.div_eq_of_lt hu, Nat.zero_add]
+  · rw [Nat.add_comm, Nat.add_mul_mod_self_right, Nat.mod_eq_of_lt hu]
+
+/-- **1-Pass `O(log n)` Decider for Arbitrary Eventually Periodic Sequences (`lsbPeriodicMachine`):**
+for `f : Nat → Bool`, transient `T₀`, and period `P > 0`, `lsbPeriodicMachine f T₀ P` has
+`(T₀ + P) ^ 2` states encoding `(r, u)` via `r * (T₀ + P) + u`, where at step `t`:
+- `r = wrapIter T₀ P (n % 2 ^ t)`, and
+- `u = wrapIter T₀ P (2 ^ t - 1)`.
+On reading blank (`0`) at cell `bitLen n`, it halts with `.inl (f r) = .inl (f n)`. -/
+def lsbPeriodicMachine (f : Nat → Bool) (T₀ P : Nat) : Machine where
+  q := (T₀ + P) * (T₀ + P) - 1
+  s := 0
+  δ := fun p a =>
+    let N := T₀ + P
+    let r := p.val / N
+    let u := p.val % N
+    if a.val == 0 then
+      .inl (f r)
+    else
+      if hP : 0 < P then
+        let r' := if a.val == 2 then wrapIter T₀ P (r + (u + 1)) else wrapIter T₀ P r
+        let u' := wrapIter T₀ P (u + (u + 1))
+        have hr' : r' < N := by
+          dsimp only [r', N]
+          split <;> exact wrapIter_lt hP _
+        have hu' : u' < N := wrapIter_lt hP _
+        have hp' : r' * N + u' < (T₀ + P) * (T₀ + P) - 1 + 1 := by
+          have h1 : (r' + 1) * N ≤ N * N := Nat.mul_le_mul_right N (by omega)
+          rw [Nat.succ_mul] at h1
+          dsimp only [N] at h1 hr' hu' ⊢
+          omega
+        .inr (⟨r' * N + u', hp'⟩, a, .right)
+      else
+        .inl (f r)
+
+/-- State bound helper for `lsbPeriodicMachine`. -/
+theorem lsbPeriodicMachine_state_lt (f : Nat → Bool) {T₀ P : Nat} (hP : 0 < P) (a b : Nat) :
+    wrapIter T₀ P a * (T₀ + P) + wrapIter T₀ P b < (lsbPeriodicMachine f T₀ P).q + 1 := by
+  dsimp only [lsbPeriodicMachine]
+  have ha := wrapIter_lt (T₀ := T₀) hP a
+  have hb := wrapIter_lt (T₀ := T₀) hP b
+  have h1 : (wrapIter T₀ P a + 1) * (T₀ + P) ≤ (T₀ + P) * (T₀ + P) :=
+    Nat.mul_le_mul_right (T₀ + P) (by omega)
+  rw [Nat.succ_mul] at h1
+  omega
+
+/-- Active transition reduction for `lsbPeriodicMachine` when `2 ^ t ≤ n`. -/
+theorem lsbPeriodicMachine_delta_active (f : Nat → Bool) {T₀ P n t : Nat} (hP : 0 < P)
+    (a : Fin ((lsbPeriodicMachine f T₀ P).s + 3))
+    (ha0 : (a.val == 0) = false) (ha2 : (a.val == 2) = n.testBit t) :
+    (lsbPeriodicMachine f T₀ P).δ
+      ⟨wrapIter T₀ P (n % 2 ^ t) * (T₀ + P) + wrapIter T₀ P (2 ^ t - 1),
+        lsbPeriodicMachine_state_lt f hP _ _⟩ a =
+      .inr (⟨wrapIter T₀ P (n % 2 ^ (t + 1)) * (T₀ + P) + wrapIter T₀ P (2 ^ (t + 1) - 1),
+        lsbPeriodicMachine_state_lt f hP _ _⟩, a, .right) := by
+  obtain ⟨hdiv, hmod⟩ := mul_add_div_mod (wrapIter_lt (T₀ := T₀) hP (2 ^ t - 1))
+  dsimp only [lsbPeriodicMachine]
+  rw [ha0]
+  simp only [Bool.false_eq_true, ↓reduceIte, dite_eq_left hP]
+  congr 1
+  congr 1
+  apply Fin.ext
+  dsimp only
+  rw [hdiv, hmod, ha2]
+  have hpow_pos : 1 ≤ 2 ^ t := Nat.two_pow_pos t
+  have hu_eq : wrapIter T₀ P (wrapIter T₀ P (2 ^ t - 1) + (wrapIter T₀ P (2 ^ t - 1) + 1)) =
+      wrapIter T₀ P (2 ^ (t + 1) - 1) := by
+    rw [wrapIter_add_succ, show 2 ^ t - 1 + (2 ^ t - 1 + 1) = 2 ^ (t + 1) - 1 by
+      rw [Nat.pow_succ]; omega]
+  have hr_eq : (if n.testBit t = true then
+        wrapIter T₀ P (wrapIter T₀ P (n % 2 ^ t) + (wrapIter T₀ P (2 ^ t - 1) + 1))
+      else wrapIter T₀ P (wrapIter T₀ P (n % 2 ^ t))) =
+      wrapIter T₀ P (n % 2 ^ (t + 1)) := by
+    rw [mod_two_pow_succ_eq n t]
+    by_cases hbit : n.testBit t
+    · simp only [hbit, ↓reduceIte]
+      rw [wrapIter_add_succ, show 2 ^ t - 1 + 1 = 2 ^ t by omega]
+    · simp only [hbit, Bool.false_eq_true, ↓reduceIte, Nat.add_zero]
+      have h0 := wrapIter_add_left T₀ P (n % 2 ^ t) 0
+      simpa using h0
+  rw [hr_eq, hu_eq]
+
+/-- Halting transition reduction for `lsbPeriodicMachine` when `a.val == 0`. -/
+theorem lsbPeriodicMachine_delta_halt (f : Nat → Bool) {T₀ P : Nat} (hP : 0 < P) (x y : Nat)
+    (a : Fin ((lsbPeriodicMachine f T₀ P).s + 3)) (ha0 : (a.val == 0) = true) :
+    (lsbPeriodicMachine f T₀ P).δ
+      ⟨wrapIter T₀ P x * (T₀ + P) + wrapIter T₀ P y,
+        lsbPeriodicMachine_state_lt f hP x y⟩ a =
+      .inl (f (wrapIter T₀ P x)) := by
+  obtain ⟨hdiv, _⟩ := mul_add_div_mod (wrapIter_lt (T₀ := T₀) hP y)
+  dsimp only [lsbPeriodicMachine]
+  rw [ha0]
+  simp only [↓reduceIte]
+  rw [hdiv]
+
+/-- Binary digit length of `n`: `0` for `n = 0`, and `n.log2 + 1` for `n > 0`. -/
+def bitLen (n : Nat) : Nat :=
+  if n = 0 then 0 else n.log2 + 1
+
+/-- For every `n : Nat`, `n < 2 ^ bitLen n`. -/
+theorem lt_two_pow_bitLen (n : Nat) : n < 2 ^ bitLen n := by
+  unfold bitLen
+  by_cases hn : n = 0
+  · subst hn; decide
+  · rw [ite_eq_right hn]
+    exact Nat.lt_log2_self
+
+/-- For every `t < bitLen n`, `2 ^ t ≤ n`. -/
+theorem two_pow_le_of_lt_bitLen {n t : Nat} (ht : t < bitLen n) : 2 ^ t ≤ n := by
+  unfold bitLen at ht
+  by_cases hn : n = 0
+  · subst hn; simp at ht
+  · rw [ite_eq_right hn] at ht
+    have hle : t ≤ n.log2 := by omega
+    exact Nat.le_trans (Nat.pow_le_pow_right (by omega) hle) (Nat.log2_self_le hn)
+
+/-- **Step-by-Step Run Invariant of `lsbPeriodicMachine` (`run_lsbPeriodicMachine_le`):** for `0 < P`
+and every `t ≤ bitLen n`, after `t` steps on input `n`, `lsbPeriodicMachine f T₀ P` has state
+`wrapIter T₀ P (n % 2 ^ t) * (T₀ + P) + wrapIter T₀ P (2 ^ t - 1)`, head `(t : Int)`, and initial tape. -/
+theorem run_lsbPeriodicMachine_le (f : Nat → Bool) (T₀ P : Nat) (hP : 0 < P) (n : Nat) :
+    ∀ t, t ≤ bitLen n →
+      (lsbPeriodicMachine f T₀ P).run n t = .inr {
+        state := ⟨wrapIter T₀ P (n % 2 ^ t) * (T₀ + P) + wrapIter T₀ P (2 ^ t - 1),
+          lsbPeriodicMachine_state_lt f hP _ _⟩
+        head := (t : Int)
+        tape := ((lsbPeriodicMachine f T₀ P).init n).tape
+      }
+  | 0, _ => by
+    simp only [Machine.run, Machine.init, Nat.pow_zero, Nat.mod_one, Nat.sub_self,
+      wrapIter_zero, Nat.zero_mul, Nat.zero_add]
+    rfl
+  | t + 1, ht => by
+    have ih := run_lsbPeriodicMachine_le f T₀ P hP n t (by omega)
+    simp only [Machine.run, ih]
+    have hpow : 2 ^ t ≤ n := two_pow_le_of_lt_bitLen (by omega)
+    have ha0 : ((((lsbPeriodicMachine f T₀ P).init n).tape (t : Int)).val == 0) = false := by
+      rw [init_tape_val_eq_zero_iff_lt_two_pow, decide_eq_false (by omega)]
+    have ha2 := init_tape_val_eq_two_iff_testBit (lsbPeriodicMachine f T₀ P) n t
+    have hδ := lsbPeriodicMachine_delta_active f (T₀ := T₀) (n := n) (t := t) hP
+      (((lsbPeriodicMachine f T₀ P).init n).tape (t : Int)) ha0 ha2
+    rw [step_eq_inr_of_delta_eq_inr hδ]
+    congr 1
+    have hhead : Move.right.apply (t : Int) = ((t + 1 : Nat) : Int) := by
+      simp [Move.apply]
+    have htape : (fun i : Int => if i = (t : Int) then ((lsbPeriodicMachine f T₀ P).init n).tape (t : Int)
+        else ((lsbPeriodicMachine f T₀ P).init n).tape i) = ((lsbPeriodicMachine f T₀ P).init n).tape := by
+      funext i
+      split
+      · next hi => subst hi; rfl
+      · rfl
+    rw [hhead, htape]
+
+/-- **`O(log n)` Correctness of `lsbPeriodicMachine` (`computes_lsbPeriodicMachine`):** if `f` has
+period `P > 0` from `T₀` onward (`∀ t, T₀ ≤ t → f (t + P) = f t`), then `lsbPeriodicMachine f T₀ P`
+computes `f` on all inputs in `bitLen n + 1` steps. -/
+theorem computes_lsbPeriodicMachine {f : Nat → Bool} {T₀ P : Nat} (hP : 0 < P)
+    (hper : ∀ t, T₀ ≤ t → f (t + P) = f t) :
+    Computes (lsbPeriodicMachine f T₀ P) f (fun n => bitLen n + 1) := by
+  intro n
+  have hrun := run_lsbPeriodicMachine_le f T₀ P hP n (bitLen n) (Nat.le_refl _)
+  simp only [Machine.run, hrun]
+  have hlt : n < 2 ^ bitLen n := lt_two_pow_bitLen n
+  have ha0 : ((((lsbPeriodicMachine f T₀ P).init n).tape (bitLen n : Int)).val == 0) = true := by
+    rw [init_tape_val_eq_zero_iff_lt_two_pow, decide_eq_true hlt]
+  have hδ := lsbPeriodicMachine_delta_halt f (T₀ := T₀) hP (n % 2 ^ bitLen n) (2 ^ bitLen n - 1)
+    (((lsbPeriodicMachine f T₀ P).init n).tape (bitLen n : Int)) ha0
+  rw [step_eq_inl_of_delta_eq_inl hδ, Nat.mod_eq_of_lt hlt, f_wrapIter_eq hper n]
+
+/-- Elementary upper bound `(d + 1) * (d + 8) ≤ 2 ^ (d + 6)` for all `d : Nat`. -/
+theorem mul_add_eight_le_two_pow : ∀ d : Nat, (d + 1) * (d + 8) ≤ 2 ^ (d + 6)
+  | 0 => by decide
+  | d + 1 => by
+    have ih := mul_add_eight_le_two_pow d
+    have hpow := self_le_two_pow (d + 5)
+    have hstep : (d + 1 + 1) * (d + 1 + 8) = (d + 1) * (d + 8) + 2 * (d + 5) := by
+      rw [show d + 1 + 1 = (d + 1) + 1 by omega, show d + 1 + 8 = (d + 8) + 1 by omega,
+        Nat.succ_mul (d + 1), Nat.mul_succ (d + 1) (d + 8)]
+      omega
+    have htwo : 2 ^ (d + 1 + 6) = 2 ^ (d + 6) + 2 * 2 ^ (d + 5) := by
+      rw [show d + 1 + 6 = (d + 6) + 1 by omega, Nat.pow_succ 2 (d + 6),
+        show d + 6 = (d + 5) + 1 by omega, Nat.pow_succ 2 (d + 5)]
+      omega
+    omega
+
+/-- **Sublinear Growth of `bitLen n + 1` (`mul_bitLen_succ_le`):** for every `k : Nat` and every
+`n ≥ 2 ^ (k + 6)`, `k * (bitLen n + 1) ≤ n`. -/
+theorem mul_bitLen_succ_le (k : Nat) {n : Nat} (hn : 2 ^ (k + 6) ≤ n) :
+    k * (bitLen n + 1) ≤ n := by
+  have hn0 : n ≠ 0 := by
+    have := Nat.two_pow_pos (k + 6)
+    omega
+  have hlog_ge : k + 6 ≤ n.log2 := (Nat.le_log2 hn0).mpr hn
+  let d := n.log2 - 6
+  have hd_eq : n.log2 = d + 6 := by omega
+  have hk_le : k ≤ d + 1 := by omega
+  have hbit : bitLen n + 1 = d + 8 := by
+    unfold bitLen
+    rw [ite_eq_right hn0, hd_eq]
+  rw [hbit]
+  have h1 : k * (d + 8) ≤ (d + 1) * (d + 8) := Nat.mul_le_mul_right (d + 8) hk_le
+  have h2 := mul_add_eight_le_two_pow d
+  have h3 : 2 ^ (d + 6) ≤ n := by
+    rw [← hd_eq]
+    exact Nat.log2_self_le hn0
+  omega
+
+/-- Power scaling `a ^ m ≤ 2 ^ m * b ^ m` when `a ≤ 2 * b`. -/
+theorem pow_le_two_pow_mul_pow {a b : Nat} (h : a ≤ 2 * b) :
+    ∀ m, a ^ m ≤ 2 ^ m * b ^ m
+  | 0 => by simp
+  | m + 1 => by
+    have ih := pow_le_two_pow_mul_pow h m
+    rw [Nat.pow_succ a m, Nat.pow_succ 2 m, Nat.pow_succ b m]
+    have hmul := Nat.mul_le_mul ih h
+    have hassoc : 2 ^ m * b ^ m * (2 * b) = 2 ^ m * 2 * (b ^ m * b) := by
+      rw [Nat.mul_assoc (2 ^ m) (b ^ m) (2 * b), ← Nat.mul_assoc (b ^ m) 2 b,
+        Nat.mul_comm (b ^ m) 2, Nat.mul_assoc 2 (b ^ m) b, ← Nat.mul_assoc (2 ^ m) 2 (b ^ m * b)]
+    omega
+
+/-- Halving induction: for every `k : Nat`, there is a threshold `S` such that `(s + 2) ^ k ≤ 2 ^ s`
+for all `s ≥ S`. -/
+theorem exists_add_two_pow_le_two_pow : ∀ k : Nat, ∃ S, ∀ s, S ≤ s → (s + 2) ^ k ≤ 2 ^ s
+  | 0 => ⟨0, fun s _ => by rw [Nat.pow_zero]; exact Nat.two_pow_pos s⟩
+  | k + 1 => by
+    obtain ⟨S, hS⟩ := exists_add_two_pow_le_two_pow k
+    refine ⟨2 * (S + 2 ^ (k + 1) + 6), fun s hs => ?_⟩
+    have hpow_pos : 0 < 2 ^ (k + 1) := Nat.two_pow_pos (k + 1)
+    have h_sum : S + 2 ^ (k + 1) + 6 ≤ s / 2 := by omega
+    have hu_S : S ≤ s / 2 := by omega
+    have hu_6 : 2 ^ (k + 1) + 6 ≤ s / 2 := by omega
+    have hs_u : s + 2 ≤ 2 * (s / 2 + 2) := by omega
+    have hstep1 := pow_le_two_pow_mul_pow hs_u (k + 1)
+    have hpow_split : 2 ^ (k + 1) * (s / 2 + 2) ^ (k + 1) =
+        (2 ^ (k + 1) * (s / 2 + 2)) * (s / 2 + 2) ^ k := by
+      rw [Nat.pow_succ (s / 2 + 2) k, ← Nat.mul_assoc,
+        Nat.mul_assoc (2 ^ (k + 1)) ((s / 2 + 2) ^ k) (s / 2 + 2),
+        Nat.mul_comm ((s / 2 + 2) ^ k) (s / 2 + 2), ← Nat.mul_assoc]
+    have hlin : 2 ^ (k + 1) * (s / 2 + 2) ≤ 2 ^ (s - s / 2) := by
+      have hd : s / 2 = (s / 2 - 6) + 6 := by omega
+      have h1 : 2 ^ (k + 1) * (s / 2 + 2) ≤ (s / 2 - 6 + 1) * (s / 2 - 6 + 8) := by
+        rw [show s / 2 + 2 = s / 2 - 6 + 8 by omega]
+        exact Nat.mul_le_mul_right (s / 2 - 6 + 8) (by omega)
+      have h2 := mul_add_eight_le_two_pow (s / 2 - 6)
+      have h3 : 2 ^ (s / 2) ≤ 2 ^ (s - s / 2) := Nat.pow_le_pow_right (by omega) (by omega)
+      rw [← hd] at h2
+      omega
+    have hih : (s / 2 + 2) ^ k ≤ 2 ^ (s / 2) := hS (s / 2) hu_S
+    have hmul := Nat.mul_le_mul hlin hih
+    rw [← Nat.pow_add, show s - s / 2 + s / 2 = s by omega] at hmul
+    omega
+
+/-- **Polylogarithmic Sublinear Growth (`exists_bitLen_succ_pow_le`):** for every `k : Nat`, there
+exists `N` such that for all `n ≥ N`, `(bitLen n + 1) ^ k ≤ n`. -/
+theorem exists_bitLen_succ_pow_le (k : Nat) :
+    ∃ N, ∀ n, N ≤ n → (bitLen n + 1) ^ k ≤ n := by
+  obtain ⟨S, hS⟩ := exists_add_two_pow_le_two_pow k
+  refine ⟨2 ^ (S + 1), fun n hn => ?_⟩
+  have hn0 : n ≠ 0 := by
+    have := Nat.two_pow_pos (S + 1)
+    omega
+  have hlog : S + 1 ≤ n.log2 := (Nat.le_log2 hn0).mpr hn
+  have hbit : bitLen n + 1 = n.log2 + 2 := by
+    unfold bitLen
+    rw [ite_eq_right hn0]
+  rw [hbit]
+  exact Nat.le_trans (hS n.log2 (by omega)) (Nat.log2_self_le hn0)
+
+/-- **Core-Lean-4 Proof that `Problem3Robust` Implies `Problem1` (`problem1_of_problem3Robust`):**
+if no machine computes `center n` in `n ^ o(1)` steps (`Problem3Robust`), then `center` is not
+eventually periodic (`Problem1`). This is the core-Lean (Mathlib-free) proof of the theorem in `Rule30Equivalents.ProblemThree.problem1_of_problem3Robust`. -/
+theorem problem1_of_problem3Robust (hP3 : Problem3Robust) : Problem1 := by
+  rintro ⟨T₀, P, hP, hT₀⟩
+  exact hP3 ⟨lsbPeriodicMachine center T₀ P, fun n => bitLen n + 1,
+    computes_lsbPeriodicMachine hP hT₀, exists_bitLen_succ_pow_le⟩
+
+/-- **Core-Lean-4 Proof that `Problem3Verbal` Implies `Problem1` (`problem1_of_problem3Verbal`):**
+if no machine computes `center n` in `o(n)` steps (`Problem3Verbal`), then `center` is not
+eventually periodic (`Problem1`). This is the core-Lean (Mathlib-free) proof of the theorem in `Rule30Equivalents.ProblemThree.problem1_of_problem3Verbal`. -/
+theorem problem1_of_problem3Verbal (hP3 : Problem3Verbal) : Problem1 :=
+  problem1_of_problem3Robust (problem3Robust_of_problem3Verbal hP3)
+
+/-- **Core-Lean-4 Proof that `Problem3` Implies `Problem1` (`problem1_of_problem3`):**
+if no machine computes `center n` in `O(n)` steps (`Problem3`), then `center` is not eventually
+periodic (`Problem1`). This is the core-Lean (Mathlib-free) proof of the theorem in `Rule30Equivalents.ProblemThree.problem1_of_problem3`. -/
+theorem problem1_of_problem3 (hP3 : Problem3) : Problem1 :=
+  problem1_of_problem3Robust (problem3Robust_of_problem3 hP3)
+
 end Rule30Problem3Bounds
 end Ruliology.CellularAutomata
