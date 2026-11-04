@@ -1,5 +1,6 @@
 module
 
+public import Ruliology.CellularAutomata.Rule30LeftAntiPeriod
 public import Ruliology.CellularAutomata.Rule30StripCertificates
 public import Ruliology.CellularAutomata.Rule30DrivenLeft
 public import Ruliology.CellularAutomata.Rule30Ether
@@ -754,6 +755,103 @@ theorem no_period_four_of_no_period_two_and_C3
     ¬ ∃ T, ∀ t, T ≤ t → cell (t + 4) 0 = cell t 0 := by
   rintro ⟨T, hper⟩
   exact hno2 ⟨T, period_two_of_period_four_of_C3 h1 h2 h3 hper⟩
+
+/-! ### Discharging `w0001` and `w0111` under `Problem2` and Reducing Least Period 4 to `C3 w0011` Alone -/
+
+/-- If `c` matches `wordAt w0001 (t - T)` from `T` on, then `c` is 4-periodic from `T` on and its
+4-tick window at `T` has exactly `1` black cell (`winCount c T 4 = 1`). -/
+theorem winCount_four_of_wordAt_0001 {c : Nat → Bool} {T : Nat}
+    (hT : ∀ t, T ≤ t → c t = wordAt w0001 (t - T)) :
+    (∀ t, T ≤ t → c (t + 4) = c t) ∧ Rule30LeftAntiPeriod.winCount c T 4 = 1 := by
+  have hper : ∀ t, T ≤ t → c (t + 4) = c t := by
+    intro t ht
+    rw [hT (t + 4) (by omega), hT t ht, wordAt_0001, wordAt_0001]
+    have hm : (t + 4 - T) % 4 = (t - T) % 4 := by omega
+    rw [hm]
+  refine ⟨hper, ?_⟩
+  have h0 : c T = false := by rw [hT T (by omega), show T - T = 0 by omega]; rfl
+  have h1 : c (T + 1) = false := by rw [hT (T + 1) (by omega), show T + 1 - T = 1 by omega]; rfl
+  have h2 : c (T + 2) = false := by rw [hT (T + 2) (by omega), show T + 2 - T = 2 by omega]; rfl
+  have h3 : c (T + 3) = true := by rw [hT (T + 3) (by omega), show T + 3 - T = 3 by omega]; rfl
+  simp [Rule30LeftAntiPeriod.winCount, h0, h1, h2, h3]
+
+/-- If `c` matches `wordAt w0111 (t - T)` from `T` on, then `c` is 4-periodic from `T` on and its
+4-tick window at `T` has exactly `3` black cells (`winCount c T 4 = 3`). -/
+theorem winCount_four_of_wordAt_0111 {c : Nat → Bool} {T : Nat}
+    (hT : ∀ t, T ≤ t → c t = wordAt w0111 (t - T)) :
+    (∀ t, T ≤ t → c (t + 4) = c t) ∧ Rule30LeftAntiPeriod.winCount c T 4 = 3 := by
+  have hper : ∀ t, T ≤ t → c (t + 4) = c t := by
+    intro t ht
+    rw [hT (t + 4) (by omega), hT t ht, wordAt_0111, wordAt_0111]
+    have hm : (t + 4 - T) % 4 = (t - T) % 4 := by omega
+    rw [hm]
+  refine ⟨hper, ?_⟩
+  have h0 : c T = false := by rw [hT T (by omega), show T - T = 0 by omega]; rfl
+  have h1 : c (T + 1) = true := by rw [hT (T + 1) (by omega), show T + 1 - T = 1 by omega]; rfl
+  have h2 : c (T + 2) = true := by rw [hT (T + 2) (by omega), show T + 2 - T = 2 by omega]; rfl
+  have h3 : c (T + 3) = true := by rw [hT (T + 3) (by omega), show T + 3 - T = 3 by omega]; rfl
+  simp [Rule30LeftAntiPeriod.winCount, h0, h1, h2, h3]
+
+/-- **`Problem2` Excludes `w0001` Without `C3 w0001` (`not_eventually_0001_of_problem2`):**
+under `Rule30Prize.Problem2` (**open**), the center column is never eventually equal to `w0001`
+(since `w0001` has density `1/4 ≠ 1/2`). -/
+theorem not_eventually_0001_of_problem2 (hP2 : Rule30Prize.Problem2) :
+    ¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt w0001 (t - T) := by
+  rintro ⟨T, hT⟩
+  have ⟨hper, hwin⟩ := winCount_four_of_wordAt_0001 (c := Rule30Prize.center) hT
+  have hbal := (Rule30LeftAntiPeriod.periodic_halfDensity_iff_two_mul_winCount_eq
+    (f := Rule30Prize.center) (T := T) (L := 4) (by decide) hper).mp hP2
+  rw [hwin] at hbal
+  omega
+
+/-- **`Problem2` Excludes `w0111` Without `C3 w0111` (`not_eventually_0111_of_problem2`):**
+under `Rule30Prize.Problem2` (**open**), the center column is never eventually equal to `w0111`
+(since `w0111` has density `3/4 ≠ 1/2`). -/
+theorem not_eventually_0111_of_problem2 (hP2 : Rule30Prize.Problem2) :
+    ¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt w0111 (t - T) := by
+  rintro ⟨T, hT⟩
+  have ⟨hper, hwin⟩ := winCount_four_of_wordAt_0111 (c := Rule30Prize.center) hT
+  have hbal := (Rule30LeftAntiPeriod.periodic_halfDensity_iff_two_mul_winCount_eq
+    (f := Rule30Prize.center) (T := T) (L := 4) (by decide) hper).mp hP2
+  rw [hwin] at hbal
+  omega
+
+/-- **Least Period 4 from `Problem2` and `C3 w0011` Alone (`least_period_four_of_problem2_and_C3_0011`):**
+under `Rule30Prize.Problem2` and `C3 w0011` (**both open**, without needing `C3 w0001` or `C3 w0111`),
+the center column is not eventually equal to any of `w0001`, `w0011`, or `w0111`, with any transient. -/
+theorem least_period_four_of_problem2_and_C3_0011
+    (hP2 : Rule30Prize.Problem2) (h0011 : C3 w0011) :
+    (¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt w0001 (t - T)) ∧
+    (¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt w0011 (t - T)) ∧
+    (¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt w0111 (t - T)) :=
+  ⟨not_eventually_0001_of_problem2 hP2, not_eventually_0011_of_C3 h0011, not_eventually_0111_of_problem2 hP2⟩
+
+/-- **Reduction of Eventual Period 4 to Period 2 under `Problem2` and `C3 w0011` Alone
+(`period_two_of_period_four_of_problem2_and_C3_0011`):** under `Rule30Prize.Problem2` and the
+single open hypothesis `C3 w0011` (without `C3 w0001` or `C3 w0111`), any 4-periodic center tail
+from `T` on is already 2-periodic from `T` on. -/
+theorem period_two_of_period_four_of_problem2_and_C3_0011
+    (hP2 : Rule30Prize.Problem2) (h0011 : C3 w0011)
+    {T : Nat} (hper : ∀ t, T ≤ t → cell (t + 4) 0 = cell t 0) :
+    ∀ t, T ≤ t → cell (t + 2) 0 = cell t 0 := by
+  rcases periodic4_normalize (c := fun t => cell t 0) hper with hper2 | ⟨w, T', hw, _, _, htail⟩
+  · exact hper2
+  · rcases hw with rfl | rfl | rfl
+    · exact False.elim (not_eventually_0001_of_problem2 hP2 ⟨T', htail⟩)
+    · exact False.elim (not_eventually_0011_of_C3 h0011 ⟨T', htail⟩)
+    · exact False.elim (not_eventually_0111_of_problem2 hP2 ⟨T', htail⟩)
+
+/-- **Conditional Exclusion of Eventual Period 4 from `Problem2`, No Period 2, and `C3 w0011`
+(`no_period_four_of_problem2_and_no_period_two_and_C3_0011`):** under `Rule30Prize.Problem2`,
+exclusion of eventual period 2, and `C3 w0011` (**all open**), the center column is not eventually
+periodic of period `4`. -/
+theorem no_period_four_of_problem2_and_no_period_two_and_C3_0011
+    (hP2 : Rule30Prize.Problem2)
+    (hno2 : ¬ ∃ T, ∀ t, T ≤ t → cell (t + 2) 0 = cell t 0)
+    (h0011 : C3 w0011) :
+    ¬ ∃ T, ∀ t, T ≤ t → cell (t + 4) 0 = cell t 0 := by
+  rintro ⟨T, hper⟩
+  exact hno2 ⟨T, period_two_of_period_four_of_problem2_and_C3_0011 hP2 h0011 hper⟩
 
 end Rule30PeriodFourSkeleton
 end Ruliology.CellularAutomata
