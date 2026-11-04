@@ -806,5 +806,360 @@ theorem R_subseq_odd_infinitely_many_halfDensity (m r k : Nat) :
   obtain ⟨j, hj, hjb, hanti, _, _⟩ := R_infinitely_many_halfDensity k
   exact ⟨j, hj, hjb, halfDensity_subseq_odd (Nat.two_pow_pos k) ⟨0, fun t _ => hanti t⟩ m r⟩
 
+/-! ## 9. Periodic Window-Balance Characterization, Odd-Period Exclusion, and Core-Lean-4 Progression Bridge to `Problem1` -/
+
+/-- **Left-Endpoint Shift Identity for `winCount` (`winCount_succ_left`):**
+for any sequence `f : Nat → Bool`, start `t : Nat`, and window length `d : Nat`,
+`winCount f t d + (if f (t + d) then 1 else 0) = (if f t then 1 else 0) + winCount f (t + 1) d`. -/
+theorem winCount_succ_left (f : Nat → Bool) (t : Nat) :
+    ∀ d, winCount f t d + (if f (t + d) then 1 else 0) =
+      (if f t then 1 else 0) + winCount f (t + 1) d
+  | 0 => by simp [winCount]
+  | d + 1 => by
+    have ih := winCount_succ_left f t d
+    simp only [winCount]
+    have h1 : t + (d + 1) = t + 1 + d := by omega
+    rw [h1]
+    omega
+
+/-- **One-Step Invariance of `winCount` Under Periodicity (`winCount_step_of_periodic`):**
+if `f (t + L) = f t`, then `winCount f (t + 1) L = winCount f t L`. -/
+theorem winCount_step_of_periodic {f : Nat → Bool} {t L : Nat} (hf : f (t + L) = f t) :
+    winCount f (t + 1) L = winCount f t L := by
+  have h := winCount_succ_left f t L
+  rw [hf] at h
+  omega
+
+/-- **Global Invariance of `winCount` Across a Periodic Tail (`winCount_const_of_periodic`):**
+if `f (s + L) = f s` for all `s ≥ T`, then `winCount f t L = winCount f T L` for all `t ≥ T`. -/
+theorem winCount_const_of_periodic {f : Nat → Bool} {T L : Nat}
+    (hper : ∀ s, T ≤ s → f (s + L) = f s) :
+    ∀ {t : Nat}, T ≤ t → winCount f t L = winCount f T L := by
+  intro t ht
+  obtain ⟨k, rfl⟩ : ∃ k, t = T + k := ⟨t - T, by omega⟩
+  induction k with
+  | zero => rfl
+  | succ k ih =>
+    have hstep : winCount f (T + k + 1) L = winCount f (T + k) L :=
+      winCount_step_of_periodic (hper (T + k) (by omega))
+    rw [← Nat.add_assoc, hstep, ih (by omega)]
+
+/-- **Multi-Period Linear Accumulation of `blackCountFor` (`blackCountFor_add_mul_of_periodic`):**
+if `f (s + L) = f s` for all `s ≥ T`, then for every `m : Nat`,
+`blackCountFor f (T + m * L) = blackCountFor f T + m * winCount f T L`. -/
+theorem blackCountFor_add_mul_of_periodic {f : Nat → Bool} {T L : Nat}
+    (hper : ∀ s, T ≤ s → f (s + L) = f s) (m : Nat) :
+    blackCountFor f (T + m * L) = blackCountFor f T + m * winCount f T L := by
+  induction m with
+  | zero => simp
+  | succ m ih =>
+    have hrew : T + (m + 1) * L = (T + m * L) + L := by
+      rw [Nat.succ_mul, Nat.add_assoc]
+    rw [hrew, blackCountFor_add_eq_winCount, ih,
+      winCount_const_of_periodic hper (by omega : T ≤ T + m * L), Nat.succ_mul]
+    omega
+
+/-- **Necessary Window-Balance Condition for Periodic `HalfDensity`
+(`two_mul_winCount_eq_period_of_periodic_of_halfDensity`):**
+if `f` has period `L > 0` from `T` on and satisfies `HalfDensity f`, then every length-`L` window
+from `T` on contains exactly `L / 2` black cells (`2 * winCount f T L = L`). -/
+theorem two_mul_winCount_eq_period_of_periodic_of_halfDensity {f : Nat → Bool} {T L : Nat}
+    (hL : 0 < L) (hper : ∀ s, T ≤ s → f (s + L) = f s) (hd : HalfDensity f) :
+    2 * winCount f T L = L := by
+  by_cases hne : 2 * winCount f T L = L
+  · exact hne
+  · exfalso
+    obtain ⟨N, hN⟩ := hd (L + 1) (by omega)
+    let m := N + (L + 1) * T + T + 1
+    have hmlt : m * 1 ≤ m * L := Nat.mul_le_mul_left m hL
+    have hn_ge : N ≤ T + m * L := by omega
+    have hbound := hN (T + m * L) hn_ge
+    have hcnt := blackCountFor_add_mul_of_periodic hper m
+    have hmul2 : 2 * (m * winCount f T L) = m * (2 * winCount f T L) :=
+      Nat.mul_left_comm 2 m (winCount f T L)
+    have hbt_le : blackCountFor f T ≤ T := by
+      have hb := (blackCountFor_add_bounds f 0 T).2
+      simpa [blackCountFor] using hb
+    let d := (2 * (blackCountFor f (T + m * L) : Int) - ((T + m * L : Nat) : Int)).natAbs
+    have hd_def : d = (2 * (blackCountFor f (T + m * L) : Int) - ((T + m * L : Nat) : Int)).natAbs := rfl
+    have hbound' : (L + 1) * d ≤ T + m * L := hbound
+    have hm_ge : T ≤ m := by omega
+    have hmd_ge : m - T ≤ d := by
+      rcases Nat.lt_or_gt_of_ne hne with hlt | hgt
+      · have hle : m * (2 * winCount f T L + 1) ≤ m * L := Nat.mul_le_mul_left m (by omega)
+        rw [Nat.left_distrib, Nat.mul_one] at hle
+        omega
+      · have hle : m * (L + 1) ≤ m * (2 * winCount f T L) := Nat.mul_le_mul_left m (by omega)
+        rw [Nat.left_distrib, Nat.mul_one] at hle
+        omega
+    have hmul_d : (L + 1) * (m - T) ≤ (L + 1) * d := Nat.mul_le_mul_left (L + 1) hmd_ge
+    have h1 : (L + 1) * m = m * L + m := by
+      rw [Nat.right_distrib, Nat.one_mul, Nat.mul_comm L m]
+    have h2 : (L + 1) * (m - T) + (L + 1) * T = (L + 1) * m := by
+      rw [← Nat.left_distrib, Nat.sub_add_cancel hm_ge]
+    omega
+
+/-- **Uniform Discrepancy Bound for Balanced Periodic Sequences (`natAbs_discrepancy_le_of_periodic_balanced`):**
+if `f (s + L) = f s` for all `s ≥ T` (`0 < L`) and `2 * winCount f T L = L`, then for all `n ≥ T`,
+`((2 * (blackCountFor f n : Int) - (n : Int)).natAbs) ≤ T + 2 * L`. -/
+theorem natAbs_discrepancy_le_of_periodic_balanced {f : Nat → Bool} {T L : Nat} (hL : 0 < L)
+    (hper : ∀ s, T ≤ s → f (s + L) = f s) (hbal : 2 * winCount f T L = L)
+    {n : Nat} (hn : T ≤ n) :
+    ((2 * (blackCountFor f n : Int) - (n : Int)).natAbs) ≤ T + 2 * L := by
+  let m := (n - T) / L
+  let r := (n - T) % L
+  have hdiv : (n - T) = L * m + r := (Nat.div_add_mod (n - T) L).symm
+  have hr_lt : r < L := Nat.mod_lt (n - T) hL
+  have hn_eq : n = (T + m * L) + r := by
+    have : L * m = m * L := Nat.mul_comm L m
+    omega
+  have hbase : blackCountFor f (T + m * L) = blackCountFor f T + m * winCount f T L :=
+    blackCountFor_add_mul_of_periodic hper m
+  have hb_lo : blackCountFor f (T + m * L) ≤ blackCountFor f n := by
+    rw [hn_eq]
+    exact (blackCountFor_add_bounds f (T + m * L) r).1
+  have hb_hi : blackCountFor f n ≤ blackCountFor f (T + m * L) + r := by
+    rw [hn_eq]
+    exact (blackCountFor_add_bounds f (T + m * L) r).2
+  have hT_hi : blackCountFor f T ≤ T := by
+    have h0 := (blackCountFor_add_bounds f 0 T).2
+    simpa [blackCountFor] using h0
+  have hmL : 2 * (m * winCount f T L) = m * L := by
+    calc 2 * (m * winCount f T L) = m * (2 * winCount f T L) := Nat.mul_left_comm 2 m (winCount f T L)
+    _ = m * L := by rw [hbal]
+  omega
+
+/-- **Sufficient Window-Balance Condition for Periodic `HalfDensity`
+(`halfDensity_of_periodic_of_two_mul_winCount_eq`):**
+if `f` has period `L > 0` from `T` on and `2 * winCount f T L = L`, then `HalfDensity f` holds. -/
+theorem halfDensity_of_periodic_of_two_mul_winCount_eq {f : Nat → Bool} {T L : Nat}
+    (hL : 0 < L) (hper : ∀ s, T ≤ s → f (s + L) = f s) (hbal : 2 * winCount f T L = L) :
+    HalfDensity f := by
+  intro k hk
+  refine ⟨T + k * (T + 2 * L), fun n hn => ?_⟩
+  have hdisc := natAbs_discrepancy_le_of_periodic_balanced hL hper hbal (by omega : T ≤ n)
+  have hmul : k * ((2 * (blackCountFor f n : Int) - (n : Int)).natAbs) ≤ k * (T + 2 * L) :=
+    Nat.mul_le_mul_left k hdisc
+  omega
+
+/-- **Exact Characterization of `HalfDensity` for Periodic Sequences
+(`periodic_halfDensity_iff_two_mul_winCount_eq`):**
+for any sequence `f` with period `L > 0` from `T` on, `HalfDensity f ↔ 2 * winCount f T L = L`. -/
+theorem periodic_halfDensity_iff_two_mul_winCount_eq {f : Nat → Bool} {T L : Nat}
+    (hL : 0 < L) (hper : ∀ s, T ≤ s → f (s + L) = f s) :
+    HalfDensity f ↔ 2 * winCount f T L = L :=
+  ⟨two_mul_winCount_eq_period_of_periodic_of_halfDensity hL hper,
+   halfDensity_of_periodic_of_two_mul_winCount_eq hL hper⟩
+
+/-- **Unconditional Odd-Period Exclusion Under `HalfDensity` (`not_evPer_odd_of_halfDensity`):**
+no sequence `f : Nat → Bool` satisfying `HalfDensity f` can have an odd eventual period `2 * m + 1`. -/
+theorem not_evPer_odd_of_halfDensity {f : Nat → Bool} (hd : HalfDensity f) (m : Nat) :
+    ¬ EvPer f (2 * m + 1) := by
+  rintro ⟨T, hper⟩
+  have hbal := two_mul_winCount_eq_period_of_periodic_of_halfDensity (by omega : 0 < 2 * m + 1) hper hd
+  omega
+
+/-- **Antiperiodic Sequences Exclude All Odd Eventual Periods (`not_evPer_odd_of_evAntiPer`):**
+any sequence `f : Nat → Bool` that is eventually `L`-antiperiodic (`0 < L`) cannot have any odd
+eventual period `2 * m + 1`. -/
+theorem not_evPer_odd_of_evAntiPer {f : Nat → Bool} {L : Nat} (hL : 0 < L)
+    (hanti : EvAntiPer f L) (m : Nat) :
+    ¬ EvPer f (2 * m + 1) :=
+  not_evPer_odd_of_halfDensity (halfDensity_of_antiperiodic hL hanti) m
+
+/-- **No Eventually Constant Sequence Has `HalfDensity` (`not_evConstant_of_halfDensity`):**
+if `HalfDensity f` holds, then `f` is not eventually constant (`¬ EvPer f 1`) and in particular
+not eventually white (`¬ EvWhite f`). -/
+theorem not_evConstant_of_halfDensity {f : Nat → Bool} (hd : HalfDensity f) :
+    ¬ EvPer f 1 ∧ ¬ EvWhite f := by
+  have hnot1 : ¬ EvPer f 1 := by simpa using not_evPer_odd_of_halfDensity hd 0
+  refine ⟨hnot1, ?_⟩
+  rintro ⟨T, hw⟩
+  exact hnot1 ⟨T, fun t ht => by rw [hw (t + 1) (by omega), hw t ht]⟩
+
+/-- **`Problem2` Unconditionally Excludes All Odd Eventual Periods of `center`
+(`center_not_evPer_odd_of_problem2`):**
+under `Problem2` (`HalfDensity center`), the Rule 30 center column has no odd eventual period
+`2 * m + 1` for any `m : Nat`. -/
+theorem center_not_evPer_odd_of_problem2 (hP2 : Problem2) (m : Nat) :
+    ¬ EvPer center (2 * m + 1) :=
+  not_evPer_odd_of_halfDensity (halfDensity_center_iff.mpr hP2) m
+
+/-- **Eventual Periodicity Forces Every Arithmetic Subsequence of Stride `L` to Be Eventually Constant
+(`evPer_one_subseq_of_evPer`):**
+if `EvPer f L` holds (`0 < L`), then for every phase `r : Nat`, the stride-`L` arithmetic progression
+`subseq f L r` has eventual period `1` (`EvPer (subseq f L r) 1`). -/
+theorem evPer_one_subseq_of_evPer {f : Nat → Bool} {L : Nat} (hL : 0 < L)
+    (hper : EvPer f L) (r : Nat) :
+    EvPer (subseq f L r) 1 := by
+  obtain ⟨T, hT⟩ := hper
+  refine ⟨T, fun k hk => ?_⟩
+  simp only [subseq]
+  have h1 : r + (k + 1) * L = (r + k * L) + L := by
+    rw [Nat.succ_mul, Nat.add_assoc]
+  have hge : T ≤ r + k * L := by
+    have : k * 1 ≤ k * L := Nat.mul_le_mul_left k hL
+    omega
+  rw [h1, hT (r + k * L) hge]
+
+/-- **Subsequence `HalfDensity` Excludes Eventual Period `L` (`not_evPer_of_subseq_halfDensity`):**
+if `0 < L` and there exists a phase `r : Nat` such that `HalfDensity (subseq f L r)` holds, then
+`¬ EvPer f L`. -/
+theorem not_evPer_of_subseq_halfDensity {f : Nat → Bool} {L : Nat} (hL : 0 < L)
+    {r : Nat} (hd : HalfDensity (subseq f L r)) :
+    ¬ EvPer f L := by
+  intro hper
+  exact (not_evConstant_of_halfDensity hd).1 (evPer_one_subseq_of_evPer hL hper r)
+
+/-- **Core-Lean-4 Progression-Density Bridge to `Problem1` (`problem1_of_subseq_halfDensity`):**
+if for every positive stride `L > 0` there is a phase `r : Nat` such that `subseq center L r`
+has asymptotic density `1/2` (`HalfDensity`), then `Problem1` (`¬ eventuallyPeriodic center`) holds.
+This is the pure core-Lean-4 (Mathlib-free) proof of the progression-density reduction in
+`Rule30Equivalents.ProblemTwo.problem1_of_density_on_progressions`. -/
+theorem problem1_of_subseq_halfDensity
+    (hprog : ∀ L, 0 < L → ∃ r, HalfDensity (subseq center L r)) :
+    Problem1 := by
+  rintro ⟨T₀, L, hL, hT₀⟩
+  obtain ⟨r, hd⟩ := hprog L hL
+  exact not_evPer_of_subseq_halfDensity hL hd ⟨T₀, hT₀⟩
+
+/-- **Sharpened Even-Progression Bridge from `Problem2` to `Problem1`
+(`problem1_of_problem2_and_even_subseq_halfDensity`):**
+because `Problem2` (`HalfDensity center`) already excludes all odd periods `2 * m + 1`, `Problem2`
+together with `HalfDensity (subseq center (2 * m) r)` on positive even strides `2 * m` (`m > 0`)
+alone implies `Problem1`. This sharpens the core-Lean-4 progression reduction of
+`Rule30Equivalents.ProblemTwo.problem1_of_density_on_progressions` from all positive strides to even strides. -/
+theorem problem1_of_problem2_and_even_subseq_halfDensity (hP2 : Problem2)
+    (heven : ∀ m, 0 < m → ∃ r, HalfDensity (subseq center (2 * m) r)) :
+    Problem1 := by
+  rintro ⟨T₀, L, hL, hT₀⟩
+  have hper : EvPer center L := ⟨T₀, hT₀⟩
+  rcases Nat.mod_two_eq_zero_or_one L with hmod0 | hmod1
+  · have hm : 0 < L / 2 := by omega
+    have hL_eq : L = 2 * (L / 2) := by omega
+    rw [hL_eq] at hper
+    obtain ⟨r, hd⟩ := heven (L / 2) hm
+    exact not_evPer_of_subseq_halfDensity (by omega : 0 < 2 * (L / 2)) hd hper
+  · have hL_eq : L = 2 * (L / 2) + 1 := by omega
+    rw [hL_eq] at hper
+    exact center_not_evPer_odd_of_problem2 hP2 (L / 2) hper
+
+/-- **Prefix-Count Identity for a Shifted Sequence (`blackCountFor_shift_eq`):**
+for any sequence `f : Nat → Bool`, shift `s : Nat`, and length `n : Nat`,
+`blackCountFor (fun t => f (s + t)) n = winCount f s n`. -/
+theorem blackCountFor_shift_eq (f : Nat → Bool) (s : Nat) :
+    ∀ n, blackCountFor (fun t => f (s + t)) n = winCount f s n
+  | 0 => rfl
+  | n + 1 => by
+    rw [blackCountFor_succ, blackCountFor_shift_eq f s n]
+    rfl
+
+/-- **Shift Invariance of `HalfDensity` (`halfDensity_shift_iff`):**
+for any sequence `f : Nat → Bool` and shift `s : Nat`,
+`HalfDensity (fun t => f (s + t)) ↔ HalfDensity f`. -/
+theorem halfDensity_shift_iff (f : Nat → Bool) (s : Nat) :
+    HalfDensity (fun t => f (s + t)) ↔ HalfDensity f := by
+  have h_bs : blackCountFor f s ≤ s := by
+    have hb := (blackCountFor_add_bounds f 0 s).2
+    simpa [blackCountFor] using hb
+  constructor
+  · intro hshift k hk
+    obtain ⟨N, hN⟩ := hshift (2 * k) (by omega)
+    refine ⟨s + N + 2 * k * s, fun n hn => ?_⟩
+    have h_add := blackCountFor_add_eq_winCount f s (n - s)
+    have hn_eq : s + (n - s) = n := by omega
+    rw [hn_eq] at h_add
+    have h_sh := blackCountFor_shift_eq f s (n - s)
+    have hbound := hN (n - s) (by omega)
+    let d_sh := (2 * (blackCountFor (fun t => f (s + t)) (n - s) : Int) - ((n - s : Nat) : Int)).natAbs
+    let d_f := (2 * (blackCountFor f n : Int) - (n : Int)).natAbs
+    have hd_le : d_f ≤ d_sh + s := by omega
+    have hmul : 2 * k * d_f ≤ 2 * k * d_sh + 2 * k * s := by
+      calc 2 * k * d_f ≤ 2 * k * (d_sh + s) := Nat.mul_le_mul_left (2 * k) hd_le
+      _ = 2 * k * d_sh + 2 * k * s := Nat.left_distrib (2 * k) d_sh s
+    have hbound' : 2 * k * d_sh ≤ n - s := hbound
+    have h2kd : 2 * (k * d_f) = 2 * k * d_f := (Nat.mul_assoc 2 k d_f).symm
+    change k * d_f ≤ n
+    omega
+  · intro hf k hk
+    obtain ⟨N, hN⟩ := hf (2 * k) (by omega)
+    refine ⟨N + 2 * k * s + s, fun n hn => ?_⟩
+    have h_add := blackCountFor_add_eq_winCount f s n
+    have h_sh := blackCountFor_shift_eq f s n
+    have hbound := hN (s + n) (by omega)
+    let d_sh := (2 * (blackCountFor (fun t => f (s + t)) n : Int) - (n : Int)).natAbs
+    let d_f := (2 * (blackCountFor f (s + n) : Int) - ((s + n : Nat) : Int)).natAbs
+    have hd_le : d_sh ≤ d_f + s := by omega
+    have hmul : 2 * k * d_sh ≤ 2 * k * d_f + 2 * k * s := by
+      calc 2 * k * d_sh ≤ 2 * k * (d_f + s) := Nat.mul_le_mul_left (2 * k) hd_le
+      _ = 2 * k * d_f + 2 * k * s := Nat.left_distrib (2 * k) d_f s
+    have hbound' : 2 * k * d_f ≤ s + n := hbound
+    have h2kd : 2 * (k * d_sh) = 2 * k * d_sh := (Nat.mul_assoc 2 k d_sh).symm
+    change k * d_sh ≤ n
+    omega
+
+/-- **Stride-Multiple Phase Translation Invariance for `subseq` (`halfDensity_subseq_add_mul_iff`):**
+shifting the phase `r` of an arithmetic subsequence `subseq f L r` by any multiple `q * L` of the
+stride `L` shifts the subsequence by `q` indices and therefore preserves `HalfDensity`. -/
+theorem halfDensity_subseq_add_mul_iff (f : Nat → Bool) (L r q : Nat) :
+    HalfDensity (subseq f L (r + q * L)) ↔ HalfDensity (subseq f L r) := by
+  have hfun : subseq f L (r + q * L) = fun k => subseq f L r (q + k) := by
+    funext k
+    simp only [subseq]
+    rw [Nat.right_distrib, ← Nat.add_assoc]
+  rw [hfun]
+  exact halfDensity_shift_iff (subseq f L r) q
+
+/-- **Modulo-`L` Canonical Residue Reduction for `subseq` (`halfDensity_subseq_mod_iff`):**
+for any stride `L` and phase `r : Nat`, `HalfDensity (subseq f L r) ↔ HalfDensity (subseq f L (r % L))`. -/
+theorem halfDensity_subseq_mod_iff (f : Nat → Bool) (L r : Nat) :
+    HalfDensity (subseq f L r) ↔ HalfDensity (subseq f L (r % L)) := by
+  have hdiv : r = r % L + (r / L) * L := by
+    have h := (Nat.div_add_mod r L).symm
+    rw [Nat.mul_comm L (r / L), Nat.add_comm] at h
+    exact h
+  conv => lhs; rw [hdiv]
+  exact halfDensity_subseq_add_mul_iff f L (r % L) (r / L)
+
+/-- **Canonical Bounded-Residue Progression Bridge to `Problem1` (`problem1_of_subseq_halfDensity_lt`):**
+if for every positive stride `L > 0` there is a canonical residue `r < L` such that
+`HalfDensity (subseq center L r)` holds, then `Problem1` (`¬ eventuallyPeriodic center`) holds.
+This is the bounded-residue core-Lean-4 form of `Rule30Equivalents.ProblemTwo.problem1_of_density_on_progressions`. -/
+theorem problem1_of_subseq_halfDensity_lt
+    (hprog : ∀ L, 0 < L → ∃ r, r < L ∧ HalfDensity (subseq center L r)) :
+    Problem1 :=
+  problem1_of_subseq_halfDensity (fun L hL => by
+    obtain ⟨r, _, hd⟩ := hprog L hL
+    exact ⟨r, hd⟩)
+
+/-- **Canonical Bounded-Residue Even-Progression Bridge from `Problem2` to `Problem1`
+(`problem1_of_problem2_and_even_subseq_halfDensity_lt`):**
+under `Problem2`, if for every `m > 0` there exists a canonical residue `r < 2 * m` such that
+`HalfDensity (subseq center (2 * m) r)` holds, then `Problem1` holds. -/
+theorem problem1_of_problem2_and_even_subseq_halfDensity_lt (hP2 : Problem2)
+    (heven : ∀ m, 0 < m → ∃ r, r < 2 * m ∧ HalfDensity (subseq center (2 * m) r)) :
+    Problem1 :=
+  problem1_of_problem2_and_even_subseq_halfDensity hP2 (fun m hm => by
+    obtain ⟨r, _, hd⟩ := heven m hm
+    exact ⟨r, hd⟩)
+
+/-- **Infinitely Many Left Diagonals simultaneously Satisfy `HalfDensity` and Exclude All Odd Periods
+(`D_infinitely_many_not_evPer_odd`):**
+for every `N : Nat`, there exists a left diagonal `j ≥ N` such that `D j` satisfies `HalfDensity (D j)`
+and has no odd eventual period `2 * m + 1` for any `m : Nat`. -/
+theorem D_infinitely_many_not_evPer_odd (N : Nat) :
+    ∃ j, N ≤ j ∧ HalfDensity (D j) ∧ ∀ m, ¬ EvPer (D j) (2 * m + 1) := by
+  obtain ⟨j, hj, _, _, _, hd⟩ := D_infinitely_many_halfDensity N
+  exact ⟨j, by omega, hd, not_evPer_odd_of_halfDensity hd⟩
+
+/-- **Infinitely Many Right Diagonals Simultaneously Satisfy `HalfDensity` and Exclude All Odd Periods
+(`R_infinitely_many_not_evPer_odd`):**
+for every `k : Nat`, there exists a right diagonal `j` (`k < j ≤ 2 ^ (k + 1) - 1`) such that `R j`
+satisfies `HalfDensity (R j)` and has no odd eventual period `2 * m + 1` for any `m : Nat`. -/
+theorem R_infinitely_many_not_evPer_odd (k : Nat) :
+    ∃ j, k < j ∧ j ≤ 2 ^ (k + 1) - 1 ∧ HalfDensity (R j) ∧ ∀ m, ¬ EvPer (R j) (2 * m + 1) := by
+  obtain ⟨j, hkj, hjb, _, _, hd⟩ := R_infinitely_many_halfDensity k
+  exact ⟨j, hkj, hjb, hd, not_evPer_odd_of_halfDensity hd⟩
+
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
