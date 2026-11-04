@@ -528,6 +528,151 @@ theorem center_run_margins_effective3 (m : Nat) (hm : 1 ≤ m) (a L : Nat)
     have : 2 ^ m ≤ 2 ^ (m + 1) := Nat.pow_le_pow_right (by decide) (by omega)
     omega)) ha
 
+/-! ### Exact `whiteCount` Witnesses and Sub-Linear Window Existence of Both Center Colors -/
+
+/-- **Predecessor `whiteCount` at an Eventually White Diagonal (`whiteCount_pred_of_evWhite`):**
+if `1 ≤ w` and `EvWhite (D w)`, then `Rule30LeftReset.whiteCount w = Rule30LeftReset.whiteCount (w - 1) + 1`. -/
+theorem whiteCount_pred_of_evWhite {w : Nat} (hw0 : 1 ≤ w) (hw : EvWhite (D w)) :
+    Rule30LeftReset.whiteCount w = Rule30LeftReset.whiteCount (w - 1) + 1 := by
+  obtain ⟨w', rfl⟩ : ∃ w', w = w' + 1 := ⟨w - 1, by omega⟩
+  simp [Rule30LeftReset.whiteCount, hw]
+
+/-- **Exact Bounded Witness for Every `whiteCount` Level (`exists_exact_whiteCount_settled`):** for
+every `N : Nat`, there exists a left diagonal `w` with `N + 1 ≤ w ≤ 2 ^ (2 * 2 ^ N)` such that
+`EvWhite (D w)`, `Rule30LeftReset.whiteCount w = N + 1`, `∀ j < w, Rule30LeftReset.whiteCount j ≤ N`,
+and `frontBound w ≤ 1 + w * 2 ^ N`. -/
+theorem exists_exact_whiteCount_settled (N : Nat) :
+    ∃ w, N + 1 ≤ w ∧ w ≤ 2 ^ (2 * 2 ^ N) ∧ EvWhite (D w) ∧
+      Rule30LeftReset.whiteCount w = N + 1 ∧
+      (∀ j, j < w → Rule30LeftReset.whiteCount j ≤ N) ∧
+      frontBound w ≤ 1 + w * 2 ^ N := by
+  obtain ⟨d, hd, hc⟩ := whiteCount_witness N
+  obtain ⟨w, hwd, hww, hcw⟩ := exists_white_at_count d N hc
+  have hle : N + 1 ≤ w := by
+    have := wc_le_self w
+    omega
+  have hpred : Rule30LeftReset.whiteCount (w - 1) = N := by
+    have hp := whiteCount_pred_of_evWhite (by omega) hww
+    omega
+  have hjle : ∀ j, j < w → Rule30LeftReset.whiteCount j ≤ N := by
+    intro j hj
+    have hm := wc_mono (show j ≤ w - 1 by omega)
+    omega
+  exact ⟨w, hle, by omega, hww, hcw, hjle, frontBound_le_of_whiteCount_le hjle⟩
+
+/-- **Decidability of Bounded All-True Windows (`dec_all_center_true`):** for every `a, L : Nat`,
+`(∀ i, i < L → center (a + i) = true) ∨ (∃ i, i < L ∧ center (a + i) = false)`. -/
+theorem dec_all_center_true (a : Nat) :
+    ∀ L : Nat, (∀ i, i < L → center (a + i) = true) ∨ (∃ i, i < L ∧ center (a + i) = false)
+  | 0 => Or.inl (fun _ hi => by omega)
+  | L + 1 => by
+    rcases dec_all_center_true a L with hall | ⟨i, hi, hfalse⟩
+    · cases hc : center (a + L)
+      · exact Or.inr ⟨L, by omega, hc⟩
+      · refine Or.inl (fun i hi => ?_)
+        rcases Nat.eq_or_lt_of_le (Nat.le_of_lt_succ hi) with rfl | hlt
+        · exact hc
+        · exact hall i hlt
+    · exact Or.inr ⟨i, by omega, hfalse⟩
+
+/-- **Decidability of Bounded All-False Windows (`dec_all_center_false`):** for every `a, L : Nat`,
+`(∀ i, i < L → center (a + i) = false) ∨ (∃ i, i < L ∧ center (a + i) = true)`. -/
+theorem dec_all_center_false (a : Nat) :
+    ∀ L : Nat, (∀ i, i < L → center (a + i) = false) ∨ (∃ i, i < L ∧ center (a + i) = true)
+  | 0 => Or.inl (fun _ hi => by omega)
+  | L + 1 => by
+    rcases dec_all_center_false a L with hall | ⟨i, hi, htrue⟩
+    · cases hc : center (a + L)
+      · refine Or.inl (fun i hi => ?_)
+        rcases Nat.eq_or_lt_of_le (Nat.le_of_lt_succ hi) with rfl | hlt
+        · exact hc
+        · exact hall i hlt
+      · exact Or.inr ⟨L, by omega, hc⟩
+    · exact Or.inr ⟨i, by omega, htrue⟩
+
+/-- **Effective Sub-Linear Window Existence of a White Center Cell (`exists_white_in_window_effective`):**
+for `1 ≤ m`, `2 ^ (2 ^ m + m) ≤ a`, and `3 * a + 18 < 5 * L + 3 * m`, the center window
+`[a, a + L)` contains a white cell (`center (a + i) = false`). -/
+theorem exists_white_in_window_effective (m : Nat) (hm : 1 ≤ m) (a L : Nat)
+    (ha : 2 ^ (2 ^ m + m) ≤ a) (hL : 3 * a + 18 < 5 * L + 3 * m) :
+    ∃ i, i < L ∧ center (a + i) = false := by
+  rcases dec_all_center_true a L with hall | hex
+  · have hb := black_run_effective m hm a L ha hall
+    omega
+  · exact hex
+
+/-- **Log-Log Sub-Linear Window Existence of a White Center Cell (`exists_white_in_window_loglog`):**
+for `16 ≤ a` and `3 * a + 21 < 5 * L + 3 * Nat.log2 (Nat.log2 a)`, the center window `[a, a + L)`
+contains a white cell (`center (a + i) = false`). -/
+theorem exists_white_in_window_loglog (a L : Nat) (ha : 16 ≤ a)
+    (hL : 3 * a + 21 < 5 * L + 3 * Nat.log2 (Nat.log2 a)) :
+    ∃ i, i < L ∧ center (a + i) = false := by
+  rcases dec_all_center_true a L with hall | hex
+  · have hb := black_run_loglog a L ha hall
+    omega
+  · exact hex
+
+/-- **Effective Window Existence of a Black Center Cell (`exists_black_in_window_effective`):**
+for `1 ≤ m`, `2 ^ (2 ^ (m + 1) + m + 3) ≤ a`, and `a < L + m`, the center window `[a, a + L)`
+contains a black cell (`center (a + i) = true`). -/
+theorem exists_black_in_window_effective (m : Nat) (hm : 1 ≤ m) (a L : Nat)
+    (ha : 2 ^ (2 ^ (m + 1) + m + 3) ≤ a) (hL : a < L + m) :
+    ∃ i, i < L ∧ center (a + i) = true := by
+  rcases dec_all_center_false a L with hall | hex
+  · have hw := white_run_effective m hm a L ha hall
+    omega
+  · exact hex
+
+/-- **Log-Log Window Existence of a Black Center Cell (`exists_black_in_window_loglog`):**
+for `256 ≤ a` and `a + 2 < L + Nat.log2 (Nat.log2 a)`, the center window `[a, a + L)` contains a
+black cell (`center (a + i) = true`). -/
+theorem exists_black_in_window_loglog (a L : Nat) (ha : 256 ≤ a)
+    (hL : a + 2 < L + Nat.log2 (Nat.log2 a)) :
+    ∃ i, i < L ∧ center (a + i) = true := by
+  rcases dec_all_center_false a L with hall | hex
+  · have hw := white_run_loglog a L ha hall
+    omega
+  · exact hex
+
+/-- **Simultaneous Existence of Both Center Colors in Sub-Linear Windows (`exists_both_colors_in_window_effective`):**
+for `1 ≤ m`, `2 ^ (2 ^ (m + 1) + m + 3) ≤ a`, and `a < L + m`, the center window `[a, a + L)`
+contains both a white cell and a black cell. -/
+theorem exists_both_colors_in_window_effective (m : Nat) (hm : 1 ≤ m) (a L : Nat)
+    (ha : 2 ^ (2 ^ (m + 1) + m + 3) ≤ a) (hL : a < L + m) :
+    (∃ i, i < L ∧ center (a + i) = false) ∧ (∃ j, j < L ∧ center (a + j) = true) := by
+  have hm2 : 2 ^ m ≤ 2 ^ (m + 1) := Nat.pow_le_pow_right (by decide) (by omega)
+  have ha' : 2 ^ (2 ^ m + m) ≤ a :=
+    Nat.le_trans (Nat.pow_le_pow_right (by decide) (by omega)) ha
+  have hm4 : 4 ≤ 2 ^ (m + 1) := by
+    have : 2 ^ 2 ≤ 2 ^ (m + 1) := Nat.pow_le_pow_right (by decide) (by omega)
+    omega
+  have hm_lt : m + 7 < 2 ^ (2 ^ (m + 1) + m + 3) :=
+    Nat.lt_of_le_of_lt (by omega) (@Nat.lt_two_pow_self (2 ^ (m + 1) + m + 3))
+  exact ⟨exists_white_in_window_effective m hm a L ha' (by omega),
+    exists_black_in_window_effective m hm a L ha hL⟩
+
+/-- **Log-Log Simultaneous Existence of Both Center Colors (`exists_both_colors_in_window_loglog`):**
+for `256 ≤ a` and `a + 2 < L + Nat.log2 (Nat.log2 a)`, the center window `[a, a + L)` contains both
+a white cell and a black cell. -/
+theorem exists_both_colors_in_window_loglog (a L : Nat) (ha : 256 ≤ a)
+    (hL : a + 2 < L + Nat.log2 (Nat.log2 a)) :
+    (∃ i, i < L ∧ center (a + i) = false) ∧ (∃ j, j < L ∧ center (a + j) = true) := by
+  have hpow : 2 ^ Nat.log2 a ≤ a := (Nat.le_log2 (by omega)).1 (Nat.le_refl _)
+  have h2k : ∀ k : Nat, 2 * k ≤ 2 ^ k := by
+    intro k
+    induction k with
+    | zero => decide
+    | succ k ih =>
+      rcases k with _ | k
+      · decide
+      · rw [Nat.pow_succ]
+        have : 2 ^ 1 ≤ 2 ^ (k + 1) := Nat.pow_le_pow_right (by decide : 0 < 2) (by omega)
+        omega
+  have hk := h2k (Nat.log2 a)
+  have hl2 : Nat.log2 (Nat.log2 a) ≤ Nat.log2 a := Nat.log2_le_self (Nat.log2 a)
+  exact ⟨exists_white_in_window_loglog a L (by omega) (by omega),
+    exists_black_in_window_loglog a L ha hL⟩
+
 end V3
 
 end Ruliology.CellularAutomata.Rule30SettledBarrierEffective
