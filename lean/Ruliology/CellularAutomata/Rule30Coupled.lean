@@ -1,5 +1,6 @@
 module
 
+public import Ruliology.CellularAutomata.Rule30LeftAntiPeriod
 public import Ruliology.CellularAutomata.Rule30FiniteConfigs
 
 /-!
@@ -328,6 +329,101 @@ theorem problem1_of_canonical_CQ
     Rule30Prize.Problem1 :=
   problem1_of_nonconstant_CQ (fun _ ⟨_, hP, hper⟩ ⟨t₀, ht₀⟩ hw =>
     CQ_of_canonical_CQ h hP t₀ hper ht₀ hw)
+
+/-! ### Reduction of `Problem1` under `Problem2` to Balanced Even-Period Coupled Questions -/
+
+/-- Window-count invariance under time shift for purely `L`-periodic sequences
+(`winCount_shift_of_periodic`): if `∀ t, ω (t + L) = ω t`, then
+`Rule30LeftAntiPeriod.winCount (fun t => ω (t + k)) 0 L = Rule30LeftAntiPeriod.winCount ω 0 L`. -/
+theorem winCount_shift_of_periodic {ω : Nat → Bool} {L : Nat}
+    (hper : ∀ t, ω (t + L) = ω t) (k : Nat) :
+    Rule30LeftAntiPeriod.winCount (fun t => ω (t + k)) 0 L =
+      Rule30LeftAntiPeriod.winCount ω 0 L := by
+  have heq : ∀ d, Rule30LeftAntiPeriod.winCount (fun t => ω (t + k)) 0 d =
+      Rule30LeftAntiPeriod.winCount ω k d := by
+    intro d
+    induction d with
+    | zero => rfl
+    | succ d ih =>
+      simp only [Rule30LeftAntiPeriod.winCount, ih, Nat.zero_add]
+      rw [Nat.add_comm d k]
+  rw [heq L]
+  exact Rule30LeftAntiPeriod.winCount_const_of_periodic (T := 0) (fun t _ => hper t) (by omega)
+
+/-- **Balanced Even-Period Coupled Reduction of `Problem1` under `Problem2`
+(`problem1_of_problem2_and_balanced_even_CQ`):** under `Rule30Prize.Problem2` (**open**), to prove
+`Rule30Prize.Problem1` it suffices to establish `CQ ω` for every `(2 * m)`-periodic sequence `ω`
+(`0 < m`) that is exactly half-balanced on its period window
+(`Rule30LeftAntiPeriod.winCount ω 0 (2 * m) = m`). -/
+theorem problem1_of_problem2_and_balanced_even_CQ
+    (hP2 : Rule30Prize.Problem2)
+    (hCQ : ∀ (m : Nat) (ω : Nat → Bool), 0 < m →
+      (∀ t, ω (t + 2 * m) = ω t) →
+      Rule30LeftAntiPeriod.winCount ω 0 (2 * m) = m → CQ ω) :
+    Rule30Prize.Problem1 := by
+  rintro ⟨T, P, hP, hper⟩
+  let ω : Nat → Bool := fun t => Rule30Prize.center (T + t)
+  have hper_ω : ∀ t, ω (t + P) = ω t := fun t => by
+    show Rule30Prize.center (T + (t + P)) = Rule30Prize.center (T + t)
+    rw [show T + (t + P) = (T + t) + P by omega]
+    exact hper (T + t) (by omega)
+  have hhd_ω : Rule30LeftAntiPeriod.HalfDensity ω :=
+    (Rule30LeftAntiPeriod.halfDensity_shift_iff Rule30Prize.center T).mpr hP2
+  have hbal : 2 * Rule30LeftAntiPeriod.winCount ω 0 P = P :=
+    (Rule30LeftAntiPeriod.periodic_halfDensity_iff_two_mul_winCount_eq
+      (f := ω) (T := 0) (L := P) hP (fun t _ => hper_ω t)).mp hhd_ω
+  let m := Rule30LeftAntiPeriod.winCount ω 0 P
+  have hm_pos : 0 < m := by omega
+  have hP_eq : P = 2 * m := by omega
+  have hper_2m : ∀ t, ω (t + 2 * m) = ω t := by
+    intro t; rw [← hP_eq]; exact hper_ω t
+  have hwin_2m : Rule30LeftAntiPeriod.winCount ω 0 (2 * m) = m := by
+    rw [← hP_eq]
+  have hC : CQ ω := hCQ m ω hm_pos hper_2m hwin_2m
+  rw [CQ_iff_no_finite_config] at hC
+  have hs : FinConfig seed := ⟨0, fun p hp => by
+    show decide (p = 0) = false
+    simp; omega⟩
+  refine hC ⟨fun p => evol seed T p, evol_finConfig hs T, fun t => ?_⟩
+  rw [Rule30ZeroBoundaryBarriers.evol_restart seed T t 0]
+  exact evol_seed (T + t) 0
+
+/-- **Canonical Phase-Anchored Balanced Even-Period Reduction under `Problem2`
+(`problem1_of_problem2_and_canonical_balanced_even_CQ`):** under `Rule30Prize.Problem2` (**open**),
+to prove `Rule30Prize.Problem1` it suffices to establish `CQ ω` for every `(2 * m)`-periodic
+sequence `ω` (`0 < m`) anchored with a black cell at `t = 0` (`ω 0 = true`) that satisfies
+`Rule30LeftAntiPeriod.winCount ω 0 (2 * m) = m`. -/
+theorem problem1_of_problem2_and_canonical_balanced_even_CQ
+    (hP2 : Rule30Prize.Problem2)
+    (hCQ : ∀ (m : Nat) (ω : Nat → Bool), 0 < m →
+      (∀ t, ω (t + 2 * m) = ω t) →
+      ω 0 = true →
+      Rule30LeftAntiPeriod.winCount ω 0 (2 * m) = m → CQ ω) :
+    Rule30Prize.Problem1 := by
+  refine problem1_of_problem2_and_balanced_even_CQ hP2 (fun m ω hm hper hwin => ?_)
+  have hblack : ∃ k, ω k = true := by
+    refine Classical.byContradiction fun hno => ?_
+    have hall : ∀ t, ω t = false := fun t => by
+      cases hω : ω t
+      · rfl
+      · exact False.elim (hno ⟨t, hω⟩)
+    have hzero : ∀ d, Rule30LeftAntiPeriod.winCount ω 0 d = 0 := by
+      intro d
+      induction d with
+      | zero => rfl
+      | succ d ih => simp [Rule30LeftAntiPeriod.winCount, ih, hall d]
+    have hm0 : m = 0 := by rw [← hwin, hzero (2 * m)]
+    omega
+  obtain ⟨k, hk⟩ := hblack
+  have hper_k : ∀ t, (fun s => ω (s + k)) (t + 2 * m) = (fun s => ω (s + k)) t := fun t => by
+    show ω (t + 2 * m + k) = ω (t + k)
+    rw [show t + 2 * m + k = (t + k) + 2 * m by omega, hper (t + k)]
+  have hwin_k : Rule30LeftAntiPeriod.winCount (fun s => ω (s + k)) 0 (2 * m) = m := by
+    rw [winCount_shift_of_periodic hper k, hwin]
+  have h0_k : (fun s => ω (s + k)) 0 = true := by
+    show ω (0 + k) = true
+    rwa [Nat.zero_add]
+  exact CQ_of_CQ_shift k (hCQ m (fun s => ω (s + k)) hm hper_k h0_k hwin_k)
 
 end Rule30Coupled
 end Ruliology.CellularAutomata
