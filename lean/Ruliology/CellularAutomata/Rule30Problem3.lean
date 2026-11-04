@@ -302,5 +302,154 @@ theorem no_bounded_time_of_problem3Robust (h : Problem3Robust) (M : Machine) (B 
   intro hM
   exact h ⟨M, fun _ => B, hM, fun k => ⟨B ^ k, fun _ hn => hn⟩⟩
 
+/-! ### Parity-Dispatch Combinator, 1-Step Locality Characterization, and Unconditional 1-Step Exclusion for `center` -/
+
+/-- **One-Step Parity-Dispatch Machine (`iteLowBitMachine`):** given two Boolean answers `b₀, b₁`,
+halts in 1 step with `b₁` when cell `0` holds symbol `2` (`n % 2 == 1`) and `b₀` otherwise. -/
+def iteLowBitMachine (b₀ b₁ : Bool) : Machine where
+  q := 0
+  s := 0
+  δ := fun _ a => .inl (if a.val == 2 then b₁ else b₀)
+
+/-- **One-Step Evaluation of `iteLowBitMachine` (`computes_ite_lowBit`):** for any `b₀, b₁ : Bool`,
+`iteLowBitMachine b₀ b₁` computes `fun n => if n % 2 == 1 then b₁ else b₀` in 1 step on all inputs. -/
+theorem computes_ite_lowBit (b₀ b₁ : Bool) :
+    Computes (iteLowBitMachine b₀ b₁) (fun n => if n % 2 == 1 then b₁ else b₀) fun _ => 1 := by
+  intro n
+  have h1 : (1 ≤ n) = (n ≠ 0) := propext (by omega)
+  rcases Nat.mod_two_eq_zero_or_one n with h2 | h2 <;>
+    simp [Machine.run, Cfg.step, iteLowBitMachine, Machine.init, Nat.testBit_zero, h1, h2] <;>
+    split <;> simp_all
+
+/-- **Initial Cell-0 Agreement for Positive Inputs of Equal Parity (`init_tape_zero_eq_of_pos_of_mod_two_eq`):**
+for any machine `M` and positive inputs `m, n ≥ 1` with `m % 2 = n % 2`, the initial symbol at head
+position `0` is identical: `(M.init m).tape 0 = (M.init n).tape 0`. -/
+theorem init_tape_zero_of_pos (M : Machine) {n : Nat} (hn : 1 ≤ n) :
+    (M.init n).tape 0 = if n % 2 == 1 then ⟨2, by omega⟩ else ⟨1, by omega⟩ := by
+  simp [Machine.init, Nat.testBit_zero, hn]
+
+/-- **Initial Cell-0 Agreement for Positive Inputs of Equal Parity (`init_tape_zero_eq_of_pos_of_mod_two_eq`):**
+for any machine `M` and positive inputs `m, n ≥ 1` with `m % 2 = n % 2`, the initial symbol at head
+position `0` is identical: `(M.init m).tape 0 = (M.init n).tape 0`. -/
+theorem init_tape_zero_eq_of_pos_of_mod_two_eq (M : Machine) {m n : Nat}
+    (hm : 1 ≤ m) (hn : 1 ≤ n) (hmod : m % 2 = n % 2) :
+    (M.init m).tape 0 = (M.init n).tape 0 := by
+  rw [init_tape_zero_of_pos M hm, init_tape_zero_of_pos M hn, hmod]
+
+/-- **One-Step Transition Dichotomy (`run_one_eq_inl_iff`):** for any machine `M`, input `n : Nat`,
+and answer `b : Bool`, `M.run n 1 = .inl b` if and only if `M.δ ⟨0, Nat.succ_pos _⟩ ((M.init n).tape 0) = .inl b`. -/
+theorem run_one_eq_inl_iff (M : Machine) (n : Nat) (b : Bool) :
+    M.run n 1 = .inl b ↔ M.δ ⟨0, Nat.succ_pos _⟩ ((M.init n).tape 0) = .inl b := by
+  change (M.init n).step = .inl b ↔ _
+  unfold Cfg.step
+  change (match M.δ ⟨0, Nat.succ_pos _⟩ ((M.init n).tape 0) with
+    | .inl b' => Sum.inl b'
+    | .inr (p, a, d) => Sum.inr _) = .inl b ↔ _
+  cases M.δ ⟨0, Nat.succ_pos _⟩ ((M.init n).tape 0) with
+  | inl b' => simp
+  | inr trip => simp
+
+/-- **One-Step Run Agreement for Positive Inputs of Equal Parity (`run_one_eq_of_pos_of_mod_two_eq`):**
+for any machine `M` and positive inputs `m, n ≥ 1` with `m % 2 = n % 2`, if `M.run m 1 = .inl b`,
+then `M.run n 1 = .inl b`. -/
+theorem run_one_eq_of_pos_of_mod_two_eq (M : Machine) {m n : Nat} {b : Bool}
+    (hm : 1 ≤ m) (hn : 1 ≤ n) (hmod : m % 2 = n % 2) (hrun : M.run m 1 = .inl b) :
+    M.run n 1 = .inl b := by
+  rw [run_one_eq_inl_iff] at hrun ⊢
+  rw [← init_tape_zero_eq_of_pos_of_mod_two_eq M hm hn hmod]
+  exact hrun
+
+/-- **Parity Determination of 1-Step Computable Functions (`computes_time_one_eq_of_pos_of_mod_two_eq`):**
+if a machine `M` computes `f` within time `T` and `T m ≤ 1`, `T n ≤ 1` on positive inputs `m, n ≥ 1`
+with `m % 2 = n % 2`, then `f m = f n`. -/
+theorem computes_time_one_eq_of_pos_of_mod_two_eq {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (h : Computes M f T) {m n : Nat} (hm : 1 ≤ m) (hn : 1 ≤ n)
+    (hTm : T m ≤ 1) (hTn : T n ≤ 1) (hmod : m % 2 = n % 2) :
+    f m = f n := by
+  have hm1 : T m = 1 := by have := computes_one_le_time h m; omega
+  have hn1 : T n = 1 := by have := computes_one_le_time h n; omega
+  have hrun_m : M.run m 1 = .inl (f m) := by rw [← hm1]; exact h m
+  have hrun_n : M.run n 1 = .inl (f n) := by rw [← hn1]; exact h n
+  have hrun_n' := run_one_eq_of_pos_of_mod_two_eq M hm hn hmod hrun_m
+  exact run_halted_unique hrun_n' hrun_n
+
+/-- **Exact Values of `center 2` and `center 4` (`center_two_ne_center_four`):** at even steps `2`
+and `4`, `center 2 = false` and `center 4 = true`, so `center 2 ≠ center 4`. -/
+theorem center_two_ne_center_four : center 2 = false ∧ center 4 = true ∧ center 2 ≠ center 4 := by
+  decide
+
+/-- **Unconditional 1-Step Exclusion for the Rule 30 Center Column (`not_computes_center_time_one`):**
+no machine `M` can compute `center` within 1 step on even inputs `2` and `4` (`T 2 ≤ 1 ∧ T 4 ≤ 1`);
+in particular, `¬ Computes M center (fun _ => 1)` holds unconditionally (without assuming `Problem3Robust`). -/
+theorem not_computes_center_time_one (M : Machine) :
+    ¬ Computes M center (fun _ => 1) := by
+  intro h
+  have heq := computes_time_one_eq_of_pos_of_mod_two_eq h (m := 2) (n := 4)
+    (by omega) (by omega) (by omega) (by omega) (by omega)
+  exact center_two_ne_center_four.2.2 heq
+
+/-- **Two-Step Lower Bound on Either Input 2 or Input 4 (`two_le_time_two_or_four`):** for every
+machine `M` and step function `T` satisfying `Computes M center T`, either `2 ≤ T 2` or `2 ≤ T 4`. -/
+theorem two_le_time_two_or_four {M : Machine} {T : Nat → Nat} (h : Computes M center T) :
+    2 ≤ T 2 ∨ 2 ≤ T 4 := by
+  by_cases h2 : 2 ≤ T 2
+  · exact Or.inl h2
+  · right
+    by_cases h4 : 2 ≤ T 4
+    · exact h4
+    · exfalso
+      have heq := computes_time_one_eq_of_pos_of_mod_two_eq h (m := 2) (n := 4)
+        (by omega) (by omega) (by omega) (by omega) (by omega)
+      exact center_two_ne_center_four.2.2 heq
+
+/-- **Explicit Linear-Bound Exceedance Witness Under `Problem3` (`exists_gt_mul_of_problem3`):**
+if `Problem3` holds, then for every machine `M` computing `center` in time `T` and every constant
+`C : Nat`, there exists an input `n : Nat` such that `C * (n + 1) < T n`. -/
+theorem exists_gt_mul_of_problem3 (hP3 : Problem3) {M : Machine} {T : Nat → Nat}
+    (hM : Computes M center T) (C : Nat) :
+    ∃ n, C * (n + 1) < T n := by
+  refine Classical.byContradiction fun hne => ?_
+  apply hP3
+  refine ⟨M, C, hM.mono (fun n => ?_)⟩
+  rcases Nat.lt_or_ge (C * (n + 1)) (T n) with hlt | hge
+  · exact False.elim (hne ⟨n, hlt⟩)
+  · exact hge
+
+/-- **Cofinal Sublinear Exceedance Witnesses Under `Problem3Verbal` (`exists_gt_mul_of_problem3Verbal`):**
+if `Problem3Verbal` holds, then for every machine `M` computing `center` in time `T`, there exists a
+slope `k ≥ 1` such that for every threshold `N : Nat`, some input `n ≥ N` satisfies `n < k * T n`. -/
+theorem exists_gt_mul_of_problem3Verbal (hP3V : Problem3Verbal) {M : Machine} {T : Nat → Nat}
+    (hM : Computes M center T) :
+    ∃ k, 1 ≤ k ∧ ∀ N, ∃ n, N ≤ n ∧ n < k * T n := by
+  refine Classical.byContradiction fun hne => ?_
+  apply hP3V
+  refine ⟨M, T, hM, fun k => ?_⟩
+  rcases Nat.eq_zero_or_pos k with rfl | hk
+  · refine ⟨0, fun n _ => by simp⟩
+  · refine Classical.byContradiction fun hN => ?_
+    apply hne
+    refine ⟨k, hk, fun N => Classical.byContradiction fun hn => hN ⟨N, fun n hge => ?_⟩⟩
+    rcases Nat.lt_or_ge n (k * T n) with hlt | hle
+    · exact False.elim (hn ⟨n, hge, hlt⟩)
+    · exact hle
+
+/-- **Cofinal Polynomial-Root Exceedance Witnesses Under `Problem3Robust` (`exists_gt_pow_of_problem3Robust`):**
+if `Problem3Robust` holds, then for every machine `M` computing `center` in time `T`, there exists an
+exponent `k ≥ 1` such that for every threshold `N : Nat`, some input `n ≥ N` satisfies `n < T n ^ k`. -/
+theorem exists_gt_pow_of_problem3Robust (hP3R : Problem3Robust) {M : Machine} {T : Nat → Nat}
+    (hM : Computes M center T) :
+    ∃ k, 1 ≤ k ∧ ∀ N, ∃ n, N ≤ n ∧ n < T n ^ k := by
+  refine Classical.byContradiction fun hne => ?_
+  apply hP3R
+  refine ⟨M, T, hM, fun k => ?_⟩
+  rcases Nat.eq_zero_or_pos k with rfl | hk
+  · refine ⟨1, fun n hn => by simpa using hn⟩
+  · refine Classical.byContradiction fun hN => ?_
+    apply hne
+    refine ⟨k, hk, fun N => Classical.byContradiction fun hn => hN ⟨N, fun n hge => ?_⟩⟩
+    rcases Nat.lt_or_ge n (T n ^ k) with hlt | hle
+    · exact False.elim (hn ⟨n, hge, hlt⟩)
+    · exact hle
+
 end Rule30Problem3
 end Ruliology.CellularAutomata
