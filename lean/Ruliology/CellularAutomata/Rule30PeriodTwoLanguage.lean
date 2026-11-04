@@ -172,5 +172,62 @@ theorem no_pattern (C : Cert) (bad : Nat) (hw : C.w = [false, true]) (T T' : Nat
       revert hocc; cases (simMask C bad (startMask C bad y (allLists C.b)) ys) == 0 <;> simp] at this
     simp at this
 
+/-! ### Zero-Mask Absorption, Semigroup Composition of `simMask`, and Prefix Forbidden-Word Inheritance -/
+
+/-- **Zero-Mask Absorption of `occStep` (`occStep_zero`):** stepping the empty subset mask `0` yields `0`
+for any strip list `L`. -/
+theorem occStep_zero (C : Cert) (bad : Nat) (y : Bool) :
+    ∀ L : List (List Bool), occStep C bad 0 y L = 0
+  | [] => rfl
+  | s :: rest => by
+    simp [occStep, occStep_zero C bad y rest]
+
+/-- **Zero-Mask Absorption of `simMask` (`simMask_zero`):** simulating any word `ys` from the empty
+subset mask `0` yields `0`. -/
+theorem simMask_zero (C : Cert) (bad : Nat) :
+    ∀ ys : List Bool, simMask C bad 0 ys = 0
+  | [] => rfl
+  | y :: ys => by
+    simp [simMask, occStep_zero, simMask_zero C bad ys]
+
+/-- **Concatenation Semigroup Law of `simMask` (`simMask_append`):** simulating `ys1 ++ ys2` from mask
+`S` is identical to simulating `ys2` from `simMask C bad S ys1`. -/
+theorem simMask_append (C : Cert) (bad : Nat) :
+    ∀ (ys1 ys2 : List Bool) (S : Nat),
+      simMask C bad S (ys1 ++ ys2) = simMask C bad (simMask C bad S ys1) ys2
+  | [], ys2, S => rfl
+  | y :: ys1, ys2, S => by
+    simp [simMask, simMask_append C bad ys1 ys2]
+
+/-- **Singleton Pattern Characterization of `occurs` (`occurs_singleton`):** a 1-letter pattern `[y]`
+occurs if and only if `startMask C bad y (allLists C.b) != 0`. -/
+theorem occurs_singleton (C : Cert) (bad : Nat) (y : Bool) :
+    occurs C bad [y] = (startMask C bad y (allLists C.b) != 0) := rfl
+
+/-- **Forbidden-Prefix Propagation (`occurs_append_eq_false`):** if `occurs C bad pat1 = false`, then
+every extension `pat1 ++ pat2` also satisfies `occurs C bad (pat1 ++ pat2) = false`. -/
+theorem occurs_append_eq_false (C : Cert) (bad : Nat) (pat1 pat2 : List Bool)
+    (h : occurs C bad pat1 = false) :
+    occurs C bad (pat1 ++ pat2) = false := by
+  cases pat1 with
+  | nil => simp [occurs] at h
+  | cons y ys1 =>
+    simp only [occurs, List.cons_append, simMask_append] at h ⊢
+    have h0 : simMask C bad (startMask C bad y (allLists C.b)) ys1 = 0 := by
+      revert h
+      cases simMask C bad (startMask C bad y (allLists C.b)) ys1 == 0 <;> simp
+    rw [h0, simMask_zero]
+    rfl
+
+/-- **Occurrence Prefix Monotonicity (`occurs_prefix_of_occurs`):** if `pat1 ++ pat2` occurs in the
+bad class, then its prefix `pat1` also occurs in the bad class. -/
+theorem occurs_prefix_of_occurs (C : Cert) (bad : Nat) (pat1 pat2 : List Bool)
+    (h : occurs C bad (pat1 ++ pat2) = true) :
+    occurs C bad pat1 = true := by
+  cases hp : occurs C bad pat1
+  · rw [occurs_append_eq_false C bad pat1 pat2 hp] at h
+    contradiction
+  · rfl
+
 end Rule30PeriodTwoLanguage
 end Ruliology.CellularAutomata
