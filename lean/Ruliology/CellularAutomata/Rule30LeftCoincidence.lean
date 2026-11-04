@@ -177,4 +177,123 @@ theorem D_coincidence_iff {j s0 : Nat} (hs : D (j + 1) s0 = true) :
       (∀ t, s0 ≤ t → D j t = xor (D (j + 1) t) (D (j + 1) (t + 1))) :=
   coincidence_iff (x := D (j + 2)) (a := D j) (b := D (j + 1)) (D_step j) hs
 
+/-! ### Cofinal-Black Duality, Four-Diagonal Coincidence Exclusion, and Difference-Operator Period Transfer -/
+
+/-- **Cofinal Black Cells from `¬ EvWhite` (`exists_true_ge_of_not_evWhite`):** if a Boolean sequence
+`b : Nat → Bool` is not eventually white (`¬ EvWhite b`), then for every threshold `T : Nat` there
+exists `t ≥ T` such that `b t = true`. -/
+theorem exists_true_ge_of_not_evWhite {b : Nat → Bool} (hnot : ¬ EvWhite b) (T : Nat) :
+    ∃ t, T ≤ t ∧ b t = true := by
+  refine Classical.byContradiction fun hne => hnot ⟨T, fun t ht => ?_⟩
+  cases hb : b t
+  · rfl
+  · exact False.elim (hne ⟨t, ht, hb⟩)
+
+/-- **Lemma E Under `¬ EvWhite b` (`evwhite_iff_eventually_eq_of_not_evWhite`):** for any reset
+triple `x (t + 1) = xor (a t) (b t || x t)` with `¬ EvWhite b`, the child `x` is eventually white
+if and only if the parents `a` and `b` eventually coincide. -/
+theorem evwhite_iff_eventually_eq_of_not_evWhite {x a b : Nat → Bool}
+    (hx : ∀ t, x (t + 1) = xor (a t) (b t || x t)) (hb : ¬ EvWhite b) :
+    EvWhite x ↔ ∃ s, ∀ t, s ≤ t → a t = b t :=
+  evwhite_iff_eventually_eq hx (exists_true_ge_of_not_evWhite hb)
+
+/-- **Left-Diagonal Lemma E Under `¬ EvWhite (D (j + 1))` (`D_evwhite_iff_eventually_eq_of_not_evWhite`):**
+whenever `¬ EvWhite (D (j + 1))`, `EvWhite (D (j + 2))` holds if and only if `D j` and `D (j + 1)`
+eventually coincide. -/
+theorem D_evwhite_iff_eventually_eq_of_not_evWhite {j : Nat} (hb : ¬ EvWhite (D (j + 1))) :
+    EvWhite (D (j + 2)) ↔ ∃ s, ∀ t, s ≤ t → D j t = D (j + 1) t :=
+  D_evwhite_iff_eventually_eq (exists_true_ge_of_not_evWhite hb)
+
+/-- **Unconditional Dichotomy of Diagonal Coincidence (`D_evWhite_or_evWhite_of_eventually_eq`):**
+for every diagonal index `j : Nat`, if `D j` and `D (j + 1)` eventually coincide
+(`∃ s, ∀ t ≥ s, D j t = D (j + 1) t`), then either `EvWhite (D (j + 1))` or `EvWhite (D (j + 2))`. -/
+theorem D_evWhite_or_evWhite_of_eventually_eq {j : Nat}
+    (heq : ∃ s, ∀ t, s ≤ t → D j t = D (j + 1) t) :
+    EvWhite (D (j + 1)) ∨ EvWhite (D (j + 2)) := by
+  by_cases hb : EvWhite (D (j + 1))
+  · exact Or.inl hb
+  · exact Or.inr ((D_evwhite_iff_eventually_eq_of_not_evWhite hb).mpr heq)
+
+/-- **Three Eventually Coinciding Consecutive Diagonals Force `EvWhite (D (j + 2))`
+(`D_evWhite_two_of_three_eventually_eq`):** for every `j : Nat`, if `D j`, `D (j + 1)`, and `D (j + 2)`
+all eventually coincide, then `EvWhite (D (j + 2))` holds (and both `¬ EvWhite (D (j + 1))` and
+`¬ EvWhite (D (j + 3))` hold). -/
+theorem D_evWhite_two_of_three_eventually_eq {j : Nat}
+    (heq01 : ∃ s, ∀ t, s ≤ t → D j t = D (j + 1) t)
+    (heq12 : ∃ s, ∀ t, s ≤ t → D (j + 1) t = D (j + 2) t) :
+    EvWhite (D (j + 2)) ∧ ¬ EvWhite (D (j + 1)) ∧ ¬ EvWhite (D (j + 3)) := by
+  have hw2 : EvWhite (D (j + 2)) := by
+    rcases D_evWhite_or_evWhite_of_eventually_eq heq01 with hw1 | hw2
+    · obtain ⟨s1, hs1⟩ := hw1
+      obtain ⟨s2, hs2⟩ := heq12
+      exact ⟨s1 + s2, fun t ht => by rw [← hs2 t (by omega), hs1 t (by omega)]⟩
+    · exact hw2
+  refine ⟨hw2, ?_, ?_⟩
+  · exact fun hw1 => no_two_consecutive_evwhite (j + 1) ⟨hw1, hw2⟩
+  · exact fun hw3 => no_two_consecutive_evwhite (j + 2) ⟨hw2, hw3⟩
+
+/-- **Unconditional Exclusion of Four Eventually Coinciding Consecutive Left Diagonals
+(`D_no_four_eventually_eq`):** for every `j : Nat`, it is impossible for four consecutive left
+diagonals `D j`, `D (j + 1)`, `D (j + 2)`, and `D (j + 3)` to eventually coincide. -/
+theorem D_no_four_eventually_eq (j : Nat) :
+    ¬ ∃ s, ∀ t, s ≤ t → D j t = D (j + 1) t ∧ D (j + 1) t = D (j + 2) t ∧ D (j + 2) t = D (j + 3) t := by
+  rintro ⟨s, hs⟩
+  have heq01 : ∃ s, ∀ t, s ≤ t → D j t = D (j + 1) t := ⟨s, fun t ht => (hs t ht).1⟩
+  have heq12 : ∃ s, ∀ t, s ≤ t → D (j + 1) t = D (j + 2) t := ⟨s, fun t ht => (hs t ht).2.1⟩
+  have heq23 : ∃ s, ∀ t, s ≤ t → D (j + 2) t = D (j + 3) t := ⟨s, fun t ht => (hs t ht).2.2⟩
+  have h1 := D_evWhite_two_of_three_eventually_eq heq01 heq12
+  have h2 := D_evWhite_two_of_three_eventually_eq (j := j + 1) heq12 heq23
+  exact h1.2.2 h2.1
+
+/-- **Period Transfer Under Nearer-Child Coincidence (`coincidence_farther_periodic_of_periodic`):**
+if `b s0 = true`, `x` and `b` coincide from `s0 + 1` on, and `b` has period `L` from `s0` on, then
+the farther word `a` also has period `L` from `s0` on. -/
+theorem coincidence_farther_periodic_of_periodic {x a b : Nat → Bool}
+    (hx : ∀ t, x (t + 1) = xor (a t) (b t || x t)) {s0 L : Nat} (hs : b s0 = true)
+    (hco : ∀ t, s0 + 1 ≤ t → x t = b t) (hb : ∀ t, s0 ≤ t → b (t + L) = b t) :
+    ∀ t, s0 ≤ t → a (t + L) = a t := by
+  have hd := (coincidence_iff hx hs).mp hco
+  intro t ht
+  rw [hd (t + L) (by omega), hd t ht, hb t ht,
+    show t + L + 1 = (t + 1) + L by omega, hb (t + 1) (by omega)]
+
+/-- **Antiperiod-to-Period Transfer Under Nearer-Child Coincidence (`coincidence_farther_periodic_of_antiperiodic`):**
+if `b s0 = true`, `x` and `b` coincide from `s0 + 1` on, and `b` is `L`-antiperiodic from `s0` on
+(`b (t + L) = !b t`), then the farther word `a` is `L`-periodic from `s0` on (`a (t + L) = a t`). -/
+theorem coincidence_farther_periodic_of_antiperiodic {x a b : Nat → Bool}
+    (hx : ∀ t, x (t + 1) = xor (a t) (b t || x t)) {s0 L : Nat} (hs : b s0 = true)
+    (hco : ∀ t, s0 + 1 ≤ t → x t = b t) (hb : ∀ t, s0 ≤ t → b (t + L) = !b t) :
+    ∀ t, s0 ≤ t → a (t + L) = a t := by
+  have hd := (coincidence_iff hx hs).mp hco
+  intro t ht
+  rw [hd (t + L) (by omega), hd t ht, hb t ht,
+    show t + L + 1 = (t + 1) + L by omega, hb (t + 1) (by omega)]
+  cases b t <;> cases b (t + 1) <;> rfl
+
+/-- **Left-Diagonal Period Transfer Under Coincidence (`D_coincidence_farther_periodic`):**
+if `D (j + 1) s0 = true`, `D (j + 2)` coincides with `D (j + 1)` from `s0 + 1` on, and `D (j + 1)`
+has period `L` from `s0` on, then `D j` has period `L` from `s0` on. -/
+theorem D_coincidence_farther_periodic {j s0 L : Nat} (hs : D (j + 1) s0 = true)
+    (hco : ∀ t, s0 + 1 ≤ t → D (j + 2) t = D (j + 1) t)
+    (hb : ∀ t, s0 ≤ t → D (j + 1) (t + L) = D (j + 1) t) :
+    ∀ t, s0 ≤ t → D j (t + L) = D j t :=
+  coincidence_farther_periodic_of_periodic (D_step j) hs hco hb
+
+/-- **Left-Diagonal Antiperiod-to-Period Transfer Under Coincidence (`D_coincidence_farther_periodic_of_antiperiodic`):**
+if `D (j + 1) s0 = true`, `D (j + 2)` coincides with `D (j + 1)` from `s0 + 1` on, and `D (j + 1)`
+is `L`-antiperiodic from `s0` on, then `D j` is `L`-periodic from `s0` on. -/
+theorem D_coincidence_farther_periodic_of_antiperiodic {j s0 L : Nat} (hs : D (j + 1) s0 = true)
+    (hco : ∀ t, s0 + 1 ≤ t → D (j + 2) t = D (j + 1) t)
+    (hb : ∀ t, s0 ≤ t → D (j + 1) (t + L) = !D (j + 1) t) :
+    ∀ t, s0 ≤ t → D j (t + L) = D j t :=
+  coincidence_farther_periodic_of_antiperiodic (D_step j) hs hco hb
+
+/-- **Two-Step Retrodiction of Left Diagonals (`D_two_step_retrodiction`):** every left diagonal bit
+`D j t` is uniquely determined by `D (j + 1) t`, `D (j + 2) t`, `D (j + 3) (t + 1)`, `D (j + 4) (t + 1)`,
+and `D (j + 4) (t + 2)` via two applications of `D_farther_of_child`. -/
+theorem D_two_step_retrodiction (j t : Nat) :
+    D j t = xor (xor (D (j + 2 + 2) (t + 1 + 1)) (D (j + 2 + 1) (t + 1) || D (j + 2 + 2) (t + 1)))
+      (D (j + 1) t || D (j + 2) t) := by
+  rw [D_farther_of_child j t, D_farther_of_child (j + 2) (t + 1)]
+
 end Ruliology.CellularAutomata.Rule30LeftCoincidence
