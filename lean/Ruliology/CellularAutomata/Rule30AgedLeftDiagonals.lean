@@ -356,6 +356,100 @@ theorem evol_white_witness_after_reset {x : Int → Bool} {anchor : Int}
       Rule30Realization.evol x A (anchor-(A:Int)+(i:Int))=false := by
   simpa only [Rule30FiniteDiagonals.Ld] using Ld_white_witness_after_reset hleft lo A hlo hA
 
+/-! ### Explicit Small-Depth Reset Ages, White-Triangle Erosion, and Forward-Reset Monotonicity -/
+
+/-- **Exact Small-Depth Reset Ages (`resetAge_small_values`):** evaluates `resetAge` at `lo = 1, 2, 3, 4`
+to `9, 35, 135, 527`, compared to the exponential backshift bounds `31, 1023, 524287`. -/
+theorem resetAge_small_values :
+    resetAge 1 = 9 ∧ resetAge 2 = 35 ∧ resetAge 3 = 135 ∧ resetAge 4 = 527 := by
+  decide
+
+/-- **Strict Monotonicity of `resetAge` (`resetAge_lt_succ`):** for every `lo : Nat`,
+`resetAge lo < resetAge (lo + 1)`. -/
+theorem resetAge_lt_succ (lo : Nat) : resetAge lo < resetAge (lo + 1) := by
+  unfold resetAge
+  have hpos : 0 < 2 ^ lo := Nat.two_pow_pos lo
+  have hlt : 2 ^ lo < 2 ^ (lo + 1) := Nat.pow_lt_pow_right (by decide) (by omega)
+  have hle : 2 ^ lo ≤ 2 ^ (lo + 1) := Nat.le_of_lt hlt
+  have hmul1 : 2 * 2 ^ lo ≤ 2 * 2 ^ (lo + 1) := Nat.mul_le_mul_left 2 hle
+  have hmul2 : 2 * 2 ^ lo * 2 ^ lo ≤ 2 * 2 ^ (lo + 1) * 2 ^ (lo + 1) := Nat.mul_le_mul hmul1 hle
+  omega
+
+/-- **Weak Monotonicity of `resetAge` (`resetAge_mono`):** if `lo₁ ≤ lo₂`, then
+`resetAge lo₁ ≤ resetAge lo₂`. -/
+theorem resetAge_mono {lo₁ lo₂ : Nat} (hle : lo₁ ≤ lo₂) : resetAge lo₁ ≤ resetAge lo₂ := by
+  induction hle with
+  | refl => exact Nat.le_refl _
+  | @step m h ih => exact Nat.le_trans ih (Nat.le_of_lt (resetAge_lt_succ m))
+
+/-- **Age-9 Five-Diagonal White Window (`Ld_white_in_one_to_five_from_nine`):** for any configuration
+`x` white left of `anchor` and any age `A ≥ 9`, at least one of the five left diagonals `i ∈ [1, 5]`
+is white (`Ld x anchor i A = false`). -/
+theorem Ld_white_in_one_to_five_from_nine {x : Int → Bool} {anchor : Int}
+    (hleft : ∀ p, p < anchor → x p = false) (A : Nat) (hA : 9 ≤ A) :
+    ∃ i, 1 ≤ i ∧ i ≤ 5 ∧ Rule30FiniteDiagonals.Ld x anchor i A = false := by
+  have h9 : resetAge 1 ≤ A := by change 9 ≤ A; exact hA
+  simpa using Ld_white_witness_after_reset hleft 1 A (by decide) h9
+
+/-- **Age-9 Five-Cell Evolution White Window (`evol_white_in_one_to_five_from_nine`):** for any
+configuration `x` white left of `anchor` and any age `A ≥ 9`, at least one cell in
+`anchor - A + i` (`1 ≤ i ≤ 5`) is white at step `A`. -/
+theorem evol_white_in_one_to_five_from_nine {x : Int → Bool} {anchor : Int}
+    (hleft : ∀ p, p < anchor → x p = false) (A : Nat) (hA : 9 ≤ A) :
+    ∃ i : Nat, 1 ≤ i ∧ i ≤ 5 ∧
+      Rule30Realization.evol x A (anchor - (A : Int) + (i : Int)) = false := by
+  simpa only [Rule30FiniteDiagonals.Ld] using Ld_white_in_one_to_five_from_nine hleft A hA
+
+/-- **Age-35 Nine-Diagonal White Window (`Ld_white_in_two_to_ten_from_thirtyfive`):** for any
+configuration `x` white left of `anchor` and any age `A ≥ 35`, at least one left diagonal in
+`i ∈ [2, 10]` is white (`Ld x anchor i A = false`). -/
+theorem Ld_white_in_two_to_ten_from_thirtyfive {x : Int → Bool} {anchor : Int}
+    (hleft : ∀ p, p < anchor → x p = false) (A : Nat) (hA : 35 ≤ A) :
+    ∃ i, 2 ≤ i ∧ i ≤ 10 ∧ Rule30FiniteDiagonals.Ld x anchor i A = false := by
+  have h35 : resetAge 2 ≤ A := by change 35 ≤ A; exact hA
+  simpa using Ld_white_witness_after_reset hleft 2 A (by decide) h35
+
+/-- **Age-135 Seventeen-Diagonal White Window (`Ld_white_in_three_to_nineteen_from_135`):** for any
+configuration `x` white left of `anchor` and any age `A ≥ 135`, at least one left diagonal in
+`i ∈ [3, 19]` is white (`Ld x anchor i A = false`). -/
+theorem Ld_white_in_three_to_nineteen_from_135 {x : Int → Bool} {anchor : Int}
+    (hleft : ∀ p, p < anchor → x p = false) (A : Nat) (hA : 135 ≤ A) :
+    ∃ i, 3 ≤ i ∧ i ≤ 19 ∧ Rule30FiniteDiagonals.Ld x anchor i A = false := by
+  have h135 : resetAge 3 ≤ A := by change 135 ≤ A; exact hA
+  simpa using Ld_white_witness_after_reset hleft 3 A (by decide) h135
+
+/-- **Literal Left-Diagonal White-Triangle Erosion (`Ld_black_erodes`):** if a left-diagonal interval
+`[lo, hi]` of `Ld x anchor` is all black at age `A`, then after `n + 1` steps all diagonals in
+`[lo + 2 * (n + 1), hi]` are white (`false`) at age `A + (n + 1)`. -/
+theorem Ld_black_erodes {x : Int → Bool} {anchor : Int}
+    (hleft : ∀ p, p < anchor → x p = false) {lo hi A : Nat}
+    (hb : ∀ i, lo ≤ i → i ≤ hi → Rule30FiniteDiagonals.Ld x anchor i A = true) :
+    ∀ n i, lo + 2 * (n + 1) ≤ i → i ≤ hi →
+      Rule30FiniteDiagonals.Ld x anchor i (A + (n + 1)) = false :=
+  black_erodes (Ld_recurrence hleft) hb
+
+/-- **Physical Spacetime White-Triangle Erosion (`evol_black_erodes`):** if `evol x A (anchor - A + i)`
+is black for all `lo ≤ i ≤ hi`, then at step `A + (n + 1)` the interior cone
+`lo + 2 * (n + 1) ≤ i ≤ hi` is white. -/
+theorem evol_black_erodes {x : Int → Bool} {anchor : Int}
+    (hleft : ∀ p, p < anchor → x p = false) {lo hi A : Nat}
+    (hb : ∀ i, lo ≤ i → i ≤ hi → Rule30FiniteDiagonals.Ld x anchor i A = true) :
+    ∀ n i, lo + 2 * (n + 1) ≤ i → i ≤ hi →
+      Rule30Realization.evol x (A + (n + 1)) (anchor - ((A + (n + 1) : Nat) : Int) + (i : Int)) = false := by
+  intro n i hlo hhi
+  simpa only [Rule30FiniteDiagonals.Ld] using Ld_black_erodes hleft hb n i hlo hhi
+
+/-- **Literal Left-Diagonal Forward-Reset Periodicity (`Ld_black_interval_period_forward`):** if
+`Ld x anchor i A = true` on `a + 1 ≤ i ≤ B` at age `A ≥ (2^(a+1) - 1) + (B - a - 1) * 2^(a+1)`, then
+diagonal `B` has period `2^(a+1)` from onset `(2^(a+1) - 1) + (B - a - 1) * 2^(a+1)`. -/
+theorem Ld_black_interval_period_forward {x : Int → Bool} {anchor : Int}
+    (hleft : ∀ p, p < anchor → x p = false)
+    (a B A : Nat) (haB : a + 1 ≤ B)
+    (hA : (2 ^ (a + 1) - 1) + (B - a - 1) * 2 ^ (a + 1) ≤ A)
+    (hb : ∀ i, a + 1 ≤ i → i ≤ B → Rule30FiniteDiagonals.Ld x anchor i A = true) :
+    PeriodFrom (Rule30FiniteDiagonals.Ld x anchor B)
+      ((2 ^ (a + 1) - 1) + (B - a - 1) * 2 ^ (a + 1)) (2 ^ (a + 1)) :=
+  black_interval_period_forward (Ld_recurrence hleft) a B A haB hA hb
 
 end Rule30AgedLeftDiagonals
 end Ruliology.CellularAutomata
