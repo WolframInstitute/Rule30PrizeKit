@@ -220,4 +220,108 @@ theorem no_moving_ether_pair (row : Int → Bool) (e : Int)
   rw [eq,eq]
   exact hs t ht
 
+/-! ### Quantitative Multi-Step Descent, Finite-Window Exclusion, and 1-in-4 Ether Laws -/
+
+/-- **Modulo-8 Periodicity of `good` (`good_mod_eight`):** the pair invariant `good r u v` depends on
+`r` only modulo `8`. -/
+theorem good_mod_eight (r : Nat) (u v : Bool) :
+    good (r % 8) u v = good r u v := by
+  unfold good
+  rw [Nat.mod_mod]
+
+/-- **Phase Modulo-8 Equivalence for `HasPair` (`hasPair_mod_eight_iff`):** for any code `x`, depth
+`k`, and phase `p`, `HasPair x k (p % 8) ↔ HasPair x k p`. -/
+theorem hasPair_mod_eight_iff (x : Nat → Bool) (k p : Nat) :
+    HasPair x k (p % 8) ↔ HasPair x k p := by
+  unfold HasPair
+  constructor <;> rintro ⟨s, hs⟩ <;> refine ⟨s, fun t ht => ?_⟩
+  · have h := hs t ht
+    have hm : (t + p % 8) % 8 = (t + p) % 8 := by omega
+    unfold good at h ⊢
+    rwa [hm] at h
+  · have h := hs t ht
+    have hm : (t + p % 8) % 8 = (t + p) % 8 := by omega
+    unfold good at h ⊢
+    rwa [← hm] at h
+
+/-- **Exact `d`-Step Depth Descent of `HasPair` (`pair_descends_steps`):** descending `d` digits from
+depth `k + d` to depth `k` shifts the phase from `p` to `p + 6 * d`. -/
+theorem pair_descends_steps (x : Nat → Bool) (k : Nat) :
+    ∀ d p : Nat, HasPair x (k + d) p → HasPair x k (p + 6 * d)
+  | 0, p, h => by simpa using h
+  | d + 1, p, h => by
+    rw [show k + (d + 1) = (k + d) + 1 by omega] at h
+    have h1 := pair_descends x (k + d) p h
+    have ih := pair_descends_steps x k d (p + 6) h1
+    rwa [show p + 6 + 6 * d = p + 6 * (d + 1) by omega] at ih
+
+/-- **Exact Edge Phase of Depth-`k` Descent (`pair_reaches_edge_exact`):** `HasPair x k p` implies
+`HasPair x 0 (p + 6 * k)`. -/
+theorem pair_reaches_edge_exact (x : Nat → Bool) (k p : Nat) (h : HasPair x k p) :
+    HasPair x 0 (p + 6 * k) := by
+  have h0 := pair_descends_steps x 0 k p
+  rw [Nat.zero_add] at h0
+  exact h0 h
+
+/-- **Finite 8-Tick Window Exclusion at the Black Edge (`no_eight_tick_pair_at_edge`):** if
+`x 0 = true`, then `good (t + p) (iter t x 1) (iter t x 0)` cannot hold across all `8` consecutive
+ticks `s ≤ t < s + 8`. -/
+theorem no_eight_tick_pair_at_edge (x : Nat → Bool) (hx : x 0 = true) (s p : Nat) :
+    ¬ ∀ t, s ≤ t → t < s + 8 → good (t + p) (iter t x 1) (iter t x 0) = true := by
+  intro hs
+  let r := (s + p) % 8
+  let δ := (10 - r) % 8
+  let t := s + δ
+  have hlt : t < s + 8 := by dsimp [t, δ]; omega
+  have hge : s ≤ t := by dsimp [t]; omega
+  have hr : (t + p) % 8 = 2 := by dsimp [t, δ, r]; omega
+  have hh := hs t hge hlt
+  simp [good, hr, iter_zero, hx] at hh
+
+/-- **Spatial Period 4 of `ether` (`ether_col_period_four`):** `ether (i + 4) t = ether i t`. -/
+theorem ether_col_period_four (i t : Nat) :
+    ether (i + 4) t = ether i t := by
+  simp only [ether, Nat.add_mod_right]
+
+/-- **Temporal Period 8 of `ether` (`ether_time_period_eight`):** `ether i (t + 8) = ether i t`. -/
+theorem ether_time_period_eight (i t : Nat) :
+    ether i (t + 8) = ether i t := by
+  simp only [ether, Nat.add_mod_right]
+
+set_option synthInstance.maxSize 4096 in
+theorem ether_even_table : ∀ i : Fin 4, ∀ s : Fin 4,
+    ether i.val (2 * s.val) = decide ((s.val + i.val) % 4 = 0) := by decide
+
+/-- **Exact One-in-Four Even-Time Law of `ether` (`ether_even_time_one_in_four`):** at even times
+`2 * s`, `ether i (2 * s) = true` if and only if `(s + i) % 4 = 0`. -/
+theorem ether_even_time_one_in_four (i s : Nat) :
+    ether i (2 * s) = decide ((s + i) % 4 = 0) := by
+  have h := ether_even_table ⟨i % 4, Nat.mod_lt _ (by decide)⟩ ⟨s % 4, Nat.mod_lt _ (by decide)⟩
+  have h1 : (2 * s) % 8 = (2 * (s % 4)) % 8 := by omega
+  have h2 : (s % 4 + i % 4) % 4 = (s + i) % 4 := by omega
+  simpa only [ether, h1, h2, Nat.mod_mod] using h
+
+set_option synthInstance.maxSize 4096 in
+theorem ether_shift_table : ∀ i : Fin 4, ∀ t : Fin 8,
+    ether (i.val + 1) t.val = ether i.val (t.val + 2) := by decide
+
+/-- **Diagonal Shift Symmetry of `ether` (`ether_shift_one_two`):** advancing one spatial column is
+equivalent to advancing two time ticks (`ether (i + 1) t = ether i (t + 2)`). -/
+theorem ether_shift_one_two (i t : Nat) :
+    ether (i + 1) t = ether i (t + 2) := by
+  have h := ether_shift_table ⟨i % 4, Nat.mod_lt _ (by decide)⟩ ⟨t % 8, Nat.mod_lt _ (by decide)⟩
+  have h1 : (i + 1) % 4 = (i % 4 + 1) % 4 := by omega
+  have h2 : (t + 2) % 8 = (t % 8 + 2) % 8 := by omega
+  simpa only [ether, h1, h2, Nat.mod_mod] using h
+
+/-- **Iterated Diagonal Shift Symmetry of `ether` (`ether_shift_mul`):** for every offset `d : Nat`,
+`ether (i + d) t = ether i (t + 2 * d)`. -/
+theorem ether_shift_mul (i : Nat) :
+    ∀ d t : Nat, ether (i + d) t = ether i (t + 2 * d)
+  | 0, t => by simp
+  | d + 1, t => by
+    rw [show i + (d + 1) = (i + d) + 1 by omega,
+      ether_shift_one_two, ether_shift_mul i d (t + 2),
+      show t + 2 + 2 * d = t + 2 * (d + 1) by omega]
+
 end Ruliology.CellularAutomata.Rule30EtherGrounding
