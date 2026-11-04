@@ -419,5 +419,164 @@ theorem no_hardCore_lift_two_const_inverse (a b c : Sym) (hc : constantTail c)
       False := by unfold constantTail binary; decide
   exact hdec a b c hc h0 h1 h2 h3
 
+/-! ## 4. Right-Inverse Law `inverse (uninverse v) = v` and Unconditional `OrbitSeparator` Through Length 3 -/
+
+/-- **Right-Step Commutation of `stepInverseIter` (`stepInverseIter_succ_right`):** for every
+`j : Nat` and `v : Stream`, `stepInverseIter (j + 1) v = stepInverse (stepInverseIter j v)`. -/
+theorem stepInverseIter_succ_right (j : Nat) (v : Stream) :
+    stepInverseIter (j + 1) v = stepInverse (stepInverseIter j v) := by
+  induction j generalizing v with
+  | zero => rfl
+  | succ j ih =>
+    change stepInverseIter (j + 1) (stepInverse v) = stepInverse (stepInverseIter j (stepInverse v))
+    exact ih (stepInverse v)
+
+/-- **Pair-Rule Recovery on `stepInverse` (`phi_stepInverse`):** for every stream `w : Stream` and
+time `t : Nat`, `phi (stepInverse w t) (stepInverse w (t + 1)) = w (t + 2)`. -/
+theorem phi_stepInverse (w : Stream) (t : Nat) :
+    phi (stepInverse w t) (stepInverse w (t + 1)) = w (t + 2) :=
+  congrFun (peel_lift (unphi (boundary (w 0)) (w 1)) (shift w)) t
+
+/-- **Exact Cone Reconstruction from `uninverse` (`cone_uninverse`):** for every stream `v : Stream`,
+time `t : Nat`, and column `j : Nat`, `cone (uninverse v) t j = stepInverseIter j v t`. -/
+theorem cone_uninverse (v : Stream) (t : Nat) :
+    ∀ j : Nat, cone (uninverse v) t j = stepInverseIter j v t := by
+  induction t using Nat.strongRecOn with
+  | ind t ih =>
+    intro j
+    match t with
+    | 0 =>
+      change boundary (boundary (stepInverseIter j v 0)) = stepInverseIter j v 0
+      exact boundary_involutive (stepInverseIter j v 0)
+    | 1 =>
+      change phi (boundary (stepInverseIter j v 0)) (boundary (boundary (stepInverseIter (j + 1) v 0))) =
+        stepInverseIter j v 1
+      rw [boundary_involutive, stepInverseIter_succ_right]
+      change phi (boundary (stepInverseIter j v 0))
+        (unphi (boundary (stepInverseIter j v 0)) (stepInverseIter j v 1)) = stepInverseIter j v 1
+      exact phi_unphi _ _
+    | t + 2 =>
+      change phi (cone (uninverse v) t (j + 1)) (cone (uninverse v) (t + 1) (j + 1)) =
+        stepInverseIter j v (t + 2)
+      rw [ih t (by omega) (j + 1), ih (t + 1) (by omega) (j + 1),
+        stepInverseIter_succ_right j v]
+      exact phi_stepInverse (stepInverseIter j v) t
+
+/-- **Global Right-Inverse Identity (`inverse_uninverse`):** `uninverse` is a right-inverse of
+`inverse` on all streams `v : Stream` (`inverse (uninverse v) = v`). -/
+theorem inverse_uninverse (v : Stream) :
+    inverse (uninverse v) = v :=
+  funext fun t => cone_uninverse v t 0
+
+/-- **Two-Sided Adjoint Equivalence (`inverse_eq_iff_eq_uninverse`):** for all streams `e, v : Stream`,
+`inverse e = v ↔ e = uninverse v`. -/
+theorem inverse_eq_iff_eq_uninverse (e v : Stream) :
+    inverse e = v ↔ e = uninverse v := by
+  constructor
+  · intro h; rw [← h, uninverse_inverse]
+  · intro h; rw [h, inverse_uninverse]
+
+/-- **Bijectivity of `inverse` (`inverse_bijective`):** `inverse : Stream → Stream` is both
+injective and surjective on the full stream space `Nat → Sym`. -/
+theorem inverse_bijective :
+    Function.Injective inverse ∧ Function.Surjective inverse :=
+  ⟨fun _ _ h => inverse_injective h, fun v => ⟨uninverse v, inverse_uninverse v⟩⟩
+
+/-- **Composition Law of `liftWord` on Concatenated Words (`liftWord_append`):** for all label words
+`u, w : List Sym` and stream `v : Stream`, `liftWord (u ++ w) v = liftWord w (liftWord u v)`. -/
+theorem liftWord_append (u w : List Sym) (v : Stream) :
+    liftWord (u ++ w) v = liftWord w (liftWord u v) := by
+  induction u generalizing v with
+  | nil => rfl
+  | cons a u ih => exact ih (lift a v)
+
+/-- **Complete 4-Symbol 1-Lift Exclusion (`no_hardCore_lift_const_inverse_all`):** for every label
+`a : Sym` and every tail symbol `c : Sym` (`0, 1, 2, 3`), no hard-core stream `e` satisfies
+`lift a (fun _ => c) = inverse e`. -/
+theorem no_hardCore_lift_const_inverse_all (a c : Sym)
+    (e : Stream) (hh : HardCore e) :
+    lift a (fun _ => c) ≠ inverse e := by
+  intro hv
+  have h0 := hardCore_uninverse_constraints hh hv 0
+  have h1 := hardCore_uninverse_constraints hh hv 1
+  have h2 := hardCore_uninverse_constraints hh hv 2
+  have h3 := hardCore_uninverse_constraints hh hv 3
+  have hdec : ∀ a c : Sym,
+      (binary (uninverse (lift a (fun _ => c)) 0) ∧
+        ¬(uninverse (lift a (fun _ => c)) 0 = 1 ∧ uninverse (lift a (fun _ => c)) 1 = 1)) →
+      (binary (uninverse (lift a (fun _ => c)) 1) ∧
+        ¬(uninverse (lift a (fun _ => c)) 1 = 1 ∧ uninverse (lift a (fun _ => c)) 2 = 1)) →
+      (binary (uninverse (lift a (fun _ => c)) 2) ∧
+        ¬(uninverse (liftWord [a] (fun _ => c)) 2 = 1 ∧ uninverse (lift a (fun _ => c)) 3 = 1)) →
+      (binary (uninverse (lift a (fun _ => c)) 3) ∧
+        ¬(uninverse (lift a (fun _ => c)) 3 = 1 ∧ uninverse (lift a (fun _ => c)) 4 = 1)) →
+      False := by unfold binary liftWord; decide
+  exact hdec a c h0 h1 h2 h3
+
+/-- **Complete 4-Symbol 2-Lift Exclusion (`no_hardCore_lift_two_const_inverse_all`):** for all labels
+`a b : Sym` and every tail symbol `c : Sym` (`0, 1, 2, 3`), no hard-core stream `e` satisfies
+`liftWord [a, b] (fun _ => c) = inverse e`. -/
+theorem no_hardCore_lift_two_const_inverse_all (a b c : Sym)
+    (e : Stream) (hh : HardCore e) :
+    liftWord [a, b] (fun _ => c) ≠ inverse e := by
+  intro hv
+  have h0 := hardCore_uninverse_constraints hh hv 0
+  have h1 := hardCore_uninverse_constraints hh hv 1
+  have h2 := hardCore_uninverse_constraints hh hv 2
+  have h3 := hardCore_uninverse_constraints hh hv 3
+  have h4 := hardCore_uninverse_constraints hh hv 4
+  have hdec : ∀ a b c : Sym,
+      (binary (uninverse (liftWord [a, b] (fun _ => c)) 0) ∧
+        ¬(uninverse (liftWord [a, b] (fun _ => c)) 0 = 1 ∧ uninverse (liftWord [a, b] (fun _ => c)) 1 = 1)) →
+      (binary (uninverse (liftWord [a, b] (fun _ => c)) 1) ∧
+        ¬(uninverse (liftWord [a, b] (fun _ => c)) 1 = 1 ∧ uninverse (liftWord [a, b] (fun _ => c)) 2 = 1)) →
+      (binary (uninverse (liftWord [a, b] (fun _ => c)) 2) ∧
+        ¬(uninverse (liftWord [a, b] (fun _ => c)) 2 = 1 ∧ uninverse (liftWord [a, b] (fun _ => c)) 3 = 1)) →
+      (binary (uninverse (liftWord [a, b] (fun _ => c)) 3) ∧
+        ¬(uninverse (liftWord [a, b] (fun _ => c)) 3 = 1 ∧ uninverse (liftWord [a, b] (fun _ => c)) 4 = 1)) →
+      (binary (uninverse (liftWord [a, b] (fun _ => c)) 4) ∧
+        ¬(uninverse (liftWord [a, b] (fun _ => c)) 4 = 1 ∧ uninverse (liftWord [a, b] (fun _ => c)) 5 = 1)) →
+      False := by unfold binary; decide
+  exact hdec a b c h0 h1 h2 h3 h4
+
+/-- **Unconditional 3-Step `OrbitSeparator` (`no_hardCore_lift_three_const_inverse`):** for all labels
+`a b d : Sym` and every `c ∈ {2, 3}` (`constantTail c`), no hard-core stream `e` satisfies
+`liftWord [a, b, d] (fun _ => c) = inverse e`. -/
+theorem no_hardCore_lift_three_const_inverse (a b d c : Sym) (hc : constantTail c)
+    (e : Stream) (hh : HardCore e) :
+    liftWord [a, b, d] (fun _ => c) ≠ inverse e := by
+  intro hv
+  have h0 := hardCore_uninverse_constraints hh hv 0
+  have h1 := hardCore_uninverse_constraints hh hv 1
+  have h2 := hardCore_uninverse_constraints hh hv 2
+  have h3 := hardCore_uninverse_constraints hh hv 3
+  have h4 := hardCore_uninverse_constraints hh hv 4
+  have hdec : ∀ a b d c : Sym, constantTail c →
+      (binary (uninverse (liftWord [a, b, d] (fun _ => c)) 0) ∧
+        ¬(uninverse (liftWord [a, b, d] (fun _ => c)) 0 = 1 ∧ uninverse (liftWord [a, b, d] (fun _ => c)) 1 = 1)) →
+      (binary (uninverse (liftWord [a, b, d] (fun _ => c)) 1) ∧
+        ¬(uninverse (liftWord [a, b, d] (fun _ => c)) 1 = 1 ∧ uninverse (liftWord [a, b, d] (fun _ => c)) 2 = 1)) →
+      (binary (uninverse (liftWord [a, b, d] (fun _ => c)) 2) ∧
+        ¬(uninverse (liftWord [a, b, d] (fun _ => c)) 2 = 1 ∧ uninverse (liftWord [a, b, d] (fun _ => c)) 3 = 1)) →
+      (binary (uninverse (liftWord [a, b, d] (fun _ => c)) 3) ∧
+        ¬(uninverse (liftWord [a, b, d] (fun _ => c)) 3 = 1 ∧ uninverse (liftWord [a, b, d] (fun _ => c)) 4 = 1)) →
+      (binary (uninverse (liftWord [a, b, d] (fun _ => c)) 4) ∧
+        ¬(uninverse (liftWord [a, b, d] (fun _ => c)) 4 = 1 ∧ uninverse (liftWord [a, b, d] (fun _ => c)) 5 = 1)) →
+      False := by unfold constantTail binary; decide
+  exact hdec a b d c hc h0 h1 h2 h3 h4
+
+/-- **Unconditional `OrbitSeparator` for All Words of Length `≤ 3` (`orbitSeparator_length_le_three`):**
+for every label word `u : List Sym` with `u.length ≤ 3` and every `c ∈ {2, 3}` (`constantTail c`),
+no hard-core stream `e` satisfies `liftWord u (fun _ => c) = inverse e`. -/
+theorem orbitSeparator_length_le_three (u : List Sym) (hu : u.length ≤ 3) (c : Sym)
+    (hc : constantTail c) (e : Stream) (hh : HardCore e) :
+    liftWord u (fun _ => c) ≠ inverse e := by
+  match u with
+  | [] => exact no_hardCore_const_inverse c e hh
+  | [a] => exact no_hardCore_lift_const_inverse a c hc e hh
+  | [a, b] => exact no_hardCore_lift_two_const_inverse a b c hc e hh
+  | [a, b, d] => exact no_hardCore_lift_three_const_inverse a b d c hc e hh
+  | _ :: _ :: _ :: _ :: _ => simp at hu
+
 end Rule30SeparatorEquivalences
 end Ruliology.CellularAutomata
