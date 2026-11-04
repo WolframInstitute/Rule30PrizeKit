@@ -170,6 +170,7 @@ public import Ruliology.CellularAutomata.Rule30HealingBound
 public import Ruliology.CellularAutomata.Rule30EtherEdgeZero
 public import Ruliology.CellularAutomata.Rule30RootedFront
 public import Ruliology.CellularAutomata.Rule30ClosingLaw
+public import Ruliology.CellularAutomata.Rule30MovingWall
 
 /-!
 # Rule 30 Prize: Lean snapshot
