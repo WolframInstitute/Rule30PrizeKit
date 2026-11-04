@@ -483,4 +483,77 @@ theorem barrier_mode_not_observable (k : Int) (hk : 1≤k) :
   rw [barrier_front_mode_eq,gaugeEvol_eq,H_center k hk] at ht
   cases ht
 
+/-! ### Universal Gauge Invariance of Common Modes, Left-of-Edge Observability, and Column-0 Observer Reduction -/
+
+/-- One-step gauge independence when the wedge term vanishes (`Front.step_eq_zeroGauge_of_wedge_false`):
+if the wedge term between `a, b` and `h` vanishes at `(t, p)`, then `Front.step a b g t h p`
+equals `Front.step a b zeroGauge t h p` for every gauge `g`. -/
+theorem Front.step_eq_zeroGauge_of_wedge_false (a b : Int → Bool) (g : Nat → Int → Bool)
+    (t : Nat) (h : Int → Bool) (p : Int)
+    (hw : xor (xor (evol a t (p + 1)) (evol b t (p + 1)) && h p)
+              (xor (evol a t p) (evol b t p) && h (p + 1)) = false) :
+    Front.step a b g t h p = Front.step a b zeroGauge t h p := by
+  unfold Front.step zeroGauge
+  rw [gauge_identity]
+  simp [hw]
+
+/-- **Universal Gauge Invariance of Common Modes (`Front.mode_eq_zeroGauge_of_commonField`):**
+for any backgrounds `a, b`, initial mode `x`, and local gauge `g`, if `Front.mode a b zeroGauge x`
+satisfies `CommonField a b`, then `Front.mode a b g x t p = Front.mode a b zeroGauge x t p` at
+every time `t` and column `p`. -/
+theorem Front.mode_eq_zeroGauge_of_commonField {a b x : Int → Bool} (g : Nat → Int → Bool)
+    (hc : CommonField a b (Front.mode a b zeroGauge x)) :
+    ∀ (t : Nat) (p : Int), Front.mode a b g x t p = Front.mode a b zeroGauge x t p
+  | 0, p => rfl
+  | t + 1, p => by
+    show Front.step a b g t (Front.mode a b g x t) p =
+      Front.step a b zeroGauge t (Front.mode a b zeroGauge x t) p
+    have heq : Front.mode a b g x t = Front.mode a b zeroGauge x t :=
+      funext (Front.mode_eq_zeroGauge_of_commonField g hc t)
+    rw [heq]
+    exact Front.step_eq_zeroGauge_of_wedge_false a b g t (Front.mode a b zeroGauge x t) p (hc t p)
+
+/-- **Gauge Invariance of `CommonField` (`commonField_any_gauge_iff`):** if `Front.mode a b zeroGauge x`
+satisfies `CommonField a b`, then `Front.mode a b g x` also satisfies `CommonField a b` for every
+local gauge `g`. -/
+theorem commonField_of_zeroGauge {a b x : Int → Bool} (g : Nat → Int → Bool)
+    (hc : CommonField a b (Front.mode a b zeroGauge x)) :
+    CommonField a b (Front.mode a b g x) := by
+  intro t p
+  rw [Front.mode_eq_zeroGauge_of_commonField g hc t p,
+      Front.mode_eq_zeroGauge_of_commonField g hc t (p + 1)]
+  exact hc t p
+
+/-- **Unconditional Observability at All Columns on or Left of the Initial Edge
+(`Front.mode_observable_of_le_edge`):** if `a` and `b` vanish below `lo` and `HasLeftEdge x lo`,
+then for every gauge `g` and every column `p ≤ lo`, `Front.mode a b g x (lo - p).toNat p = true`. -/
+theorem Front.mode_observable_of_le_edge {a b x : Int → Bool} (g : Nat → Int → Bool) {lo p : Int}
+    (ha : ∀ q, q < lo → a q = false) (hb : ∀ q, q < lo → b q = false)
+    (hx : HasLeftEdge x lo) (hp : p ≤ lo) :
+    Front.mode a b g x (lo - p).toNat p = true := by
+  have he := (Front.mode_left_edge a b x g lo ha hb hx.1 hx.2 (lo - p).toNat).1
+  rwa [show lo - ((lo - p).toNat : Int) = p by omega] at he
+
+/-- **Reduction of `ModeObservable` to Columns Strictly Right of the Left Edge
+(`modeObservable_of_gt_edge`):** if `a` and `b` vanish below `lo` and `HasLeftEdge x lo`, then
+`ModeObservable a b x` holds as soon as every column `p > lo` is reached at some time `t`. -/
+theorem modeObservable_of_gt_edge {a b x : Int → Bool} {lo : Int}
+    (ha : ∀ q, q < lo → a q = false) (hb : ∀ q, q < lo → b q = false)
+    (hx : HasLeftEdge x lo)
+    (hgt : ∀ p, lo < p → ∃ t, Front.mode a b zeroGauge x t p = true) :
+    ModeObservable a b x := by
+  intro p
+  by_cases hp : p ≤ lo
+  · exact ⟨(lo - p).toNat, Front.mode_observable_of_le_edge zeroGauge ha hb hx hp⟩
+  · exact hgt p (by omega)
+
+/-- **Left Edge of the Actual Pair Difference (`hasLeftEdge_xor_of_lt`):** if `HasLeftEdge a u`
+and `HasLeftEdge b v` with `u < v`, then `fun p => xor (a p) (b p)` has left edge `u`. -/
+theorem hasLeftEdge_xor_of_lt {a b : Int → Bool} {u v : Int}
+    (ha : HasLeftEdge a u) (hb : HasLeftEdge b v) (huv : u < v) :
+    HasLeftEdge (fun p => xor (a p) (b p)) u := by
+  refine ⟨?_, fun p hp => ?_⟩
+  · simp only [ha.1, hb.2 u huv, Bool.true_xor, Bool.not_false]
+  · simp only [ha.2 p hp, hb.2 p (by omega), Bool.xor_self]
+
 end Ruliology.CellularAutomata.Rule30DividedDifference
