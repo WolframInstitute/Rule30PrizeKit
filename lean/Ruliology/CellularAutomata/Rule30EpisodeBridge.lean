@@ -315,4 +315,113 @@ theorem rain_not_mfinite :
   exact fun h => (episode_bridge (self_phase _ (by decide) h2)).mp h
     (self_eternal _ (by decide) h2 rfl)
 
+/-! ### Quantitative Horizon Bounds, Episode Monotonicity, and Phase Time-Shift Invariance -/
+
+/-- **Explicit Product Upper Bound on `horizon k p` (`horizon_le_prod`):** for any positive period
+`p > 0` and depth `k : Nat`, `horizon k p ≤ 2 ^ B (k + 2) * p`. -/
+theorem horizon_le_prod {p : Nat} (hp : 0 < p) (k : Nat) :
+    horizon k p ≤ 2 ^ B (k + 2) * p :=
+  Nat.le_of_dvd (Nat.mul_pos (Nat.two_pow_pos _) hp) (horizon_dvd_prod k p)
+
+/-- **Duration Monotonicity of `Episode` (`Episode.mono`):** if `Episode E k x a T₂` holds and
+`T₁ ≤ T₂`, then `Episode E k x a T₁` holds. -/
+theorem Episode.mono {E : Nat → Nat → Bool} {k : Nat} {x : Nat → Bool} {a T₁ T₂ : Nat}
+    (hle : T₁ ≤ T₂) (h : Episode E k x a T₂) : Episode E k x a T₁ :=
+  fun t ht => h t (Nat.lt_of_lt_of_le ht hle)
+
+/-- **Strict `horizon k p` Upper Bound for Every Finite-Depth Episode (`episode_lt_horizon_of_mfinite`):**
+if `hE : IsPhase E p` and `MFinite E k` hold, then any episode `Episode E k x a T` behind a black
+right edge (`x 0 = true`) has duration strictly less than `horizon k p` (`T < horizon k p`) and at
+most `2 ^ B (k + 2) * p - 1`. -/
+theorem episode_lt_horizon_of_mfinite {E : Nat → Nat → Bool} {p k a T : Nat} {x : Nat → Bool}
+    (hE : IsPhase E p) (hmf : MFinite E k) (hx : x 0 = true) (hep : Episode E k x a T) :
+    T < horizon k p ∧ T < 2 ^ B (k + 2) * p := by
+  have hlt : T < horizon k p := by
+    refine Classical.byContradiction fun hge => ?_
+    have hle : horizon k p ≤ T := by omega
+    exact (mfinite_iff hE k).mp hmf x a hx (hep.mono hle)
+  have hprod := horizon_le_prod hE.pos k
+  exact ⟨hlt, Nat.lt_of_lt_of_le hlt hprod⟩
+
+/-- **No `g8` Episode Reaches `horizon k 8` (`g8_no_episode_at_horizon`):** for every spatial offset
+`i`, time phase `q`, depth `k`, alignment `a`, and black-edge code `x` (`x 0 = true`),
+`¬ Episode (g8 i q) k x a (horizon k 8)`. -/
+theorem g8_no_episode_at_horizon (i q k a : Nat) {x : Nat → Bool} (hx : x 0 = true) :
+    ¬ Episode (g8 i q) k x a (horizon k 8) :=
+  (mfinite_iff (g8_phase i q) k).mp (g8_mfinite i q k) x a hx
+
+/-- **Quantitative Horizon Upper Bound on Every `g8` Episode (`g8_episode_lt_horizon`):** every
+episode `Episode (g8 i q) k x a T` behind a black right edge (`x 0 = true`) satisfies
+`T < horizon k 8` and `T < 2 ^ B (k + 2) * 8`. -/
+theorem g8_episode_lt_horizon (i q k a T : Nat) {x : Nat → Bool} (hx : x 0 = true)
+    (hep : Episode (g8 i q) k x a T) :
+    T < horizon k 8 ∧ T < 2 ^ B (k + 2) * 8 :=
+  episode_lt_horizon_of_mfinite (g8_phase i q) (g8_mfinite i q k) hx hep
+
+/-- **Time-Shifted Phase (`shiftPhase`):** shifts a phase `E : Nat → Nat → Bool` in time by `s`
+ticks (`fun j t => E j (t + s)`). -/
+def shiftPhase (E : Nat → Nat → Bool) (s : Nat) : Nat → Nat → Bool :=
+  fun j t => E j (t + s)
+
+/-- **Phase Closure Under Time Shift (`IsPhase.shift`):** if `IsPhase E p` holds, then
+`IsPhase (shiftPhase E s) p` holds for every shift `s : Nat`. -/
+theorem IsPhase.shift {E : Nat → Nat → Bool} {p : Nat} (hE : IsPhase E p) (s : Nat) :
+    IsPhase (shiftPhase E s) p where
+  pos := hE.pos
+  step j t := by
+    unfold shiftPhase
+    rw [show t + 1 + s = (t + s) + 1 by omega]
+    exact hE.step j (t + s)
+  period j t := by
+    unfold shiftPhase
+    rw [show t + p + s = (t + s) + p by omega]
+    exact hE.period j (t + s)
+
+/-- **Episode Alignment Equivalence Under `shiftPhase` (`episode_shiftPhase_iff`):** an episode
+`Episode (shiftPhase E s) k x a T` is equivalent to `Episode E k x (a + s) T`. -/
+theorem episode_shiftPhase_iff (E : Nat → Nat → Bool) (s k : Nat) (x : Nat → Bool) (a T : Nat) :
+    Episode (shiftPhase E s) k x a T ↔ Episode E k x (a + s) T := by
+  unfold Episode shiftPhase
+  constructor <;> intro h t ht <;> have ht' := h t ht
+  · rwa [← Nat.add_assoc t a s]
+  · rwa [Nat.add_assoc t a s]
+
+/-- **Invariance of `MFinite` Under Phase Time-Shift (`mfinite_shiftPhase_iff`):** for any phase
+`hE : IsPhase E p`, shift `s : Nat`, and depth `k : Nat`,
+`MFinite (shiftPhase E s) k ↔ MFinite E k`. -/
+theorem mfinite_shiftPhase_iff {E : Nat → Nat → Bool} {p : Nat} (hE : IsPhase E p) (s k : Nat) :
+    MFinite (shiftPhase E s) k ↔ MFinite E k := by
+  rw [mfinite_iff (hE.shift s) k, mfinite_iff hE k]
+  constructor
+  · intro h x a hx hep
+    have hep' : Episode (shiftPhase E s) k x (a + p * s - s) (horizon k p) := by
+      rw [episode_shiftPhase_iff]
+      have hps : s ≤ p * s := Nat.le_mul_of_pos_left s hE.pos
+      have heq : a + p * s - s + s = a + p * s := by omega
+      rw [heq]
+      intro t ht
+      have h1 := hE.period_mul k (t + a) s
+      have h2 := hE.period_mul (k + 1) (t + a) s
+      rw [show t + (a + p * s) = t + a + p * s by omega, h1, h2]
+      exact hep t ht
+    exact h x (a + p * s - s) hx hep'
+  · intro h x a hx hep
+    rw [episode_shiftPhase_iff] at hep
+    exact h x (a + s) hx hep
+
+/-- **Invariance of `EternalTail` Under Phase Time-Shift (`eternalTail_shiftPhase_iff`):** for any
+phase `hE : IsPhase E p` and shift `s : Nat`,
+`EternalTail (shiftPhase E s) ↔ EternalTail E`. -/
+theorem eternalTail_shiftPhase_iff {E : Nat → Nat → Bool} {p : Nat} (hE : IsPhase E p) (s : Nat) :
+    EternalTail (shiftPhase E s) ↔ EternalTail E := by
+  have hb1 := episode_bridge (hE.shift s)
+  have hb2 := episode_bridge hE
+  have hm : (∀ k, MFinite (shiftPhase E s) k) ↔ (∀ k, MFinite E k) :=
+    forall_congr' (fun k => mfinite_shiftPhase_iff hE s k)
+  constructor <;> intro het
+  · refine Classical.byContradiction fun hne => ?_
+    exact (hb1.mp (hm.mpr (hb2.mpr hne))) het
+  · refine Classical.byContradiction fun hne => ?_
+    exact (hb2.mp (hm.mp (hb1.mpr hne))) het
+
 end Ruliology.CellularAutomata.Rule30EpisodeBridge
