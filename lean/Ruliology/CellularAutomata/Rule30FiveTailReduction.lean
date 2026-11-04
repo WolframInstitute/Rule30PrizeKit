@@ -93,4 +93,79 @@ theorem no_five_tail_of_cores {x : Int → Bool} {lo : Int}
         (b+(r+a)) (by omega) hrot
     · exact hcores v hv (b+(r+a)) (by omega) hrot
 
+/-! ### Intrinsic Characterization of `fiveCores`, Disjointness from `shortCores`, and Canonical `seed` Specialization -/
+
+/-- Every word `v ∈ fiveCores` has length `5`. -/
+theorem fiveCores_length {v : List Bool} (hv : v ∈ fiveCores) : v.length = 5 := by
+  revert v hv
+  decide
+
+/-- Every word `v ∈ fiveCores` begins and ends with `true`. -/
+theorem fiveCores_head_last_true {v : List Bool} (hv : v ∈ fiveCores) :
+    v.getD 0 false = true ∧ v.getD 4 false = true := by
+  revert v hv
+  decide
+
+/-- **Exact Intrinsic Characterization of `fiveCores` (`mem_fiveCores_iff`):** a Boolean list `v`
+belongs to `fiveCores` if and only if `v.length = 5`, `v.getD 0 false = true`, and `v.getD 4 false = true`. -/
+theorem mem_fiveCores_iff (v : List Bool) :
+    v ∈ fiveCores ↔ v.length = 5 ∧ v.getD 0 false = true ∧ v.getD 4 false = true := by
+  constructor
+  · intro hv
+    exact ⟨fiveCores_length hv, (fiveCores_head_last_true hv).1, (fiveCores_head_last_true hv).2⟩
+  · rintro ⟨hlen, h0, h4⟩
+    rcases v with _ | ⟨b0, _ | ⟨b1, _ | ⟨b2, _ | ⟨b3, _ | ⟨b4, _ | tl⟩⟩⟩⟩⟩
+    · simp at hlen
+    · simp at hlen
+    · simp at hlen
+    · simp at hlen
+    · simp at hlen
+    · simp at h0 h4
+      subst h0; subst h4
+      cases b1 <;> cases b2 <;> cases b3 <;> decide
+    · simp at hlen
+
+/-- Every word in `shortCores` has length at most `4`. -/
+theorem shortCores_length_le_four {v : List Bool} (hv : v ∈ shortCores) :
+    v.length ≤ 4 := by
+  revert v hv
+  decide
+
+/-- **Disjointness of `fiveCores` from `shortCores` (`fiveCores_disjoint_shortCores`):**
+no word in `fiveCores` belongs to `shortCores`. -/
+theorem fiveCores_disjoint_shortCores {v : List Bool}
+    (hv5 : v ∈ fiveCores) (hv4 : v ∈ shortCores) : False := by
+  have h5 := fiveCores_length hv5
+  have h4 := shortCores_length_le_four hv4
+  omega
+
+/-- **Intrinsic Black-Ended Core Form of `no_five_tail_of_cores` (`no_five_tail_of_black_ended_five`):**
+if every length-5 word `v` starting and ending with `true` is excluded after `r ≥ 69` white cells,
+then every Boolean word `u` of length `u.length ≤ 5` is excluded after `r ≥ 69` white cells. -/
+theorem no_five_tail_of_black_ended_five {x : Int → Bool} {lo : Int}
+    (hlo : x lo = true) (hzero : ∀ p, p < lo → x p = false) (i : Int)
+    (hcores : ∀ v : List Bool, v.length = 5 → v.getD 0 false = true → v.getD 4 false = true →
+      ∀ r, 69 ≤ r → ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ v))
+    (u : List Bool) (hu : u.length ≤ 5) (r : Nat) (hr : 69 ≤ r) :
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ u) :=
+  no_five_tail_of_cores hlo hzero i
+    (fun v hv r hr' => hcores v (fiveCores_length hv) (fiveCores_head_last_true hv).1
+      (fiveCores_head_last_true hv).2 r hr')
+    u hu r hr
+
+/-- **Canonical Single-Black-Cell `seed` Specialization (`no_five_tail_seed_of_cores`):**
+for the standard initial configuration `seed`, excluding the 8 cores in `fiveCores` at column `i`
+for `r ≥ 69` excludes `List.replicate r false ++ u` for every `u` with `u.length ≤ 5` and `r ≥ 69`. -/
+theorem no_five_tail_seed_of_cores (i : Int)
+    (hcores : ∀ v, v ∈ fiveCores → ∀ r, 69 ≤ r →
+      ¬ Rule30FiniteStrips.EventuallyWord seed i (List.replicate r false ++ v))
+    (u : List Bool) (hu : u.length ≤ 5) (r : Nat) (hr : 69 ≤ r) :
+    ¬ Rule30FiniteStrips.EventuallyWord seed i (List.replicate r false ++ u) := by
+  have hlo : seed 0 = true := by decide
+  have hzero : ∀ p : Int, p < 0 → seed p = false := by
+    intro p hp
+    show decide (p = 0) = false
+    simp; omega
+  exact no_five_tail_of_cores hlo hzero i hcores u hu r hr
+
 end Ruliology.CellularAutomata.Rule30FiveTailReduction
