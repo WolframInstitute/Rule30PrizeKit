@@ -451,5 +451,126 @@ theorem exists_gt_pow_of_problem3Robust (hP3R : Problem3Robust) {M : Machine} {T
     · exact False.elim (hn ⟨n, hge, hlt⟩)
     · exact hle
 
+/-! ### Two-Step Light-Cone Locality on `i ≤ 1`, Unconditional 2-Step Exclusion, and the `3 ≤ T 3 ∨ 3 ≤ T 7` Lower Bound -/
+
+/-- **Single-Step Rightward Reach Bound (`apply_le_add_one`):** for every move `d : Move` and
+head position `h : Int`, `d.apply h ≤ h + 1`. -/
+theorem apply_le_add_one (d : Move) (h : Int) : d.apply h ≤ h + 1 := by
+  cases d <;> simp [Move.apply] <;> omega
+
+/-- **Step-1 Head Bound from Origin (`apply_zero_le_one`):** starting from head position `0`,
+after one move `d` the head position satisfies `d.apply 0 ≤ 1`. -/
+theorem apply_zero_le_one (d : Move) : d.apply 0 ≤ 1 := by
+  simpa using apply_le_add_one d 0
+
+/-- **Blank Initial Tape on the Negative Half-Line (`init_tape_neg`):** for any machine `M`,
+input `n : Nat`, and negative cell `i < 0`, `(M.init n).tape i` holds the blank symbol `0`. -/
+theorem init_tape_neg (M : Machine) (n : Nat) {i : Int} (hi : i < 0) :
+    (M.init n).tape i = ⟨0, by omega⟩ := by
+  have hnot : ¬ (0 ≤ i ∧ 2 ^ i.toNat ≤ n) := fun h => by omega
+  simp [Machine.init, hnot]
+
+/-- **Initial Tape Agreement on All Cells `i ≤ 1` (`init_tape_eq_of_le_one`):** if inputs `m, n`
+produce the same initial symbols on cells `0` and `1`, then `(M.init m).tape i = (M.init n).tape i`
+for every cell `i ≤ 1`. -/
+theorem init_tape_eq_of_le_one (M : Machine) {m n : Nat}
+    (h0 : (M.init m).tape 0 = (M.init n).tape 0)
+    (h1 : (M.init m).tape 1 = (M.init n).tape 1)
+    {i : Int} (hi : i ≤ 1) :
+    (M.init m).tape i = (M.init n).tape i := by
+  rcases (by omega : i < 0 ∨ i = 0 ∨ i = 1) with hneg | rfl | rfl
+  · rw [init_tape_neg M m hneg, init_tape_neg M n hneg]
+  · exact h0
+  · exact h1
+
+/-- **Halted Persistence to Any Later Step Bound (`run_le_eq_inl`):** if `M` computes `f` within
+time `T` and `T n ≤ k`, then `M.run n k = .inl (f n)`. -/
+theorem run_le_eq_inl {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (h : Computes M f T) {n k : Nat} (hk : T n ≤ k) :
+    M.run n k = .inl (f n) := by
+  have hadd := Machine.run_add (h n) (k - T n)
+  rwa [Nat.add_sub_cancel' hk] at hadd
+
+/-- **Two-Step Halting Equivalence Under Cell-`{0, 1}` Agreement
+(`run_two_eq_inl_iff_of_init_zero_one_eq`):** if `(M.init m).tape 0 = (M.init n).tape 0` and
+`(M.init m).tape 1 = (M.init n).tape 1`, then for every answer `b : Bool`,
+`M.run m 2 = .inl b ↔ M.run n 2 = .inl b`. -/
+theorem run_two_eq_inl_iff_of_init_zero_one_eq (M : Machine) {m n : Nat}
+    (h0 : (M.init m).tape 0 = (M.init n).tape 0)
+    (h1 : (M.init m).tape 1 = (M.init n).tape 1) (b : Bool) :
+    M.run m 2 = .inl b ↔ M.run n 2 = .inl b := by
+  simp only [Machine.run, Cfg.step]
+  have hhead0 : (M.init m).head = 0 := rfl
+  have hhead0' : (M.init n).head = 0 := rfl
+  have hstate0 : (M.init m).state = (M.init n).state := rfl
+  rw [hhead0, hhead0', hstate0, h0]
+  cases M.δ (M.init n).state ((M.init n).tape 0) with
+  | inl b0 => rfl
+  | inr trip =>
+    rcases trip with ⟨p, a, d⟩
+    dsimp only
+    have hcell : (if d.apply 0 = 0 then a else (M.init m).tape (d.apply 0)) =
+        (if d.apply 0 = 0 then a else (M.init n).tape (d.apply 0)) := by
+      split
+      · rfl
+      · exact init_tape_eq_of_le_one M h0 h1 (apply_zero_le_one d)
+    rw [hcell]
+    cases M.δ p (if d.apply 0 = 0 then a else (M.init n).tape (d.apply 0)) <;> simp
+
+/-- **Two-Step Output Determination by Cells `0` and `1`
+(`computes_time_two_eq_of_init_zero_one_eq`):** if `M` computes `f` within time `T` with
+`T m ≤ 2` and `T n ≤ 2`, and `m, n` agree on initial tape cells `0` and `1`, then `f m = f n`. -/
+theorem computes_time_two_eq_of_init_zero_one_eq {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (h : Computes M f T) {m n : Nat} (hTm : T m ≤ 2) (hTn : T n ≤ 2)
+    (h0 : (M.init m).tape 0 = (M.init n).tape 0)
+    (h1 : (M.init m).tape 1 = (M.init n).tape 1) :
+    f m = f n := by
+  have hm2 : M.run m 2 = .inl (f m) := run_le_eq_inl h hTm
+  have hn2 : M.run n 2 = .inl (f n) := run_le_eq_inl h hTn
+  have hn2' : M.run n 2 = .inl (f m) :=
+    (run_two_eq_inl_iff_of_init_zero_one_eq M h0 h1 (f m)).mp hm2
+  exact run_halted_unique hn2' hn2
+
+/-- **Initial Cell-`{0, 1}` Agreement for Inputs `2` and `6` (`init_two_eq_init_six`):**
+inputs `2` and `6` (`2 ≡ 6 mod 4`) have identical initial symbols on cells `0` and `1`. -/
+theorem init_two_eq_init_six (M : Machine) :
+    (M.init 2).tape 0 = (M.init 6).tape 0 ∧ (M.init 2).tape 1 = (M.init 6).tape 1 :=
+  ⟨rfl, rfl⟩
+
+/-- **Initial Cell-`{0, 1}` Agreement for Inputs `3` and `7` (`init_three_eq_init_seven`):**
+inputs `3` and `7` (`3 ≡ 7 mod 4`) have identical initial symbols on cells `0` and `1`. -/
+theorem init_three_eq_init_seven (M : Machine) :
+    (M.init 3).tape 0 = (M.init 7).tape 0 ∧ (M.init 3).tape 1 = (M.init 7).tape 1 :=
+  ⟨rfl, rfl⟩
+
+/-- **Exact Values of `center 3` and `center 7` (`center_three_ne_center_seven`):** at steps `3`
+and `7`, `center 3 = true` and `center 7 = false`, so `center 3 ≠ center 7`. -/
+theorem center_three_ne_center_seven : center 3 = true ∧ center 7 = false ∧ center 3 ≠ center 7 := by
+  decide
+
+/-- **Unconditional 2-Step Exclusion for the Rule 30 Center Column (`not_computes_center_time_two`):**
+no machine `M` can compute `center` within 2 steps on all inputs (`¬ Computes M center (fun _ => 2)`),
+unconditionally (without assuming `Problem3Robust`). -/
+theorem not_computes_center_time_two (M : Machine) :
+    ¬ Computes M center (fun _ => 2) := by
+  intro h
+  obtain ⟨h0, h1⟩ := init_three_eq_init_seven M
+  have heq := computes_time_two_eq_of_init_zero_one_eq h (m := 3) (n := 7) (by omega) (by omega) h0 h1
+  exact center_three_ne_center_seven.2.2 heq
+
+/-- **Three-Step Lower Bound on Either Input 3 or Input 7 (`three_le_time_three_or_seven`):** for
+every machine `M` and step bound `T` satisfying `Computes M center T`, either `3 ≤ T 3` or `3 ≤ T 7`. -/
+theorem three_le_time_three_or_seven {M : Machine} {T : Nat → Nat} (h : Computes M center T) :
+    3 ≤ T 3 ∨ 3 ≤ T 7 := by
+  by_cases h3 : 3 ≤ T 3
+  · exact Or.inl h3
+  · right
+    by_cases h7 : 3 ≤ T 7
+    · exact h7
+    · exfalso
+      obtain ⟨h0, h1⟩ := init_three_eq_init_seven M
+      have heq := computes_time_two_eq_of_init_zero_one_eq h (m := 3) (n := 7) (by omega) (by omega) h0 h1
+      exact center_three_ne_center_seven.2.2 heq
+
 end Rule30Problem3
 end Ruliology.CellularAutomata
