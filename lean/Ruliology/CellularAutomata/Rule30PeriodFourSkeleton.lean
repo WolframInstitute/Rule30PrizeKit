@@ -1230,5 +1230,269 @@ theorem cofinal_col_neg6_three_black_of_fits_0011 {s : Int → Bool} {M K : Nat}
   rw [h6_3, show n - 1 + 1 = n by omega, show n - 1 + 2 = n + 1 by omega]
   exact hxor
 
+theorem wordAt_effWord_0111_0 (m : Nat) : wordAt (effWord w0111) (4 * m) = false := by
+  unfold wordAt effWord w0111
+  rw [show (4 * m) % 4 = 0 by omega]; rfl
+
+theorem wordAt_effWord_0111_1 (m : Nat) : wordAt (effWord w0111) (4 * m + 1) = true := by
+  unfold wordAt effWord w0111
+  rw [show (4 * m + 1) % 4 = 1 by omega]; rfl
+
+theorem wordAt_effWord_0111_2 (m : Nat) : wordAt (effWord w0111) (4 * m + 2) = true := by
+  unfold wordAt effWord w0111
+  rw [show (4 * m + 2) % 4 = 2 by omega]; rfl
+
+theorem wordAt_effWord_0111_3 (m : Nat) : wordAt (effWord w0111) (4 * m + 3) = false := by
+  unfold wordAt effWord w0111
+  rw [show (4 * m + 3) % 4 = 3 by omega]; rfl
+
+/-! ### Complete Low-Period Exclusion ($1 \le P \le 5$) Under `Problem2` and `C3 w0011`, and Deep Left-Column Collapse (`-1` Through `-5`) Under `w0111` -/
+
+/-- **Universal Odd-Period Exclusion on `cell · 0` Under `Problem2` (`no_period_odd_of_problem2`):**
+under `Rule30Prize.Problem2`, for every `m : Nat`, `cell · 0` cannot have eventual period
+`2 * m + 1`. -/
+theorem no_period_odd_of_problem2 (hP2 : Rule30Prize.Problem2) (m : Nat) :
+    ¬ ∃ T, ∀ t, T ≤ t → cell (t + (2 * m + 1)) 0 = cell t 0 := by
+  rintro ⟨T, hT⟩
+  exact Rule30LeftAntiPeriod.center_not_evPer_odd_of_problem2 hP2 m ⟨T, hT⟩
+
+/-- **Period-3 Exclusion Under `Problem2` Alone (`no_period_three_of_problem2`):** under
+`Rule30Prize.Problem2`, `cell · 0` cannot have eventual period `3` (eliminating all period-3
+left-half hypotheses `Q001`, `C3s001`, `C3w w001`, and `C3w w011`). -/
+theorem no_period_three_of_problem2 (hP2 : Rule30Prize.Problem2) :
+    ¬ ∃ T, ∀ t, T ≤ t → cell (t + 3) 0 = cell t 0 :=
+  no_period_odd_of_problem2 hP2 1
+
+/-- **Period-5 Exclusion Under `Problem2` Alone (`no_period_five_of_problem2`):** under
+`Rule30Prize.Problem2`, `cell · 0` cannot have eventual period `5`. -/
+theorem no_period_five_of_problem2 (hP2 : Rule30Prize.Problem2) :
+    ¬ ∃ T, ∀ t, T ≤ t → cell (t + 5) 0 = cell t 0 :=
+  no_period_odd_of_problem2 hP2 2
+
+/-- **Direct Period-4 Exclusion Under Period-2 Exclusion, `Problem2`, and `C3 w0011`
+(`no_period_four_of_no_period_two_and_problem2_and_C3_0011`):** if eventual period `2` is
+excluded, `Rule30Prize.Problem2` holds, and `C3 w0011` holds, then eventual period `4` is
+excluded (dropping `C3 w0001` and `C3 w0111` from `no_period_four_of_no_period_two_and_C3`). -/
+theorem no_period_four_of_no_period_two_and_problem2_and_C3_0011
+    (h2 : ¬ ∃ T, ∀ t, T ≤ t → cell (t + 2) 0 = cell t 0)
+    (hP2 : Rule30Prize.Problem2) (h0011 : C3 w0011) :
+    ¬ ∃ T, ∀ t, T ≤ t → cell (t + 4) 0 = cell t 0 := by
+  rintro ⟨T, hT⟩
+  exact h2 ⟨T, period_two_of_period_four_of_problem2_and_C3_0011 hP2 h0011 hT⟩
+
+/-- **Complete Low-Period Exclusion ($1 \le P \le 5$) Under Period-2 Exclusion, `Problem2`, and
+`C3 w0011` (`no_period_le_five_of_no_period_two_and_problem2_and_C3_0011`):** under period-2
+exclusion, `Rule30Prize.Problem2`, and `C3 w0011`, `cell · 0` has no eventual period `P` with
+`1 ≤ P ≤ 5`. -/
+theorem no_period_le_five_of_no_period_two_and_problem2_and_C3_0011
+    (h2 : ¬ ∃ T, ∀ t, T ≤ t → cell (t + 2) 0 = cell t 0)
+    (hP2 : Rule30Prize.Problem2) (h0011 : C3 w0011)
+    (P : Nat) (hP1 : 1 ≤ P) (hP5 : P ≤ 5) :
+    ¬ ∃ T, ∀ t, T ≤ t → cell (t + P) 0 = cell t 0 := by
+  have : P = 1 ∨ P = 2 ∨ P = 3 ∨ P = 4 ∨ P = 5 := by omega
+  rcases this with rfl | rfl | rfl | rfl | rfl
+  · exact Rule30Prize.center_not_eventually_period_one
+  · exact h2
+  · exact no_period_three_of_problem2 hP2
+  · exact no_period_four_of_no_period_two_and_problem2_and_C3_0011 h2 hP2 h0011
+  · exact no_period_five_of_problem2 hP2
+
+/-- **Cofinal Free-Phase Oscillation Under `colPattern w0111` (`cofinal_free_phase_of_fits_0111`):**
+for any left-bounded start `s`, if column `-1` under `effWord w0111` fits `colPattern w0111`
+from `K` on, then the phase-0 free bit stream `L c' s (4 * m) (-1)` takes both `true` and `false`
+infinitely often. -/
+theorem cofinal_free_phase_of_fits_0111 {s : Int → Bool} {M K : Nat}
+    (hM : ∀ p : Int, p < -(M : Int) → s p = false)
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0111) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s k (-1)) = true)
+    (N : Nat) :
+    (∃ m, N ≤ m ∧ Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s (4 * m) (-1) = true) ∧
+    (∃ m, N ≤ m ∧ Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s (4 * m) (-1) = false) := by
+  have hact : (∃ p : Int, p < 0 ∧ s p = true) ∨ (∃ t : Nat, wordAt (effWord w0111) t = true) :=
+    Or.inr ⟨1, by decide⟩
+  have hper : ∀ k, K ≤ k → k % 4 ≠ 0 →
+      Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s (k + 4) (-1) =
+        Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s k (-1) := by
+    intro k hk hne
+    have hk1 := hfits k hk
+    have hk2 := hfits (k + 4) (by omega)
+    rw [Nat.add_mod_right] at hk2
+    have : k % 4 = 1 ∨ k % 4 = 2 ∨ k % 4 = 3 := by omega
+    rcases this with hmod | hmod | hmod <;> rw [hmod] at hk1 hk2
+    · have e1 : Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s k (-1) = false := by
+        revert hk1; cases Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s k (-1) <;> decide
+      have e2 : Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s (k + 4) (-1) = false := by
+        revert hk2; cases Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s (k + 4) (-1) <;> decide
+      rw [e1, e2]
+    · have e1 : Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s k (-1) = false := by
+        revert hk1; cases Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s k (-1) <;> decide
+      have e2 : Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s (k + 4) (-1) = false := by
+        revert hk2; cases Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s (k + 4) (-1) <;> decide
+      rw [e1, e2]
+    · have e1 : Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s k (-1) = true := by
+        revert hk1; cases Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s k (-1) <;> decide
+      have e2 : Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s (k + 4) (-1) = true := by
+        revert hk2; cases Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s (k + 4) (-1) <;> decide
+      rw [e1, e2]
+  simpa using Rule30DrivenLeft.cofinal_true_and_false_free_phase_of_bounded
+    (by decide : 0 < 4) (by decide : 0 < 4) hM hact (eventuallyPeriodic_effWord w0111) hper N
+
+/-- **Column `-1` Fixed Phases Under `colPattern w0111` (`col_neg1_of_fits_0111`):** for `K ≤ 4 * m`,
+column `-1` at phases `1, 2, 3` equals `(false, false, true)`. -/
+theorem col_neg1_of_fits_0111 {c : Nat → Bool} {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits (colPattern w0111) (k % 4) (Rule30DrivenLeft.L c s k (-1)) = true)
+    (hm : K ≤ 4 * m) :
+    Rule30DrivenLeft.L c s (4 * m + 1) (-1) = false ∧
+    Rule30DrivenLeft.L c s (4 * m + 2) (-1) = false ∧
+    Rule30DrivenLeft.L c s (4 * m + 3) (-1) = true := by
+  have h1 := hfits (4 * m + 1) (by omega)
+  have h2 := hfits (4 * m + 2) (by omega)
+  have h3 := hfits (4 * m + 3) (by omega)
+  rw [show (4 * m + 1) % 4 = 1 by omega] at h1
+  rw [show (4 * m + 2) % 4 = 2 by omega] at h2
+  rw [show (4 * m + 3) % 4 = 3 by omega] at h3
+  refine ⟨?_, ?_, ?_⟩
+  · revert h1; cases Rule30DrivenLeft.L c s (4 * m + 1) (-1) <;> decide
+  · revert h2; cases Rule30DrivenLeft.L c s (4 * m + 2) (-1) <;> decide
+  · revert h3; cases Rule30DrivenLeft.L c s (4 * m + 3) (-1) <;> decide
+
+/-- **Column `-2` Closed Form Under `colPattern w0111` (`col_neg2_of_fits_0111`):** for `K ≤ 4 * m`,
+column `-2` at phases `0, 1, 2, 3` equals `(u m, true, false, !u (m + 1))`. -/
+theorem col_neg2_of_fits_0111 {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0111) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s k (-1)) = true)
+    (hm : K ≤ 4 * m) :
+    let c' := fun k => wordAt (effWord w0111) k
+    Rule30DrivenLeft.L c' s (4 * m) (-2) = Rule30DrivenLeft.L c' s (4 * m) (-1) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 1) (-2) = true ∧
+    Rule30DrivenLeft.L c' s (4 * m + 2) (-2) = false ∧
+    Rule30DrivenLeft.L c' s (4 * m + 3) (-2) = !Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) := by
+  intro c'
+  obtain ⟨h1_1, h1_2, h1_3⟩ := col_neg1_of_fits_0111 hfits hm
+  have step0 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -1) (4 * m) (by decide)
+  have step1 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -1) (4 * m + 1) (by decide)
+  have step2 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -1) (4 * m + 2) (by decide)
+  have step3 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -1) (4 * m + 3) (by decide)
+  simp only [show (-1 : Int) - 1 = -2 by decide, show (-1 : Int) + 1 = 0 by decide,
+    show 4 * m + 3 + 1 = 4 * (m + 1) by omega] at step0 step1 step2 step3
+  have hz0 : Rule30DrivenLeft.L c' s (4 * m) 0 = false := by
+    have h : Rule30DrivenLeft.L c' s (4 * m) 0 = c' (4 * m) := by cases (4 * m) <;> rfl
+    rw [h]; dsimp [c']; rw [wordAt_effWord_0111_0]
+  have hz1 : Rule30DrivenLeft.L c' s (4 * m + 1) 0 = true := by
+    change c' (4 * m + 1) = true; dsimp [c']; exact wordAt_effWord_0111_1 m
+  have hz2 : Rule30DrivenLeft.L c' s (4 * m + 2) 0 = true := by
+    change c' (4 * m + 2) = true; dsimp [c']; exact wordAt_effWord_0111_2 m
+  have hz3 : Rule30DrivenLeft.L c' s (4 * m + 3) 0 = false := by
+    change c' (4 * m + 3) = false; dsimp [c']; exact wordAt_effWord_0111_3 m
+  rw [h1_1, hz0] at step0
+  rw [h1_1, h1_2, hz1] at step1
+  rw [h1_2, h1_3, hz2] at step2
+  rw [h1_3, hz3] at step3
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [step0]; cases Rule30DrivenLeft.L c' s (4 * m) (-1) <;> rfl
+  · rw [step1]; rfl
+  · rw [step2]; rfl
+  · rw [step3]; cases Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) <;> rfl
+
+/-- **Column `-3` Closed Form Under `colPattern w0111` (`col_neg3_of_fits_0111`):** for `K ≤ 4 * m`,
+column `-3` at phases `0, 1, 2, 3` equals `(!u m, true, !u (m + 1), !u (m + 1))`. -/
+theorem col_neg3_of_fits_0111 {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0111) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s k (-1)) = true)
+    (hm : K ≤ 4 * m) :
+    let c' := fun k => wordAt (effWord w0111) k
+    Rule30DrivenLeft.L c' s (4 * m) (-3) = !Rule30DrivenLeft.L c' s (4 * m) (-1) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 1) (-3) = true ∧
+    Rule30DrivenLeft.L c' s (4 * m + 2) (-3) = !Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 3) (-3) = !Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) := by
+  intro c'
+  obtain ⟨h1_1, h1_2, h1_3⟩ := col_neg1_of_fits_0111 hfits hm
+  obtain ⟨h2_0, h2_1, h2_2, h2_3⟩ := col_neg2_of_fits_0111 hfits hm
+  obtain ⟨h2_4, _, _, _⟩ := col_neg2_of_fits_0111 hfits (m := m + 1) (by omega)
+  have step0 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -2) (4 * m) (by decide)
+  have step1 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -2) (4 * m + 1) (by decide)
+  have step2 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -2) (4 * m + 2) (by decide)
+  have step3 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -2) (4 * m + 3) (by decide)
+  simp only [show (-2 : Int) - 1 = -3 by decide, show (-2 : Int) + 1 = -1 by decide,
+    show 4 * m + 3 + 1 = 4 * (m + 1) by omega] at step0 step1 step2 step3
+  rw [h2_0, h2_1] at step0
+  rw [h2_1, h2_2, h1_1] at step1
+  rw [h2_2, h2_3, h1_2] at step2
+  rw [h2_3, h2_4, h1_3] at step3
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [step0]; cases Rule30DrivenLeft.L c' s (4 * m) (-1) <;> rfl
+  · rw [step1]; rfl
+  · rw [step2]; cases Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) <;> rfl
+  · rw [step3]; cases Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) <;> rfl
+
+/-- **Column `-4` Three-White-Wall Collapse Under `colPattern w0111` (`col_neg4_of_fits_0111`):**
+for `K ≤ 4 * m`, column `-4` collapses to `(false, u (m + 1), false, false)` (three unconditional
+white walls at phases `0, 2, 3`, and the shifted free bit `u (m + 1)` at phase `1`). -/
+theorem col_neg4_of_fits_0111 {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0111) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s k (-1)) = true)
+    (hm : K ≤ 4 * m) :
+    let c' := fun k => wordAt (effWord w0111) k
+    Rule30DrivenLeft.L c' s (4 * m) (-4) = false ∧
+    Rule30DrivenLeft.L c' s (4 * m + 1) (-4) = Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 2) (-4) = false ∧
+    Rule30DrivenLeft.L c' s (4 * m + 3) (-4) = false := by
+  intro c'
+  obtain ⟨h2_0, h2_1, h2_2, h2_3⟩ := col_neg2_of_fits_0111 hfits hm
+  obtain ⟨h3_0, h3_1, h3_2, h3_3⟩ := col_neg3_of_fits_0111 hfits hm
+  obtain ⟨h3_4, _, _, _⟩ := col_neg3_of_fits_0111 hfits (m := m + 1) (by omega)
+  have step0 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -3) (4 * m) (by decide)
+  have step1 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -3) (4 * m + 1) (by decide)
+  have step2 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -3) (4 * m + 2) (by decide)
+  have step3 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -3) (4 * m + 3) (by decide)
+  simp only [show (-3 : Int) - 1 = -4 by decide, show (-3 : Int) + 1 = -2 by decide,
+    show 4 * m + 3 + 1 = 4 * (m + 1) by omega] at step0 step1 step2 step3
+  rw [h3_0, h3_1, h2_0] at step0
+  rw [h3_1, h3_2, h2_1] at step1
+  rw [h3_2, h3_3, h2_2] at step2
+  rw [h3_3, h3_4, h2_3] at step3
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [step0]; cases Rule30DrivenLeft.L c' s (4 * m) (-1) <;> rfl
+  · rw [step1]; cases Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) <;> rfl
+  · rw [step2]; cases Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) <;> rfl
+  · rw [step3]; cases Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) <;> rfl
+
+/-- **Column `-5` Closed Form Under `colPattern w0111` (`col_neg5_of_fits_0111`):** for `K ≤ 4 * m`,
+column `-5` at phases `0, 1, 2, 3` equals `(!xor (u m) (u (m + 1)), true, !u (m + 1), !u (m + 1))`. -/
+theorem col_neg5_of_fits_0111 {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0111) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0111) k) s k (-1)) = true)
+    (hm : K ≤ 4 * m) :
+    let c' := fun k => wordAt (effWord w0111) k
+    Rule30DrivenLeft.L c' s (4 * m) (-5) =
+      !xor (Rule30DrivenLeft.L c' s (4 * m) (-1)) (Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1)) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 1) (-5) = true ∧
+    Rule30DrivenLeft.L c' s (4 * m + 2) (-5) = !Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 3) (-5) = !Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) := by
+  intro c'
+  obtain ⟨h3_0, h3_1, h3_2, h3_3⟩ := col_neg3_of_fits_0111 hfits hm
+  obtain ⟨h4_0, h4_1, h4_2, h4_3⟩ := col_neg4_of_fits_0111 hfits hm
+  obtain ⟨h4_4, _, _, _⟩ := col_neg4_of_fits_0111 hfits (m := m + 1) (by omega)
+  have step0 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -4) (4 * m) (by decide)
+  have step1 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -4) (4 * m + 1) (by decide)
+  have step2 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -4) (4 * m + 2) (by decide)
+  have step3 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -4) (4 * m + 3) (by decide)
+  simp only [show (-4 : Int) - 1 = -5 by decide, show (-4 : Int) + 1 = -3 by decide,
+    show 4 * m + 3 + 1 = 4 * (m + 1) by omega] at step0 step1 step2 step3
+  rw [h4_0, h4_1, h3_0] at step0
+  rw [h4_1, h4_2, h3_1] at step1
+  rw [h4_2, h4_3, h3_2] at step2
+  rw [h4_3, h4_4, h3_3] at step3
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [step0]; cases Rule30DrivenLeft.L c' s (4 * m) (-1) <;> cases Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) <;> rfl
+  · rw [step1]; cases Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) <;> rfl
+  · rw [step2]; cases Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) <;> rfl
+  · rw [step3]; cases Rule30DrivenLeft.L c' s (4 * (m + 1)) (-1) <;> rfl
+
 end Rule30PeriodFourSkeleton
 end Ruliology.CellularAutomata
