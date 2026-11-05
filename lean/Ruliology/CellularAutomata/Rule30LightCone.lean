@@ -510,5 +510,136 @@ theorem blockStep_right_eq_false_of_mid_white (b : Nat) (l m r r₀ : List Bool)
           exact False.elim (bool_eq_not_false _ hpiv)
   exact hstep b (Nat.le_refl b)
 
+/-! ## 5. Multi-Level Rightmost Leaf-Block Sensitivity, Uniqueness, and Center-Cone Boundary Flips -/
+
+/-- **Half-Line White Evolution (`evol_eq_false_of_le`):** if an initial configuration `x` is
+`false` for all `q ≤ p + t`, then `evol x t p = false`. -/
+theorem evol_eq_false_of_le {x : Int → Bool} {t : Nat} {p : Int}
+    (h : ∀ q, q ≤ p + t → x q = false) : evol x t p = false := by
+  have hzero : ∀ (s : Nat) (q : Int), evol (fun _ => false) s q = false := by
+    intro s
+    induction s with
+    | zero => intro _; rfl
+    | succ s ih =>
+      intro q
+      change rule (evol (fun _ => false) s (q - 1)) (evol (fun _ => false) s q)
+        (evol (fun _ => false) s (q + 1)) = false
+      rw [ih (q - 1), ih q, ih (q + 1)]; rfl
+  rw [evol_window (x := fun _ => false) (x' := x) (fun q _ h2 => h q h2)]
+  exact hzero t p
+
+/-- **Multi-Level Lower-Triangular Independence on the Rightmost Leaf Block
+(`root_block_getD_lt_congr_rightmost`):** at any tree height `m` and indices `j < i ≤ b`, if
+`x` and `x'` agree on `[-(m * b), m * b + i)`, then entry `j` of the root block at time `m * b`
+is identical for `x` and `x'`. -/
+theorem root_block_getD_lt_congr_rightmost (b m : Nat) {j i : Nat} (hji : j < i) (hib : i ≤ b)
+    {x x' : Int → Bool}
+    (hag : ∀ q : Int, -((m * b : Nat) : Int) ≤ q → q < (m * b : Nat) + i → x' q = x q) :
+    (block b (fun p => evol x' (m * b) p) 0).getD j false =
+      (block b (fun p => evol x (m * b) p) 0).getD j false := by
+  have hjb : j < b := by omega
+  rw [getD_block b _ 0 hjb, getD_block b _ 0 hjb, Int.zero_mul, Int.zero_add]
+  exact evol_window fun q h1 h2 => hag q (by omega) (by omega)
+
+/-- **Multi-Level Rightmost Leaf-Block Pivot Flip Across a White Cone
+(`root_block_getD_flip_rightmost_of_white`):** at any tree height `m` and index `i < b`, if `x`
+and `x'` are both `false` on `(-∞, m * b + i)` and flip bit `i` of the rightmost leaf block
+`(block b x' m).getD i false = !(block b x m).getD i false`, then entry `i` of the root block
+`block b (fun p => evol · (m * b) p) 0` flips. -/
+theorem root_block_getD_flip_rightmost_of_white (b m : Nat) {i : Nat} (hib : i < b)
+    {x x' : Int → Bool}
+    (hx : ∀ q : Int, q < (m * b : Nat) + i → x q = false)
+    (hx' : ∀ q : Int, q < (m * b : Nat) + i → x' q = false)
+    (hflip : (block b x' (m : Int)).getD i false = !(block b x (m : Int)).getD i false) :
+    (block b (fun p => evol x' (m * b) p) 0).getD i false =
+      !(block b (fun p => evol x (m * b) p) 0).getD i false := by
+  rw [getD_block b _ 0 hib, getD_block b _ 0 hib, Int.zero_mul, Int.zero_add]
+  rw [getD_block b x' (m : Int) hib, getD_block b x (m : Int) hib] at hflip
+  have hidx : (i : Int) + ((m * b : Nat) : Int) = (m : Int) * (b : Int) + (i : Int) := by
+    rw [Int.natCast_mul]; omega
+  apply (evol_flip_rightmost_iff (m * b) (i : Int)
+    (fun q _ h2 => by rw [hx' q (by omega), hx q (by omega)])
+    (by rw [hidx]; exact hflip)).mpr
+  intro s hs
+  exact evol_eq_false_of_le fun q hq => hx q (by omega)
+
+/-- **Multi-Level Uniqueness of the All-White Rightmost Leaf Block
+(`root_block_rightmost_leaf_eq_false_of_white`):** at any tree height `m`, if `x` and `x₀` both
+vanish below `m * b`, `x₀` vanishes on `[m * b, m * b + b)`, and `x, x₀` produce the same root
+block at time `m * b`, then `(block b x m).getD i false = false` for all `i < b`. -/
+theorem root_block_rightmost_leaf_eq_false_of_white (b m : Nat) {x x₀ : Int → Bool}
+    (hx : ∀ q : Int, q < (m * b : Nat) → x q = false)
+    (hx₀ : ∀ q : Int, q < (m * b : Nat) + b → x₀ q = false)
+    (hroot : block b (fun p => evol x (m * b) p) 0 = block b (fun p => evol x₀ (m * b) p) 0) :
+    ∀ i, i < b → (block b x (m : Int)).getD i false = false := by
+  have hstep : ∀ d, d ≤ b → ∀ i, i < d → (block b x (m : Int)).getD i false = false := by
+    intro d
+    induction d with
+    | zero => intro _ i hi; omega
+    | succ d ih =>
+      intro hd i hi
+      rcases Nat.lt_succ_iff_lt_or_eq.mp hi with hlt | rfl
+      · exact ih (by omega) i hlt
+      · cases hbit : (block b x (m : Int)).getD i false with
+        | false => rfl
+        | true =>
+          have h0 : (block b x₀ (m : Int)).getD i false = false := by
+            rw [getD_block b x₀ (m : Int) (by omega)]
+            exact hx₀ ((m : Int) * b + i) (by rw [Int.natCast_mul]; omega)
+          have hflip : (block b x (m : Int)).getD i false = !(block b x₀ (m : Int)).getD i false := by
+            rw [hbit, h0]; rfl
+          have hpiv := root_block_getD_flip_rightmost_of_white b m (by omega)
+            (fun q hq => hx₀ q (by omega))
+            (fun q hq => by
+              by_cases hqm : q < (m * b : Nat)
+              · exact hx q hqm
+              · have hk : (q - (m : Int) * b).toNat < i := by
+                  rw [Int.natCast_mul] at hqm hq; omega
+                have heq_k := ih (by omega) (q - (m : Int) * b).toNat hk
+                rw [getD_block b x (m : Int) (by omega),
+                  Int.toNat_of_nonneg (by rw [Int.natCast_mul] at hqm; omega)] at heq_k
+                simpa [show (m : Int) * b + (q - (m : Int) * b) = q by omega] using heq_k)
+            hflip
+          rw [hroot] at hpiv
+          exact False.elim (bool_eq_not_false _ hpiv)
+  exact hstep b (Nat.le_refl b)
+
+/-- **Equality of Rightmost Leaf Blocks Across a White Cone (`root_block_rightmost_leaf_eq_of_white`):**
+under the hypotheses of `root_block_rightmost_leaf_eq_false_of_white`,
+`block b x (m : Int) = block b x₀ (m : Int)`. -/
+theorem root_block_rightmost_leaf_eq_of_white (b m : Nat) {x x₀ : Int → Bool}
+    (hx : ∀ q : Int, q < (m * b : Nat) → x q = false)
+    (hx₀ : ∀ q : Int, q < (m * b : Nat) + b → x₀ q = false)
+    (hroot : block b (fun p => evol x (m * b) p) 0 = block b (fun p => evol x₀ (m * b) p) 0) :
+    block b x (m : Int) = block b x₀ (m : Int) := by
+  apply list_eq_of_length_eq_of_getD (length_block b x _) (length_block b x₀ _)
+  intro i hi
+  rw [root_block_rightmost_leaf_eq_false_of_white b m hx hx₀ hroot i hi,
+    getD_block b x₀ (m : Int) hi]
+  exact (hx₀ ((m : Int) * b + i) (by rw [Int.natCast_mul]; omega)).symm
+
+/-- **Left-Boundary Sensitivity of the Center Cell (`center_flip_leftmost`):** if `x'` agrees
+with `x` on `(-t, t]` and flips `x' (-t) = !x (-t)`, then `evol x' t 0 = !evol x t 0`. -/
+theorem center_flip_leftmost {x x' : Int → Bool} (t : Nat)
+    (hag : ∀ q : Int, -(t : Int) < q → q ≤ (t : Int) → x' q = x q)
+    (hflip : x' (-(t : Int)) = !x (-(t : Int))) :
+    evol x' t 0 = !evol x t 0 :=
+  evol_flip_leftmost t 0 (fun q h1 h2 => hag q (by omega) (by omega))
+    (by simpa using hflip)
+
+/-- **Right-Boundary Sensitivity of the Center Cell Across a White Cone
+(`center_flip_rightmost_of_white`):** if `x` and `x'` both vanish on `(-∞, t)` and
+`x' t = !x t`, then `evol x' t 0 = !evol x t 0`. -/
+theorem center_flip_rightmost_of_white {x x' : Int → Bool} (t : Nat)
+    (hx : ∀ q : Int, q < (t : Int) → x q = false)
+    (hx' : ∀ q : Int, q < (t : Int) → x' q = false)
+    (hflip : x' (t : Int) = !x (t : Int)) :
+    evol x' t 0 = !evol x t 0 := by
+  apply (evol_flip_rightmost_iff t 0
+    (fun q _ h2 => by rw [hx' q (by omega), hx q (by omega)])
+    (by simpa using hflip)).mpr
+  intro s hs
+  exact evol_eq_false_of_le fun q hq => hx q (by omega)
+
 end Rule30LightCone
 end Ruliology.CellularAutomata
