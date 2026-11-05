@@ -330,5 +330,168 @@ theorem not_finSupp_etherRight_one : ¬ FinSupp (etherRight 1) := by
   rw [he] at hfalse
   exact Bool.noConfusion hfalse
 
+/-! ### Phase-3 Complementary Coupled Ether Witness, Distinctness of Ether Orbits, and All-Phase Infinite Support -/
+
+/-- The alternating column equals `ether 3 (3 + t)` at every step `t` (`altCol_eq_B4_three`). -/
+theorem altCol_eq_B4_three (t : Nat) : altCol t = ether 3 (3 + t) := by
+  rw [← altCol_add_two t, altCol_eq_B4, show t + 2 + 1 = 3 + t by omega]
+
+/-- **Column `-1` of `etherLeft 3` is Black at Even Steps (`ether3_col1_black`):** for every `s`,
+`zrow (etherLeft 3) (2 * s) 1 = true`. -/
+theorem ether3_col1_black (s : Nat) : zrow (etherLeft 3) (2 * s) 1 = true := by
+  rw [etherLeft_zbl]
+  show ether (3 + 6 * 1) (3 + 2 * s) = true
+  rw [ether_congr (j' := 2) (φ' := 3 + 2 * s) (by omega) rfl]
+  apply B4_imp_B3
+  rw [← altCol_eq_B4_three (2 * s)]
+  unfold altCol; simp
+
+/-- **Complementary Free Bits of `etherLeft 3` (`ether3_free_bits`):** at odd steps `2 * s + 1`,
+column `-1` of `etherLeft 3` alternates `true, false, true, false, ...` (`s % 2 == 0`). -/
+theorem ether3_free_bits (s : Nat) : zrow (etherLeft 3) (2 * s + 1) 1 = (s % 2 == 0) := by
+  rw [etherLeft_zbl]
+  show ether (3 + 6 * 1) (3 + (2 * s + 1)) = _
+  rw [ether_congr (j' := 2) (φ' := (2 * s + 4) % 4) (by omega) (by omega),
+    ether_check.2.2.2 _ (Nat.mod_lt _ (by decide)) (by omega)]
+  rcases Nat.mod_two_eq_zero_or_one s with h | h
+  · rw [show (2 * s + 4) % 4 = 0 by omega, h]
+  · rw [show (2 * s + 4) % 4 = 2 by omega, h]; rfl
+
+/-- **Exact Free-Bit Complementarity Between `etherLeft 3` and `etherLeft 1`
+(`ether3_free_bits_eq_not_ether1`):** at every odd step `2 * s + 1`,
+`zrow (etherLeft 3) (2 * s + 1) 1 = !zrow (etherLeft 1) (2 * s + 1) 1`. -/
+theorem ether3_free_bits_eq_not_ether1 (s : Nat) :
+    zrow (etherLeft 3) (2 * s + 1) 1 = !zrow (etherLeft 1) (2 * s + 1) 1 := by
+  rw [ether3_free_bits, ether_free_bits]
+  rcases Nat.mod_two_eq_zero_or_one s with h | h <;> simp [h]
+
+/-- **`etherLeft 3` as a Constrained `Theta` Start (`etherLeft3_eq_Theta`):**
+`zrow (etherLeft 3) 0 = Theta (fun s => s % 2 == 0)`. -/
+theorem etherLeft3_eq_Theta : zrow (etherLeft 3) 0 = Theta (fun s => s % 2 == 0) :=
+  Theta_unique ether3_col1_black ether3_free_bits
+
+/-- **Driven Evolution of `etherRight 3` (`etherRight3_drv`):** driving `etherRight 3` by `altCol`
+yields `ether (3 + p) (3 + t)` at every step `t` and column `p`. -/
+theorem etherRight3_drv : ∀ t p, drv altCol (etherRight 3) t p = ether (3 + p) (3 + t) := by
+  intro t
+  induction t with
+  | zero =>
+    intro p
+    cases p with
+    | zero => rw [drv_col0, altCol_eq_B4_three]
+    | succ q => rw [drv_init _ _ _ (by omega)]; rfl
+  | succ t ih =>
+    intro p
+    cases p with
+    | zero => rw [drv_col0, altCol_eq_B4_three, show 3 + (t + 1) = 3 + t + 1 by omega]
+    | succ q =>
+      show rule (drv altCol (etherRight 3) t q) (drv altCol (etherRight 3) t (q + 1))
+        (drv altCol (etherRight 3) t (q + 2)) = _
+      rw [ih, ih, ih, show 3 + (t + 1) = (3 + t) + 1 by omega, ether_rule,
+        ether_congr (j := 3 + q) (j' := 3 + (q + 1) + 6) (φ := 3 + t) (φ' := 3 + t) (by omega) rfl,
+        ether_congr (j := 3 + (q + 2)) (j' := 3 + (q + 1) + 1) (φ := 3 + t) (φ' := 3 + t) (by omega) rfl]
+
+/-- **Phase-3 Coupled Ether Witness (`ether3_coupled_witness`):** the pair `(etherLeft 3, etherRight 3)`
+is a second infinite witness satisfying the full coupled `CQ01` system under `altCol`. -/
+theorem ether3_coupled_witness :
+    (∀ s, zrow (etherLeft 3) (2 * s) 1 = true) ∧
+    (∀ s, zrow (etherLeft 3) (2 * s + 1) 1 = !drv altCol (etherRight 3) (2 * s + 1) 1) := by
+  refine ⟨ether3_col1_black, fun s => ?_⟩
+  rw [etherLeft_zbl, etherRight3_drv]
+  show ether (3 + 6 * 1) (3 + (2 * s + 1)) = !ether (3 + 1) (3 + (2 * s + 1))
+  rw [ether_congr (j' := 2) (φ' := (2 * s + 4) % 4) (by omega) (by omega),
+    ether_congr (j := 3 + 1) (j' := 4) (φ' := (2 * s + 4) % 4) (by omega) (by omega)]
+  exact ether_check.2.2.1 _ (Nat.mod_lt _ (by decide)) (by omega)
+
+/-- **Distinctness of the Two Coupled Left Ether Starts (`etherLeft_three_ne_one`):**
+`etherLeft 3 ≠ etherLeft 1`. -/
+theorem etherLeft_three_ne_one : etherLeft 3 ≠ etherLeft 1 := by
+  intro h
+  have h1 : zrow (etherLeft 3) 1 1 = zrow (etherLeft 1) 1 1 := by rw [h]
+  have ha := ether3_free_bits 0
+  have hb := ether_free_bits 0
+  simp only [Nat.mul_zero, Nat.zero_add] at ha hb
+  rw [ha, hb] at h1
+  revert h1; decide
+
+/-- **Distinctness of the Two Coupled Right Ether Starts (`etherRight_three_ne_one`):**
+`etherRight 3 ≠ etherRight 1`. -/
+theorem etherRight_three_ne_one : etherRight 3 ≠ etherRight 1 := by
+  intro h
+  have hdrv : (!drv altCol (etherRight 3) 1 1) = (!drv altCol (etherRight 1) 1 1) := by rw [h]
+  have hc3 := ether3_coupled_witness.2 0
+  have hc1 := ether_coupled_witness.2 0
+  simp only [Nat.mul_zero, Nat.zero_add] at hc3 hc1
+  rw [← hc3, ← hc1] at hdrv
+  have ha := ether3_free_bits 0
+  have hb := ether_free_bits 0
+  simp only [Nat.mul_zero, Nat.zero_add] at ha hb
+  rw [ha, hb] at hdrv
+  revert hdrv; decide
+
+/-- At every phase `φ`, either `ether 2 φ = true` or `ether 4 φ = true` (`ether_two_or_four_true`). -/
+theorem ether_two_or_four_true (φ : Nat) : ether 2 φ = true ∨ ether 4 φ = true := by
+  rw [ether_mod 2 φ, ether_mod 4 φ]
+  rcases Nat.mod_two_eq_zero_or_one (φ % 4) with hev | hodd
+  · have hcomp := ether_check.2.2.1 (φ % 4) (Nat.mod_lt _ (by decide)) hev
+    cases h4 : ether 4 (φ % 4)
+    · left; rw [hcomp, h4]; rfl
+    · right; rfl
+  · left
+    apply B4_imp_B3
+    rw [ether_check.2.1 (φ % 4) (Nat.mod_lt _ (by decide))]
+    simp [hodd]
+
+/-- **All-Phase Infinite Support of `etherLeft` (`not_finSupp_etherLeft`):** for every phase
+`φ : Nat`, `etherLeft φ` is not finitely supported (`¬ FinSupp (etherLeft φ)`). -/
+theorem not_finSupp_etherLeft (φ : Nat) : ¬ FinSupp (etherLeft φ) := by
+  rintro ⟨N, hN⟩
+  rcases ether_two_or_four_true φ with h2 | h4
+  · let k := 7 * (N + 1) + 1
+    have hfalse := hN k (by dsimp [k]; omega)
+    have hk0 : k ≠ 0 := by dsimp [k]; omega
+    have he : etherLeft φ k = true := by
+      simp only [etherLeft, hk0, ↓reduceIte]
+      rw [ether_congr (j := 3 + 6 * k) (j' := 2) (φ := φ) (φ' := φ) (by dsimp [k]; omega) rfl]
+      exact h2
+    rw [he] at hfalse; exact Bool.noConfusion hfalse
+  · let k := 7 * (N + 1) + 6
+    have hfalse := hN k (by dsimp [k]; omega)
+    have hk0 : k ≠ 0 := by dsimp [k]; omega
+    have he : etherLeft φ k = true := by
+      simp only [etherLeft, hk0, ↓reduceIte]
+      rw [ether_congr (j := 3 + 6 * k) (j' := 4) (φ := φ) (φ' := φ) (by dsimp [k]; omega) rfl]
+      exact h4
+    rw [he] at hfalse; exact Bool.noConfusion hfalse
+
+/-- **All-Phase Infinite Support of `etherRight` (`not_finSupp_etherRight`):** for every phase
+`φ : Nat`, `etherRight φ` is not finitely supported (`¬ FinSupp (etherRight φ)`). -/
+theorem not_finSupp_etherRight (φ : Nat) : ¬ FinSupp (etherRight φ) := by
+  rintro ⟨N, hN⟩
+  rcases ether_two_or_four_true φ with h2 | h4
+  · let p := 7 * (N + 1) + 6
+    have hfalse := hN p (by dsimp [p]; omega)
+    have he : etherRight φ p = true := by
+      unfold etherRight
+      rw [ether_congr (j := 3 + p) (j' := 2) (φ := φ) (φ' := φ) (by dsimp [p]; omega) rfl]
+      exact h2
+    rw [he] at hfalse; exact Bool.noConfusion hfalse
+  · let p := 7 * (N + 1) + 1
+    have hfalse := hN p (by dsimp [p]; omega)
+    have he : etherRight φ p = true := by
+      unfold etherRight
+      rw [ether_congr (j := 3 + p) (j' := 4) (φ := φ) (φ' := φ) (by dsimp [p]; omega) rfl]
+      exact h4
+    rw [he] at hfalse; exact Bool.noConfusion hfalse
+
+/-- **All-Time Infinite Support of Evolved Left Ether Rows (`not_finSupp_zrow_etherLeft`):** for
+every initial phase `φ : Nat` and step `t : Nat`, `¬ FinSupp (zrow (etherLeft φ) t)`. -/
+theorem not_finSupp_zrow_etherLeft (φ t : Nat) : ¬ FinSupp (zrow (etherLeft φ) t) := by
+  have heq : zrow (etherLeft φ) t = etherLeft (φ + t) := by
+    funext k
+    exact etherLeft_zbl φ t k
+  rw [heq]
+  exact not_finSupp_etherLeft (φ + t)
+
 end Rule30PeriodTwoCoupled
 end Ruliology.CellularAutomata
