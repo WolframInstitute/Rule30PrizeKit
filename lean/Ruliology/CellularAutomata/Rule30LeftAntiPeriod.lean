@@ -1462,5 +1462,125 @@ theorem not_evPer_le_seven_of_subseq_two_four_halfDensity
       · exact ⟨r₁, hd2⟩
       · exact ⟨r₂, hd4⟩)
 
+/-! ### Exact Equivalence Between `(2 * M)`-Periodicity with Stride-`M` Subsequence `HalfDensity` and `M`-Anti-Periodicity -/
+
+/-- **Progression Anti-Periodicity from `(2 * M)`-Periodicity and Stride-`M` `HalfDensity`
+(`subseq_antiPeriodic_of_periodic_two_mul_and_subseq_halfDensity`):** if `0 < M`, `f` is
+`(2 * M)`-periodic from `T₀` on (`∀ t ≥ T₀, f (t + 2 * M) = f t`), and
+`HalfDensity (subseq f M r)` holds, then for every `k ≥ T₀`,
+`subseq f M r (k + 1) = !subseq f M r k`. -/
+theorem subseq_antiPeriodic_of_periodic_two_mul_and_subseq_halfDensity
+    {f : Nat → Bool} {M T₀ r : Nat} (hM : 0 < M)
+    (hper : ∀ t : Nat, T₀ ≤ t → f (t + 2 * M) = f t)
+    (hhd : HalfDensity (subseq f M r)) :
+    ∀ k : Nat, T₀ ≤ k → subseq f M r (k + 1) = !subseq f M r k := by
+  intro k hk
+  have hper_sub : ∀ j : Nat, k ≤ j → subseq f M r (j + 2) = subseq f M r j := by
+    intro j hj
+    simp only [subseq]
+    have h1 : 1 * j ≤ M * j := Nat.mul_le_mul_right j hM
+    have h2 : j * 1 ≤ j * M := Nat.mul_le_mul_left j hM
+    have hmul : M * (j + 2) = M * j + 2 * M := by rw [Nat.mul_add]; omega
+    have hmul' : (j + 2) * M = j * M + 2 * M := by rw [Nat.add_mul]
+    have hstep : r + M * (j + 2) = (r + M * j) + 2 * M := by omega
+    have hstep' : M * (j + 2) + r = (M * j + r) + 2 * M := by omega
+    have hstep'' : (j + 2) * M + r = (j * M + r) + 2 * M := by omega
+    have hstep''' : r + (j + 2) * M = (r + j * M) + 2 * M := by omega
+    try (rw [hstep]; exact hper _ (by omega))
+    try (rw [hstep']; exact hper _ (by omega))
+    try (rw [hstep'']; exact hper _ (by omega))
+    try (rw [hstep''']; exact hper _ (by omega))
+  have hbal : 2 * winCount (subseq f M r) k 2 = 2 :=
+    (periodic_halfDensity_iff_two_mul_winCount_eq (f := subseq f M r) (T := k) (L := 2) (by decide) hper_sub).mp hhd
+  have hwin : winCount (subseq f M r) k 2 =
+      (if subseq f M r k then 1 else 0) + (if subseq f M r (k + 1) then 1 else 0) := by
+    simp [winCount]
+  rw [hwin] at hbal
+  revert hbal
+  cases subseq f M r k <;> cases subseq f M r (k + 1) <;> decide
+
+/-- **Global `M`-Anti-Periodicity from `(2 * M)`-Periodicity and All-Residue Stride-`M`
+`HalfDensity` (`antiPeriodic_of_periodic_two_mul_and_all_subseq_halfDensity`):** if `0 < M`,
+`∀ t ≥ T₀, f (t + 2 * M) = f t`, and `∀ r < M, HalfDensity (subseq f M r)`, then for every
+`t ≥ M * T₀`, `f (t + M) = !f t`. -/
+theorem antiPeriodic_of_periodic_two_mul_and_all_subseq_halfDensity
+    {f : Nat → Bool} {M T₀ : Nat} (hM : 0 < M)
+    (hper : ∀ t : Nat, T₀ ≤ t → f (t + 2 * M) = f t)
+    (hhd : ∀ r : Nat, r < M → HalfDensity (subseq f M r)) :
+    ∀ t : Nat, M * T₀ ≤ t → f (t + M) = !f t := by
+  intro t ht
+  let k := t / M
+  let r := t % M
+  have hr : r < M := Nat.mod_lt t hM
+  have hdiv : M * k + r = t := Nat.div_add_mod t M
+  have hdiv' : r + M * k = t := by omega
+  have hdiv'' : k * M + r = t := by rw [Nat.mul_comm k M]; exact hdiv
+  have hdiv''' : r + k * M = t := by omega
+  have hk : T₀ ≤ k := by
+    refine Classical.byContradiction fun hlt => ?_
+    have hle : k + 1 ≤ T₀ := by omega
+    have hmul : M * (k + 1) ≤ M * T₀ := Nat.mul_le_mul_left M hle
+    rw [Nat.mul_add, Nat.mul_one] at hmul
+    omega
+  have hanti := subseq_antiPeriodic_of_periodic_two_mul_and_subseq_halfDensity hM hper (hhd r hr) k hk
+  simp only [subseq] at hanti
+  have hmul1 : M * (k + 1) = M * k + M := by rw [Nat.mul_add, Nat.mul_one]
+  have hmul2 : (k + 1) * M = k * M + M := by rw [Nat.add_mul, Nat.one_mul]
+  have hs1 : r + M * (k + 1) = t + M := by omega
+  have hs2 : M * (k + 1) + r = t + M := by omega
+  have hs3 : (k + 1) * M + r = t + M := by omega
+  have hs4 : r + (k + 1) * M = t + M := by omega
+  try (rw [hs1, hdiv'] at hanti; exact hanti)
+  try (rw [hs2, hdiv] at hanti; exact hanti)
+  try (rw [hs3, hdiv''] at hanti; exact hanti)
+  try (rw [hs4, hdiv'''] at hanti; exact hanti)
+
+/-- **Stride-`M` Subsequence `HalfDensity` from `M`-Anti-Periodicity
+(`subseq_halfDensity_of_antiPeriodic`):** if `0 < M` and `∀ t ≥ T₀, f (t + M) = !f t`, then for
+every residue `r : Nat`, `HalfDensity (subseq f M r)` holds. -/
+theorem subseq_halfDensity_of_antiPeriodic
+    {f : Nat → Bool} {M T₀ : Nat} (hM : 0 < M)
+    (hanti : ∀ t : Nat, T₀ ≤ t → f (t + M) = !f t) (r : Nat) :
+    HalfDensity (subseq f M r) := by
+  have hanti_sub : ∀ k : Nat, T₀ ≤ k → subseq f M r (k + 1) = !subseq f M r k := by
+    intro k hk
+    simp only [subseq]
+    have h1 : 1 * k ≤ M * k := Nat.mul_le_mul_right k hM
+    have h2 : k * 1 ≤ k * M := Nat.mul_le_mul_left k hM
+    have hmul1 : M * (k + 1) = M * k + M := by rw [Nat.mul_add, Nat.mul_one]
+    have hmul2 : (k + 1) * M = k * M + M := by rw [Nat.add_mul, Nat.one_mul]
+    have hs1 : r + M * (k + 1) = (r + M * k) + M := by omega
+    have hs2 : M * (k + 1) + r = (M * k + r) + M := by omega
+    have hs3 : (k + 1) * M + r = (k * M + r) + M := by omega
+    have hs4 : r + (k + 1) * M = (r + k * M) + M := by omega
+    try (rw [hs1]; exact hanti _ (by omega))
+    try (rw [hs2]; exact hanti _ (by omega))
+    try (rw [hs3]; exact hanti _ (by omega))
+    try (rw [hs4]; exact hanti _ (by omega))
+  have hper_sub : ∀ k : Nat, T₀ ≤ k → subseq f M r (k + 2) = subseq f M r k := by
+    intro k hk
+    rw [show k + 2 = (k + 1) + 1 by omega, hanti_sub (k + 1) (by omega), hanti_sub k hk, Bool.not_not]
+  refine (periodic_halfDensity_iff_two_mul_winCount_eq (f := subseq f M r) (T := T₀) (L := 2) (by decide) hper_sub).mpr ?_
+  have hwin : winCount (subseq f M r) T₀ 2 =
+      (if subseq f M r T₀ then 1 else 0) + (if subseq f M r (T₀ + 1) then 1 else 0) := by
+    simp [winCount]
+  rw [hwin, hanti_sub T₀ (Nat.le_refl T₀)]
+  cases subseq f M r T₀ <;> rfl
+
+/-- **Exact Bidirectional Equivalence Between Eventual `M`-Anti-Periodicity and Eventual
+`(2 * M)`-Periodicity with All-Residue Stride-`M` `HalfDensity`
+(`evAntiPer_iff_evPer_two_mul_and_all_subseq_halfDensity`):** for `0 < M`,
+`(∃ T, ∀ t ≥ T, f (t + M) = !f t) ↔ EvPer f (2 * M) ∧ ∀ r < M, HalfDensity (subseq f M r)`. -/
+theorem evAntiPer_iff_evPer_two_mul_and_all_subseq_halfDensity
+    {f : Nat → Bool} {M : Nat} (hM : 0 < M) :
+    (∃ T : Nat, ∀ t : Nat, T ≤ t → f (t + M) = !f t) ↔
+      (EvPer f (2 * M) ∧ ∀ r : Nat, r < M → HalfDensity (subseq f M r)) := by
+  constructor
+  · rintro ⟨T, hanti⟩
+    refine ⟨⟨T, fun t ht => ?_⟩, fun r _ => subseq_halfDensity_of_antiPeriodic hM hanti r⟩
+    rw [show t + 2 * M = (t + M) + M by omega, hanti (t + M) (by omega), hanti t ht, Bool.not_not]
+  · rintro ⟨⟨T₀, hper⟩, hhd⟩
+    exact ⟨M * T₀, antiPeriodic_of_periodic_two_mul_and_all_subseq_halfDensity hM hper hhd⟩
+
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
