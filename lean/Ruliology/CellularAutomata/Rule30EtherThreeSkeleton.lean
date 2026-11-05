@@ -255,5 +255,244 @@ theorem col_m1_001_skeleton_triple (T : Nat)
   · exact (hs (T + 3 * k + 1) (by omega)).2.1 (by omega)
   · exact (hs (T + 3 * k + 2) (by omega)).2.2 (by omega)
 
+/-! ### Free-Phase Aperiodicity for `C3s001` and `C3w w011`, Closed-Form Left Columns `-1` Through `-6`, and Exact Column-`-6` Phase-1 Return -/
+
+/-- **Eventual Periodicity of `wordAt3` (`eventuallyPeriodic_wordAt3`):** for any 3-bit word `w`,
+`fun k => wordAt3 w k` is 3-periodic and hence `EventuallyPeriodic`. -/
+theorem eventuallyPeriodic_wordAt3 (w : List Bool) :
+    EventuallyPeriodic (fun k => wordAt3 w k) :=
+  ⟨0, 3, by decide, fun t _ => by simp [wordAt3]⟩
+
+/-- **Fixed-Phase Readout for `colPattern001s` (`phase_periodic_of_fits3_001s`):** if column `-1`
+fits `colPattern001s` (`(0, *, 1)`) from `K` on, then every phase `φ < 3` with `φ ≠ 1` is
+3-periodic from `K` on. -/
+theorem phase_periodic_of_fits3_001s {c : Nat → Bool} {s : Int → Bool} {K : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L c s k (-1)) = true) :
+    ∀ k, K ≤ k → k % 3 ≠ 1 → L c s (k + 3) (-1) = L c s k (-1) := by
+  intro k hk hne
+  have hk1 := hfits k hk
+  have hk2 := hfits (k + 3) (by omega)
+  rw [Nat.add_mod_right, fits3_001s] at hk2
+  rw [fits3_001s] at hk1
+  have : k % 3 = 0 ∨ k % 3 = 2 := by omega
+  rcases this with hmod | hmod <;> rw [hmod] at hk1 hk2
+  · simp only [↓reduceIte, beq_iff_eq] at hk1 hk2; rw [hk1, hk2]
+  · simp only [show (2 : Nat) ≠ 0 by decide, ↓reduceIte, beq_iff_eq] at hk1 hk2; rw [hk1, hk2]
+
+/-- **Free-Phase Aperiodicity Under `colPattern001s` (`not_eventuallyPeriodic_free_phase_of_fits3_001s`):**
+for any left-bounded start `s` with a black cell on `p < 0`, if column `-1` under the zero driver
+`fun _ => false` fits `colPattern001s` from `K` on, then the phase-1 free bit stream
+`fun m => L (fun _ => false) s (3 * m + 1) (-1)` is not eventually periodic. -/
+theorem not_eventuallyPeriodic_free_phase_of_fits3_001s {s : Int → Bool} {M K : Nat}
+    (hM : ∀ p : Int, p < -(M : Int) → s p = false)
+    (hne : ∃ p : Int, p < 0 ∧ s p = true)
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true) :
+    ¬ EventuallyPeriodic (fun m => L (fun _ => false) s (3 * m + 1) (-1)) :=
+  not_eventuallyPeriodic_free_phase_of_bounded (by decide : 0 < 3) (by decide : 1 < 3) hM (Or.inl hne)
+    ⟨0, 1, by decide, fun _ _ => rfl⟩
+    (phase_periodic_of_fits3_001s hfits)
+
+/-- **Cofinal Free-Phase Oscillation Under `colPattern001s` (`cofinal_free_phase_of_fits3_001s`):**
+under the hypotheses of `not_eventuallyPeriodic_free_phase_of_fits3_001s`, the phase-1 free bit
+stream `L (fun _ => false) s (3 * m + 1) (-1)` takes both `true` and `false` infinitely often. -/
+theorem cofinal_free_phase_of_fits3_001s {s : Int → Bool} {M K : Nat}
+    (hM : ∀ p : Int, p < -(M : Int) → s p = false)
+    (hne : ∃ p : Int, p < 0 ∧ s p = true)
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (N : Nat) :
+    (∃ m, N ≤ m ∧ L (fun _ => false) s (3 * m + 1) (-1) = true) ∧
+    (∃ m, N ≤ m ∧ L (fun _ => false) s (3 * m + 1) (-1) = false) :=
+  cofinal_true_and_false_free_phase_of_bounded (by decide : 0 < 3) (by decide : 1 < 3) hM (Or.inl hne)
+    ⟨0, 1, by decide, fun _ _ => rfl⟩
+    (phase_periodic_of_fits3_001s hfits) N
+
+/-- **Free-Phase Aperiodicity Under `colPattern3 w011` (`not_eventuallyPeriodic_free_phase_of_fits3_011`):**
+for any left-bounded start `s`, if column `-1` under `effWord3 w011` fits `colPattern3 w011` from
+`K` on, then the phase-0 free bit stream `fun m => L (fun k => wordAt3 (effWord3 w011) k) s (3 * m) (-1)`
+is not eventually periodic. -/
+theorem not_eventuallyPeriodic_free_phase_of_fits3_011 {s : Int → Bool} {M K : Nat}
+    (hM : ∀ p : Int, p < -(M : Int) → s p = false)
+    (hfits : ∀ k, K ≤ k →
+      fits3 (colPattern3 w011) (k % 3) (L (fun k => wordAt3 (effWord3 w011) k) s k (-1)) = true) :
+    ¬ EventuallyPeriodic (fun m => L (fun k => wordAt3 (effWord3 w011) k) s (3 * m) (-1)) := by
+  have hact : (∃ p : Int, p < 0 ∧ s p = true) ∨ (∃ t : Nat, wordAt3 (effWord3 w011) t = true) :=
+    Or.inr ⟨1, by decide⟩
+  have hper : ∀ k, K ≤ k → k % 3 ≠ 0 →
+      L (fun k => wordAt3 (effWord3 w011) k) s (k + 3) (-1) =
+        L (fun k => wordAt3 (effWord3 w011) k) s k (-1) := by
+    intro k hk hne
+    have hk1 := hfits k hk
+    have hk2 := hfits (k + 3) (by omega)
+    rw [Nat.add_mod_right] at hk2
+    have : k % 3 = 1 ∨ k % 3 = 2 := by omega
+    rcases this with hmod | hmod <;> rw [hmod] at hk1 hk2
+    · have e1 : L (fun k => wordAt3 (effWord3 w011) k) s k (-1) = false := by
+        revert hk1; cases L (fun k => wordAt3 (effWord3 w011) k) s k (-1) <;> decide
+      have e2 : L (fun k => wordAt3 (effWord3 w011) k) s (k + 3) (-1) = false := by
+        revert hk2; cases L (fun k => wordAt3 (effWord3 w011) k) s (k + 3) (-1) <;> decide
+      rw [e1, e2]
+    · have e1 : L (fun k => wordAt3 (effWord3 w011) k) s k (-1) = true := by
+        revert hk1; cases L (fun k => wordAt3 (effWord3 w011) k) s k (-1) <;> decide
+      have e2 : L (fun k => wordAt3 (effWord3 w011) k) s (k + 3) (-1) = true := by
+        revert hk2; cases L (fun k => wordAt3 (effWord3 w011) k) s (k + 3) (-1) <;> decide
+      rw [e1, e2]
+  simpa using not_eventuallyPeriodic_free_phase_of_bounded (by decide : 0 < 3) (by decide : 0 < 3) hM hact
+    (eventuallyPeriodic_wordAt3 (effWord3 w011)) hper
+
+/-- **Column `-1` Phase Table Under `colPattern001s` (`col3_neg1_of_fits3_001s`):** for `K ≤ 3 * m`,
+column `-1` at steps `3 * m` and `3 * m + 2` is `(false, true)`. -/
+theorem col3_neg1_of_fits3_001s {c : Nat → Bool} {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L c s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    L c s (3 * m) (-1) = false ∧ L c s (3 * m + 2) (-1) = true := by
+  have h0 := hfits (3 * m) hm
+  have h2 := hfits (3 * m + 2) (by omega)
+  rw [show (3 * m) % 3 = 0 by omega, fits3_001s] at h0
+  rw [show (3 * m + 2) % 3 = 2 by omega, fits3_001s] at h2
+  simp only [show (2 : Nat) ≠ 0 by decide, ↓reduceIte, beq_iff_eq] at h0 h2
+  exact ⟨h0, h2⟩
+
+/-- **Column `-2` Closed Form Under `colPattern001s` (`col3_neg2_of_fits3_001s`):** for `K ≤ 3 * m`
+under the zero driver `fun _ => false`, column `-2` at phases `0, 1, 2` equals
+`(u m, !u m, true)` where `u m = L (fun _ => false) s (3 * m + 1) (-1)`. -/
+theorem col3_neg2_of_fits3_001s {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * m) (-2) = L c0 s (3 * m + 1) (-1) ∧
+    L c0 s (3 * m + 1) (-2) = !L c0 s (3 * m + 1) (-1) ∧
+    L c0 s (3 * m + 2) (-2) = true := by
+  intro c0
+  obtain ⟨h1_0, h1_2⟩ := col3_neg1_of_fits3_001s hfits hm
+  obtain ⟨h1_3, _⟩ := col3_neg1_of_fits3_001s hfits (m := m + 1) (by omega)
+  have step0 := L_left (c := c0) (s := s) (p := -1) (3 * m) (by decide)
+  have step1 := L_left (c := c0) (s := s) (p := -1) (3 * m + 1) (by decide)
+  have step2 := L_left (c := c0) (s := s) (p := -1) (3 * m + 2) (by decide)
+  simp only [show (-1 : Int) - 1 = -2 by decide, show (-1 : Int) + 1 = 0 by decide,
+    show 3 * m + 2 + 1 = 3 * (m + 1) by omega] at step0 step1 step2
+  have hz0 : L c0 s (3 * m) 0 = false := by cases (3 * m) <;> rfl
+  have hz1 : L c0 s (3 * m + 1) 0 = false := rfl
+  have hz2 : L c0 s (3 * m + 2) 0 = false := rfl
+  rw [hz2] at step2
+  rw [hz0] at step0
+  rw [hz1] at step1
+  rw [h1_0] at step0
+  rw [h1_2] at step1
+  rw [h1_2, h1_3] at step2
+  refine ⟨?_, ?_, ?_⟩
+  · rw [step0]; cases L c0 s (3 * m + 1) (-1) <;> rfl
+  · rw [step1]; cases L c0 s (3 * m + 1) (-1) <;> rfl
+  · rw [step2]; rfl
+
+/-- **Column `-3` Closed Form Under `colPattern001s` (`col3_neg3_of_fits3_001s`):** for `K ≤ 3 * m`
+under `fun _ => false`, column `-3` at phases `0, 1, 2` equals `(true, false, !u (m + 1))`. -/
+theorem col3_neg3_of_fits3_001s {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * m) (-3) = true ∧
+    L c0 s (3 * m + 1) (-3) = false ∧
+    L c0 s (3 * m + 2) (-3) = !L c0 s (3 * (m + 1) + 1) (-1) := by
+  intro c0
+  obtain ⟨h1_0, h1_2⟩ := col3_neg1_of_fits3_001s hfits hm
+  obtain ⟨h2_0, h2_1, h2_2⟩ := col3_neg2_of_fits3_001s hfits hm
+  obtain ⟨h2_3, _, _⟩ := col3_neg2_of_fits3_001s hfits (m := m + 1) (by omega)
+  have step0 := L_left (c := c0) (s := s) (p := -2) (3 * m) (by decide)
+  have step1 := L_left (c := c0) (s := s) (p := -2) (3 * m + 1) (by decide)
+  have step2 := L_left (c := c0) (s := s) (p := -2) (3 * m + 2) (by decide)
+  simp only [show (-2 : Int) - 1 = -3 by decide, show (-2 : Int) + 1 = -1 by decide,
+    show 3 * m + 2 + 1 = 3 * (m + 1) by omega] at step0 step1 step2
+  rw [h2_0, h2_1, h1_0] at step0
+  rw [h2_1, h2_2] at step1
+  rw [h2_2, h2_3, h1_2] at step2
+  refine ⟨?_, ?_, ?_⟩
+  · rw [step0]; cases L c0 s (3 * m + 1) (-1) <;> rfl
+  · rw [step1]; cases L c0 s (3 * m + 1) (-1) <;> rfl
+  · rw [step2]; cases L c0 s (3 * (m + 1) + 1) (-1) <;> rfl
+
+/-- **Column `-4` Closed Form Under `colPattern001s` (`col3_neg4_of_fits3_001s`):** for `K ≤ 3 * m`
+under `fun _ => false`, column `-4` restores unconditional `(true, false)` walls at phases `0, 2`
+and computes the 1-step XOR derivative `xor (u m) (u (m + 1))` at phase `1`. -/
+theorem col3_neg4_of_fits3_001s {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * m) (-4) = true ∧
+    L c0 s (3 * m + 1) (-4) = xor (L c0 s (3 * m + 1) (-1)) (L c0 s (3 * (m + 1) + 1) (-1)) ∧
+    L c0 s (3 * m + 2) (-4) = false := by
+  intro c0
+  obtain ⟨h2_0, h2_1, h2_2⟩ := col3_neg2_of_fits3_001s hfits hm
+  obtain ⟨h3_0, h3_1, h3_2⟩ := col3_neg3_of_fits3_001s hfits hm
+  obtain ⟨h3_3, _, _⟩ := col3_neg3_of_fits3_001s hfits (m := m + 1) (by omega)
+  have step0 := L_left (c := c0) (s := s) (p := -3) (3 * m) (by decide)
+  have step1 := L_left (c := c0) (s := s) (p := -3) (3 * m + 1) (by decide)
+  have step2 := L_left (c := c0) (s := s) (p := -3) (3 * m + 2) (by decide)
+  simp only [show (-3 : Int) - 1 = -4 by decide, show (-3 : Int) + 1 = -2 by decide,
+    show 3 * m + 2 + 1 = 3 * (m + 1) by omega] at step0 step1 step2
+  rw [h3_0, h3_1, h2_0] at step0
+  rw [h3_1, h3_2, h2_1] at step1
+  rw [h3_2, h3_3, h2_2] at step2
+  refine ⟨?_, ?_, ?_⟩
+  · rw [step0]; cases L c0 s (3 * m + 1) (-1) <;> rfl
+  · rw [step1]; cases L c0 s (3 * m + 1) (-1) <;> cases L c0 s (3 * (m + 1) + 1) (-1) <;> rfl
+  · rw [step2]; cases L c0 s (3 * (m + 1) + 1) (-1) <;> rfl
+
+/-- **Column `-5` Closed Form Under `colPattern001s` (`col3_neg5_of_fits3_001s`):** for `K ≤ 3 * m`
+under `fun _ => false`, column `-5` at phases `0, 1, 2` equals
+`(!xor (u m) (u (m + 1)), xor (u m) (u (m + 1)), u (m + 1))`. -/
+theorem col3_neg5_of_fits3_001s {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * m) (-5) = !xor (L c0 s (3 * m + 1) (-1)) (L c0 s (3 * (m + 1) + 1) (-1)) ∧
+    L c0 s (3 * m + 1) (-5) = xor (L c0 s (3 * m + 1) (-1)) (L c0 s (3 * (m + 1) + 1) (-1)) ∧
+    L c0 s (3 * m + 2) (-5) = L c0 s (3 * (m + 1) + 1) (-1) := by
+  intro c0
+  obtain ⟨h3_0, h3_1, h3_2⟩ := col3_neg3_of_fits3_001s hfits hm
+  obtain ⟨h4_0, h4_1, h4_2⟩ := col3_neg4_of_fits3_001s hfits hm
+  obtain ⟨h4_3, _, _⟩ := col3_neg4_of_fits3_001s hfits (m := m + 1) (by omega)
+  have step0 := L_left (c := c0) (s := s) (p := -4) (3 * m) (by decide)
+  have step1 := L_left (c := c0) (s := s) (p := -4) (3 * m + 1) (by decide)
+  have step2 := L_left (c := c0) (s := s) (p := -4) (3 * m + 2) (by decide)
+  simp only [show (-4 : Int) - 1 = -5 by decide, show (-4 : Int) + 1 = -3 by decide,
+    show 3 * m + 2 + 1 = 3 * (m + 1) by omega] at step0 step1 step2
+  rw [h4_0, h4_1, h3_0] at step0
+  rw [h4_1, h4_2, h3_1] at step1
+  rw [h4_2, h4_3, h3_2] at step2
+  refine ⟨?_, ?_, ?_⟩
+  · rw [step0]; cases L c0 s (3 * m + 1) (-1) <;> cases L c0 s (3 * (m + 1) + 1) (-1) <;> rfl
+  · rw [step1]; cases L c0 s (3 * m + 1) (-1) <;> cases L c0 s (3 * (m + 1) + 1) (-1) <;> rfl
+  · rw [step2]; cases L c0 s (3 * (m + 1) + 1) (-1) <;> rfl
+
+/-- **Column `-6` Closed Form and Exact Phase-1 Return Under `colPattern001s`
+(`col3_neg6_of_fits3_001s`):** for `K ≤ 3 * m` under `fun _ => false`, column `-6` satisfies
+`L c0 s (3 * m) (-6) = !xor (u m) (u (m + 1))` and the exact spatial return identity
+`L c0 s (3 * m + 1) (-6) = L c0 s (3 * m + 1) (-1)` (`= u m`) at phase `1`. -/
+theorem col3_neg6_of_fits3_001s {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * m) (-6) = !xor (L c0 s (3 * m + 1) (-1)) (L c0 s (3 * (m + 1) + 1) (-1)) ∧
+    L c0 s (3 * m + 1) (-6) = L c0 s (3 * m + 1) (-1) ∧
+    L c0 s (3 * m + 2) (-6) =
+      xor (!xor (L c0 s (3 * (m + 1) + 1) (-1)) (L c0 s (3 * (m + 2) + 1) (-1)))
+          (L c0 s (3 * (m + 1) + 1) (-1)) := by
+  intro c0
+  obtain ⟨h4_0, h4_1, h4_2⟩ := col3_neg4_of_fits3_001s hfits hm
+  obtain ⟨h5_0, h5_1, h5_2⟩ := col3_neg5_of_fits3_001s hfits hm
+  obtain ⟨h5_3, _, _⟩ := col3_neg5_of_fits3_001s hfits (m := m + 1) (by omega)
+  have step0 := L_left (c := c0) (s := s) (p := -5) (3 * m) (by decide)
+  have step1 := L_left (c := c0) (s := s) (p := -5) (3 * m + 1) (by decide)
+  have step2 := L_left (c := c0) (s := s) (p := -5) (3 * m + 2) (by decide)
+  simp only [show (-5 : Int) - 1 = -6 by decide, show (-5 : Int) + 1 = -4 by decide,
+    show 3 * m + 2 + 1 = 3 * (m + 1) by omega] at step0 step1 step2
+  rw [h5_0, h5_1, h4_0] at step0
+  rw [h5_1, h5_2, h4_1] at step1
+  rw [h5_2, h5_3, h4_2] at step2
+  refine ⟨?_, ?_, ?_⟩
+  · rw [step0]; cases L c0 s (3 * m + 1) (-1) <;> cases L c0 s (3 * (m + 1) + 1) (-1) <;> rfl
+  · rw [step1]; cases L c0 s (3 * m + 1) (-1) <;> cases L c0 s (3 * (m + 1) + 1) (-1) <;> rfl
+  · rw [step2]; cases L c0 s (3 * (m + 1) + 1) (-1) <;> cases L c0 s (3 * (m + 2) + 1) (-1) <;> rfl
+
 end Rule30EtherThree
 end Ruliology.CellularAutomata
