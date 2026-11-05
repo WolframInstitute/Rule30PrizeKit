@@ -2135,5 +2135,129 @@ theorem no11_col_neg1_0001 (T : Nat) (h : ∀ t, T ≤ t → cell t 0 = wordAt w
   rw [h_eq_t4]
   exact hno11 t (by omega) hφ (h_eq_t ▸ hneg1)
 
+/-! ### Columns `-13` and `-14` Closed Forms, Complete Elimination of `u (m + 1)` at Column `-13`, and the `no11` Conjunction Detector `u (m + 3) && u (m + 2)` at Column `-14` -/
+
+/-- **Column `-13` Closed Form and Elimination of `u (m + 1)` Under `colPattern w0001`
+(`col_neg13_of_fits_0001`):** for `K ≤ 4 * m`, all dependence on `u (m + 1)` cancels out across
+all four phases of column `-13`, giving
+`(false, xor (u (m + 3)) (u (m + 2)), !(u (m + 3) && u (m + 2)), !u (m + 3) && !u (m + 2))`. -/
+theorem col_neg13_of_fits_0001 {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0001) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0001) k) s k (-1)) = true)
+    (hm : K ≤ 4 * m) :
+    let c' := fun k => wordAt (effWord w0001) k
+    Rule30DrivenLeft.L c' s (4 * m) (-13) = false ∧
+    Rule30DrivenLeft.L c' s (4 * m + 1) (-13) =
+      xor (Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1))
+          (Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1)) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 2) (-13) =
+      !(Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1) &&
+        Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1)) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 3) (-13) =
+      (!Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1) &&
+       !Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1)) := by
+  intro c'
+  obtain ⟨h11_0, h11_1, h11_2, h11_3⟩ := col_neg11_of_fits_0001 hfits hm
+  obtain ⟨h12_0, h12_1, h12_2, h12_3⟩ := col_neg12_of_fits_0001 hfits hm
+  obtain ⟨h12_4, _, _, _⟩ := col_neg12_of_fits_0001 hfits (m := m + 1) (by omega)
+  have step0 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -12) (4 * m) (by decide)
+  have step1 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -12) (4 * m + 1) (by decide)
+  have step2 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -12) (4 * m + 2) (by decide)
+  have step3 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -12) (4 * m + 3) (by decide)
+  simp only [show (-12 : Int) - 1 = -13 by decide, show (-12 : Int) + 1 = -11 by decide,
+    show 4 * m + 3 + 1 = 4 * (m + 1) by omega] at step0 step1 step2 step3
+  rw [h12_0, h12_1, h11_0] at step0
+  rw [h12_1, h12_2, h11_1] at step1
+  rw [h12_2, h12_3, h11_2] at step2
+  rw [h12_3, h12_4, h11_3, show m + 1 + 2 = m + 3 by omega, show m + 1 + 1 = m + 2 by omega] at step3
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [step0]; cases Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1) <;> cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> rfl
+  · rw [step1]; cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> cases Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1) <;> rfl
+  · rw [step2]; cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> cases Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1) <;> rfl
+  · rw [step3]; cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> cases Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1) <;> rfl
+
+/-- **Spatial-Temporal Return of the Inter-Block Derivative Between Columns `-9` and `-13`
+(`col_neg13_phase1_eq_shift_col_neg9_phase1_of_fits_0001`):** for `K ≤ 4 * m`,
+`L c' s (4 * m + 1) (-13) = L c' s (4 * (m + 1) + 1) (-9)`. -/
+theorem col_neg13_phase1_eq_shift_col_neg9_phase1_of_fits_0001 {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0001) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0001) k) s k (-1)) = true)
+    (hm : K ≤ 4 * m) :
+    let c' := fun k => wordAt (effWord w0001) k
+    Rule30DrivenLeft.L c' s (4 * m + 1) (-13) = Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-9) := by
+  intro c'
+  obtain ⟨_, h13_1, _, _⟩ := col_neg13_of_fits_0001 hfits hm
+  obtain ⟨_, h9_1, _, _⟩ := col_neg9_of_fits_0001 hfits (m := m + 1) (by omega)
+  rw [h13_1, h9_1, show m + 1 + 2 = m + 3 by omega, show m + 1 + 1 = m + 2 by omega]
+
+/-- **Column `-14` Closed Form and Phase-1 Conjunction Detector Under `colPattern w0001`
+(`col_neg14_of_fits_0001`):** for `K ≤ 4 * m`, column `-14` at phases `0, 1, 2, 3` equals
+`(xor (xor (u (m + 3)) (u (m + 2))) (u (m + 2) || u (m + 1)), u (m + 3) && u (m + 2), u (m + 3) || u (m + 2), true)`. -/
+theorem col_neg14_of_fits_0001 {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0001) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0001) k) s k (-1)) = true)
+    (hm : K ≤ 4 * m) :
+    let c' := fun k => wordAt (effWord w0001) k
+    Rule30DrivenLeft.L c' s (4 * m) (-14) =
+      xor (xor (Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1))
+               (Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1)))
+          (Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) ||
+           Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1)) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 1) (-14) =
+      (Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1) &&
+       Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1)) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 2) (-14) =
+      (Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1) ||
+       Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1)) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 3) (-14) = true := by
+  intro c'
+  obtain ⟨h12_0, h12_1, h12_2, h12_3⟩ := col_neg12_of_fits_0001 hfits hm
+  obtain ⟨h13_0, h13_1, h13_2, h13_3⟩ := col_neg13_of_fits_0001 hfits hm
+  obtain ⟨h13_4, _, _, _⟩ := col_neg13_of_fits_0001 hfits (m := m + 1) (by omega)
+  have step0 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -13) (4 * m) (by decide)
+  have step1 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -13) (4 * m + 1) (by decide)
+  have step2 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -13) (4 * m + 2) (by decide)
+  have step3 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -13) (4 * m + 3) (by decide)
+  simp only [show (-13 : Int) - 1 = -14 by decide, show (-13 : Int) + 1 = -12 by decide,
+    show 4 * m + 3 + 1 = 4 * (m + 1) by omega] at step0 step1 step2 step3
+  rw [h13_0, h13_1, h12_0] at step0
+  rw [h13_1, h13_2, h12_1] at step1
+  rw [h13_2, h13_3, h12_2] at step2
+  rw [h13_3, h13_4, h12_3] at step3
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [step0]
+    cases Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1) <;>
+      cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;>
+      cases Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1) <;> rfl
+  · rw [step1]; cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> cases Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1) <;> rfl
+  · rw [step2]; cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> cases Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1) <;> rfl
+  · rw [step3]; cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> cases Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1) <;> rfl
+
+/-- **Simultaneous Wall Collapse at Columns `-13` and `-14` Under `no11`
+(`col_neg13_neg14_walls_of_fits_0001_of_no11`):** if `u (m + 2)` and `u (m + 3)` are not both
+`true` (`!(u (m + 2) && u (m + 3)) = true`), then column `-13` has a black wall at phase `2`
+(`L c' s (4 * m + 2) (-13) = true`) and column `-14` has a white wall at phase `1`
+(`L c' s (4 * m + 1) (-14) = false`). -/
+theorem col_neg13_neg14_walls_of_fits_0001_of_no11 {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0001) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0001) k) s k (-1)) = true)
+    (hm : K ≤ 4 * m)
+    (hno11 : !(Rule30DrivenLeft.L (fun k => wordAt (effWord w0001) k) s (4 * (m + 2) + 1) (-1) &&
+               Rule30DrivenLeft.L (fun k => wordAt (effWord w0001) k) s (4 * (m + 3) + 1) (-1)) = true) :
+    let c' := fun k => wordAt (effWord w0001) k
+    Rule30DrivenLeft.L c' s (4 * m + 2) (-13) = true ∧
+    Rule30DrivenLeft.L c' s (4 * m + 1) (-14) = false := by
+  intro c'
+  obtain ⟨_, _, h13_2, _⟩ := col_neg13_of_fits_0001 hfits hm
+  obtain ⟨_, h14_1, _, _⟩ := col_neg14_of_fits_0001 hfits hm
+  rw [h13_2, h14_1]
+  revert hno11
+  cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;>
+    cases Rule30DrivenLeft.L c' s (4 * (m + 3) + 1) (-1) <;> decide
+
 end Rule30PeriodFourSkeleton
 end Ruliology.CellularAutomata
