@@ -501,5 +501,240 @@ theorem ones_fails {s : Int → Bool} {n : Nat} (hn : 0 < n)
 
 end Barrier
 
+/-! ### Non-Autonomous Semiflow, All-White Driver Injection, Left-Bounded Nonperiodicity, and Single-Free-Phase Aperiodicity -/
+
+/-- **Non-Autonomous Semiflow of the Driven Left Half (`L_add`):** for `p ≤ 0`, evolving `L c s`
+for `t₁ + t₂` steps equals evolving `L c s t₁` for `t₂` steps under the time-shifted driver
+`fun k => c (t₁ + k)`. -/
+theorem L_add (c : Nat → Bool) (s : Int → Bool) (t₁ t₂ : Nat) :
+    ∀ p : Int, p ≤ 0 → L c s (t₁ + t₂) p = L (fun k => c (t₁ + k)) (L c s t₁) t₂ p := by
+  induction t₂ with
+  | zero =>
+    intro p hp
+    rw [Nat.add_zero]
+    by_cases hlt : p < 0
+    · rw [L_zero hlt]
+    · have hp0 : p = 0 := by omega
+      subst hp0
+      rw [L_col0, L_col0, Nat.add_zero]
+  | succ t₂ ih =>
+    intro p hp
+    rw [← Nat.add_assoc]
+    by_cases hlt : p < 0
+    · rw [L_succ hlt, L_succ hlt, ih (p - 1) (by omega), ih p hp, ih (p + 1) (by omega)]
+    · have hp0 : p = 0 := by omega
+      subst hp0
+      rw [L_col0, L_col0, Nat.add_assoc]
+
+/-- If the left start `s` is all-white on `p < 0` and the driver `c` is white on `k < t`, then
+`L c s t` remains all-white on `p < 0`. -/
+theorem L_eq_false_of_white_driver {c : Nat → Bool} {s : Int → Bool}
+    (hs : ∀ p : Int, p < 0 → s p = false) :
+    ∀ t : Nat, (∀ k < t, c k = false) → ∀ p : Int, p < 0 → L c s t p = false
+  | 0, _, p, hp => by rw [L_zero hp]; exact hs p hp
+  | t + 1, hc, p, hp => by
+    rw [L_succ hp,
+        L_eq_false_of_white_driver hs t (fun k hk => hc k (by omega)) (p - 1) (by omega),
+        L_eq_false_of_white_driver hs t (fun k hk => hc k (by omega)) p hp]
+    have hr : L c s t (p + 1) = false := by
+      by_cases hp1 : p + 1 < 0
+      · exact L_eq_false_of_white_driver hs t (fun k hk => hc k (by omega)) (p + 1) hp1
+      · have hp0 : p + 1 = 0 := by omega
+        rw [hp0, L_col0]
+        exact hc t (by omega)
+    rw [hr]
+    rfl
+
+/-- **First Black Driver Cell Injects a Left Edge at `-1` (`L_first_black_driver_edge`):** if `s`
+is all-white on `p < 0`, `c k = false` for all `k < t₀`, and `c t₀ = true`, then at step `t₀ + 1`
+the driven left half has a leftmost black cell at `-1` (and is white everywhere below `-1`). -/
+theorem L_first_black_driver_edge {c : Nat → Bool} {s : Int → Bool} {t₀ : Nat}
+    (hs : ∀ p : Int, p < 0 → s p = false)
+    (hwhite : ∀ k < t₀, c k = false) (hblack : c t₀ = true) :
+    (∀ p : Int, p < -1 → L c s (t₀ + 1) p = false) ∧ L c s (t₀ + 1) (-1) = true := by
+  refine ⟨fun p hp => ?_, ?_⟩
+  · rw [L_succ (by omega),
+        L_eq_false_of_white_driver hs t₀ hwhite (p - 1) (by omega),
+        L_eq_false_of_white_driver hs t₀ hwhite p (by omega),
+        L_eq_false_of_white_driver hs t₀ hwhite (p + 1) (by omega)]
+    rfl
+  · rw [L_succ (by omega),
+        L_eq_false_of_white_driver hs t₀ hwhite (-1 - 1) (by omega),
+        L_eq_false_of_white_driver hs t₀ hwhite (-1) (by omega),
+        show (-1 : Int) + 1 = 0 by omega, L_col0, hblack]
+    rfl
+
+/-- Least witness for an existential natural-number predicate (`exists_least_nat`). -/
+theorem exists_least_nat {P : Nat → Prop} :
+    (∃ n, P n) → ∃ n, P n ∧ ∀ k < n, ¬ P k := by
+  intro ⟨n, hn⟩
+  induction n using Nat.strongRecOn with
+  | ind n ih =>
+    by_cases h : ∃ k < n, P k
+    · obtain ⟨k, hkn, hk⟩ := h
+      exact ih k hkn hk
+    · refine ⟨n, hn, fun k hkn hk => h ⟨k, hkn, hk⟩⟩
+
+/-- **All-White Start Column Nonperiodicity (`no_periodic_column_of_all_white`):** if `s` is
+all-white on `p < 0` and the driver `c` is eventually periodic with at least one black cell
+(`∃ t, c t = true`), then no column `q < 0` of `L c s` is eventually periodic. -/
+theorem no_periodic_column_of_all_white {c : Nat → Bool} {s : Int → Bool}
+    (hs : ∀ p : Int, p < 0 → s p = false)
+    (hblack : ∃ t, c t = true) (hc : EventuallyPeriodic c) {q : Int} (hq : q < 0)
+    (hcol : EventuallyPeriodic fun t => L c s t q) : False := by
+  obtain ⟨t₀, ht₀, hmin⟩ := exists_least_nat (P := fun t => c t = true) hblack
+  have hwhite : ∀ k < t₀, c k = false := by
+    intro k hk
+    cases hck : c k
+    · rfl
+    · exact False.elim (hmin k hk hck)
+  have hedge := L_first_black_driver_edge hs hwhite ht₀
+  obtain ⟨T, P, hP, hper_c⟩ := hc
+  have hc_shift : EventuallyPeriodic (fun k => c (t₀ + 1 + k)) :=
+    ⟨T, P, hP, fun k hk => by
+      show c (t₀ + 1 + (k + P)) = c (t₀ + 1 + k)
+      rw [show t₀ + 1 + (k + P) = (t₀ + 1 + k) + P by omega]
+      exact hper_c (t₀ + 1 + k) (by omega)⟩
+  obtain ⟨Tc, Pc, hPc, hper_col⟩ := hcol
+  have hcol_shift : EventuallyPeriodic (fun k => L (fun r => c (t₀ + 1 + r)) (L c s (t₀ + 1)) k q) :=
+    ⟨Tc, Pc, hPc, fun k hk => by
+      dsimp only
+      rw [← L_add c s (t₀ + 1) (k + Pc) q (by omega), ← L_add c s (t₀ + 1) k q (by omega)]
+      rw [show t₀ + 1 + (k + Pc) = (t₀ + 1 + k) + Pc by omega]
+      exact hper_col (t₀ + 1 + k) (by omega)⟩
+  exact no_periodic_column (m := 1) (c := fun r => c (t₀ + 1 + r)) (s := L c s (t₀ + 1))
+    hedge.1 hedge.2 (by decide) hc_shift hq hcol_shift
+
+/-- **Left-Bounded Start Dichotomy (`bounded_all_white_or_has_edge`):** every left-bounded start `s`
+(`∀ p < -(M : Int), s p = false`) either is all-white on `p < 0` or has a unique leftmost black cell
+at `-m` for some `1 ≤ m ≤ M`. -/
+theorem bounded_all_white_or_has_edge (s : Int → Bool) :
+    ∀ M : Nat, (∀ p : Int, p < -((M : Nat) : Int) → s p = false) →
+      (∀ p : Int, p < 0 → s p = false) ∨
+      ∃ m : Nat, 0 < m ∧ m ≤ M ∧
+        (∀ p : Int, p < -((m : Nat) : Int) → s p = false) ∧ s (-((m : Nat) : Int)) = true
+  | 0, hM => Or.inl (fun p hp => hM p (by omega))
+  | M + 1, hM => by
+    cases hs : s (-((M + 1 : Nat) : Int))
+    · have hM' : ∀ p : Int, p < -((M : Nat) : Int) → s p = false := by
+        intro p hp
+        by_cases heq : p = -((M + 1 : Nat) : Int)
+        · rw [heq, hs]
+        · exact hM p (by omega)
+      rcases bounded_all_white_or_has_edge s M hM' with hall | ⟨m, hm1, hm2, hs0, hs1⟩
+      · exact Or.inl hall
+      · exact Or.inr ⟨m, hm1, by omega, hs0, hs1⟩
+    · exact Or.inr ⟨M + 1, by omega, Nat.le_refl _, hM, hs⟩
+
+/-- **Complete Left-Bounded Column Nonperiodicity (`no_periodic_column_of_bounded`):** for every
+left-bounded start `s` (`∀ p < -(M : Int), s p = false`) and every eventually periodic driver `c`,
+if either `∃ p < 0, s p = true` or `∃ t, c t = true`, then no column `q < 0` of `L c s` is
+eventually periodic. -/
+theorem no_periodic_column_of_bounded {c : Nat → Bool} {s : Int → Bool} {M : Nat}
+    (hM : ∀ p : Int, p < -((M : Nat) : Int) → s p = false)
+    (hnonempty : (∃ p : Int, p < 0 ∧ s p = true) ∨ (∃ t : Nat, c t = true))
+    (hc : EventuallyPeriodic c) {q : Int} (hq : q < 0)
+    (hcol : EventuallyPeriodic fun t => L c s t q) : False := by
+  rcases bounded_all_white_or_has_edge s M hM with hall | ⟨m, hm, _, hs0, hs1⟩
+  · rcases hnonempty with ⟨p, hp, hsp⟩ | hblack
+    · rw [hall p hp] at hsp
+      exact Bool.noConfusion hsp
+    · exact no_periodic_column_of_all_white hall hblack hc hq hcol
+  · exact no_periodic_column hs0 hs1 hm hc hq hcol
+
+/-- Periodicity along multiples of `P` on fixed phases (`periodic_mul_of_phase_fixed`). -/
+theorem periodic_mul_of_phase_fixed {x : Nat → Bool} {P K φ₀ : Nat}
+    (hfix : ∀ k, K ≤ k → k % P ≠ φ₀ → x (k + P) = x k) :
+    ∀ (d k : Nat), K ≤ k → k % P ≠ φ₀ → x (k + d * P) = x k
+  | 0, k, _, _ => by simp
+  | d + 1, k, hk, hφ => by
+    rw [show k + (d + 1) * P = (k + d * P) + P by
+           rw [Nat.succ_mul, ← Nat.add_assoc],
+        hfix (k + d * P) (by omega) (by rw [Nat.add_mul_mod_self_right]; exact hφ),
+        periodic_mul_of_phase_fixed hfix d k hk hφ]
+
+/-- **Single-Free-Phase Periodicity Lifting (`eventuallyPeriodic_of_single_free_phase`):** for any
+period `P > 0` and phase `φ₀ < P`, if `x (k + P) = x k` for all `k ≥ K` with `k % P ≠ φ₀`, and the
+remaining phase subsequence `m ↦ x (P * m + φ₀)` is eventually periodic, then `x` is eventually
+periodic. -/
+theorem eventuallyPeriodic_of_single_free_phase {x : Nat → Bool} {P K φ₀ : Nat}
+    (hP : 0 < P) (hφ₀ : φ₀ < P)
+    (hfix : ∀ k, K ≤ k → k % P ≠ φ₀ → x (k + P) = x k)
+    (hfree : EventuallyPeriodic (fun m => x (P * m + φ₀))) :
+    EventuallyPeriodic x := by
+  obtain ⟨M₀, D, hD, hper_free⟩ := hfree
+  refine ⟨max K (P * M₀), D * P, Nat.mul_pos hD hP, fun k hk => ?_⟩
+  have hkK : K ≤ k := Nat.le_trans (Nat.le_max_left _ _) hk
+  have hkM : P * M₀ ≤ k := Nat.le_trans (Nat.le_max_right _ _) hk
+  by_cases hmod : k % P = φ₀
+  · have hk_eq : k = P * (k / P) + φ₀ := by
+      have hdiv := Nat.div_add_mod k P
+      omega
+    have hm : M₀ ≤ k / P := by
+      have hlt : P * M₀ < P * (k / P + 1) := by
+        rw [Nat.mul_add, Nat.mul_one]
+        omega
+      have : M₀ < k / P + 1 := Nat.lt_of_mul_lt_mul_left hlt
+      omega
+    have hstep : x (P * (k / P + D) + φ₀) = x (P * (k / P) + φ₀) := hper_free (k / P) hm
+    have harg : P * (k / P + D) + φ₀ = k + D * P := by
+      rw [Nat.mul_add, Nat.mul_comm P D]
+      omega
+    rw [← harg, hstep, ← hk_eq]
+  · exact periodic_mul_of_phase_fixed hfix D k hkK hmod
+
+/-- **Aperiodicity of the Single Free Phase in the Driven Left Half
+(`not_eventuallyPeriodic_free_phase_of_bounded`):** for any left-bounded start `s` and eventually
+periodic driver `c` (with `∃ p < 0, s p = true` or `∃ t, c t = true`), if column `-1` is `P`-periodic
+at all phases `k % P ≠ φ₀` from `K` on (`0 < P`, `φ₀ < P`), then the single free-phase sequence
+`m ↦ L c s (P * m + φ₀) (-1)` is not eventually periodic. -/
+theorem not_eventuallyPeriodic_free_phase_of_bounded {c : Nat → Bool} {s : Int → Bool}
+    {M P K φ₀ : Nat} (hP : 0 < P) (hφ₀ : φ₀ < P)
+    (hM : ∀ p : Int, p < -((M : Nat) : Int) → s p = false)
+    (hnonempty : (∃ p : Int, p < 0 ∧ s p = true) ∨ (∃ t : Nat, c t = true))
+    (hc : EventuallyPeriodic c)
+    (hfix : ∀ k, K ≤ k → k % P ≠ φ₀ → L c s (k + P) (-1) = L c s k (-1)) :
+    ¬ EventuallyPeriodic (fun m => L c s (P * m + φ₀) (-1)) := by
+  intro hfree
+  exact no_periodic_column_of_bounded hM hnonempty hc (q := -1) (by omega)
+    (eventuallyPeriodic_of_single_free_phase hP hφ₀ hfix hfree)
+
+/-- **Cofinal Oscillation of the Single Free Phase (`cofinal_true_and_false_free_phase_of_bounded`):**
+under the hypotheses of `not_eventuallyPeriodic_free_phase_of_bounded`, the single free-phase
+sequence `m ↦ L c s (P * m + φ₀) (-1)` takes both `true` and `false` infinitely often. -/
+theorem cofinal_true_and_false_free_phase_of_bounded {c : Nat → Bool} {s : Int → Bool}
+    {M P K φ₀ : Nat} (hP : 0 < P) (hφ₀ : φ₀ < P)
+    (hM : ∀ p : Int, p < -((M : Nat) : Int) → s p = false)
+    (hnonempty : (∃ p : Int, p < 0 ∧ s p = true) ∨ (∃ t : Nat, c t = true))
+    (hc : EventuallyPeriodic c)
+    (hfix : ∀ k, K ≤ k → k % P ≠ φ₀ → L c s (k + P) (-1) = L c s k (-1))
+    (N : Nat) :
+    (∃ m, N ≤ m ∧ L c s (P * m + φ₀) (-1) = true) ∧
+    (∃ m, N ≤ m ∧ L c s (P * m + φ₀) (-1) = false) := by
+  have hnot := not_eventuallyPeriodic_free_phase_of_bounded hP hφ₀ hM hnonempty hc hfix
+  refine ⟨?_, ?_⟩
+  · refine Classical.byContradiction fun hno => hnot ⟨N, 1, by decide, fun m hm => ?_⟩
+    have hm1 : L c s (P * (m + 1) + φ₀) (-1) = false := by
+      cases hval : L c s (P * (m + 1) + φ₀) (-1)
+      · rfl
+      · exact False.elim (hno ⟨m + 1, by omega, hval⟩)
+    have hm0 : L c s (P * m + φ₀) (-1) = false := by
+      cases hval : L c s (P * m + φ₀) (-1)
+      · rfl
+      · exact False.elim (hno ⟨m, hm, hval⟩)
+    dsimp only
+    rw [hm1, hm0]
+  · refine Classical.byContradiction fun hno => hnot ⟨N, 1, by decide, fun m hm => ?_⟩
+    have hm1 : L c s (P * (m + 1) + φ₀) (-1) = true := by
+      cases hval : L c s (P * (m + 1) + φ₀) (-1)
+      · exact False.elim (hno ⟨m + 1, by omega, hval⟩)
+      · rfl
+    have hm0 : L c s (P * m + φ₀) (-1) = true := by
+      cases hval : L c s (P * m + φ₀) (-1)
+      · exact False.elim (hno ⟨m, hm, hval⟩)
+      · rfl
+    dsimp only
+    rw [hm1, hm0]
+
 end Rule30DrivenLeft
 end Ruliology.CellularAutomata
