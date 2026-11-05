@@ -2279,5 +2279,114 @@ theorem problem1_of_even_subseq_maxBlockEnergyLittleO
     obtain ⟨r, hr, hm'⟩ := heven m hm
     exact ⟨r, hr, (halfDensity_iff_densityHalf _).mp ((halfDensity_iff_maxBlockEnergyLittleO _).mpr hm')⟩
 
+/-! ## 14. Odd-Multiple Shell Exclusions and Dyadic Power-of-Two (`2^a`) Progression Bridges Across All Five Problem 2 Energy Forms -/
+
+/-- **Odd-Multiple Exclusion from a Single `DensityHalf` Subsequence
+(`not_evPer_mul_odd_of_subseq_densityHalf`):** if `0 < d` and `DensityHalf (subseq f d r)` holds,
+then `f` has no eventual period `d * (2 * m + 1)`. -/
+theorem not_evPer_mul_odd_of_subseq_densityHalf {f : Nat → Bool} {d r : Nat}
+    (hd : 0 < d) (h : DensityHalf (subseq f d r)) (m : Nat) : ¬ EvPer f (d * (2 * m + 1)) :=
+  not_evPer_mul_odd_of_subseq_halfDensity hd ((halfDensity_iff_densityHalf _).mpr h) m
+
+/-- **Odd-Multiple Exclusion from a Single `ShellMaxLittleO` Subsequence
+(`not_evPer_mul_odd_of_subseq_shellMaxLittleO`):** if `0 < d` and `ShellMaxLittleO (subseq f d r)`
+holds, then `f` has no eventual period `d * (2 * m + 1)`. -/
+theorem not_evPer_mul_odd_of_subseq_shellMaxLittleO {f : Nat → Bool} {d r : Nat}
+    (hd : 0 < d) (h : ShellMaxLittleO (subseq f d r)) (m : Nat) : ¬ EvPer f (d * (2 * m + 1)) :=
+  not_evPer_mul_odd_of_subseq_halfDensity hd ((halfDensity_iff_shellMaxLittleO _).mpr h) m
+
+/-- **Odd-Multiple Exclusion from a Single `FlexibleEnergyToZero` Subsequence
+(`not_evPer_mul_odd_of_subseq_flexibleEnergyToZero`):** if `0 < d` and
+`FlexibleEnergyToZero (subseq f d r)` holds, then `f` has no eventual period `d * (2 * m + 1)`. -/
+theorem not_evPer_mul_odd_of_subseq_flexibleEnergyToZero {f : Nat → Bool} {d r : Nat}
+    (hd : 0 < d) (h : FlexibleEnergyToZero (subseq f d r)) (m : Nat) : ¬ EvPer f (d * (2 * m + 1)) :=
+  not_evPer_mul_odd_of_subseq_halfDensity hd ((halfDensity_iff_flexibleEnergyToZero _).mpr h) m
+
+/-- **Odd-Multiple Exclusion from a Single `OrderedEnergyLittleO` Subsequence
+(`not_evPer_mul_odd_of_subseq_orderedEnergyLittleO`):** if `0 < d` and
+`OrderedEnergyLittleO (subseq f d r)` holds, then `f` has no eventual period `d * (2 * m + 1)`. -/
+theorem not_evPer_mul_odd_of_subseq_orderedEnergyLittleO {f : Nat → Bool} {d r : Nat}
+    (hd : 0 < d) (h : OrderedEnergyLittleO (subseq f d r)) (m : Nat) : ¬ EvPer f (d * (2 * m + 1)) :=
+  not_evPer_mul_odd_of_subseq_halfDensity hd ((halfDensity_iff_orderedEnergyLittleO _).mpr h) m
+
+/-- **Odd-Multiple Exclusion from a Single `MaxBlockEnergyLittleO` Subsequence
+(`not_evPer_mul_odd_of_subseq_maxBlockEnergyLittleO`):** if `0 < d` and
+`MaxBlockEnergyLittleO (subseq f d r)` holds, then `f` has no eventual period `d * (2 * m + 1)`. -/
+theorem not_evPer_mul_odd_of_subseq_maxBlockEnergyLittleO {f : Nat → Bool} {d r : Nat}
+    (hd : 0 < d) (h : MaxBlockEnergyLittleO (subseq f d r)) (m : Nat) : ¬ EvPer f (d * (2 * m + 1)) :=
+  not_evPer_mul_odd_of_subseq_halfDensity hd ((halfDensity_iff_maxBlockEnergyLittleO _).mpr h) m
+
+/-- **Dyadic Power-of-Two `DensityHalf` Bridge to `Problem1`
+(`problem1_of_dyadic_subseq_densityHalf`):** if for every `a >= 1` there is `r < 2 ^ a` with
+`DensityHalf (subseq center (2 ^ a) r)` (**open**), then `Problem1` holds. -/
+theorem problem1_of_dyadic_subseq_densityHalf
+    (hdyadic : ∀ a : Nat, 0 < a → ∃ r : Nat, r < 2 ^ a ∧ DensityHalf (subseq center (2 ^ a) r)) :
+    Problem1 :=
+  problem1_of_dyadic_subseq_halfDensity_lt fun a ha => by
+    obtain ⟨r, hr, hd⟩ := hdyadic a ha
+    exact ⟨r, hr, (halfDensity_iff_densityHalf _).mpr hd⟩
+
+/-- **Dyadic Power-of-Two `ShellMaxLittleO` Bridge to `Problem1`
+(`problem1_of_dyadic_subseq_shellMaxLittleO`):** if for every `a >= 1` there is `r < 2 ^ a` with
+`ShellMaxLittleO (subseq center (2 ^ a) r)` (**open**), then `Problem1` holds. -/
+theorem problem1_of_dyadic_subseq_shellMaxLittleO
+    (hdyadic : ∀ a : Nat, 0 < a → ∃ r : Nat, r < 2 ^ a ∧ ShellMaxLittleO (subseq center (2 ^ a) r)) :
+    Problem1 :=
+  problem1_of_dyadic_subseq_halfDensity_lt fun a ha => by
+    obtain ⟨r, hr, hs⟩ := hdyadic a ha
+    exact ⟨r, hr, (halfDensity_iff_shellMaxLittleO _).mpr hs⟩
+
+/-- **Dyadic Power-of-Two `FlexibleEnergyToZero` Bridge to `Problem1`
+(`problem1_of_dyadic_subseq_flexibleEnergyToZero`):** if for every `a >= 1` there is `r < 2 ^ a`
+with `FlexibleEnergyToZero (subseq center (2 ^ a) r)` (**open**), then `Problem1` holds. -/
+theorem problem1_of_dyadic_subseq_flexibleEnergyToZero
+    (hdyadic : ∀ a : Nat, 0 < a → ∃ r : Nat, r < 2 ^ a ∧ FlexibleEnergyToZero (subseq center (2 ^ a) r)) :
+    Problem1 :=
+  problem1_of_dyadic_subseq_halfDensity_lt fun a ha => by
+    obtain ⟨r, hr, hf⟩ := hdyadic a ha
+    exact ⟨r, hr, (halfDensity_iff_flexibleEnergyToZero _).mpr hf⟩
+
+/-- **Dyadic Power-of-Two `OrderedEnergyLittleO` Bridge to `Problem1`
+(`problem1_of_dyadic_subseq_orderedEnergyLittleO`):** if for every `a >= 1` there is `r < 2 ^ a`
+with `OrderedEnergyLittleO (subseq center (2 ^ a) r)` (**open**), then `Problem1` holds. -/
+theorem problem1_of_dyadic_subseq_orderedEnergyLittleO
+    (hdyadic : ∀ a : Nat, 0 < a → ∃ r : Nat, r < 2 ^ a ∧ OrderedEnergyLittleO (subseq center (2 ^ a) r)) :
+    Problem1 :=
+  problem1_of_dyadic_subseq_halfDensity_lt fun a ha => by
+    obtain ⟨r, hr, ho⟩ := hdyadic a ha
+    exact ⟨r, hr, (halfDensity_iff_orderedEnergyLittleO _).mpr ho⟩
+
+/-- **Dyadic Power-of-Two `MaxBlockEnergyLittleO` Bridge to `Problem1`
+(`problem1_of_dyadic_subseq_maxBlockEnergyLittleO`):** if for every `a >= 1` there is `r < 2 ^ a`
+with `MaxBlockEnergyLittleO (subseq center (2 ^ a) r)` (**open**), then `Problem1` holds. -/
+theorem problem1_of_dyadic_subseq_maxBlockEnergyLittleO
+    (hdyadic : ∀ a : Nat, 0 < a → ∃ r : Nat, r < 2 ^ a ∧ MaxBlockEnergyLittleO (subseq center (2 ^ a) r)) :
+    Problem1 :=
+  problem1_of_dyadic_subseq_halfDensity_lt fun a ha => by
+    obtain ⟨r, hr, hm⟩ := hdyadic a ha
+    exact ⟨r, hr, (halfDensity_iff_maxBlockEnergyLittleO _).mpr hm⟩
+
+/-- **Simultaneous `Problem1 ∧ Problem2` Closure from All Dyadic `ShellMaxLittleO` Progressions
+(`problem1_and_problem2_of_all_dyadic_subseq_shellMaxLittleO`):** if for every `a : Nat` (`a >= 0`)
+there is `r < 2 ^ a` with `ShellMaxLittleO (subseq center (2 ^ a) r)` (**open**), then
+`Problem1 ∧ Problem2` holds. -/
+theorem problem1_and_problem2_of_all_dyadic_subseq_shellMaxLittleO
+    (h : ∀ a : Nat, ∃ r : Nat, r < 2 ^ a ∧ ShellMaxLittleO (subseq center (2 ^ a) r)) :
+    Problem1 ∧ Problem2 :=
+  problem1_and_problem2_of_all_dyadic_subseq_halfDensity_lt fun a => by
+    obtain ⟨r, hr, hs⟩ := h a
+    exact ⟨r, hr, (halfDensity_iff_shellMaxLittleO _).mpr hs⟩
+
+/-- **Simultaneous `Problem1 ∧ Problem2` Closure from All Dyadic `MaxBlockEnergyLittleO` Progressions
+(`problem1_and_problem2_of_all_dyadic_subseq_maxBlockEnergyLittleO`):** if for every `a : Nat`
+(`a >= 0`) there is `r < 2 ^ a` with `MaxBlockEnergyLittleO (subseq center (2 ^ a) r)` (**open**),
+then `Problem1 ∧ Problem2` holds. -/
+theorem problem1_and_problem2_of_all_dyadic_subseq_maxBlockEnergyLittleO
+    (h : ∀ a : Nat, ∃ r : Nat, r < 2 ^ a ∧ MaxBlockEnergyLittleO (subseq center (2 ^ a) r)) :
+    Problem1 ∧ Problem2 :=
+  problem1_and_problem2_of_all_dyadic_subseq_halfDensity_lt fun a => by
+    obtain ⟨r, hr, hm⟩ := h a
+    exact ⟨r, hr, (halfDensity_iff_maxBlockEnergyLittleO _).mpr hm⟩
+
 end Rule30P2Bridge
 end Ruliology.CellularAutomata
