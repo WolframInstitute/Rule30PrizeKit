@@ -61,6 +61,7 @@ public import Ruliology.CellularAutomata.Rule30FiniteBlackRuns
 public import Ruliology.CellularAutomata.Rule30FiniteBlackRunBlocks
 public import Ruliology.CellularAutomata.Rule30FiniteDiagonals
 public import Ruliology.CellularAutomata.Rule30AgedLeftDiagonals
+public import Ruliology.CellularAutomata.Rule30ErrorEdge
 public import Ruliology.CellularAutomata.Rule30ArbitraryWhitePadding
 public import Ruliology.CellularAutomata.Rule30WhitePaddingMixtures
 public import Ruliology.CellularAutomata.Rule30ClockBirthDemodulation
