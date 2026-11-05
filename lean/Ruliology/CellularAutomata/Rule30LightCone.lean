@@ -364,5 +364,151 @@ theorem root_block_leftmost_leaf_injective (b m : Nat) {x x' : Int → Bool}
   exact list_eq_of_length_eq_of_getD (length_block b x _) (length_block b x' _) fun i hi =>
     hstep b (Nat.le_refl b) i (by omega) hi
 
+/-! ## 4. White-Cone Propagation, Lower-Triangular Right-Block Independence, and Right-Parent Pivot Sensitivity -/
+
+/-- **All-White Evolution Fixed Point (`evol_const_false`):** evolving the all-white configuration
+`fun _ => false` for any number of steps `t` yields `false` at every position `p`. -/
+theorem evol_const_false : ∀ (t : Nat) (p : Int), evol (fun _ => false) t p = false
+  | 0, _ => rfl
+  | t + 1, p => by
+    change rule (evol (fun _ => false) t (p - 1)) (evol (fun _ => false) t p)
+      (evol (fun _ => false) t (p + 1)) = false
+    rw [evol_const_false t (p - 1), evol_const_false t p, evol_const_false t (p + 1)]
+    rfl
+
+/-- **White Light-Cone Triangle Propagation (`evol_eq_false_of_window_false`):** if an initial
+configuration `x` is `false` on `[p - t, p + t]`, then `evol x t p = false`. -/
+theorem evol_eq_false_of_window_false {x : Int → Bool} {t : Nat} {p : Int}
+    (h : ∀ q, p - t ≤ q → q ≤ p + t → x q = false) :
+    evol x t p = false := by
+  rw [evol_window (x := fun _ => false) (x' := x) h]
+  exact evol_const_false t p
+
+/-- **Middle-Block Readout of `assemble` (`assemble_mid`):** for `i < b`, position `(i : Int)` of
+`assemble b l m r` is `m.getD i false`. -/
+theorem assemble_mid (b : Nat) (l m r : List Bool) {i : Nat} (hi : i < b) :
+    assemble b l m r (i : Int) = m.getD i false := by
+  unfold assemble
+  rw [ite_eq_right (by omega), ite_eq_right (by omega), ite_eq_left (by omega),
+    Int.toNat_natCast]
+
+/-- **Right-Block Readout of `assemble` (`assemble_right`):** for `i < b`, position `(i : Int) + b`
+of `assemble b l m r` is `r.getD i false`. -/
+theorem assemble_right (b : Nat) (l m r : List Bool) {i : Nat} (hi : i < b) :
+    assemble b l m r ((i : Int) + b) = r.getD i false := by
+  unfold assemble
+  rw [ite_eq_right (by omega), ite_eq_right (by omega), ite_eq_right (by omega),
+    ite_eq_left (by omega), show ((i : Int) + b - b).toNat = i by omega]
+
+/-- **Agreement of `assemble` Below Right-Block Index `i` (`assemble_eq_of_lt_right`):** if `r₁`
+and `r₂` agree at all indices `k < i` (`i ≤ b`), then `assemble b l m r₁` and `assemble b l m r₂`
+agree at every position `q < (i : Int) + b`. -/
+theorem assemble_eq_of_lt_right (b : Nat) (l m r₁ r₂ : List Bool) {i : Nat} (hib : i ≤ b)
+    (hag : ∀ k, k < i → r₁.getD k false = r₂.getD k false)
+    (q : Int) (hq : q < (i : Int) + b) :
+    assemble b l m r₁ q = assemble b l m r₂ q := by
+  unfold assemble
+  by_cases h1 : q < -(b : Int)
+  · rw [ite_eq_left h1, ite_eq_left h1]
+  · rw [ite_eq_right h1, ite_eq_right h1]
+    by_cases h2 : q < 0
+    · rw [ite_eq_left h2, ite_eq_left h2]
+    · rw [ite_eq_right h2, ite_eq_right h2]
+      by_cases h3 : q < b
+      · rw [ite_eq_left h3, ite_eq_left h3]
+      · rw [ite_eq_right h3, ite_eq_right h3]
+        have h4 : q < 2 * b := by omega
+        rw [ite_eq_left h4, ite_eq_left h4]
+        exact hag (q - b).toNat (by omega)
+
+/-- **Strict Lower-Triangular Independence on the Right Block (`blockStep_getD_lt_congr_right`):**
+for `j < i ≤ b`, if `r₁` and `r₂` agree on `[0, i)`, then `(blockStep b l m r₁).getD j false`
+equals `(blockStep b l m r₂).getD j false`. -/
+theorem blockStep_getD_lt_congr_right (b : Nat) (l m r₁ r₂ : List Bool) {j i : Nat}
+    (hji : j < i) (hib : i ≤ b)
+    (hag : ∀ k, k < i → r₁.getD k false = r₂.getD k false) :
+    (blockStep b l m r₁).getD j false = (blockStep b l m r₂).getD j false := by
+  unfold blockStep
+  have hjb : j < b := by omega
+  rw [getD_block b _ 0 hjb, getD_block b _ 0 hjb]
+  exact evol_window fun q _ h2 => assemble_eq_of_lt_right b l m r₁ r₂ hib hag q (by omega)
+
+/-- **White Half-Line `(-∞, i + b)` of `assemble` (`assemble_eq_false_of_mid_and_right_prefix_white`):**
+if `l` and `m` are all-white on `[0, b)` and `r` is white on `[0, i)` (`i ≤ b`), then
+`assemble b l m r q = false` for every `q < (i : Int) + b`. -/
+theorem assemble_eq_false_of_mid_and_right_prefix_white (b : Nat) (l m r : List Bool) {i : Nat}
+    (hib : i ≤ b)
+    (hl : ∀ k, k < b → l.getD k false = false)
+    (hm : ∀ k, k < b → m.getD k false = false)
+    (hr : ∀ k, k < i → r.getD k false = false)
+    {q : Int} (hqi : q < (i : Int) + b) :
+    assemble b l m r q = false := by
+  unfold assemble
+  by_cases h1 : q < -(b : Int)
+  · rw [ite_eq_left h1]
+  · rw [ite_eq_right h1]
+    by_cases h2 : q < 0
+    · rw [ite_eq_left h2]
+      exact hl (q + b).toNat (by omega)
+    · rw [ite_eq_right h2]
+      by_cases h3 : q < b
+      · rw [ite_eq_left h3]
+        exact hm q.toNat (by omega)
+      · rw [ite_eq_right h3, ite_eq_left (by omega)]
+        exact hr (q - b).toNat (by omega)
+
+/-- **Right-Parent Pivot Flip Across All-White Left and Middle Blocks
+(`blockStep_getD_flip_pivot_right_of_white`):** for `i < b`, if `l` and `m` are all-white on
+`[0, b)`, `r₁` and `r₂` are both white on `[0, i)`, and `r₂.getD i false = !r₁.getD i false`,
+then `(blockStep b l m r₂).getD i false = !(blockStep b l m r₁).getD i false`. -/
+theorem blockStep_getD_flip_pivot_right_of_white (b : Nat) (l m r₁ r₂ : List Bool) {i : Nat}
+    (hib : i < b)
+    (hl : ∀ k, k < b → l.getD k false = false)
+    (hm : ∀ k, k < b → m.getD k false = false)
+    (hr₁ : ∀ k, k < i → r₁.getD k false = false)
+    (hr₂ : ∀ k, k < i → r₂.getD k false = false)
+    (hflip : r₂.getD i false = !r₁.getD i false) :
+    (blockStep b l m r₂).getD i false = !(blockStep b l m r₁).getD i false := by
+  unfold blockStep
+  rw [getD_block b _ 0 hib, getD_block b _ 0 hib, Int.zero_mul, Int.zero_add]
+  apply (evol_flip_rightmost_iff b (i : Int)
+    (fun q _ h2 => assemble_eq_of_lt_right b l m r₂ r₁ (by omega)
+      (fun k hk => by rw [hr₂ k hk, hr₁ k hk]) q h2)
+    (by rw [assemble_right b l m r₂ hib, assemble_right b l m r₁ hib]; exact hflip)).mpr
+  intro s hs
+  apply evol_eq_false_of_window_false
+  intro q hq1 hq2
+  exact assemble_eq_false_of_mid_and_right_prefix_white b l m r₁ (by omega) hl hm hr₁ (by omega)
+
+/-- **Uniqueness of the All-White Right Parent Block Across White Left and Middle Blocks
+(`blockStep_right_eq_false_of_mid_white`):** if `l`, `m`, and `r₀` are all-white on `[0, b)`
+and `blockStep b l m r = blockStep b l m r₀`, then `r.getD i false = false` for every `i < b`. -/
+theorem blockStep_right_eq_false_of_mid_white (b : Nat) (l m r r₀ : List Bool)
+    (hl : ∀ k, k < b → l.getD k false = false)
+    (hm : ∀ k, k < b → m.getD k false = false)
+    (hr₀ : ∀ k, k < b → r₀.getD k false = false)
+    (heq : blockStep b l m r = blockStep b l m r₀) :
+    ∀ i, i < b → r.getD i false = false := by
+  have hstep : ∀ d, d ≤ b → ∀ i, i < d → r.getD i false = false := by
+    intro d
+    induction d with
+    | zero => intro _ i hi; omega
+    | succ d ih =>
+      intro hd i hi
+      rcases Nat.lt_succ_iff_lt_or_eq.mp hi with hlt | rfl
+      · exact ih (by omega) i hlt
+      · cases hbit : r.getD i false with
+        | false => rfl
+        | true =>
+          have hflip : r.getD i false = !r₀.getD i false := by
+            rw [hbit, hr₀ i (by omega)]; rfl
+          have hpiv := blockStep_getD_flip_pivot_right_of_white b l m r₀ r (by omega) hl hm
+            (fun k hk => hr₀ k (by omega))
+            (fun k hk => ih (by omega) k hk)
+            hflip
+          rw [heq] at hpiv
+          exact False.elim (bool_eq_not_false _ hpiv)
+  exact hstep b (Nat.le_refl b)
+
 end Rule30LightCone
 end Ruliology.CellularAutomata
