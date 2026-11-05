@@ -2158,5 +2158,126 @@ theorem problem1_and_problem2_of_maxBlockEnergyLittleO_and_even_subseq
     Problem1 ∧ Problem2 :=
   ⟨problem1_of_maxBlockEnergyLittleO_and_even_subseq h0 heven, problem2_iff_maxBlockEnergyLittleO.mpr h0⟩
 
+/-! ## 13. Single-Progression Odd-Period Exclusions and Eliminating the Center-Column Hypothesis from All Five Even-Stride Energy Bridges -/
+
+/-- **Subsequence Period Inheritance (`evPer_subseq_of_periodic`):** if `EvPer f L`, then for
+every stride `d : Nat` and offset `r : Nat`, `EvPer (subseq f d r) L` holds. -/
+theorem evPer_subseq_of_periodic {f : Nat → Bool} {L : Nat} (h : EvPer f L) (d r : Nat) :
+    EvPer (subseq f d r) L := by
+  have hmul : ∀ {T : Nat}, (∀ t, T ≤ t → f (t + L) = f t) → ∀ k t, T ≤ t → f (t + k * L) = f t := by
+    intro T hT k
+    induction k with
+    | zero => intro t _; simp
+    | succ k ih =>
+      intro t ht
+      rw [Nat.succ_mul, ← Nat.add_assoc, hT (t + k * L) (by omega), ih t ht]
+  rcases Nat.eq_zero_or_pos d with rfl | hd
+  · exact ⟨0, fun k _ => by simp [subseq]⟩
+  · obtain ⟨T, hT⟩ := h
+    refine ⟨T, fun k hk => ?_⟩
+    simp only [subseq]
+    have h1 : r + (k + L) * d = (r + k * d) + d * L := by
+      rw [Nat.right_distrib, ← Nat.add_assoc, Nat.mul_comm L d]
+    have hge : T ≤ r + k * d := by
+      have : k * 1 ≤ k * d := Nat.mul_le_mul_left k hd
+      omega
+    rw [h1]
+    exact hmul hT d (r + k * d) hge
+
+/-- **Odd-Period Exclusion from a Single `DensityHalf` Subsequence
+(`not_evPer_odd_of_subseq_densityHalf`):** if `DensityHalf (subseq f d r)` holds for any `(d, r)`,
+then `f` has no odd eventual period `2 * m + 1`. -/
+theorem not_evPer_odd_of_subseq_densityHalf {f : Nat → Bool} {d r : Nat}
+    (h : DensityHalf (subseq f d r)) (m : Nat) : ¬ EvPer f (2 * m + 1) :=
+  fun hper => not_evPer_odd_of_densityHalf h m (evPer_subseq_of_periodic hper d r)
+
+/-- **Odd-Period Exclusion from a Single `ShellMaxLittleO` Subsequence
+(`not_evPer_odd_of_subseq_shellMaxLittleO`):** if `ShellMaxLittleO (subseq f d r)` holds for any
+`(d, r)`, then `f` has no odd eventual period `2 * m + 1`. -/
+theorem not_evPer_odd_of_subseq_shellMaxLittleO {f : Nat → Bool} {d r : Nat}
+    (h : ShellMaxLittleO (subseq f d r)) (m : Nat) : ¬ EvPer f (2 * m + 1) :=
+  fun hper => not_evPer_odd_of_shellMaxLittleO h m (evPer_subseq_of_periodic hper d r)
+
+/-- **Odd-Period Exclusion from a Single `FlexibleEnergyToZero` Subsequence
+(`not_evPer_odd_of_subseq_flexibleEnergyToZero`):** if `FlexibleEnergyToZero (subseq f d r)` holds
+for any `(d, r)`, then `f` has no odd eventual period `2 * m + 1`. -/
+theorem not_evPer_odd_of_subseq_flexibleEnergyToZero {f : Nat → Bool} {d r : Nat}
+    (h : FlexibleEnergyToZero (subseq f d r)) (m : Nat) : ¬ EvPer f (2 * m + 1) :=
+  fun hper => not_evPer_odd_of_flexibleEnergyToZero h m (evPer_subseq_of_periodic hper d r)
+
+/-- **Odd-Period Exclusion from a Single `OrderedEnergyLittleO` Subsequence
+(`not_evPer_odd_of_subseq_orderedEnergyLittleO`):** if `OrderedEnergyLittleO (subseq f d r)` holds
+for any `(d, r)`, then `f` has no odd eventual period `2 * m + 1`. -/
+theorem not_evPer_odd_of_subseq_orderedEnergyLittleO {f : Nat → Bool} {d r : Nat}
+    (h : OrderedEnergyLittleO (subseq f d r)) (m : Nat) : ¬ EvPer f (2 * m + 1) :=
+  fun hper => not_evPer_odd_of_orderedEnergyLittleO h m (evPer_subseq_of_periodic hper d r)
+
+/-- **Odd-Period Exclusion from a Single `MaxBlockEnergyLittleO` Subsequence
+(`not_evPer_odd_of_subseq_maxBlockEnergyLittleO`):** if `MaxBlockEnergyLittleO (subseq f d r)`
+holds for any `(d, r)`, then `f` has no odd eventual period `2 * m + 1`. -/
+theorem not_evPer_odd_of_subseq_maxBlockEnergyLittleO {f : Nat → Bool} {d r : Nat}
+    (h : MaxBlockEnergyLittleO (subseq f d r)) (m : Nat) : ¬ EvPer f (2 * m + 1) :=
+  fun hper => not_evPer_odd_of_maxBlockEnergyLittleO h m (evPer_subseq_of_periodic hper d r)
+
+/-- **Even-Stride `DensityHalf` Bridge to `Problem1` Without Center Hypothesis
+(`problem1_of_even_subseq_densityHalf`):** if for every `m > 0` there is `r < 2 * m` with
+`DensityHalf (subseq center (2 * m) r)`, then `Problem1` holds (dropping `DensityHalf center`). -/
+theorem problem1_of_even_subseq_densityHalf
+    (heven : ∀ m : Nat, 0 < m → ∃ r : Nat, r < 2 * m ∧ DensityHalf (subseq center (2 * m) r)) :
+    Problem1 := by
+  rintro ⟨T₀, L, hL, hT₀⟩
+  have hper : EvPer center L := ⟨T₀, hT₀⟩
+  rcases Nat.mod_two_eq_zero_or_one L with hmod0 | hmod1
+  · have hm : 0 < L / 2 := by omega
+    have hL_eq : L = 2 * (L / 2) := by omega
+    rw [hL_eq] at hper
+    obtain ⟨r, _, hd⟩ := heven (L / 2) hm
+    exact not_evPer_of_subseq_halfDensity (by omega : 0 < 2 * (L / 2))
+      ((halfDensity_iff_densityHalf _).mpr hd) hper
+  · have hL_eq : L = 2 * (L / 2) + 1 := by omega
+    rw [hL_eq] at hper
+    obtain ⟨r₁, _, hd₁⟩ := heven 1 (by decide)
+    exact not_evPer_odd_of_subseq_densityHalf hd₁ (L / 2) hper
+
+/-- **Even-Stride `ShellMaxLittleO` Bridge to `Problem1` Without Center Hypothesis
+(`problem1_of_even_subseq_shellMaxLittleO`):** if for every `m > 0` there is `r < 2 * m` with
+`ShellMaxLittleO (subseq center (2 * m) r)`, then `Problem1` holds (dropping `ShellMaxLittleO center`). -/
+theorem problem1_of_even_subseq_shellMaxLittleO
+    (heven : ∀ m : Nat, 0 < m → ∃ r : Nat, r < 2 * m ∧ ShellMaxLittleO (subseq center (2 * m) r)) :
+    Problem1 :=
+  problem1_of_even_subseq_densityHalf fun m hm => by
+    obtain ⟨r, hr, hs⟩ := heven m hm
+    exact ⟨r, hr, (halfDensity_iff_densityHalf _).mp ((halfDensity_iff_shellMaxLittleO _).mpr hs)⟩
+
+/-- **Even-Stride `FlexibleEnergyToZero` Bridge to `Problem1` Without Center Hypothesis
+(`problem1_of_even_subseq_flexibleEnergyToZero`):** if for every `m > 0` there is `r < 2 * m` with
+`FlexibleEnergyToZero (subseq center (2 * m) r)`, then `Problem1` holds. -/
+theorem problem1_of_even_subseq_flexibleEnergyToZero
+    (heven : ∀ m : Nat, 0 < m → ∃ r : Nat, r < 2 * m ∧ FlexibleEnergyToZero (subseq center (2 * m) r)) :
+    Problem1 :=
+  problem1_of_even_subseq_densityHalf fun m hm => by
+    obtain ⟨r, hr, hf⟩ := heven m hm
+    exact ⟨r, hr, (halfDensity_iff_densityHalf _).mp ((halfDensity_iff_flexibleEnergyToZero _).mpr hf)⟩
+
+/-- **Even-Stride `OrderedEnergyLittleO` Bridge to `Problem1` Without Center Hypothesis
+(`problem1_of_even_subseq_orderedEnergyLittleO`):** if for every `m > 0` there is `r < 2 * m` with
+`OrderedEnergyLittleO (subseq center (2 * m) r)`, then `Problem1` holds. -/
+theorem problem1_of_even_subseq_orderedEnergyLittleO
+    (heven : ∀ m : Nat, 0 < m → ∃ r : Nat, r < 2 * m ∧ OrderedEnergyLittleO (subseq center (2 * m) r)) :
+    Problem1 :=
+  problem1_of_even_subseq_densityHalf fun m hm => by
+    obtain ⟨r, hr, ho⟩ := heven m hm
+    exact ⟨r, hr, (halfDensity_iff_densityHalf _).mp ((halfDensity_iff_orderedEnergyLittleO _).mpr ho)⟩
+
+/-- **Even-Stride `MaxBlockEnergyLittleO` Bridge to `Problem1` Without Center Hypothesis
+(`problem1_of_even_subseq_maxBlockEnergyLittleO`):** if for every `m > 0` there is `r < 2 * m` with
+`MaxBlockEnergyLittleO (subseq center (2 * m) r)`, then `Problem1` holds. -/
+theorem problem1_of_even_subseq_maxBlockEnergyLittleO
+    (heven : ∀ m : Nat, 0 < m → ∃ r : Nat, r < 2 * m ∧ MaxBlockEnergyLittleO (subseq center (2 * m) r)) :
+    Problem1 :=
+  problem1_of_even_subseq_densityHalf fun m hm => by
+    obtain ⟨r, hr, hm'⟩ := heven m hm
+    exact ⟨r, hr, (halfDensity_iff_densityHalf _).mp ((halfDensity_iff_maxBlockEnergyLittleO _).mpr hm')⟩
+
 end Rule30P2Bridge
 end Ruliology.CellularAutomata
