@@ -563,5 +563,111 @@ theorem problem1_of_problem2_and_CQ01_and_canonical_balanced_even_ge_two_CQ
   · obtain rfl : m = 1 := by omega
     exact CQ_of_CQ01_and_two_periodic_balanced hCQ01 hper h0 hwin
 
+/-! ### Complete Classification of Balanced 4-Periodic Columns (`m = 2`) and Reduction of `Problem1` Under `Problem2`, `CQ01`, and `CQ w0011Col` to `2 * m >= 6` -/
+
+/-- **The Canonical Balanced 4-Periodic Column (`w0011Col`):** the 4-periodic sequence
+`[false, false, true, true]` repeated (`fun t => Rule30Ether.wordAt Rule30Ether.w0011 t`). -/
+def w0011Col (t : Nat) : Bool := Rule30Ether.wordAt Rule30Ether.w0011 t
+
+/-- **Period-4 Law for `w0011Col` (`w0011Col_periodic`):** `w0011Col (t + 4) = w0011Col t` for all `t`. -/
+theorem w0011Col_periodic (t : Nat) : w0011Col (t + 4) = w0011Col t := by
+  unfold w0011Col Rule30Ether.wordAt Rule30Ether.w0011
+  simp [Nat.add_mod_right]
+
+/-- **4-Periodic Agreement Criterion (`periodic_four_eq_of_first_four`):** if `ω` and `ω'` are
+both 4-periodic and agree at `0, 1, 2, 3`, then `ω t = ω' t` for all `t : Nat`. -/
+theorem periodic_four_eq_of_first_four {ω ω' : Nat → Bool}
+    (hω : ∀ t, ω (t + 4) = ω t) (hω' : ∀ t, ω' (t + 4) = ω' t)
+    (h0 : ω 0 = ω' 0) (h1 : ω 1 = ω' 1) (h2 : ω 2 = ω' 2) (h3 : ω 3 = ω' 3) :
+    ∀ t, ω t = ω' t := by
+  have hstep : ∀ t, ω t = ω' t ∧ ω (t + 1) = ω' (t + 1) ∧
+      ω (t + 2) = ω' (t + 2) ∧ ω (t + 3) = ω' (t + 3) := by
+    intro t
+    induction t with
+    | zero => exact ⟨h0, h1, h2, h3⟩
+    | succ t ih =>
+      refine ⟨ih.2.1, ih.2.2.1, ih.2.2.2, ?_⟩
+      rw [show t + 1 + 3 = t + 4 by omega, hω t, hω' t, ih.1]
+  exact fun t => (hstep t).1
+
+/-- **Complete Classification of Canonical Balanced 4-Periodic Columns
+(`four_periodic_canonical_balanced_classify`):** every 4-periodic sequence `ω`
+(`∀ t, ω (t + 4) = ω t`) with `ω 0 = true` and `winCount ω 0 4 = 2` is either
+`Rule30PeriodTwoCoupled.altCol`, `fun t => w0011Col (t + 2)`, or `fun t => w0011Col (t + 3)`. -/
+theorem four_periodic_canonical_balanced_classify {ω : Nat → Bool}
+    (hper : ∀ t, ω (t + 4) = ω t) (h0 : ω 0 = true)
+    (hwin : Rule30LeftAntiPeriod.winCount ω 0 4 = 2) :
+    (ω = Rule30PeriodTwoCoupled.altCol) ∨
+    (ω = fun t => w0011Col (t + 2)) ∨
+    (ω = fun t => w0011Col (t + 3)) := by
+  have hsum : (if ω 0 = true then 1 else 0) + (if ω 1 = true then 1 else 0) +
+      (if ω 2 = true then 1 else 0) + (if ω 3 = true then 1 else 0) = 2 := by
+    simpa [Rule30LeftAntiPeriod.winCount, Nat.zero_add] using hwin
+  rw [h0] at hsum
+  have hcases : (ω 1 = false ∧ ω 2 = true ∧ ω 3 = false) ∨
+      (ω 1 = true ∧ ω 2 = false ∧ ω 3 = false) ∨
+      (ω 1 = false ∧ ω 2 = false ∧ ω 3 = true) := by
+    revert hsum
+    cases ω 1 <;> cases ω 2 <;> cases ω 3 <;> decide
+  rcases hcases with ⟨h1, h2, h3⟩ | ⟨h1, h2, h3⟩ | ⟨h1, h2, h3⟩
+  · left
+    funext t
+    apply periodic_four_eq_of_first_four hper
+      (fun k => by simp [Rule30PeriodTwoCoupled.altCol, show (k + 4) % 2 = k % 2 by omega])
+    · rw [h0]; decide
+    · rw [h1]; decide
+    · rw [h2]; decide
+    · rw [h3]; decide
+  · right; left
+    funext t
+    apply periodic_four_eq_of_first_four hper
+      (fun k => by show w0011Col (k + 4 + 2) = w0011Col (k + 2); rw [show k + 4 + 2 = (k + 2) + 4 by omega, w0011Col_periodic])
+    · rw [h0]; decide
+    · rw [h1]; decide
+    · rw [h2]; decide
+    · rw [h3]; decide
+  · right; right
+    funext t
+    apply periodic_four_eq_of_first_four hper
+      (fun k => by show w0011Col (k + 4 + 3) = w0011Col (k + 3); rw [show k + 4 + 3 = (k + 3) + 4 by omega, w0011Col_periodic])
+    · rw [h0]; decide
+    · rw [h1]; decide
+    · rw [h2]; decide
+    · rw [h3]; decide
+
+/-- **`CQ01` and `CQ w0011Col` Discharge All Canonical Balanced 4-Periodic Coupled Questions
+(`CQ_of_CQ01_and_CQ_w0011_and_four_periodic_balanced`):** under `Rule30PeriodTwoCoupled.CQ01`
+(**open**) and `CQ w0011Col` (**open**), `CQ ω` holds for every 4-periodic sequence `ω` with
+`ω 0 = true` and `winCount ω 0 4 = 2`. -/
+theorem CQ_of_CQ01_and_CQ_w0011_and_four_periodic_balanced
+    (hCQ01 : Rule30PeriodTwoCoupled.CQ01) (hCQ0011 : CQ w0011Col)
+    {ω : Nat → Bool} (hper : ∀ t, ω (t + 4) = ω t) (h0 : ω 0 = true)
+    (hwin : Rule30LeftAntiPeriod.winCount ω 0 4 = 2) : CQ ω := by
+  rcases four_periodic_canonical_balanced_classify hper h0 hwin with rfl | rfl | rfl
+  · exact CQ_altCol_iff_CQ01.mpr hCQ01
+  · exact (CQ_periodic_shift_iff (by decide : 0 < 4) 2 w0011Col_periodic).mpr hCQ0011
+  · exact (CQ_periodic_shift_iff (by decide : 0 < 4) 3 w0011Col_periodic).mpr hCQ0011
+
+/-- **Reduction of `Problem1` Under `Problem2`, `CQ01`, and `CQ w0011Col` to Half-Balanced Even
+Periods `2 * m >= 6` (`problem1_of_problem2_and_CQ01_and_CQ_w0011_and_canonical_balanced_even_ge_three_CQ`):**
+under `Rule30Prize.Problem2` (**open**), `Rule30PeriodTwoCoupled.CQ01` (**open**), and
+`CQ w0011Col` (**open**), to prove `Rule30Prize.Problem1` it suffices to establish `CQ ω` for
+canonical `(2 * m)`-periodic sequences `ω` (`ω 0 = true`) with `3 ≤ m` (`2 * m ≥ 6`) and
+`winCount ω 0 (2 * m) = m`. -/
+theorem problem1_of_problem2_and_CQ01_and_CQ_w0011_and_canonical_balanced_even_ge_three_CQ
+    (hP2 : Rule30Prize.Problem2) (hCQ01 : Rule30PeriodTwoCoupled.CQ01)
+    (hCQ0011 : CQ w0011Col)
+    (hCQ : ∀ (m : Nat) (ω : Nat → Bool), 3 ≤ m →
+      (∀ t, ω (t + 2 * m) = ω t) →
+      ω 0 = true →
+      Rule30LeftAntiPeriod.winCount ω 0 (2 * m) = m → CQ ω) :
+    Rule30Prize.Problem1 := by
+  refine problem1_of_problem2_and_CQ01_and_canonical_balanced_even_ge_two_CQ hP2 hCQ01
+    (fun m ω hm2 hper h0 hwin => ?_)
+  by_cases hm3 : 3 ≤ m
+  · exact hCQ m ω hm3 hper h0 hwin
+  · obtain rfl : m = 2 := by omega
+    exact CQ_of_CQ01_and_CQ_w0011_and_four_periodic_balanced hCQ01 hCQ0011 hper h0 hwin
+
 end Rule30Coupled
 end Ruliology.CellularAutomata
