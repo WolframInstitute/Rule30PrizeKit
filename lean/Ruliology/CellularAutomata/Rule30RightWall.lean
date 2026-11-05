@@ -1390,6 +1390,85 @@ theorem iter_tail {x : Row} {D : Nat} (h : ∀ j, D ≤ j → x (j + 1) = !x j) 
     intro j hj
     exact step_rain_tail ih j (by omega)
 
+/-! ### Permanent Boundary Bit-Flip Invariance, Prefix Injectivity `iter_low_iff`, and Low-Bit Equivalence of `fwN` -/
+
+/-- **One-Tick Boundary Bit-Flip Preservation (`step_flip_at_low_boundary`):** if rows `x` and
+`y` agree below `N` (`∀ j < N, x j = y j`) and differ at `N` (`x N = !y N`), then
+`step x N = !step y N`. -/
+theorem step_flip_at_low_boundary {x y : Row} {N : Nat}
+    (hlow : ∀ j, j < N → x j = y j) (hflip : x N = !y N) :
+    step x N = !step y N := by
+  match N with
+  | 0 => exact hflip
+  | 1 =>
+    change xor (x 1) (x 0) = !(xor (y 1) (y 0))
+    rw [hflip, hlow 0 (by omega)]
+    cases y 1 <;> cases y 0 <;> rfl
+  | j + 2 =>
+    change xor (x (j + 2)) (x (j + 1) || x j) = !(xor (y (j + 2)) (y (j + 1) || y j))
+    rw [hflip, hlow (j + 1) (by omega), hlow j (by omega)]
+    cases y (j + 2) <;> cases (y (j + 1) || y j) <;> rfl
+
+/-- **Multi-Tick Boundary Bit-Flip Invariance (`iter_flip_at_low_boundary`):** if `x` and `y`
+agree below `N` (`∀ j < N, x j = y j`) and `x N = !y N`, then `iter x k N = !iter y k N` for
+every tick count `k : Nat`. -/
+theorem iter_flip_at_low_boundary {x y : Row} {N : Nat}
+    (hlow : ∀ j, j < N → x j = y j) (hflip : x N = !y N) (k : Nat) :
+    iter x k N = !iter y k N := by
+  induction k with
+  | zero => exact hflip
+  | succ k ih =>
+    exact step_flip_at_low_boundary (iter_low hlow k) ih
+
+/-- **Prefix Injectivity of `iter` (`iter_low_injective`):** if `iter x k` and `iter y k` agree
+below `N` (`∀ j < N, iter x k j = iter y k j`), then `x` and `y` agree below `N`
+(`∀ j < N, x j = y j`). -/
+theorem iter_low_injective {x y : Row} {k N : Nat}
+    (h : ∀ j, j < N → iter x k j = iter y k j) :
+    ∀ j, j < N → x j = y j := by
+  induction N with
+  | zero => intro j hj; omega
+  | succ N ih =>
+    have hprev : ∀ j, j < N → x j = y j := ih (fun j hj => h j (by omega))
+    intro j hj
+    rcases Nat.lt_succ_iff_lt_or_eq.mp hj with hlt | rfl
+    · exact hprev j hlt
+    · cases hbit : (x j == y j)
+      · have hflip : x j = !y j := by
+          revert hbit; cases x j <;> cases y j <;> decide
+        have hfk := iter_flip_at_low_boundary hprev hflip k
+        have heq := h j (Nat.lt_succ_self j)
+        rw [heq] at hfk
+        revert hfk; cases iter y k j <;> intro h <;> contradiction
+      · exact LawfulBEq.eq_of_beq hbit
+
+/-- **Exact Prefix-Agreement Equivalence for `iter` (`iter_low_iff`):** for every tick count
+`k : Nat` and prefix bound `N : Nat`,
+`(∀ j < N, iter x k j = iter y k j) ↔ (∀ j < N, x j = y j)`. -/
+theorem iter_low_iff (x y : Row) (k N : Nat) :
+    (∀ j, j < N → iter x k j = iter y k j) ↔ (∀ j, j < N → x j = y j) :=
+  ⟨iter_low_injective, fun h => iter_low h k⟩
+
+/-- **Global Forward Injectivity of `iter` (`iter_injective`):** for every tick count `k : Nat`,
+`iter x k = iter y k ↔ x = y`. -/
+theorem iter_injective (x y : Row) (k : Nat) :
+    iter x k = iter y k ↔ x = y := by
+  constructor
+  · intro h
+    funext j
+    exact iter_low_injective (N := j + 1) (fun i _ => congrFun h i) j (Nat.lt_succ_self j)
+  · intro h; rw [h]
+
+/-- **Bitwise Low-Bit Equivalence for `fwN` (`fwN_testBit_low_iff`):** for any tick count
+`k : Nat`, bit bound `N : Nat`, and natural numbers `y₁, y₂ : Nat`,
+`(∀ j < N, (fwN k y₁).testBit j = (fwN k y₂).testBit j) ↔ (∀ j < N, y₁.testBit j = y₂.testBit j)`. -/
+theorem fwN_testBit_low_iff (k N y₁ y₂ : Nat) :
+    (∀ j, j < N → (fwN k y₁).testBit j = (fwN k y₂).testBit j) ↔
+      (∀ j, j < N → y₁.testBit j = y₂.testBit j) := by
+  have h1 := iter_fw y₁ k
+  have h2 := iter_fw y₂ k
+  simpa [h1, h2] using iter_low_iff y₁.testBit y₂.testBit k N
+
 end WindowClosed
 
 end Ruliology.CellularAutomata.Rule30RightWall
