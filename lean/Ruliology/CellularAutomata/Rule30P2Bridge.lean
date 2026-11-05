@@ -2388,5 +2388,98 @@ theorem problem1_and_problem2_of_all_dyadic_subseq_maxBlockEnergyLittleO
     obtain ⟨r, hr, hm⟩ := h a
     exact ⟨r, hr, (halfDensity_iff_maxBlockEnergyLittleO _).mpr hm⟩
 
+/-! ## 15. Finite-Horizon Dyadic Divisibility (`2^(K+1) | L`) and Period Exclusions (`L < 2^(K+1)`) Across All Five Problem 2 Energy Forms -/
+
+/-- **Finite-Horizon Dyadic Divisibility from `DensityHalf`
+(`two_pow_succ_dvd_of_evPer_and_dyadic_subseq_densityHalf`):** if `1 ≤ K` and
+`DensityHalf (subseq f (2 ^ a) r)` holds for some `r` at each level `1 ≤ a ≤ K`, then every
+eventual period `L > 0` of `f` satisfies `∃ q > 0, L = 2 ^ (K + 1) * q`. -/
+theorem two_pow_succ_dvd_of_evPer_and_dyadic_subseq_densityHalf
+    {f : Nat → Bool} {K L : Nat} (hK : 1 ≤ K) (hL : 0 < L)
+    (h : ∀ a : Nat, 1 ≤ a → a ≤ K → ∃ r : Nat, DensityHalf (subseq f (2 ^ a) r))
+    (hper : EvPer f L) :
+    ∃ q : Nat, 0 < q ∧ L = 2 ^ (K + 1) * q :=
+  two_pow_succ_dvd_of_evPer_and_dyadic_subseq_halfDensity hK hL
+    (fun a ha1 ha2 => by obtain ⟨r, hr⟩ := h a ha1 ha2; exact ⟨r, (halfDensity_iff_densityHalf _).mpr hr⟩)
+    hper
+
+/-- **Finite-Horizon Dyadic Divisibility from `ShellMaxLittleO`
+(`two_pow_succ_dvd_of_evPer_and_dyadic_subseq_shellMaxLittleO`):** if `1 ≤ K` and
+`ShellMaxLittleO (subseq f (2 ^ a) r)` holds for some `r` at each level `1 ≤ a ≤ K`, then every
+eventual period `L > 0` of `f` satisfies `∃ q > 0, L = 2 ^ (K + 1) * q`. -/
+theorem two_pow_succ_dvd_of_evPer_and_dyadic_subseq_shellMaxLittleO
+    {f : Nat → Bool} {K L : Nat} (hK : 1 ≤ K) (hL : 0 < L)
+    (h : ∀ a : Nat, 1 ≤ a → a ≤ K → ∃ r : Nat, ShellMaxLittleO (subseq f (2 ^ a) r))
+    (hper : EvPer f L) :
+    ∃ q : Nat, 0 < q ∧ L = 2 ^ (K + 1) * q :=
+  two_pow_succ_dvd_of_evPer_and_dyadic_subseq_halfDensity hK hL
+    (fun a ha1 ha2 => by obtain ⟨r, hr⟩ := h a ha1 ha2; exact ⟨r, (halfDensity_iff_shellMaxLittleO _).mpr hr⟩)
+    hper
+
+/-- **Finite-Horizon Dyadic Divisibility from `FlexibleEnergyToZero`
+(`two_pow_succ_dvd_of_evPer_and_dyadic_subseq_flexibleEnergyToZero`):** if `1 ≤ K` and
+`FlexibleEnergyToZero (subseq f (2 ^ a) r)` holds for some `r` at each level `1 ≤ a ≤ K`, then
+every eventual period `L > 0` of `f` satisfies `∃ q > 0, L = 2 ^ (K + 1) * q`. -/
+theorem two_pow_succ_dvd_of_evPer_and_dyadic_subseq_flexibleEnergyToZero
+    {f : Nat → Bool} {K L : Nat} (hK : 1 ≤ K) (hL : 0 < L)
+    (h : ∀ a : Nat, 1 ≤ a → a ≤ K → ∃ r : Nat, FlexibleEnergyToZero (subseq f (2 ^ a) r))
+    (hper : EvPer f L) :
+    ∃ q : Nat, 0 < q ∧ L = 2 ^ (K + 1) * q :=
+  two_pow_succ_dvd_of_evPer_and_dyadic_subseq_halfDensity hK hL
+    (fun a ha1 ha2 => by obtain ⟨r, hr⟩ := h a ha1 ha2; exact ⟨r, (halfDensity_iff_flexibleEnergyToZero _).mpr hr⟩)
+    hper
+
+/-- **Finite-Horizon Dyadic Divisibility from `OrderedEnergyLittleO`
+(`two_pow_succ_dvd_of_evPer_and_dyadic_subseq_orderedEnergyLittleO`):** if `1 ≤ K` and
+`OrderedEnergyLittleO (subseq f (2 ^ a) r)` holds for some `r` at each level `1 ≤ a ≤ K`, then
+every eventual period `L > 0` of `f` satisfies `∃ q > 0, L = 2 ^ (K + 1) * q`. -/
+theorem two_pow_succ_dvd_of_evPer_and_dyadic_subseq_orderedEnergyLittleO
+    {f : Nat → Bool} {K L : Nat} (hK : 1 ≤ K) (hL : 0 < L)
+    (h : ∀ a : Nat, 1 ≤ a → a ≤ K → ∃ r : Nat, OrderedEnergyLittleO (subseq f (2 ^ a) r))
+    (hper : EvPer f L) :
+    ∃ q : Nat, 0 < q ∧ L = 2 ^ (K + 1) * q :=
+  two_pow_succ_dvd_of_evPer_and_dyadic_subseq_halfDensity hK hL
+    (fun a ha1 ha2 => by obtain ⟨r, hr⟩ := h a ha1 ha2; exact ⟨r, (halfDensity_iff_orderedEnergyLittleO _).mpr hr⟩)
+    hper
+
+/-- **Finite-Horizon Dyadic Divisibility from `MaxBlockEnergyLittleO`
+(`two_pow_succ_dvd_of_evPer_and_dyadic_subseq_maxBlockEnergyLittleO`):** if `1 ≤ K` and
+`MaxBlockEnergyLittleO (subseq f (2 ^ a) r)` holds for some `r` at each level `1 ≤ a ≤ K`, then
+every eventual period `L > 0` of `f` satisfies `∃ q > 0, L = 2 ^ (K + 1) * q`. -/
+theorem two_pow_succ_dvd_of_evPer_and_dyadic_subseq_maxBlockEnergyLittleO
+    {f : Nat → Bool} {K L : Nat} (hK : 1 ≤ K) (hL : 0 < L)
+    (h : ∀ a : Nat, 1 ≤ a → a ≤ K → ∃ r : Nat, MaxBlockEnergyLittleO (subseq f (2 ^ a) r))
+    (hper : EvPer f L) :
+    ∃ q : Nat, 0 < q ∧ L = 2 ^ (K + 1) * q :=
+  two_pow_succ_dvd_of_evPer_and_dyadic_subseq_halfDensity hK hL
+    (fun a ha1 ha2 => by obtain ⟨r, hr⟩ := h a ha1 ha2; exact ⟨r, (halfDensity_iff_maxBlockEnergyLittleO _).mpr hr⟩)
+    hper
+
+/-- **Exclusion of All Eventual Periods Below `2 ^ (K + 1)` from `ShellMaxLittleO`
+(`not_evPer_lt_two_pow_succ_of_dyadic_subseq_shellMaxLittleO`):** if `1 ≤ K` and
+`ShellMaxLittleO (subseq f (2 ^ a) r)` holds for some `r` at each level `1 ≤ a ≤ K`, then
+`¬ EvPer f L` for every `1 ≤ L < 2 ^ (K + 1)`. -/
+theorem not_evPer_lt_two_pow_succ_of_dyadic_subseq_shellMaxLittleO
+    {f : Nat → Bool} {K L : Nat} (hK : 1 ≤ K) (hL1 : 1 ≤ L) (hL2 : L < 2 ^ (K + 1))
+    (h : ∀ a : Nat, 1 ≤ a → a ≤ K → ∃ r : Nat, ShellMaxLittleO (subseq f (2 ^ a) r)) :
+    ¬ EvPer f L := by
+  intro hper
+  obtain ⟨q, hq, hfac⟩ := two_pow_succ_dvd_of_evPer_and_dyadic_subseq_shellMaxLittleO hK hL1 h hper
+  have h1 : 2 ^ (K + 1) * 1 ≤ 2 ^ (K + 1) * q := Nat.mul_le_mul_left (2 ^ (K + 1)) hq
+  omega
+
+/-- **Exclusion of All Eventual Periods Below `2 ^ (K + 1)` from `MaxBlockEnergyLittleO`
+(`not_evPer_lt_two_pow_succ_of_dyadic_subseq_maxBlockEnergyLittleO`):** if `1 ≤ K` and
+`MaxBlockEnergyLittleO (subseq f (2 ^ a) r)` holds for some `r` at each level `1 ≤ a ≤ K`, then
+`¬ EvPer f L` for every `1 ≤ L < 2 ^ (K + 1)`. -/
+theorem not_evPer_lt_two_pow_succ_of_dyadic_subseq_maxBlockEnergyLittleO
+    {f : Nat → Bool} {K L : Nat} (hK : 1 ≤ K) (hL1 : 1 ≤ L) (hL2 : L < 2 ^ (K + 1))
+    (h : ∀ a : Nat, 1 ≤ a → a ≤ K → ∃ r : Nat, MaxBlockEnergyLittleO (subseq f (2 ^ a) r)) :
+    ¬ EvPer f L := by
+  intro hper
+  obtain ⟨q, hq, hfac⟩ := two_pow_succ_dvd_of_evPer_and_dyadic_subseq_maxBlockEnergyLittleO hK hL1 h hper
+  have h1 : 2 ^ (K + 1) * 1 ≤ 2 ^ (K + 1) * q := Nat.mul_le_mul_left (2 ^ (K + 1)) hq
+  omega
+
 end Rule30P2Bridge
 end Ruliology.CellularAutomata
