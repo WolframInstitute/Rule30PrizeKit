@@ -641,5 +641,168 @@ theorem center_flip_rightmost_of_white {x x' : Int → Bool} (t : Nat)
   intro s hs
   exact evol_eq_false_of_le fun q hq => hx q (by omega)
 
+/-! ## 6. Arbitrary-Block-Index `(k, m)` Leftmost and Rightmost Ancestor Leaf Sensitivity and Uniqueness Across the Space-Time Grid -/
+
+/-- **General Block-Grid Upper-Triangular Independence on the Leftmost Ancestor Leaf
+(`block_evol_getD_gt_congr_left`):** for any spatial block index `k : Int`, tree height `m : Nat`,
+and indices `i < j < b`, if `x` and `x'` agree on `((k - m) * b + i, (k + m) * b + j]`, then entry
+`j` of `block b (fun p => evol · (m * b) p) k` is identical for `x` and `x'`. -/
+theorem block_evol_getD_gt_congr_left (b m : Nat) (k : Int) {i j : Nat} (hij : i < j) (hjb : j < b)
+    {x x' : Int → Bool}
+    (hag : ∀ q : Int, (k - m) * b + i < q → q ≤ (k + m) * b + j → x' q = x q) :
+    (block b (fun p => evol x' (m * b) p) k).getD j false =
+      (block b (fun p => evol x (m * b) p) k).getD j false := by
+  rw [getD_block b _ k hjb, getD_block b _ k hjb]
+  apply evol_window
+  intro q h1 h2
+  have hm : ((m * b : Nat) : Int) = (m : Int) * (b : Int) := Int.natCast_mul m b
+  have hlo : (k - m) * b + i < q := by
+    have : (k - (m : Int)) * (b : Int) = k * b - (m : Int) * b := Int.sub_mul k (m : Int) (b : Int)
+    omega
+  have hhi : q ≤ (k + m) * b + j := by
+    have : (k + (m : Int)) * (b : Int) = k * b + (m : Int) * b := Int.add_mul k (m : Int) (b : Int)
+    omega
+  exact hag q hlo hhi
+
+/-- **General Block-Grid Leftmost Ancestor Pivot Flip (`block_evol_getD_flip_leftmost`):**
+for any spatial block index `k : Int`, tree height `m : Nat`, and index `i < b`, if `x` and `x'`
+agree on `((k - m) * b + i, (k + m) * b + i]` and flip entry `i` of `block b · (k - m)`, then
+entry `i` of `block b (fun p => evol · (m * b) p) k` flips. -/
+theorem block_evol_getD_flip_leftmost (b m : Nat) (k : Int) {i : Nat} (hib : i < b)
+    {x x' : Int → Bool}
+    (hag : ∀ q : Int, (k - m) * b + i < q → q ≤ (k + m) * b + i → x' q = x q)
+    (hflip : (block b x' (k - m)).getD i false = !(block b x (k - m)).getD i false) :
+    (block b (fun p => evol x' (m * b) p) k).getD i false =
+      !(block b (fun p => evol x (m * b) p) k).getD i false := by
+  rw [getD_block b _ k hib, getD_block b _ k hib]
+  rw [getD_block b x' (k - m) hib, getD_block b x (k - m) hib] at hflip
+  have hm : ((m * b : Nat) : Int) = (m : Int) * (b : Int) := Int.natCast_mul m b
+  have hsub : (k - (m : Int)) * (b : Int) = k * b - (m : Int) * b := Int.sub_mul k (m : Int) (b : Int)
+  have hadd : (k + (m : Int)) * (b : Int) = k * b + (m : Int) * b := Int.add_mul k (m : Int) (b : Int)
+  have hidx : k * (b : Int) + (i : Int) - ((m * b : Nat) : Int) = (k - (m : Int)) * (b : Int) + (i : Int) := by omega
+  exact evol_flip_leftmost (m * b) (k * b + i)
+    (fun q h1 h2 => hag q (by omega) (by omega))
+    (by rw [hidx]; exact hflip)
+
+/-- **General Block-Grid Leftmost Ancestor Leaf Injectivity (`block_evol_leftmost_leaf_injective`):**
+for any spatial block index `k : Int` and tree height `m : Nat`, if `x` and `x'` agree on
+`[(k - m + 1) * b, (k + m + 1) * b)` and produce the same block `k` at time `m * b`, then
+`block b x (k - m) = block b x' (k - m)`. -/
+theorem block_evol_leftmost_leaf_injective (b m : Nat) (k : Int) {x x' : Int → Bool}
+    (hag : ∀ q : Int, (k - m + 1) * b ≤ q → q < (k + m + 1) * b → x' q = x q)
+    (hblk : block b (fun p => evol x' (m * b) p) k = block b (fun p => evol x (m * b) p) k) :
+    block b x' (k - m) = block b x (k - m) := by
+  have hstep : ∀ d, d ≤ b → ∀ i, b - d ≤ i → i < b →
+      (block b x' (k - m)).getD i false = (block b x (k - m)).getD i false := by
+    intro d
+    induction d with
+    | zero => intro _ i hi1 hi2; omega
+    | succ d ih =>
+      intro hd i hi1 hi2
+      by_cases hgt : b - d ≤ i
+      · exact ih (by omega) i hgt hi2
+      · have hi_eq : i = b - (d + 1) := by omega
+        have hcone : ∀ q : Int, (k - m) * b + i < q → q ≤ (k + m) * b + i → x' q = x q := by
+          intro q hq1 hq2
+          have h1 : (k - (m : Int) + 1) * (b : Int) = (k - (m : Int)) * b + b := by
+            rw [Int.add_mul, Int.one_mul]
+          have h2 : (k + (m : Int) + 1) * (b : Int) = (k + (m : Int)) * b + b := by
+            rw [Int.add_mul, Int.one_mul]
+          by_cases hq_right : (k - m + 1) * b ≤ q
+          · exact hag q hq_right (by omega)
+          · have hj_lt : (q - (k - m) * b).toNat < b := by omega
+            have hj_ge : b - d ≤ (q - (k - m) * b).toNat := by omega
+            have heq_j := ih (by omega) (q - (k - m) * b).toNat hj_ge hj_lt
+            rw [getD_block b x' (k - m) hj_lt, getD_block b x (k - m) hj_lt,
+              Int.toNat_of_nonneg (by omega)] at heq_j
+            simpa [show (k - m) * b + (q - (k - m) * b) = q by omega] using heq_j
+        cases hbit : ((block b x' (k - m)).getD i false == (block b x (k - m)).getD i false)
+        · have hflip : (block b x' (k - m)).getD i false = !(block b x (k - m)).getD i false := by
+            revert hbit
+            cases (block b x' (k - m)).getD i false <;> cases (block b x (k - m)).getD i false <;> decide
+          have hpiv := block_evol_getD_flip_leftmost b m k hi2 hcone hflip
+          rw [hblk] at hpiv
+          exact False.elim (bool_eq_not_false _ hpiv)
+        · exact LawfulBEq.eq_of_beq hbit
+  apply list_eq_of_length_eq_of_getD (length_block b x' _) (length_block b x _)
+  intro i hi
+  exact hstep b (Nat.le_refl b) i (by omega) hi
+
+/-- **General Block-Grid Rightmost Ancestor Pivot Flip Across a White Cone
+(`block_evol_getD_flip_rightmost_of_white`):** for any spatial block index `k : Int`, tree height
+`m : Nat`, and `i < b`, if `x` and `x'` vanish below `(k + m) * b + i` and flip entry `i` of
+`block b · (k + m)`, then entry `i` of `block b (fun p => evol · (m * b) p) k` flips. -/
+theorem block_evol_getD_flip_rightmost_of_white (b m : Nat) (k : Int) {i : Nat} (hib : i < b)
+    {x x' : Int → Bool}
+    (hx : ∀ q : Int, q < (k + m) * b + i → x q = false)
+    (hx' : ∀ q : Int, q < (k + m) * b + i → x' q = false)
+    (hflip : (block b x' (k + m)).getD i false = !(block b x (k + m)).getD i false) :
+    (block b (fun p => evol x' (m * b) p) k).getD i false =
+      !(block b (fun p => evol x (m * b) p) k).getD i false := by
+  rw [getD_block b _ k hib, getD_block b _ k hib]
+  rw [getD_block b x' (k + m) hib, getD_block b x (k + m) hib] at hflip
+  have hm : ((m * b : Nat) : Int) = (m : Int) * (b : Int) := Int.natCast_mul m b
+  have hadd : (k + (m : Int)) * (b : Int) = k * b + (m : Int) * b := Int.add_mul k (m : Int) (b : Int)
+  have hidx : k * (b : Int) + (i : Int) + ((m * b : Nat) : Int) = (k + (m : Int)) * (b : Int) + (i : Int) := by omega
+  apply (evol_flip_rightmost_iff (m * b) (k * b + i)
+    (fun q _ h2 => by rw [hx' q (by omega), hx q (by omega)])
+    (by rw [hidx]; exact hflip)).mpr
+  intro s hs
+  exact evol_eq_false_of_le fun q hq => hx q (by omega)
+
+/-- **General Block-Grid Uniqueness of the All-White Rightmost Ancestor Leaf
+(`block_evol_rightmost_leaf_eq_false_of_white`):** for any `k : Int` and `m : Nat`, if `x` and
+`x₀` vanish below `(k + m) * b`, `x₀` vanishes on `[(k + m) * b, (k + m + 1) * b)`, and their
+blocks at `(m * b, k)` agree, then `(block b x (k + m)).getD i false = false` for all `i < b`. -/
+theorem block_evol_rightmost_leaf_eq_false_of_white (b m : Nat) (k : Int) {x x₀ : Int → Bool}
+    (hx : ∀ q : Int, q < (k + m) * b → x q = false)
+    (hx₀ : ∀ q : Int, q < (k + m) * b + b → x₀ q = false)
+    (hblk : block b (fun p => evol x (m * b) p) k = block b (fun p => evol x₀ (m * b) p) k) :
+    ∀ i, i < b → (block b x (k + m)).getD i false = false := by
+  have hstep : ∀ d, d ≤ b → ∀ i, i < d → (block b x (k + m)).getD i false = false := by
+    intro d
+    induction d with
+    | zero => intro _ i hi; omega
+    | succ d ih =>
+      intro hd i hi
+      rcases Nat.lt_succ_iff_lt_or_eq.mp hi with hlt | rfl
+      · exact ih (by omega) i hlt
+      · cases hbit : (block b x (k + m)).getD i false with
+        | false => rfl
+        | true =>
+          have h0 : (block b x₀ (k + m)).getD i false = false := by
+            rw [getD_block b x₀ (k + m) (by omega)]
+            exact hx₀ ((k + m) * b + i) (by omega)
+          have hflip : (block b x (k + m)).getD i false = !(block b x₀ (k + m)).getD i false := by
+            rw [hbit, h0]; rfl
+          have hpiv := block_evol_getD_flip_rightmost_of_white b m k (by omega)
+            (fun q hq => hx₀ q (by omega))
+            (fun q hq => by
+              by_cases hqm : q < (k + m) * b
+              · exact hx q hqm
+              · have hlt_i : (q - (k + m) * b).toNat < i := by omega
+                have heq_j := ih (by omega) (q - (k + m) * b).toNat hlt_i
+                rw [getD_block b x (k + m) (by omega),
+                  Int.toNat_of_nonneg (by omega)] at heq_j
+                simpa [show (k + m) * b + (q - (k + m) * b) = q by omega] using heq_j)
+            hflip
+          rw [hblk] at hpiv
+          exact False.elim (bool_eq_not_false _ hpiv)
+  exact hstep b (Nat.le_refl b)
+
+/-- **General Block-Grid Equality of Rightmost Ancestor Leaves Across a White Cone
+(`block_evol_rightmost_leaf_eq_of_white`):** under the hypotheses of
+`block_evol_rightmost_leaf_eq_false_of_white`, `block b x (k + m) = block b x₀ (k + m)`. -/
+theorem block_evol_rightmost_leaf_eq_of_white (b m : Nat) (k : Int) {x x₀ : Int → Bool}
+    (hx : ∀ q : Int, q < (k + m) * b → x q = false)
+    (hx₀ : ∀ q : Int, q < (k + m) * b + b → x₀ q = false)
+    (hblk : block b (fun p => evol x (m * b) p) k = block b (fun p => evol x₀ (m * b) p) k) :
+    block b x (k + m) = block b x₀ (k + m) := by
+  apply list_eq_of_length_eq_of_getD (length_block b x _) (length_block b x₀ _)
+  intro i hi
+  rw [block_evol_rightmost_leaf_eq_false_of_white b m k hx hx₀ hblk i hi,
+    getD_block b x₀ (k + m) hi]
+  exact (hx₀ ((k + m) * b + i) (by omega)).symm
+
 end Rule30LightCone
 end Ruliology.CellularAutomata
