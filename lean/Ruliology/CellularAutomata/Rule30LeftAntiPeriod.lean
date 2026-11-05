@@ -1161,5 +1161,110 @@ theorem R_infinitely_many_not_evPer_odd (k : Nat) :
   obtain ⟨j, hkj, hjb, _, _, hd⟩ := R_infinitely_many_halfDensity k
   exact ⟨j, hkj, hjb, hd, not_evPer_odd_of_halfDensity hd⟩
 
+/-! ### Subsequence Semigroup Law, Subsequence Period Inheritance, and Unconditional Elimination of the `Problem2` Hypothesis from Even-Stride Progression Bridges -/
+
+/-- **Unit-Stride Subsequence Identity (`subseq_one_zero`):** for every sequence `f : Nat → Bool`,
+`subseq f 1 0 = f`. -/
+theorem subseq_one_zero (f : Nat → Bool) : subseq f 1 0 = f := by
+  funext k
+  simp [subseq]
+
+/-- **Zero-Stride Constant Subsequence (`subseq_zero_left`):** subsampling `f` with stride `0` and
+offset `r` yields the constant sequence `fun _ => f r`. -/
+theorem subseq_zero_left (f : Nat → Bool) (r : Nat) : subseq f 0 r = fun _ => f r := by
+  funext k
+  simp [subseq]
+
+/-- **Subsequence Composition Semigroup Law (`subseq_subseq`):** iterating `subseq` with `(d₁, r₁)`
+and `(d₂, r₂)` equals `subseq f (d₂ * d₁) (r₁ + r₂ * d₁)`. -/
+theorem subseq_subseq (f : Nat → Bool) (d₁ r₁ d₂ r₂ : Nat) :
+    subseq (subseq f d₁ r₁) d₂ r₂ = subseq f (d₂ * d₁) (r₁ + r₂ * d₁) := by
+  funext k
+  simp only [subseq]
+  exact congrArg f (by rw [Nat.right_distrib, ← Nat.add_assoc, Nat.mul_assoc])
+
+/-- **Multi-Period Step Invariance (`apply_add_mul_of_periodic`):** if `f (t + L) = f t` for all
+`t ≥ T`, then `f (t + d * L) = f t` for every `d : Nat` and `t ≥ T`. -/
+theorem apply_add_mul_of_periodic {f : Nat → Bool} {T L : Nat}
+    (hT : ∀ t, T ≤ t → f (t + L) = f t) (d : Nat) {t : Nat} (ht : T ≤ t) :
+    f (t + d * L) = f t := by
+  induction d with
+  | zero => simp
+  | succ d ih =>
+    rw [Nat.succ_mul, ← Nat.add_assoc, hT (t + d * L) (by omega), ih]
+
+/-- **Eventual Periodicity of Period Multiples (`evPer_mul_of_evPer`):** if `EvPer f L`, then
+`EvPer f (d * L)` for every `d : Nat`. -/
+theorem evPer_mul_of_evPer {f : Nat → Bool} {L : Nat} (h : EvPer f L) (d : Nat) :
+    EvPer f (d * L) := by
+  obtain ⟨T, hT⟩ := h
+  exact ⟨T, fun t ht => apply_add_mul_of_periodic hT d ht⟩
+
+/-- **Universal Subsequence Period Inheritance (`evPer_subseq_of_evPer`):** if `EvPer f L`, then
+for every stride `d : Nat` and offset `r : Nat`, the arithmetic subsequence `subseq f d r` also
+satisfies `EvPer (subseq f d r) L`. -/
+theorem evPer_subseq_of_evPer {f : Nat → Bool} {L : Nat} (h : EvPer f L) (d r : Nat) :
+    EvPer (subseq f d r) L := by
+  rcases Nat.eq_zero_or_pos d with rfl | hd
+  · exact ⟨0, fun k _ => by simp [subseq]⟩
+  · obtain ⟨T, hT⟩ := h
+    refine ⟨T, fun k hk => ?_⟩
+    simp only [subseq]
+    have h1 : r + (k + L) * d = (r + k * d) + d * L := by
+      rw [Nat.right_distrib, ← Nat.add_assoc, Nat.mul_comm L d]
+    have hge : T ≤ r + k * d := by
+      have : k * 1 ≤ k * d := Nat.mul_le_mul_left k hd
+      omega
+    rw [h1]
+    exact apply_add_mul_of_periodic hT d hge
+
+/-- **Odd-Period Exclusion Lifted from Any Subsequence (`not_evPer_odd_of_subseq_halfDensity`):**
+if there exist ANY stride `d : Nat` and offset `r : Nat` such that `HalfDensity (subseq f d r)`
+holds, then `f` has no odd eventual period `2 * m + 1` (`¬ EvPer f (2 * m + 1)`). -/
+theorem not_evPer_odd_of_subseq_halfDensity {f : Nat → Bool} {d r : Nat}
+    (hd : HalfDensity (subseq f d r)) (m : Nat) :
+    ¬ EvPer f (2 * m + 1) :=
+  fun hper => not_evPer_odd_of_halfDensity hd m (evPer_subseq_of_evPer hper d r)
+
+/-- **Center Odd-Period Exclusion from Any Single Subsequence
+(`center_not_evPer_odd_of_subseq_halfDensity`):** if `HalfDensity (subseq center d r)` holds for
+even a single pair `(d, r)`, then `center` has no odd eventual period `2 * m + 1`. -/
+theorem center_not_evPer_odd_of_subseq_halfDensity {d r : Nat}
+    (hd : HalfDensity (subseq center d r)) (m : Nat) :
+    ¬ EvPer center (2 * m + 1) :=
+  not_evPer_odd_of_subseq_halfDensity hd m
+
+/-- **Even-Stride Progression Bridge to `Problem1` Without Assuming `Problem2`
+(`problem1_of_even_subseq_halfDensity`):** if for every `m > 0` there exists an offset `r : Nat`
+such that `HalfDensity (subseq center (2 * m) r)` holds, then `Problem1` holds unconditionally
+(eliminating the `hP2 : Problem2` hypothesis from `problem1_of_problem2_and_even_subseq_halfDensity`,
+since the `m = 1` progression `subseq center 2 r` already excludes all odd periods of `center`). -/
+theorem problem1_of_even_subseq_halfDensity
+    (heven : ∀ m, 0 < m → ∃ r, HalfDensity (subseq center (2 * m) r)) :
+    Problem1 := by
+  rintro ⟨T₀, L, hL, hT₀⟩
+  have hper : EvPer center L := ⟨T₀, hT₀⟩
+  rcases Nat.mod_two_eq_zero_or_one L with hmod0 | hmod1
+  · have hm : 0 < L / 2 := by omega
+    have hL_eq : L = 2 * (L / 2) := by omega
+    rw [hL_eq] at hper
+    obtain ⟨r, hd⟩ := heven (L / 2) hm
+    exact not_evPer_of_subseq_halfDensity (by omega : 0 < 2 * (L / 2)) hd hper
+  · have hL_eq : L = 2 * (L / 2) + 1 := by omega
+    rw [hL_eq] at hper
+    obtain ⟨r₁, hd₁⟩ := heven 1 (by decide)
+    exact not_evPer_odd_of_subseq_halfDensity hd₁ (L / 2) hper
+
+/-- **Canonical Bounded-Residue Even-Stride Bridge to `Problem1` Without Assuming `Problem2`
+(`problem1_of_even_subseq_halfDensity_lt`):** if for every `m > 0` there is a canonical residue
+`r < 2 * m` with `HalfDensity (subseq center (2 * m) r)`, then `Problem1` holds (eliminating the
+`Problem2` hypothesis from `problem1_of_problem2_and_even_subseq_halfDensity_lt`). -/
+theorem problem1_of_even_subseq_halfDensity_lt
+    (heven : ∀ m, 0 < m → ∃ r, r < 2 * m ∧ HalfDensity (subseq center (2 * m) r)) :
+    Problem1 :=
+  problem1_of_even_subseq_halfDensity (fun m hm => by
+    obtain ⟨r, _, hd⟩ := heven m hm
+    exact ⟨r, hd⟩)
+
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
