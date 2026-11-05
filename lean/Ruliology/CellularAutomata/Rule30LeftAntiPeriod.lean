@@ -1362,5 +1362,105 @@ theorem problem1_and_problem2_of_all_dyadic_subseq_halfDensity_lt
   rw [Nat.pow_zero, subseq_one_zero] at hd
   exact hd
 
+/-! ## 13. Finite-Horizon Dyadic Divisibility (`2^(K+1) | L`) and Exponential Period Lower Bounds (`L >= 2^(K+1)`) -/
+
+/-- **Power-of-Two Splitting Above `K + 1` (`pow_two_eq_pow_succ_mul`):** if `K + 1 ≤ a`, then
+`2 ^ a = 2 ^ (K + 1) * 2 ^ (a - (K + 1))`. -/
+theorem pow_two_eq_pow_succ_mul {K a : Nat} (h : K + 1 ≤ a) :
+    2 ^ a = 2 ^ (K + 1) * 2 ^ (a - (K + 1)) := by
+  rw [← Nat.pow_add, show K + 1 + (a - (K + 1)) = a by omega]
+
+/-- **Finite-Horizon Dyadic Valuation Divisibility (`two_pow_succ_dvd_of_evPer_and_dyadic_subseq_halfDensity`):**
+if `1 ≤ K` and for every `1 ≤ a ≤ K` there exists `r` with `HalfDensity (subseq f (2 ^ a) r)`,
+then every eventual period `L > 0` of `f` (`EvPer f L`) is a positive multiple of `2 ^ (K + 1)`
+(`∃ q > 0, L = 2 ^ (K + 1) * q`). -/
+theorem two_pow_succ_dvd_of_evPer_and_dyadic_subseq_halfDensity
+    {f : Nat → Bool} {K L : Nat} (hK : 1 ≤ K) (hL : 0 < L)
+    (hdyadic : ∀ a : Nat, 1 ≤ a → a ≤ K → ∃ r : Nat, HalfDensity (subseq f (2 ^ a) r))
+    (hper : EvPer f L) :
+    ∃ q : Nat, 0 < q ∧ L = 2 ^ (K + 1) * q := by
+  obtain ⟨a, m, hfac⟩ := exists_eq_two_pow_mul_odd L hL
+  have hper_fac : EvPer f (2 ^ a * (2 * m + 1)) := hfac ▸ hper
+  rcases Nat.eq_zero_or_pos a with rfl | ha_pos
+  · rw [Nat.pow_zero, Nat.one_mul] at hper_fac
+    obtain ⟨r₁, hd₁⟩ := hdyadic 1 (Nat.le_refl 1) hK
+    exact False.elim (not_evPer_odd_of_subseq_halfDensity hd₁ m hper_fac)
+  · by_cases ha_le : a ≤ K
+    · obtain ⟨r, hd⟩ := hdyadic a ha_pos ha_le
+      exact False.elim (not_evPer_two_pow_mul_odd_of_subseq_halfDensity hd m hper_fac)
+    · have ha_ge : K + 1 ≤ a := by omega
+      refine ⟨2 ^ (a - (K + 1)) * (2 * m + 1), Nat.mul_pos (Nat.two_pow_pos _) (by omega), ?_⟩
+      rw [hfac, pow_two_eq_pow_succ_mul ha_ge, Nat.mul_assoc]
+
+/-- **Exponential Period Lower Bound from Finite Dyadic Progressions
+(`two_pow_succ_le_of_evPer_and_dyadic_subseq_halfDensity`):** under the hypotheses of
+`two_pow_succ_dvd_of_evPer_and_dyadic_subseq_halfDensity`, `2 ^ (K + 1) ≤ L`. -/
+theorem two_pow_succ_le_of_evPer_and_dyadic_subseq_halfDensity
+    {f : Nat → Bool} {K L : Nat} (hK : 1 ≤ K) (hL : 0 < L)
+    (hdyadic : ∀ a : Nat, 1 ≤ a → a ≤ K → ∃ r : Nat, HalfDensity (subseq f (2 ^ a) r))
+    (hper : EvPer f L) :
+    2 ^ (K + 1) ≤ L := by
+  obtain ⟨q, hq, hfac⟩ := two_pow_succ_dvd_of_evPer_and_dyadic_subseq_halfDensity hK hL hdyadic hper
+  have h1 : 2 ^ (K + 1) * 1 ≤ 2 ^ (K + 1) * q := Nat.mul_le_mul_left (2 ^ (K + 1)) hq
+  omega
+
+/-- **Exclusion of All Eventual Periods Below `2 ^ (K + 1)`
+(`not_evPer_lt_two_pow_succ_of_dyadic_subseq_halfDensity`):** if `1 ≤ K` and
+`HalfDensity (subseq f (2 ^ a) r)` holds for some `r` at each level `1 ≤ a ≤ K`, then
+`¬ EvPer f L` for every `1 ≤ L < 2 ^ (K + 1)`. -/
+theorem not_evPer_lt_two_pow_succ_of_dyadic_subseq_halfDensity
+    {f : Nat → Bool} {K L : Nat} (hK : 1 ≤ K) (hL1 : 1 ≤ L) (hL2 : L < 2 ^ (K + 1))
+    (hdyadic : ∀ a : Nat, 1 ≤ a → a ≤ K → ∃ r : Nat, HalfDensity (subseq f (2 ^ a) r)) :
+    ¬ EvPer f L := by
+  intro hper
+  have hge := two_pow_succ_le_of_evPer_and_dyadic_subseq_halfDensity hK hL1 hdyadic hper
+  omega
+
+/-- **Modulo-4 Period Divisibility from a Single Stride-2 `HalfDensity` Subsequence
+(`four_dvd_of_evPer_and_subseq_two_halfDensity`):** if `HalfDensity (subseq f 2 r)` holds for some
+`r`, then every eventual period `L > 0` of `f` satisfies `∃ q > 0, L = 4 * q`. -/
+theorem four_dvd_of_evPer_and_subseq_two_halfDensity
+    {f : Nat → Bool} {r L : Nat} (hd : HalfDensity (subseq f 2 r))
+    (hL : 0 < L) (hper : EvPer f L) :
+    ∃ q : Nat, 0 < q ∧ L = 4 * q :=
+  two_pow_succ_dvd_of_evPer_and_dyadic_subseq_halfDensity (K := 1) (Nat.le_refl 1) hL
+    (fun a ha1 ha2 => by
+      obtain rfl : a = 1 := by omega
+      exact ⟨r, hd⟩)
+    hper
+
+/-- **Modulo-8 Period Divisibility from Stride-2 and Stride-4 `HalfDensity` Subsequences
+(`eight_dvd_of_evPer_and_subseq_two_four_halfDensity`):** if `HalfDensity (subseq f 2 r₁)` and
+`HalfDensity (subseq f 4 r₂)` hold, then every eventual period `L > 0` of `f` satisfies
+`∃ q > 0, L = 8 * q`. -/
+theorem eight_dvd_of_evPer_and_subseq_two_four_halfDensity
+    {f : Nat → Bool} {r₁ r₂ L : Nat}
+    (hd2 : HalfDensity (subseq f 2 r₁)) (hd4 : HalfDensity (subseq f 4 r₂))
+    (hL : 0 < L) (hper : EvPer f L) :
+    ∃ q : Nat, 0 < q ∧ L = 8 * q :=
+  two_pow_succ_dvd_of_evPer_and_dyadic_subseq_halfDensity (K := 2) (by decide) hL
+    (fun a ha1 ha2 => by
+      have : a = 1 ∨ a = 2 := by omega
+      rcases this with rfl | rfl
+      · exact ⟨r₁, hd2⟩
+      · exact ⟨r₂, hd4⟩)
+    hper
+
+/-- **Certificate-Free Exclusion of All Eventual Periods `1 <= L <= 7` from Stride-2 and Stride-4
+`HalfDensity` (`not_evPer_le_seven_of_subseq_two_four_halfDensity`):** if
+`HalfDensity (subseq f 2 r₁)` and `HalfDensity (subseq f 4 r₂)` hold, then `¬ EvPer f L` for
+every `1 ≤ L ≤ 7`. -/
+theorem not_evPer_le_seven_of_subseq_two_four_halfDensity
+    {f : Nat → Bool} {r₁ r₂ L : Nat}
+    (hd2 : HalfDensity (subseq f 2 r₁)) (hd4 : HalfDensity (subseq f 4 r₂))
+    (hL1 : 1 ≤ L) (hL7 : L ≤ 7) :
+    ¬ EvPer f L :=
+  not_evPer_lt_two_pow_succ_of_dyadic_subseq_halfDensity (K := 2) (by decide) hL1 (by omega)
+    (fun a ha1 ha2 => by
+      have : a = 1 ∨ a = 2 := by omega
+      rcases this with rfl | rfl
+      · exact ⟨r₁, hd2⟩
+      · exact ⟨r₂, hd4⟩)
+
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
