@@ -821,5 +821,104 @@ theorem problem1_of_subseq_two_halfDensity_and_problem2_and_CQ_w0011_and_canonic
     exact not_center_shift_four_periodic_balanced_of_subseq_two_halfDensity_and_CQ_w0011
       (T := T + s) hd2 hCQ0011 hper_ω h0_ω hwin_ω
 
+/-! ### Arbitrary-Horizon Dyadic Coupled Reduction (`2^(K+1) * q`) and Elimination of Both `CQ01` and `CQ w0011Col` at `K = 2` (`8 * q >= 8`) -/
+
+/-- **Arbitrary-Horizon Dyadic Coupled Reduction of `Problem1`
+(`problem1_of_dyadic_subseq_halfDensity_and_problem2_and_canonical_balanced_two_pow_mul_CQ`):**
+if `1 ≤ K`, `Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq Rule30Prize.center (2 ^ a) r)`
+holds for some `r` at each level `1 ≤ a ≤ K` (**open**), and `Rule30Prize.Problem2` (**open**)
+holds, then to prove `Rule30Prize.Problem1` it suffices to establish `CQ ω` solely for canonical
+`(2 ^ (K + 1) * q)`-periodic sequences `ω` (`ω 0 = true`, `1 ≤ q`) with
+`winCount ω 0 (2 ^ (K + 1) * q) = 2 ^ K * q`. -/
+theorem problem1_of_dyadic_subseq_halfDensity_and_problem2_and_canonical_balanced_two_pow_mul_CQ
+    {K : Nat} (hK : 1 ≤ K)
+    (hdyadic : ∀ a : Nat, 1 ≤ a → a ≤ K →
+      ∃ r : Nat, Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq Rule30Prize.center (2 ^ a) r))
+    (hP2 : Rule30Prize.Problem2)
+    (hCQ : ∀ (q : Nat) (ω : Nat → Bool), 1 ≤ q →
+      (∀ t, ω (t + 2 ^ (K + 1) * q) = ω t) →
+      ω 0 = true →
+      Rule30LeftAntiPeriod.winCount ω 0 (2 ^ (K + 1) * q) = 2 ^ K * q → CQ ω) :
+    Rule30Prize.Problem1 := by
+  rintro ⟨T, P, hP, hper⟩
+  obtain ⟨q, hq_pos, hP_eq⟩ :=
+    Rule30LeftAntiPeriod.two_pow_succ_dvd_of_evPer_and_dyadic_subseq_halfDensity hK hP hdyadic ⟨T, hper⟩
+  let L := 2 ^ (K + 1) * q
+  have hL_eq : 2 * (2 ^ K * q) = L := by
+    show 2 * (2 ^ K * q) = 2 ^ (K + 1) * q
+    rw [← Nat.mul_assoc, ← Nat.pow_succ']
+  have hL_pos : 0 < L := Nat.mul_pos (Nat.two_pow_pos _) hq_pos
+  have hper_L : ∀ t, T ≤ t → Rule30Prize.center (t + L) = Rule30Prize.center t := by
+    intro t ht; change Rule30Prize.center (t + 2 ^ (K + 1) * q) = Rule30Prize.center t; rw [← hP_eq]; exact hper t ht
+  let ω₀ : Nat → Bool := fun t => Rule30Prize.center (T + t)
+  have hper_ω₀ : ∀ t, ω₀ (t + L) = ω₀ t := fun t => by
+    show Rule30Prize.center (T + (t + L)) = Rule30Prize.center (T + t)
+    rw [show T + (t + L) = (T + t) + L by omega]
+    exact hper_L (T + t) (by omega)
+  have hhd_ω₀ : Rule30LeftAntiPeriod.HalfDensity ω₀ :=
+    (Rule30LeftAntiPeriod.halfDensity_shift_iff Rule30Prize.center T).mpr hP2
+  have hbal₀ : 2 * Rule30LeftAntiPeriod.winCount ω₀ 0 L = L :=
+    (Rule30LeftAntiPeriod.periodic_halfDensity_iff_two_mul_winCount_eq
+      (f := ω₀) (T := 0) (L := L) hL_pos (fun t _ => hper_ω₀ t)).mp hhd_ω₀
+  have hwin₀ : Rule30LeftAntiPeriod.winCount ω₀ 0 L = 2 ^ K * q := by omega
+  have hblack : ∃ s, ω₀ s = true := by
+    refine Classical.byContradiction fun hno => ?_
+    have hall : ∀ t, ω₀ t = false := fun t => by
+      cases hω : ω₀ t
+      · rfl
+      · exact False.elim (hno ⟨t, hω⟩)
+    have hzero : ∀ d, Rule30LeftAntiPeriod.winCount ω₀ 0 d = 0 := by
+      intro d; induction d with
+      | zero => rfl
+      | succ d ih => simp [Rule30LeftAntiPeriod.winCount, ih, hall d]
+    rw [hzero L] at hbal₀
+    omega
+  obtain ⟨s, hs_true⟩ := hblack
+  let ω : Nat → Bool := fun t => Rule30Prize.center (T + s + t)
+  have hω_eq : ω = fun t => ω₀ (t + s) := by
+    funext t; show Rule30Prize.center (T + s + t) = Rule30Prize.center (T + (t + s))
+    rw [show T + s + t = T + (t + s) by omega]
+  have hper_ω : ∀ t, ω (t + L) = ω t := fun t => by
+    show Rule30Prize.center (T + s + (t + L)) = Rule30Prize.center (T + s + t)
+    rw [show T + s + (t + L) = (T + s + t) + L by omega]
+    exact hper_L (T + s + t) (by omega)
+  have hwin_ω : Rule30LeftAntiPeriod.winCount ω 0 L = 2 ^ K * q := by
+    rw [hω_eq, winCount_shift_of_periodic hper_ω₀ s, hwin₀]
+  have h0_ω : ω 0 = true := by
+    show Rule30Prize.center (T + s + 0) = true
+    simpa [Nat.add_zero] using hs_true
+  have hC : CQ ω := hCQ q ω hq_pos hper_ω h0_ω hwin_ω
+  rw [CQ_iff_no_finite_config] at hC
+  have hseed : FinConfig seed := ⟨0, fun p hp => by show decide (p = 0) = false; simp; omega⟩
+  refine hC ⟨fun p => evol seed (T + s) p, evol_finConfig hseed (T + s), fun t => ?_⟩
+  rw [Rule30ZeroBoundaryBarriers.evol_restart seed (T + s) t 0]
+  exact evol_seed (T + s + t) 0
+
+/-- **Modulo-8 Coupled Reduction of `Problem1` Without `CQ01` or `CQ w0011Col`
+(`problem1_of_subseq_two_four_halfDensity_and_problem2_and_canonical_balanced_eight_mul_CQ`):**
+under `HalfDensity (subseq Rule30Prize.center 2 r₁)` (**open**),
+`HalfDensity (subseq Rule30Prize.center 4 r₂)` (**open**), and `Rule30Prize.Problem2` (**open**)
+(without assuming `CQ01` or `CQ w0011Col`), to prove `Rule30Prize.Problem1` it suffices to
+establish `CQ ω` solely for canonical `(8 * q)`-periodic sequences `ω` (`ω 0 = true`, `1 ≤ q`)
+with `winCount ω 0 (8 * q) = 4 * q`. -/
+theorem problem1_of_subseq_two_four_halfDensity_and_problem2_and_canonical_balanced_eight_mul_CQ
+    {r₁ r₂ : Nat}
+    (hd2 : Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq Rule30Prize.center 2 r₁))
+    (hd4 : Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq Rule30Prize.center 4 r₂))
+    (hP2 : Rule30Prize.Problem2)
+    (hCQ : ∀ (q : Nat) (ω : Nat → Bool), 1 ≤ q →
+      (∀ t, ω (t + 8 * q) = ω t) →
+      ω 0 = true →
+      Rule30LeftAntiPeriod.winCount ω 0 (8 * q) = 4 * q → CQ ω) :
+    Rule30Prize.Problem1 :=
+  problem1_of_dyadic_subseq_halfDensity_and_problem2_and_canonical_balanced_two_pow_mul_CQ
+    (K := 2) (by decide)
+    (fun a ha1 ha2 => by
+      have : a = 1 ∨ a = 2 := by omega
+      rcases this with rfl | rfl
+      · exact ⟨r₁, hd2⟩
+      · exact ⟨r₂, hd4⟩)
+    hP2 hCQ
+
 end Rule30Coupled
 end Ruliology.CellularAutomata
