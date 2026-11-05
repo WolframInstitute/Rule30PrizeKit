@@ -669,5 +669,157 @@ theorem problem1_of_problem2_and_CQ01_and_CQ_w0011_and_canonical_balanced_even_g
   · obtain rfl : m = 2 := by omega
     exact CQ_of_CQ01_and_CQ_w0011_and_four_periodic_balanced hCQ01 hCQ0011 hper h0 hwin
 
+/-! ### Eliminating `CQ01` and Odd Multiples of 2 via Stride-2 `HalfDensity`: Reduction of `Problem1` to Multiples of 4 (`4 * k >= 8`) -/
+
+/-- **Modulo-4 Period Divisibility Under Stride-2 `HalfDensity`
+(`four_dvd_period_of_subseq_two_halfDensity`):** if
+`Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq Rule30Prize.center 2 r)` holds and
+`Rule30Prize.center` is eventually `P`-periodic (`0 < P`) from `T` on, then `P = 4 * k` for some
+`0 < k`. -/
+theorem four_dvd_period_of_subseq_two_halfDensity {r T P : Nat}
+    (hd2 : Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq Rule30Prize.center 2 r))
+    (hP : 0 < P) (hper : ∀ t, T ≤ t → Rule30Prize.center (t + P) = Rule30Prize.center t) :
+    ∃ k : Nat, 0 < k ∧ P = 4 * k := by
+  obtain ⟨a, m, hfac⟩ := Rule30LeftAntiPeriod.exists_eq_two_pow_mul_odd P hP
+  have hev_fac : ∃ T', ∀ t, T' ≤ t → Rule30Prize.center (t + 2 ^ a * (2 * m + 1)) = Rule30Prize.center t := by
+    rw [← hfac]; exact ⟨T, hper⟩
+  rcases Nat.eq_zero_or_pos a with rfl | ha_pos
+  · rw [Nat.pow_zero, Nat.one_mul] at hev_fac
+    exact False.elim (Rule30LeftAntiPeriod.not_evPer_odd_of_subseq_halfDensity hd2 m hev_fac)
+  · by_cases ha1 : a = 1
+    · subst ha1
+      exact False.elim (Rule30LeftAntiPeriod.not_evPer_two_pow_mul_odd_of_subseq_halfDensity (a := 1) hd2 m hev_fac)
+    · have ha2 : 2 ≤ a := by omega
+      refine ⟨2 ^ (a - 2) * (2 * m + 1), Nat.mul_pos (Nat.two_pow_pos _) (by omega), ?_⟩
+      have hpow : 2 ^ a = 4 * 2 ^ (a - 2) := by
+        change 2 ^ a = 2 ^ 2 * 2 ^ (a - 2)
+        rw [← Nat.pow_add, show 2 + (a - 2) = a by omega]
+      rw [hfac, hpow, Nat.mul_assoc]
+
+/-- **Stride-2 `HalfDensity` Excludes Any `altCol` Tail of `center`
+(`not_center_shift_eq_altCol_of_subseq_two_halfDensity`):** if
+`Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq Rule30Prize.center 2 r)` holds,
+then for every shift `T : Nat`, `(fun t => Rule30Prize.center (T + t)) ≠ Rule30PeriodTwoCoupled.altCol`. -/
+theorem not_center_shift_eq_altCol_of_subseq_two_halfDensity {r : Nat}
+    (hd2 : Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq Rule30Prize.center 2 r))
+    (T : Nat) :
+    (fun t => Rule30Prize.center (T + t)) ≠ Rule30PeriodTwoCoupled.altCol := by
+  intro heq
+  have hfun : ∀ t, Rule30Prize.center (T + t) = Rule30PeriodTwoCoupled.altCol t :=
+    fun t => congrFun heq t
+  have halt2 : ∀ k, Rule30PeriodTwoCoupled.altCol (k + 2) = Rule30PeriodTwoCoupled.altCol k := by
+    intro k; simp [Rule30PeriodTwoCoupled.altCol, Nat.add_mod_right]
+  have hev2 : ∃ T', ∀ t, T' ≤ t → Rule30Prize.center (t + 2 * (2 * 0 + 1)) = Rule30Prize.center t := by
+    refine ⟨T, fun t ht => ?_⟩
+    change Rule30Prize.center (t + 2) = Rule30Prize.center t
+    have h1 := hfun (t - T + 2)
+    have h2 := hfun (t - T)
+    rw [show T + (t - T + 2) = t + 2 by omega, halt2 (t - T)] at h1
+    rw [show T + (t - T) = t by omega] at h2
+    exact h1.trans h2.symm
+  exact Rule30LeftAntiPeriod.not_evPer_mul_odd_of_subseq_halfDensity (by decide : 0 < 2) hd2 0 hev2
+
+/-- **Exclusion of All Canonical Balanced 4-Periodic Tails of `center` Under Stride-2 `HalfDensity`
+and `CQ w0011Col` (`not_center_shift_four_periodic_balanced_of_subseq_two_halfDensity_and_CQ_w0011`):**
+under `Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq Rule30Prize.center 2 r)`
+(**open**) and `CQ w0011Col` (**open**), no shifted tail `ω t = Rule30Prize.center (T + t)` can
+satisfy `∀ t, ω (t + 4) = ω t`, `ω 0 = true`, and `winCount ω 0 4 = 2`. -/
+theorem not_center_shift_four_periodic_balanced_of_subseq_two_halfDensity_and_CQ_w0011
+    {r T : Nat}
+    (hd2 : Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq Rule30Prize.center 2 r))
+    (hCQ0011 : CQ w0011Col)
+    (hper : ∀ t, Rule30Prize.center (T + (t + 4)) = Rule30Prize.center (T + t))
+    (h0 : Rule30Prize.center (T + 0) = true)
+    (hwin : Rule30LeftAntiPeriod.winCount (fun t => Rule30Prize.center (T + t)) 0 4 = 2) :
+    False := by
+  let ω : Nat → Bool := fun t => Rule30Prize.center (T + t)
+  rcases four_periodic_canonical_balanced_classify (ω := ω) hper h0 hwin with halt | hw2 | hw3
+  · exact not_center_shift_eq_altCol_of_subseq_two_halfDensity hd2 T halt
+  · have hC : CQ ω := by
+      rw [hw2]
+      exact (CQ_periodic_shift_iff (by decide : 0 < 4) 2 w0011Col_periodic).mpr hCQ0011
+    rw [CQ_iff_no_finite_config] at hC
+    have hs : FinConfig seed := ⟨0, fun p hp => by show decide (p = 0) = false; simp; omega⟩
+    refine hC ⟨fun p => evol seed T p, evol_finConfig hs T, fun t => ?_⟩
+    rw [Rule30ZeroBoundaryBarriers.evol_restart seed T t 0]
+    exact evol_seed (T + t) 0
+  · have hC : CQ ω := by
+      rw [hw3]
+      exact (CQ_periodic_shift_iff (by decide : 0 < 4) 3 w0011Col_periodic).mpr hCQ0011
+    rw [CQ_iff_no_finite_config] at hC
+    have hs : FinConfig seed := ⟨0, fun p hp => by show decide (p = 0) = false; simp; omega⟩
+    refine hC ⟨fun p => evol seed T p, evol_finConfig hs T, fun t => ?_⟩
+    rw [Rule30ZeroBoundaryBarriers.evol_restart seed T t 0]
+    exact evol_seed (T + t) 0
+
+/-- **Reduction of `Problem1` Under Stride-2 `HalfDensity`, `Problem2`, and `CQ w0011Col` to
+Multiples of 4 with `4 * k >= 8`
+(`problem1_of_subseq_two_halfDensity_and_problem2_and_CQ_w0011_and_canonical_balanced_four_mul_ge_two_CQ`):**
+under `Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq Rule30Prize.center 2 r)`
+(**open**), `Rule30Prize.Problem2` (**open**), and `CQ w0011Col` (**open**) (without assuming
+`CQ01`), to prove `Rule30Prize.Problem1` it suffices to establish `CQ ω` solely for canonical
+`(4 * k)`-periodic sequences `ω` (`ω 0 = true`) with `2 ≤ k` (`4 * k ≥ 8`) and
+`winCount ω 0 (4 * k) = 2 * k`. -/
+theorem problem1_of_subseq_two_halfDensity_and_problem2_and_CQ_w0011_and_canonical_balanced_four_mul_ge_two_CQ
+    {r : Nat}
+    (hd2 : Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq Rule30Prize.center 2 r))
+    (hP2 : Rule30Prize.Problem2) (hCQ0011 : CQ w0011Col)
+    (hCQ : ∀ (k : Nat) (ω : Nat → Bool), 2 ≤ k →
+      (∀ t, ω (t + 4 * k) = ω t) →
+      ω 0 = true →
+      Rule30LeftAntiPeriod.winCount ω 0 (4 * k) = 2 * k → CQ ω) :
+    Rule30Prize.Problem1 := by
+  rintro ⟨T, P, hP, hper⟩
+  obtain ⟨k, hk_pos, hP_eq⟩ := four_dvd_period_of_subseq_two_halfDensity hd2 hP hper
+  have hper_4k : ∀ t, T ≤ t → Rule30Prize.center (t + 4 * k) = Rule30Prize.center t := by
+    intro t ht; rw [← hP_eq]; exact hper t ht
+  let ω₀ : Nat → Bool := fun t => Rule30Prize.center (T + t)
+  have hper_ω₀ : ∀ t, ω₀ (t + 4 * k) = ω₀ t := fun t => by
+    show Rule30Prize.center (T + (t + 4 * k)) = Rule30Prize.center (T + t)
+    rw [show T + (t + 4 * k) = (T + t) + 4 * k by omega]
+    exact hper_4k (T + t) (by omega)
+  have hhd_ω₀ : Rule30LeftAntiPeriod.HalfDensity ω₀ :=
+    (Rule30LeftAntiPeriod.halfDensity_shift_iff Rule30Prize.center T).mpr hP2
+  have hbal₀ : 2 * Rule30LeftAntiPeriod.winCount ω₀ 0 (4 * k) = 4 * k :=
+    (Rule30LeftAntiPeriod.periodic_halfDensity_iff_two_mul_winCount_eq
+      (f := ω₀) (T := 0) (L := 4 * k) (by omega) (fun t _ => hper_ω₀ t)).mp hhd_ω₀
+  have hwin₀ : Rule30LeftAntiPeriod.winCount ω₀ 0 (4 * k) = 2 * k := by omega
+  have hblack : ∃ s, ω₀ s = true := by
+    refine Classical.byContradiction fun hno => ?_
+    have hall : ∀ t, ω₀ t = false := fun t => by
+      cases hω : ω₀ t
+      · rfl
+      · exact False.elim (hno ⟨t, hω⟩)
+    have hzero : ∀ d, Rule30LeftAntiPeriod.winCount ω₀ 0 d = 0 := by
+      intro d; induction d with
+      | zero => rfl
+      | succ d ih => simp [Rule30LeftAntiPeriod.winCount, ih, hall d]
+    rw [hzero (4 * k)] at hwin₀
+    omega
+  obtain ⟨s, hs_true⟩ := hblack
+  let ω : Nat → Bool := fun t => Rule30Prize.center (T + s + t)
+  have hω_eq : ω = fun t => ω₀ (t + s) := by
+    funext t; show Rule30Prize.center (T + s + t) = Rule30Prize.center (T + (t + s))
+    rw [show T + s + t = T + (t + s) by omega]
+  have hper_ω : ∀ t, ω (t + 4 * k) = ω t := fun t => by
+    show Rule30Prize.center (T + s + (t + 4 * k)) = Rule30Prize.center (T + s + t)
+    rw [show T + s + (t + 4 * k) = (T + s + t) + 4 * k by omega]
+    exact hper_4k (T + s + t) (by omega)
+  have hwin_ω : Rule30LeftAntiPeriod.winCount ω 0 (4 * k) = 2 * k := by
+    rw [hω_eq, winCount_shift_of_periodic hper_ω₀ s, hwin₀]
+  have h0_ω : ω 0 = true := by
+    show Rule30Prize.center (T + s + 0) = true
+    simpa [Nat.add_zero] using hs_true
+  by_cases hk2 : 2 ≤ k
+  · have hC : CQ ω := hCQ k ω hk2 hper_ω h0_ω hwin_ω
+    rw [CQ_iff_no_finite_config] at hC
+    have hseed : FinConfig seed := ⟨0, fun p hp => by show decide (p = 0) = false; simp; omega⟩
+    refine hC ⟨fun p => evol seed (T + s) p, evol_finConfig hseed (T + s), fun t => ?_⟩
+    rw [Rule30ZeroBoundaryBarriers.evol_restart seed (T + s) t 0]
+    exact evol_seed (T + s + t) 0
+  · obtain rfl : k = 1 := by omega
+    exact not_center_shift_four_periodic_balanced_of_subseq_two_halfDensity_and_CQ_w0011
+      (T := T + s) hd2 hCQ0011 hper_ω h0_ω hwin_ω
+
 end Rule30Coupled
 end Ruliology.CellularAutomata
