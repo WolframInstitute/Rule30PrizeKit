@@ -1266,5 +1266,101 @@ theorem problem1_of_even_subseq_halfDensity_lt
     obtain ⟨r, _, hd⟩ := heven m hm
     exact ⟨r, hd⟩)
 
+/-! ## 12. Stride-Division Period Reduction and Dyadic Power-of-Two Progression Bridges to `Problem1` -/
+
+/-- **Stride-Division Period Reduction (`evPer_subseq_div_of_evPer_mul`):** if `f` has eventual
+period `d * q` (`EvPer f (d * q)`) with `0 < d`, then for every offset `r : Nat`, the stride-`d`
+subsequence `subseq f d r` has eventual period `q` (`EvPer (subseq f d r) q`). -/
+theorem evPer_subseq_div_of_evPer_mul {f : Nat → Bool} {d q : Nat}
+    (hd : 0 < d) (h : EvPer f (d * q)) (r : Nat) :
+    EvPer (subseq f d r) q := by
+  obtain ⟨T, hT⟩ := h
+  refine ⟨T, fun k hk => ?_⟩
+  simp only [subseq]
+  have h1 : r + (k + q) * d = (r + k * d) + d * q := by
+    rw [Nat.right_distrib, ← Nat.add_assoc, Nat.mul_comm q d]
+  have hge : T ≤ r + k * d := by
+    have : k * 1 ≤ k * d := Nat.mul_le_mul_left k hd
+    omega
+  rw [h1]
+  exact hT (r + k * d) hge
+
+/-- **Exclusion of All Odd Multiples `d * (2 * m + 1)` from a Single Stride-`d` `HalfDensity`
+Subsequence (`not_evPer_mul_odd_of_subseq_halfDensity`):** if `0 < d` and
+`HalfDensity (subseq f d r)` holds for some offset `r`, then `f` cannot have eventual period
+`d * (2 * m + 1)` for any `m : Nat`. -/
+theorem not_evPer_mul_odd_of_subseq_halfDensity {f : Nat → Bool} {d r : Nat}
+    (hd : 0 < d) (h : HalfDensity (subseq f d r)) (m : Nat) :
+    ¬ EvPer f (d * (2 * m + 1)) :=
+  fun hper => not_evPer_odd_of_halfDensity h m (evPer_subseq_div_of_evPer_mul hd hper r)
+
+/-- **Exclusion of the Entire 2-Adic Valuation Shell `2^a * (2 * m + 1)` from One Dyadic
+Subsequence (`not_evPer_two_pow_mul_odd_of_subseq_halfDensity`):** if
+`HalfDensity (subseq f (2 ^ a) r)` holds for some `r`, then `f` has no eventual period of the
+form `2 ^ a * (2 * m + 1)` for any `m : Nat`. -/
+theorem not_evPer_two_pow_mul_odd_of_subseq_halfDensity {f : Nat → Bool} {a r : Nat}
+    (h : HalfDensity (subseq f (2 ^ a) r)) (m : Nat) :
+    ¬ EvPer f (2 ^ a * (2 * m + 1)) :=
+  not_evPer_mul_odd_of_subseq_halfDensity (Nat.two_pow_pos a) h m
+
+/-- **2-Adic Valuation Factorization of Positive Naturals (`exists_eq_two_pow_mul_odd`):**
+every positive integer `L > 0` factors as `L = 2 ^ a * (2 * m + 1)` for some `a, m : Nat`. -/
+theorem exists_eq_two_pow_mul_odd : ∀ L : Nat, 0 < L → ∃ a m : Nat, L = 2 ^ a * (2 * m + 1)
+  | 0, hL => by omega
+  | L + 1, _ => by
+    rcases Nat.mod_two_eq_zero_or_one (L + 1) with hmod0 | hmod1
+    · have hhalf : 0 < (L + 1) / 2 := by omega
+      have hlt : (L + 1) / 2 < L + 1 := by omega
+      obtain ⟨a, m, ih⟩ := exists_eq_two_pow_mul_odd ((L + 1) / 2) hhalf
+      refine ⟨a + 1, m, ?_⟩
+      have heq : L + 1 = 2 * ((L + 1) / 2) := by omega
+      rw [heq, ih, Nat.pow_succ, Nat.mul_comm (2 ^ a) 2, Nat.mul_assoc]
+    · refine ⟨0, (L + 1) / 2, ?_⟩
+      rw [Nat.pow_zero, Nat.one_mul]
+      omega
+termination_by L => L
+
+/-- **Dyadic Power-of-Two Subsequence Bridge to `Problem1` (`problem1_of_dyadic_subseq_halfDensity`):**
+if for every `a >= 1` there exists an offset `r` such that `HalfDensity (subseq center (2 ^ a) r)`
+holds, then `Rule30Prize.Problem1` holds (strengthening `problem1_of_even_subseq_halfDensity`
+from all even strides `2 * m` to powers of two `2 ^ a` alone). -/
+theorem problem1_of_dyadic_subseq_halfDensity
+    (hdyadic : ∀ a : Nat, 0 < a → ∃ r : Nat, HalfDensity (subseq center (2 ^ a) r)) :
+    Problem1 := by
+  rintro ⟨T₀, L, hL, hT₀⟩
+  have hper : EvPer center L := ⟨T₀, hT₀⟩
+  obtain ⟨a, m, hfac⟩ := exists_eq_two_pow_mul_odd L hL
+  rw [hfac] at hper
+  rcases Nat.eq_zero_or_pos a with rfl | ha
+  · rw [Nat.pow_zero, Nat.one_mul] at hper
+    obtain ⟨r₁, hd₁⟩ := hdyadic 1 (by decide)
+    exact not_evPer_odd_of_subseq_halfDensity hd₁ m hper
+  · obtain ⟨r, hd⟩ := hdyadic a ha
+    exact not_evPer_two_pow_mul_odd_of_subseq_halfDensity hd m hper
+
+/-- **Bounded-Residue Dyadic Power-of-Two Bridge to `Problem1`
+(`problem1_of_dyadic_subseq_halfDensity_lt`):** if for every `a >= 1` there exists `r < 2 ^ a`
+with `HalfDensity (subseq center (2 ^ a) r)`, then `Problem1` holds. -/
+theorem problem1_of_dyadic_subseq_halfDensity_lt
+    (hdyadic : ∀ a : Nat, 0 < a → ∃ r : Nat, r < 2 ^ a ∧ HalfDensity (subseq center (2 ^ a) r)) :
+    Problem1 :=
+  problem1_of_dyadic_subseq_halfDensity fun a ha => by
+    obtain ⟨r, _, hd⟩ := hdyadic a ha
+    exact ⟨r, hd⟩
+
+/-- **Simultaneous Closure of `Problem1 ∧ Problem2` from All Dyadic Strides `2 ^ a` (`a >= 0`)
+(`problem1_and_problem2_of_all_dyadic_subseq_halfDensity_lt`):** if for every `a : Nat` (`a >= 0`)
+there exists `r < 2 ^ a` with `HalfDensity (subseq center (2 ^ a) r)`, then both `Problem1` and
+`Problem2` hold (`a = 0` gives `2 ^ 0 = 1`, i.e., `Problem2`, and `a >= 1` gives `Problem1`). -/
+theorem problem1_and_problem2_of_all_dyadic_subseq_halfDensity_lt
+    (h : ∀ a : Nat, ∃ r : Nat, r < 2 ^ a ∧ HalfDensity (subseq center (2 ^ a) r)) :
+    Problem1 ∧ Problem2 := by
+  refine ⟨problem1_of_dyadic_subseq_halfDensity_lt (fun a _ => h a), ?_⟩
+  obtain ⟨r, hr, hd⟩ := h 0
+  have hr0 : r = 0 := by omega
+  subst hr0
+  rw [Nat.pow_zero, subseq_one_zero] at hd
+  exact hd
+
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
