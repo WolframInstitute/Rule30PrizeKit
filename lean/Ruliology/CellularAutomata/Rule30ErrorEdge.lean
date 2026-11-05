@@ -211,4 +211,66 @@ theorem jump_seven {a b : Nat → Nat → Bool} {m t : Nat} (ha : Recurrence a) 
   rw [ha.2.2] at hw
   exact jump_seven_bool _ _ _ _ _ _ _ _ _ _ _ _ _ h3 h4 h5 h6 h7 h8 hw
 
+/-! ### Multi-Tick Error-Edge Trajectory Laws After Jumps of 2 through 7 -/
+
+/-- **Jump-of-2 Forced Stall (`jump_two_stall`):** after a heal from `m + 2` at `t` to `m + 4` at
+`t + 1`, the error edge stalls at `m + 4` at `t + 2` (`Edge a b (m + 4) (t + 2)`). -/
+theorem jump_two_stall {a b : Nat → Nat → Bool} {m t : Nat}
+    (ha : Recurrence a) (hb : Recurrence b)
+    (h : Edge a b (m + 2) t) (hk : a (m + 1) t = true) (h' : Edge a b (m + 4) (t + 1)) :
+    Edge a b (m + 4) (t + 2) :=
+  edge_stall ha hb h' (jump_two ha hb h hk h')
+
+/-- **Jump-of-3 Forced Double Heal (`jump_three_heal`):** after a heal from `m + 2` at `t` to
+`m + 5` at `t + 1`, the error edge heals again at `t + 2` (`Agree a b (m + 6) (t + 2)`). -/
+theorem jump_three_heal {a b : Nat → Nat → Bool} {m t : Nat}
+    (ha : Recurrence a) (hb : Recurrence b)
+    (h : Edge a b (m + 2) t) (hk : a (m + 1) t = true) (h' : Edge a b (m + 5) (t + 1)) :
+    Agree a b (m + 6) (t + 2) :=
+  edge_heal ha hb h' (jump_three ha hb h hk h')
+
+/-- **Jump-of-4 Unconditional Two-Tick Healing (`jump_four_agree_two_steps`):** after a heal from
+`m + 2` at `t` to `m + 6` at `t + 1`, `a` and `b` agree below `m + 7` by tick `t + 3`
+(`Agree a b (m + 7) (t + 3)`), whether `a (m + 5) (t + 1)` is white or black. -/
+theorem jump_four_agree_two_steps {a b : Nat → Nat → Bool} {m t : Nat}
+    (ha : Recurrence a) (hb : Recurrence b)
+    (h : Edge a b (m + 2) t) (hk : a (m + 1) t = true) (h' : Edge a b (m + 6) (t + 1)) :
+    Agree a b (m + 7) (t + 3) := by
+  cases hp : a (m + 5) (t + 1)
+  · have hstall : Edge a b (m + 6) (t + 2) := edge_stall ha hb h' hp
+    exact edge_heal ha hb hstall (jump_four ha hb h hk h')
+  · exact agree_step ha hb (edge_heal ha hb h' hp)
+
+/-- **Jump-of-5 Unconditional Two-Tick Healing (`jump_five_agree_two_steps`):** after a heal from
+`m + 2` at `t` to `m + 7` at `t + 1`, `a` and `b` agree below `m + 8` by tick `t + 3`
+(`Agree a b (m + 8) (t + 3)`), whether `a (m + 6) (t + 1)` is white or black. -/
+theorem jump_five_agree_two_steps {a b : Nat → Nat → Bool} {m t : Nat}
+    (ha : Recurrence a) (hb : Recurrence b)
+    (h : Edge a b (m + 2) t) (hk : a (m + 1) t = true) (h' : Edge a b (m + 7) (t + 1)) :
+    Agree a b (m + 8) (t + 3) := by
+  cases hp : a (m + 6) (t + 1)
+  · have hstall : Edge a b (m + 7) (t + 2) := edge_stall ha hb h' hp
+    exact edge_heal ha hb hstall (jump_five ha hb h hk h' hp)
+  · exact agree_step ha hb (edge_heal ha hb h' hp)
+
+/-- **Jump-of-6 Forced Double Stall (`jump_six_double_stall`):** after a heal from `m + 2` at `t`
+to `m + 8` at `t + 1` with white parent `a (m + 7) (t + 1) = false`, the error edge remains at
+`m + 8` through tick `t + 3` (`Edge a b (m + 8) (t + 3)`). -/
+theorem jump_six_double_stall {a b : Nat → Nat → Bool} {m t : Nat}
+    (ha : Recurrence a) (hb : Recurrence b)
+    (h : Edge a b (m + 2) t) (hk : a (m + 1) t = true) (h' : Edge a b (m + 8) (t + 1))
+    (hw : a (m + 7) (t + 1) = false) :
+    Edge a b (m + 8) (t + 3) :=
+  edge_stall ha hb (edge_stall ha hb h' hw) (jump_six ha hb h hk h' hw)
+
+/-- **Jump-of-7 Forced Double Stall (`jump_seven_double_stall`):** after a heal from `m + 2` at
+`t` to `m + 9` at `t + 1` with white parent `a (m + 8) (t + 1) = false`, the error edge remains
+at `m + 9` through tick `t + 3` (`Edge a b (m + 9) (t + 3)`). -/
+theorem jump_seven_double_stall {a b : Nat → Nat → Bool} {m t : Nat}
+    (ha : Recurrence a) (hb : Recurrence b)
+    (h : Edge a b (m + 2) t) (hk : a (m + 1) t = true) (h' : Edge a b (m + 9) (t + 1))
+    (hw : a (m + 8) (t + 1) = false) :
+    Edge a b (m + 9) (t + 3) :=
+  edge_stall ha hb (edge_stall ha hb h' hw) (jump_seven ha hb h hk h' hw)
+
 end Ruliology.CellularAutomata.Rule30ErrorEdge
