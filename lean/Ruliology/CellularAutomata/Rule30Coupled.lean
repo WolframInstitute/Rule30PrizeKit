@@ -425,5 +425,143 @@ theorem problem1_of_problem2_and_canonical_balanced_even_CQ
     rwa [Nat.zero_add]
   exact CQ_of_CQ_shift k (hCQ m (fun s => ω (s + k)) hm hper_k h0_k hwin_k)
 
+/-! ### Algebraic Inversion of `Coupled`, Universal Aperiodicity of Driven Neighbors, and `m >= 2` Balanced Even-Period Reduction Under `Problem2` and `CQ01` -/
+
+/-- **Left-Permutive Inversion of `Coupled` (`L_neg1_of_coupled`):** if `Coupled ω s x` holds,
+then at every step `t`, `L ω s t (-1) = xor (ω (t + 1)) (ω t || drv ω x t 1)`. -/
+theorem L_neg1_of_coupled {ω : Nat → Bool} {s : Int → Bool} {x : Nat → Bool}
+    (h : Coupled ω s x) (t : Nat) :
+    L ω s t (-1) = xor (ω (t + 1)) (ω t || drv ω x t 1) := by
+  have ht := h t
+  revert ht
+  cases ω (t + 1) <;> cases L ω s t (-1) <;> cases ω t <;> cases drv ω x t 1 <;> decide
+
+/-- **Black-Step Right-Shield Absorption in `Coupled` (`L_neg1_of_coupled_true`):** if
+`Coupled ω s x` holds and `ω t = true`, then `L ω s t (-1) = !ω (t + 1)` independently of `x`. -/
+theorem L_neg1_of_coupled_true {ω : Nat → Bool} {s : Int → Bool} {x : Nat → Bool}
+    (h : Coupled ω s x) {t : Nat} (ht : ω t = true) :
+    L ω s t (-1) = !ω (t + 1) := by
+  rw [L_neg1_of_coupled h t, ht]
+  cases ω (t + 1) <;> rfl
+
+/-- **White-Step Neighbor Relation in `Coupled` (`L_neg1_of_coupled_false`):** if `Coupled ω s x`
+holds and `ω t = false`, then `L ω s t (-1) = xor (ω (t + 1)) (drv ω x t 1)`. -/
+theorem L_neg1_of_coupled_false {ω : Nat → Bool} {s : Int → Bool} {x : Nat → Bool}
+    (h : Coupled ω s x) {t : Nat} (ht : ω t = false) :
+    L ω s t (-1) = xor (ω (t + 1)) (drv ω x t 1) := by
+  rw [L_neg1_of_coupled h t, ht]
+  cases ω (t + 1) <;> cases drv ω x t 1 <;> rfl
+
+/-- **Universal Aperiodicity of the Left Neighbor `L ω s · (-1)` for Periodic `ω`
+(`not_eventuallyPeriodic_L_neg1_of_coupled_periodic`):** for any `P`-periodic `ω` (`0 < P`)
+with a black cell and any left-bounded `s`, `fun t => L ω s t (-1)` is not eventually periodic. -/
+theorem not_eventuallyPeriodic_L_neg1_of_coupled_periodic
+    {ω : Nat → Bool} {s : Int → Bool} {P W : Nat}
+    (hP : 0 < P) (hper : ∀ t, ω (t + P) = ω t)
+    (hblack : ∃ t₀, ω t₀ = true)
+    (hs : ∀ p : Int, p < -(W : Int) → s p = false) :
+    ¬ EventuallyPeriodic (fun t => L ω s t (-1)) := by
+  have h := Rule30DrivenLeft.not_eventuallyPeriodic_free_phase_of_bounded
+    (P := 1) (φ₀ := 0) (K := 0) (by decide) (by decide) hs (Or.inr hblack)
+    ⟨0, P, hP, fun t _ => hper t⟩ (fun k _ hne => False.elim (hne (Nat.mod_one k)))
+  simpa using h
+
+/-- **Multi-Period Step Invariance for Purely Periodic Sequences (`periodic_add_mul`):** if
+`∀ t, f (t + P) = f t`, then `f (t + k * P) = f t` for all `k, t : Nat`. -/
+theorem periodic_add_mul {f : Nat → Bool} {P : Nat} (hper : ∀ t, f (t + P) = f t) :
+    ∀ (k t : Nat), f (t + k * P) = f t
+  | 0, t => by simp
+  | k + 1, t => by
+    rw [Nat.succ_mul, ← Nat.add_assoc, hper (t + k * P), periodic_add_mul hper k t]
+
+/-- **Universal Aperiodicity of the Right Neighbor `drv ω x · 1` in Any Coupled Pair
+(`not_eventuallyPeriodic_drv_one_of_coupled_periodic`):** if `ω` is `P`-periodic (`0 < P`) with
+a black cell, `s` is left-bounded (`∀ p < -W, s p = false`), and `Coupled ω s x` holds, then the
+right-half neighbor `fun t => drv ω x t 1` is never eventually periodic. -/
+theorem not_eventuallyPeriodic_drv_one_of_coupled_periodic
+    {ω : Nat → Bool} {s : Int → Bool} {x : Nat → Bool} {P W : Nat}
+    (hP : 0 < P) (hper : ∀ t, ω (t + P) = ω t)
+    (hblack : ∃ t₀, ω t₀ = true)
+    (hs : ∀ p : Int, p < -(W : Int) → s p = false)
+    (hc : Coupled ω s x) :
+    ¬ EventuallyPeriodic (fun t => drv ω x t 1) := by
+  rintro ⟨T, Q, hQ, hdrv⟩
+  dsimp only at hdrv
+  have hdrv_mul : ∀ k t, T ≤ t → drv ω x (t + k * Q) 1 = drv ω x t 1 := by
+    intro k
+    induction k with
+    | zero => intro t _; simp
+    | succ k ih =>
+      intro t ht
+      rw [Nat.succ_mul, ← Nat.add_assoc, hdrv (t + k * Q) (by omega), ih t ht]
+  apply not_eventuallyPeriodic_L_neg1_of_coupled_periodic hP hper hblack hs
+  refine ⟨T, P * Q, Nat.mul_pos hP hQ, fun t ht => ?_⟩
+  dsimp only
+  rw [L_neg1_of_coupled hc (t + P * Q), L_neg1_of_coupled hc t]
+  have hω0 : ω (t + P * Q) = ω t := by
+    rw [Nat.mul_comm P Q]
+    exact periodic_add_mul hper Q t
+  have hω1 : ω (t + P * Q + 1) = ω (t + 1) := by
+    rw [show t + P * Q + 1 = (t + 1) + Q * P by rw [Nat.mul_comm P Q]; omega]
+    exact periodic_add_mul hper Q (t + 1)
+  have hd1 : drv ω x (t + P * Q) 1 = drv ω x t 1 :=
+    hdrv_mul P t ht
+  rw [hω0, hω1, hd1]
+
+/-- **Canonical Balanced 2-Periodic Characterization (`two_periodic_canonical_balanced_eq_altCol_succ`):**
+any 2-periodic sequence `ω` (`∀ t, ω (t + 2) = ω t`) with `ω 0 = true` and
+`Rule30LeftAntiPeriod.winCount ω 0 2 = 1` equals `Rule30PeriodTwoCoupled.altCol`. -/
+theorem two_periodic_canonical_balanced_eq_altCol_succ {ω : Nat → Bool}
+    (hper : ∀ t, ω (t + 2) = ω t) (h0 : ω 0 = true)
+    (hwin : Rule30LeftAntiPeriod.winCount ω 0 2 = 1) :
+    ∀ t, ω t = Rule30PeriodTwoCoupled.altCol t := by
+  have h1 : ω 1 = false := by
+    simp only [Rule30LeftAntiPeriod.winCount, Nat.zero_add, h0] at hwin
+    cases hω1 : ω 1 <;> simp_all
+  have halt2 : ∀ k, Rule30PeriodTwoCoupled.altCol (k + 2) = Rule30PeriodTwoCoupled.altCol k := by
+    intro k; simp [Rule30PeriodTwoCoupled.altCol, Nat.add_mod_right]
+  have hstep : ∀ t, ω t = Rule30PeriodTwoCoupled.altCol t ∧
+      ω (t + 1) = Rule30PeriodTwoCoupled.altCol (t + 1) := by
+    intro t
+    induction t with
+    | zero =>
+      refine ⟨?_, ?_⟩
+      · rw [h0]; decide
+      · rw [Nat.zero_add, h1]; decide
+    | succ t ih =>
+      refine ⟨ih.2, ?_⟩
+      rw [hper t, ih.1, halt2 t]
+  exact fun t => (hstep t).1
+
+/-- **`CQ01` Discharges All Canonical Balanced 2-Periodic Coupled Questions
+(`CQ_of_CQ01_and_two_periodic_balanced`):** under `Rule30PeriodTwoCoupled.CQ01` (**open**),
+`CQ ω` holds for every 2-periodic sequence `ω` with `ω 0 = true` and `winCount ω 0 2 = 1`. -/
+theorem CQ_of_CQ01_and_two_periodic_balanced
+    (hCQ01 : Rule30PeriodTwoCoupled.CQ01) {ω : Nat → Bool}
+    (hper : ∀ t, ω (t + 2) = ω t) (h0 : ω 0 = true)
+    (hwin : Rule30LeftAntiPeriod.winCount ω 0 2 = 1) : CQ ω := by
+  have heq : ω = Rule30PeriodTwoCoupled.altCol :=
+    funext (two_periodic_canonical_balanced_eq_altCol_succ hper h0 hwin)
+  rw [heq]
+  exact CQ_altCol_iff_CQ01.mpr hCQ01
+
+/-- **Reduction of `Problem1` Under `Problem2` and `CQ01` to Half-Balanced Even Periods `2 * m >= 4`
+(`problem1_of_problem2_and_CQ01_and_canonical_balanced_even_ge_two_CQ`):** under
+`Rule30Prize.Problem2` (**open**) and `Rule30PeriodTwoCoupled.CQ01` (**open**), to prove
+`Rule30Prize.Problem1` it suffices to establish `CQ ω` for canonical `(2 * m)`-periodic
+sequences `ω` (`ω 0 = true`) with `2 ≤ m` (`2 * m ≥ 4`) and `winCount ω 0 (2 * m) = m`. -/
+theorem problem1_of_problem2_and_CQ01_and_canonical_balanced_even_ge_two_CQ
+    (hP2 : Rule30Prize.Problem2) (hCQ01 : Rule30PeriodTwoCoupled.CQ01)
+    (hCQ : ∀ (m : Nat) (ω : Nat → Bool), 2 ≤ m →
+      (∀ t, ω (t + 2 * m) = ω t) →
+      ω 0 = true →
+      Rule30LeftAntiPeriod.winCount ω 0 (2 * m) = m → CQ ω) :
+    Rule30Prize.Problem1 := by
+  refine problem1_of_problem2_and_canonical_balanced_even_CQ hP2 (fun m ω hm hper h0 hwin => ?_)
+  by_cases hm2 : 2 ≤ m
+  · exact hCQ m ω hm2 hper h0 hwin
+  · obtain rfl : m = 1 := by omega
+    exact CQ_of_CQ01_and_two_periodic_balanced hCQ01 hper h0 hwin
+
 end Rule30Coupled
 end Ruliology.CellularAutomata
