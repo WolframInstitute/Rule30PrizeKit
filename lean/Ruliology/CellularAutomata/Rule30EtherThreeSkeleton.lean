@@ -611,5 +611,91 @@ theorem col3_neg8_phase2_eq_col3_neg4_phase2_of_fits3_001s {s : Int → Bool} {K
   obtain ⟨_, _, h4_2⟩ := col3_neg4_of_fits3_001s hfits hm
   rw [h8_2, h4_2]
 
+/-! ### Column `-9` Closed Form, `xor (u (m + 1) && u (m + 2)) (u (m + 3))` Phase-2 Reduction, and Column `-10` Phase-2 Pure XOR Step Under `colPattern001s` -/
+
+/-- **Column `-9` Closed Form Under `colPattern001s` (`col3_neg9_of_fits3_001s`):** for `K ≤ 3 * m`
+under `fun _ => false`, column `-9` at phases `0, 1, 2` equals
+`(xor (!u (m + 1)) (u m || !u (m + 2)), xor (u m) (u (m + 1)) || !xor (u m) (u (m + 2)), xor (u (m + 1) && u (m + 2)) (u (m + 3)))`. -/
+theorem col3_neg9_of_fits3_001s {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * m) (-9) =
+      xor (!L c0 s (3 * (m + 1) + 1) (-1))
+          (L c0 s (3 * m + 1) (-1) || !L c0 s (3 * (m + 2) + 1) (-1)) ∧
+    L c0 s (3 * m + 1) (-9) =
+      (xor (L c0 s (3 * m + 1) (-1)) (L c0 s (3 * (m + 1) + 1) (-1)) ||
+       !xor (L c0 s (3 * m + 1) (-1)) (L c0 s (3 * (m + 2) + 1) (-1))) ∧
+    L c0 s (3 * m + 2) (-9) =
+      xor (L c0 s (3 * (m + 1) + 1) (-1) && L c0 s (3 * (m + 2) + 1) (-1))
+          (L c0 s (3 * (m + 3) + 1) (-1)) := by
+  intro c0
+  obtain ⟨h7_0, h7_1, h7_2⟩ := col3_neg7_of_fits3_001s hfits hm
+  obtain ⟨h8_0, h8_1, h8_2⟩ := col3_neg8_of_fits3_001s hfits hm
+  obtain ⟨h8_3, _, _⟩ := col3_neg8_of_fits3_001s hfits (m := m + 1) (by omega)
+  have step0 := L_left (c := c0) (s := s) (p := -8) (3 * m) (by decide)
+  have step1 := L_left (c := c0) (s := s) (p := -8) (3 * m + 1) (by decide)
+  have step2 := L_left (c := c0) (s := s) (p := -8) (3 * m + 2) (by decide)
+  simp only [show (-8 : Int) - 1 = -9 by decide, show (-8 : Int) + 1 = -7 by decide,
+    show 3 * m + 2 + 1 = 3 * (m + 1) by omega] at step0 step1 step2
+  rw [h8_0, h8_1, h7_0] at step0
+  rw [h8_1, h8_2, h7_1] at step1
+  rw [h8_2, h8_3, h7_2, show m + 1 + 2 = m + 3 by omega] at step2
+  refine ⟨?_, ?_, ?_⟩
+  · rw [step0]
+    cases L c0 s (3 * m + 1) (-1) <;> cases L c0 s (3 * (m + 1) + 1) (-1) <;>
+      cases L c0 s (3 * (m + 2) + 1) (-1) <;> rfl
+  · rw [step1]
+    cases L c0 s (3 * m + 1) (-1) <;> cases L c0 s (3 * (m + 1) + 1) (-1) <;>
+      cases L c0 s (3 * (m + 2) + 1) (-1) <;> rfl
+  · rw [step2]
+    cases L c0 s (3 * (m + 1) + 1) (-1) <;> cases L c0 s (3 * (m + 2) + 1) (-1) <;>
+      cases L c0 s (3 * (m + 3) + 1) (-1) <;> rfl
+
+/-- **Single-Literal Collapse of Column `-9` Phase `2` Under Non-Adjacent Black
+(`col3_neg9_phase2_of_fits3_001s_of_no11`):** if `!(u (m + 1) && u (m + 2)) = true`, then
+`L c0 s (3 * m + 2) (-9) = u (m + 3)` (`= L c0 s (3 * (m + 3) + 1) (-1)`). -/
+theorem col3_neg9_phase2_of_fits3_001s_of_no11 {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m)
+    (hno11 : !(L (fun _ => false) s (3 * (m + 1) + 1) (-1) &&
+               L (fun _ => false) s (3 * (m + 2) + 1) (-1)) = true) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * m + 2) (-9) = L c0 s (3 * (m + 3) + 1) (-1) := by
+  intro c0
+  obtain ⟨_, _, h9_2⟩ := col3_neg9_of_fits3_001s hfits hm
+  rw [h9_2]
+  revert hno11
+  cases L c0 s (3 * (m + 1) + 1) (-1) <;>
+    cases L c0 s (3 * (m + 2) + 1) (-1) <;>
+    cases L c0 s (3 * (m + 3) + 1) (-1) <;> decide
+
+/-- **Column `-10` Phase-2 Pure XOR Step Under `colPattern001s`
+(`col3_neg10_phase2_of_fits3_001s`):** for `K ≤ 3 * m` under `fun _ => false`, because
+`L c0 s (3 * m + 2) (-8) = false`, phase `2` of column `-10` is the pure XOR of the two
+consecutive column-`-9` cells `L c0 s (3 * (m + 1)) (-9)` and `L c0 s (3 * m + 2) (-9)`. -/
+theorem col3_neg10_phase2_of_fits3_001s {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * m + 2) (-10) =
+      xor (L c0 s (3 * (m + 1)) (-9)) (L c0 s (3 * m + 2) (-9)) ∧
+    L c0 s (3 * m + 2) (-10) =
+      xor (xor (!L c0 s (3 * (m + 2) + 1) (-1))
+               (L c0 s (3 * (m + 1) + 1) (-1) || !L c0 s (3 * (m + 3) + 1) (-1)))
+          (xor (L c0 s (3 * (m + 1) + 1) (-1) && L c0 s (3 * (m + 2) + 1) (-1))
+               (L c0 s (3 * (m + 3) + 1) (-1))) := by
+  intro c0
+  obtain ⟨_, _, h8_2⟩ := col3_neg8_of_fits3_001s hfits hm
+  obtain ⟨_, _, h9_2⟩ := col3_neg9_of_fits3_001s hfits hm
+  obtain ⟨h9_3, _, _⟩ := col3_neg9_of_fits3_001s hfits (m := m + 1) (by omega)
+  have step2 := L_left (c := c0) (s := s) (p := -9) (3 * m + 2) (by decide)
+  simp only [show (-9 : Int) - 1 = -10 by decide, show (-9 : Int) + 1 = -8 by decide,
+    show 3 * m + 2 + 1 = 3 * (m + 1) by omega] at step2
+  have hpure : L c0 s (3 * m + 2) (-10) = xor (L c0 s (3 * (m + 1)) (-9)) (L c0 s (3 * m + 2) (-9)) := by
+    rw [step2, h8_2, Bool.or_false]
+  refine ⟨hpure, ?_⟩
+  rw [hpure, h9_3, h9_2, show m + 1 + 1 = m + 2 by omega, show m + 1 + 2 = m + 3 by omega]
+
 end Rule30EtherThree
 end Ruliology.CellularAutomata
