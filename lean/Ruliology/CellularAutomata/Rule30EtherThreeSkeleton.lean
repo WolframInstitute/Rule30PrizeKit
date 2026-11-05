@@ -494,5 +494,122 @@ theorem col3_neg6_of_fits3_001s {s : Int → Bool} {K m : Nat}
   · rw [step1]; cases L c0 s (3 * m + 1) (-1) <;> cases L c0 s (3 * (m + 1) + 1) (-1) <;> rfl
   · rw [step2]; cases L c0 s (3 * (m + 1) + 1) (-1) <;> cases L c0 s (3 * (m + 2) + 1) (-1) <;> rfl
 
+/-! ### Column `-6` Phase-2 Cancellation, Column `-7` Closed Form, and Column `-8` Stride-2 Derivative & Phase-2 White Wall Restoration Under `colPattern001s` -/
+
+/-- **Column `-6` Phase-2 Single-Bit Cancellation and Shift Return Under `colPattern001s`
+(`col3_neg6_phase2_eq_of_fits3_001s`):** for `K ≤ 3 * m` under `fun _ => false`, because
+`xor (!xor A B) A = !B`, phase `2` of column `-6` simplifies to `!u (m + 2)`, matching phase `2`
+of column `-3` shifted by `+3` ticks (`L c0 s (3 * (m + 1) + 2) (-3)`). -/
+theorem col3_neg6_phase2_eq_of_fits3_001s {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * m + 2) (-6) = !L c0 s (3 * (m + 2) + 1) (-1) ∧
+    L c0 s (3 * m + 2) (-6) = L c0 s (3 * (m + 1) + 2) (-3) := by
+  intro c0
+  obtain ⟨_, _, h6_2⟩ := col3_neg6_of_fits3_001s hfits hm
+  obtain ⟨_, _, h3_2⟩ := col3_neg3_of_fits3_001s hfits (m := m + 1) (by omega)
+  have hsimp : L c0 s (3 * m + 2) (-6) = !L c0 s (3 * (m + 2) + 1) (-1) := by
+    rw [h6_2]
+    cases L c0 s (3 * (m + 1) + 1) (-1) <;> cases L c0 s (3 * (m + 2) + 1) (-1) <;> rfl
+  refine ⟨hsimp, ?_⟩
+  rw [hsimp, h3_2, show m + 1 + 1 = m + 2 by omega]
+
+/-- **Column `-7` Closed Form Under `colPattern001s` (`col3_neg7_of_fits3_001s`):** for `K ≤ 3 * m`
+under `fun _ => false`, column `-7` at phases `0, 1, 2` equals
+`(!u (m + 1), xor (!u (m + 2)) (u m || u (m + 1)), u (m + 1) && !u (m + 2))`. -/
+theorem col3_neg7_of_fits3_001s {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * m) (-7) = !L c0 s (3 * (m + 1) + 1) (-1) ∧
+    L c0 s (3 * m + 1) (-7) =
+      xor (!L c0 s (3 * (m + 2) + 1) (-1))
+          (L c0 s (3 * m + 1) (-1) || L c0 s (3 * (m + 1) + 1) (-1)) ∧
+    L c0 s (3 * m + 2) (-7) =
+      (L c0 s (3 * (m + 1) + 1) (-1) && !L c0 s (3 * (m + 2) + 1) (-1)) := by
+  intro c0
+  obtain ⟨h5_0, h5_1, h5_2⟩ := col3_neg5_of_fits3_001s hfits hm
+  obtain ⟨h6_0, h6_1, _⟩ := col3_neg6_of_fits3_001s hfits hm
+  obtain ⟨h6_2, _⟩ := col3_neg6_phase2_eq_of_fits3_001s hfits hm
+  obtain ⟨h6_3, _, _⟩ := col3_neg6_of_fits3_001s hfits (m := m + 1) (by omega)
+  have step0 := L_left (c := c0) (s := s) (p := -6) (3 * m) (by decide)
+  have step1 := L_left (c := c0) (s := s) (p := -6) (3 * m + 1) (by decide)
+  have step2 := L_left (c := c0) (s := s) (p := -6) (3 * m + 2) (by decide)
+  simp only [show (-6 : Int) - 1 = -7 by decide, show (-6 : Int) + 1 = -5 by decide,
+    show 3 * m + 2 + 1 = 3 * (m + 1) by omega] at step0 step1 step2
+  rw [h6_0, h6_1, h5_0] at step0
+  rw [h6_1, h6_2, h5_1] at step1
+  rw [h6_2, h6_3, h5_2, show m + 1 + 1 = m + 2 by omega] at step2
+  refine ⟨?_, ?_, ?_⟩
+  · rw [step0]; cases L c0 s (3 * m + 1) (-1) <;> cases L c0 s (3 * (m + 1) + 1) (-1) <;> rfl
+  · rw [step1]; cases L c0 s (3 * m + 1) (-1) <;> cases L c0 s (3 * (m + 1) + 1) (-1) <;> cases L c0 s (3 * (m + 2) + 1) (-1) <;> rfl
+  · rw [step2]; cases L c0 s (3 * (m + 1) + 1) (-1) <;> cases L c0 s (3 * (m + 2) + 1) (-1) <;> rfl
+
+/-- **Diagonal Light-Cone Transport Between Columns `-6` and `-7` Under `colPattern001s`
+(`col3_neg7_phase0_eq_col3_neg6_phase2_of_fits3_001s`):** for `K ≤ 3 * m`,
+`L c0 s (3 * (m + 1)) (-7) = L c0 s (3 * m + 2) (-6)` (`= !u (m + 2)`). -/
+theorem col3_neg7_phase0_eq_col3_neg6_phase2_of_fits3_001s {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * (m + 1)) (-7) = L c0 s (3 * m + 2) (-6) := by
+  intro c0
+  obtain ⟨h7_0, _, _⟩ := col3_neg7_of_fits3_001s hfits (m := m + 1) (by omega)
+  obtain ⟨h6_2, _⟩ := col3_neg6_phase2_eq_of_fits3_001s hfits hm
+  rw [h7_0, h6_2, show m + 1 + 1 = m + 2 by omega]
+
+/-- **Column `-8` Stride-2 Derivative and Phase-2 White Wall Restoration Under `colPattern001s`
+(`col3_neg8_of_fits3_001s`):** for `K ≤ 3 * m` under `fun _ => false`, `u (m + 1)` cancels out
+of both phase `0` and phase `2` at column `-8`, yielding the stride-2 derivative
+`L c0 s (3 * m) (-8) = xor (u m) (u (m + 2))` at phase `0`,
+`L c0 s (3 * m + 1) (-8) = xor (u (m + 1) && !u (m + 2)) (u m || !xor (u (m + 1)) (u (m + 2)))`
+at phase `1`, and the unconditional white wall `L c0 s (3 * m + 2) (-8) = false` at phase `2`. -/
+theorem col3_neg8_of_fits3_001s {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * m) (-8) =
+      xor (L c0 s (3 * m + 1) (-1)) (L c0 s (3 * (m + 2) + 1) (-1)) ∧
+    L c0 s (3 * m + 1) (-8) =
+      xor (L c0 s (3 * (m + 1) + 1) (-1) && !L c0 s (3 * (m + 2) + 1) (-1))
+          (L c0 s (3 * m + 1) (-1) || !xor (L c0 s (3 * (m + 1) + 1) (-1)) (L c0 s (3 * (m + 2) + 1) (-1))) ∧
+    L c0 s (3 * m + 2) (-8) = false := by
+  intro c0
+  obtain ⟨h6_0, h6_1, _⟩ := col3_neg6_of_fits3_001s hfits hm
+  obtain ⟨h6_2, _⟩ := col3_neg6_phase2_eq_of_fits3_001s hfits hm
+  obtain ⟨h7_0, h7_1, h7_2⟩ := col3_neg7_of_fits3_001s hfits hm
+  obtain ⟨h7_3, _, _⟩ := col3_neg7_of_fits3_001s hfits (m := m + 1) (by omega)
+  have step0 := L_left (c := c0) (s := s) (p := -7) (3 * m) (by decide)
+  have step1 := L_left (c := c0) (s := s) (p := -7) (3 * m + 1) (by decide)
+  have step2 := L_left (c := c0) (s := s) (p := -7) (3 * m + 2) (by decide)
+  simp only [show (-7 : Int) - 1 = -8 by decide, show (-7 : Int) + 1 = -6 by decide,
+    show 3 * m + 2 + 1 = 3 * (m + 1) by omega] at step0 step1 step2
+  rw [h7_0, h7_1, h6_0] at step0
+  rw [h7_1, h7_2, h6_1] at step1
+  rw [h7_2, h7_3, h6_2, show m + 1 + 1 = m + 2 by omega] at step2
+  refine ⟨?_, ?_, ?_⟩
+  · rw [step0]
+    cases L c0 s (3 * m + 1) (-1) <;> cases L c0 s (3 * (m + 1) + 1) (-1) <;>
+      cases L c0 s (3 * (m + 2) + 1) (-1) <;> rfl
+  · rw [step1]
+    cases L c0 s (3 * m + 1) (-1) <;> cases L c0 s (3 * (m + 1) + 1) (-1) <;>
+      cases L c0 s (3 * (m + 2) + 1) (-1) <;> rfl
+  · rw [step2]
+    cases L c0 s (3 * (m + 1) + 1) (-1) <;> cases L c0 s (3 * (m + 2) + 1) (-1) <;> rfl
+
+/-- **Four-Column Phase-2 White-Wall Periodicity Between Columns `-4` and `-8` Under
+`colPattern001s` (`col3_neg8_phase2_eq_col3_neg4_phase2_of_fits3_001s`):** for `K ≤ 3 * m`,
+`L c0 s (3 * m + 2) (-8) = L c0 s (3 * m + 2) (-4)` (`= false`). -/
+theorem col3_neg8_phase2_eq_col3_neg4_phase2_of_fits3_001s {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k → fits3 colPattern001s (k % 3) (L (fun _ => false) s k (-1)) = true)
+    (hm : K ≤ 3 * m) :
+    let c0 : Nat → Bool := fun _ => false
+    L c0 s (3 * m + 2) (-8) = L c0 s (3 * m + 2) (-4) := by
+  intro c0
+  obtain ⟨_, _, h8_2⟩ := col3_neg8_of_fits3_001s hfits hm
+  obtain ⟨_, _, h4_2⟩ := col3_neg4_of_fits3_001s hfits hm
+  rw [h8_2, h4_2]
+
 end Rule30EtherThree
 end Ruliology.CellularAutomata
