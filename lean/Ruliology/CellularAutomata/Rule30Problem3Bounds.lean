@@ -2451,5 +2451,78 @@ periodic (`Problem1`). This is the core-Lean (Mathlib-free) proof of the theorem
 theorem problem1_of_problem3 (hP3 : Problem3) : Problem1 :=
   problem1_of_problem3Robust (problem3Robust_of_problem3 hP3)
 
+/-! ## 10. General Function Complexity Hierarchy: `O(n)`, `o(n)`, and `n^{o(1)}` Machine Constructions and Aperiodicity Transfers for Arbitrary `f : Nat -> Bool` -/
+
+/-- **Polylogarithmic (`n^{o(1)}`) Machine Construction for Arbitrary Eventually Periodic
+Functions (`exists_polylog_machine_of_eventuallyPeriodic`):** if `f : Nat → Bool` is eventually
+periodic (`EventuallyPeriodic f`), then there exist a machine `M` and time bound `T` such that
+`Computes M f T` and `T n = n ^ o(1)` (`∀ k, ∃ N, ∀ n ≥ N, (T n) ^ k ≤ n`). -/
+theorem exists_polylog_machine_of_eventuallyPeriodic {f : Nat → Bool}
+    (hf : EventuallyPeriodic f) :
+    ∃ (M : Machine) (T : Nat → Nat),
+      Computes M f T ∧ (∀ k : Nat, ∃ N : Nat, ∀ n : Nat, N ≤ n → (T n) ^ k ≤ n) := by
+  obtain ⟨T₀, P, hP, hT₀⟩ := hf
+  exact ⟨lsbPeriodicMachine f T₀ P, fun n => bitLen n + 1,
+    computes_lsbPeriodicMachine hP hT₀, exists_bitLen_succ_pow_le⟩
+
+/-- **Sublinear (`o(n)`) Machine Construction for Arbitrary Eventually Periodic Functions
+(`exists_sublinear_machine_of_eventuallyPeriodic`):** if `EventuallyPeriodic f` holds, then
+there exist `M` and `T` such that `Computes M f T` and `∀ C > 0, ∃ N, ∀ n ≥ N, C * T n ≤ n`. -/
+theorem exists_sublinear_machine_of_eventuallyPeriodic {f : Nat → Bool}
+    (hf : EventuallyPeriodic f) :
+    ∃ (M : Machine) (T : Nat → Nat),
+      Computes M f T ∧ (∀ C : Nat, 0 < C → ∃ N : Nat, ∀ n : Nat, N ≤ n → C * T n ≤ n) := by
+  obtain ⟨M, T, hcomp, hpoly⟩ := exists_polylog_machine_of_eventuallyPeriodic hf
+  refine ⟨M, T, hcomp, fun C _ => ?_⟩
+  obtain ⟨N₂, hN₂⟩ := hpoly 2
+  refine ⟨N₂ + C ^ 2, fun n hn => ?_⟩
+  have hn2 : (T n) ^ 2 ≤ n := hN₂ n (by omega)
+  have hC2 : C ^ 2 ≤ n := by omega
+  by_cases hlt : T n ≤ C
+  · have h1 : C * T n ≤ C * C := Nat.mul_le_mul_left C hlt
+    rw [← Nat.pow_two] at h1
+    exact Nat.le_trans h1 hC2
+  · have hle : C ≤ T n := by omega
+    have h1 : C * T n ≤ T n * T n := Nat.mul_le_mul_right (T n) hle
+    rw [← Nat.pow_two] at h1
+    exact Nat.le_trans h1 hn2
+
+/-- **Linear (`O(n)`) Machine Construction for Arbitrary Eventually Periodic Functions
+(`exists_linear_machine_of_eventuallyPeriodic`):** if `EventuallyPeriodic f` holds, then there
+exist `M` and `T` with `Computes M f T` and `∃ N, ∀ n ≥ N, 2 * T n ≤ n`. -/
+theorem exists_linear_machine_of_eventuallyPeriodic {f : Nat → Bool}
+    (hf : EventuallyPeriodic f) :
+    ∃ (M : Machine) (T : Nat → Nat),
+      Computes M f T ∧ (∃ N : Nat, ∀ n : Nat, N ≤ n → 2 * T n ≤ n) := by
+  obtain ⟨M, T, hcomp, hsub⟩ := exists_sublinear_machine_of_eventuallyPeriodic hf
+  exact ⟨M, T, hcomp, hsub 2 (by decide)⟩
+
+/-- **Aperiodicity of Arbitrary `f : Nat → Bool` from `n^{o(1)}` Complexity Lower Bounds
+(`not_eventuallyPeriodic_of_no_polylog_machine`):** for any `f : Nat → Bool`, if no machine
+computes `f` in `n ^ o(1)` steps, then `¬ EventuallyPeriodic f`. -/
+theorem not_eventuallyPeriodic_of_no_polylog_machine {f : Nat → Bool}
+    (h : ¬ ∃ (M : Machine) (T : Nat → Nat),
+      Computes M f T ∧ (∀ k : Nat, ∃ N : Nat, ∀ n : Nat, N ≤ n → (T n) ^ k ≤ n)) :
+    ¬ EventuallyPeriodic f :=
+  fun hf => h (exists_polylog_machine_of_eventuallyPeriodic hf)
+
+/-- **Aperiodicity of Arbitrary `f : Nat → Bool` from `o(n)` Complexity Lower Bounds
+(`not_eventuallyPeriodic_of_no_sublinear_machine`):** for any `f : Nat → Bool`, if no machine
+computes `f` in `o(n)` steps, then `¬ EventuallyPeriodic f`. -/
+theorem not_eventuallyPeriodic_of_no_sublinear_machine {f : Nat → Bool}
+    (h : ¬ ∃ (M : Machine) (T : Nat → Nat),
+      Computes M f T ∧ (∀ C : Nat, 0 < C → ∃ N : Nat, ∀ n : Nat, N ≤ n → C * T n ≤ n)) :
+    ¬ EventuallyPeriodic f :=
+  fun hf => h (exists_sublinear_machine_of_eventuallyPeriodic hf)
+
+/-- **Aperiodicity of Arbitrary `f : Nat → Bool` from `< n / 2` Complexity Lower Bounds
+(`not_eventuallyPeriodic_of_no_half_linear_machine`):** for any `f : Nat → Bool`, if no machine
+computes `f` with `2 * T n ≤ n` for all large `n`, then `¬ EventuallyPeriodic f`. -/
+theorem not_eventuallyPeriodic_of_no_half_linear_machine {f : Nat → Bool}
+    (h : ¬ ∃ (M : Machine) (T : Nat → Nat),
+      Computes M f T ∧ (∃ N : Nat, ∀ n : Nat, N ≤ n → 2 * T n ≤ n)) :
+    ¬ EventuallyPeriodic f :=
+  fun hf => h (exists_linear_machine_of_eventuallyPeriodic hf)
+
 end Rule30Problem3Bounds
 end Ruliology.CellularAutomata
