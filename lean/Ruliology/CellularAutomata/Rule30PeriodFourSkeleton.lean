@@ -1843,5 +1843,130 @@ theorem no_period_le_seven_of_subseq_two_halfDensity_and_problem2_and_C3_0011
         (by decide : 0 < 2) h2_hd 1 ⟨T, hT⟩
     · exact no_period_odd_of_problem2 hP2 3
 
+/-! ### Column `-7` Three-White-Wall Collapse, Column `-8` Two-Block Mixing, and Column `-9` Inter-Block Derivative Under `w0001` -/
+
+/-- **Column `-7` Three-White-Wall Collapse Under `colPattern w0001` (`col_neg7_of_fits_0001`):**
+for `K ≤ 4 * m`, because `L c' s (4 * m + 1) (-6) = u (m + 1)` and
+`L c' s (4 * m + 1) (-5) = !u (m + 1)` have an identically `true` disjunction, column `-7` at
+phases `0, 1, 2, 3` collapses to `(false, false, false, !u (m + 2))` (three unconditional white
+walls at phases `0, 1, 2` and `!u (m + 2)` at phase `3`). -/
+theorem col_neg7_of_fits_0001 {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0001) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0001) k) s k (-1)) = true)
+    (hm : K ≤ 4 * m) :
+    let c' := fun k => wordAt (effWord w0001) k
+    Rule30DrivenLeft.L c' s (4 * m) (-7) = false ∧
+    Rule30DrivenLeft.L c' s (4 * m + 1) (-7) = false ∧
+    Rule30DrivenLeft.L c' s (4 * m + 2) (-7) = false ∧
+    Rule30DrivenLeft.L c' s (4 * m + 3) (-7) = !Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) := by
+  intro c'
+  obtain ⟨h5_0, h5_1, h5_2, h5_3⟩ := col_neg5_of_fits_0001 hfits hm
+  obtain ⟨h6_0, h6_1, h6_2, h6_3⟩ := col_neg6_of_fits_0001 hfits hm
+  obtain ⟨h6_4, _, _, _⟩ := col_neg6_of_fits_0001 hfits (m := m + 1) (by omega)
+  have step0 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -6) (4 * m) (by decide)
+  have step1 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -6) (4 * m + 1) (by decide)
+  have step2 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -6) (4 * m + 2) (by decide)
+  have step3 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -6) (4 * m + 3) (by decide)
+  simp only [show (-6 : Int) - 1 = -7 by decide, show (-6 : Int) + 1 = -5 by decide,
+    show 4 * m + 3 + 1 = 4 * (m + 1) by omega] at step0 step1 step2 step3
+  rw [h6_0, h6_1, h5_0] at step0
+  rw [h6_1, h6_2, h5_1] at step1
+  rw [h6_2, h6_3, h5_2] at step2
+  rw [h6_3, h6_4, h5_3] at step3
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [step0]; cases Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1) <;> rfl
+  · rw [step1]; cases Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1) <;> rfl
+  · rw [step2]; cases Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1) <;> rfl
+  · rw [step3]; cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> rfl
+
+/-- **Column `-8` Closed Form Under `colPattern w0001` (`col_neg8_of_fits_0001`):** for `K ≤ 4 * m`,
+column `-8` at phases `0, 1, 2, 3` equals `(u (m + 1), u (m + 1), u (m + 2), true)`. -/
+theorem col_neg8_of_fits_0001 {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0001) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0001) k) s k (-1)) = true)
+    (hm : K ≤ 4 * m) :
+    let c' := fun k => wordAt (effWord w0001) k
+    Rule30DrivenLeft.L c' s (4 * m) (-8) = Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 1) (-8) = Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 2) (-8) = Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 3) (-8) = true := by
+  intro c'
+  obtain ⟨h6_0, h6_1, h6_2, h6_3⟩ := col_neg6_of_fits_0001 hfits hm
+  obtain ⟨h7_0, h7_1, h7_2, h7_3⟩ := col_neg7_of_fits_0001 hfits hm
+  obtain ⟨h7_4, _, _, _⟩ := col_neg7_of_fits_0001 hfits (m := m + 1) (by omega)
+  have step0 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -7) (4 * m) (by decide)
+  have step1 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -7) (4 * m + 1) (by decide)
+  have step2 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -7) (4 * m + 2) (by decide)
+  have step3 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -7) (4 * m + 3) (by decide)
+  simp only [show (-7 : Int) - 1 = -8 by decide, show (-7 : Int) + 1 = -6 by decide,
+    show 4 * m + 3 + 1 = 4 * (m + 1) by omega] at step0 step1 step2 step3
+  rw [h7_0, h7_1, h6_0] at step0
+  rw [h7_1, h7_2, h6_1] at step1
+  rw [h7_2, h7_3, h6_2] at step2
+  rw [h7_3, h7_4, h6_3] at step3
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [step0]; cases Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1) <;> rfl
+  · rw [step1]; cases Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1) <;> rfl
+  · rw [step2]; cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> rfl
+  · rw [step3]; cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> rfl
+
+/-- **Column `-9` Inter-Block Derivative Closed Form Under `colPattern w0001`
+(`col_neg9_of_fits_0001`):** for `K ≤ 4 * m`, column `-9` at phases `0, 1, 2, 3` equals
+`(false, xor (u (m + 2)) (u (m + 1)), !u (m + 2), !u (m + 2))`. -/
+theorem col_neg9_of_fits_0001 {s : Int → Bool} {K m : Nat}
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0001) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0001) k) s k (-1)) = true)
+    (hm : K ≤ 4 * m) :
+    let c' := fun k => wordAt (effWord w0001) k
+    Rule30DrivenLeft.L c' s (4 * m) (-9) = false ∧
+    Rule30DrivenLeft.L c' s (4 * m + 1) (-9) =
+      xor (Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1))
+          (Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1)) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 2) (-9) = !Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) ∧
+    Rule30DrivenLeft.L c' s (4 * m + 3) (-9) = !Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) := by
+  intro c'
+  obtain ⟨h7_0, h7_1, h7_2, h7_3⟩ := col_neg7_of_fits_0001 hfits hm
+  obtain ⟨h8_0, h8_1, h8_2, h8_3⟩ := col_neg8_of_fits_0001 hfits hm
+  obtain ⟨h8_4, _, _, _⟩ := col_neg8_of_fits_0001 hfits (m := m + 1) (by omega)
+  have step0 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -8) (4 * m) (by decide)
+  have step1 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -8) (4 * m + 1) (by decide)
+  have step2 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -8) (4 * m + 2) (by decide)
+  have step3 := Rule30DrivenLeft.L_left (c := c') (s := s) (p := -8) (4 * m + 3) (by decide)
+  simp only [show (-8 : Int) - 1 = -9 by decide, show (-8 : Int) + 1 = -7 by decide,
+    show 4 * m + 3 + 1 = 4 * (m + 1) by omega] at step0 step1 step2 step3
+  rw [h8_0, h8_1, h7_0] at step0
+  rw [h8_1, h8_2, h7_1] at step1
+  rw [h8_2, h8_3, h7_2] at step2
+  rw [h8_3, h8_4, h7_3] at step3
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · rw [step0]; cases Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1) <;> rfl
+  · rw [step1]; cases Rule30DrivenLeft.L c' s (4 * (m + 1) + 1) (-1) <;> cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> rfl
+  · rw [step2]; cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> rfl
+  · rw [step3]; cases Rule30DrivenLeft.L c' s (4 * (m + 2) + 1) (-1) <;> rfl
+
+/-- **Cofinal Oscillation of Column `-7` Phase `3` Under `colPattern w0001`
+(`cofinal_col_neg7_phase3_of_fits_0001`):** for any left-bounded start `s` fitting `colPattern w0001`
+from `K` on, `L c' s (4 * m + 3) (-7)` takes both `true` and `false` infinitely often. -/
+theorem cofinal_col_neg7_phase3_of_fits_0001 {s : Int → Bool} {M K : Nat}
+    (hM : ∀ p : Int, p < -(M : Int) → s p = false)
+    (hfits : ∀ k, K ≤ k →
+      fits (colPattern w0001) (k % 4)
+        (Rule30DrivenLeft.L (fun k => wordAt (effWord w0001) k) s k (-1)) = true)
+    (N : Nat) :
+    let c' := fun k => wordAt (effWord w0001) k
+    (∃ m, N ≤ m ∧ Rule30DrivenLeft.L c' s (4 * m + 3) (-7) = true) ∧
+    (∃ m, N ≤ m ∧ Rule30DrivenLeft.L c' s (4 * m + 3) (-7) = false) := by
+  intro c'
+  obtain ⟨⟨m₁, hm₁, htrue⟩, ⟨m₂, hm₂, hfalse⟩⟩ :=
+    cofinal_free_phase_of_fits_0001 hM hfits (N + K + 2)
+  refine ⟨⟨m₂ - 2, by omega, ?_⟩, ⟨m₁ - 2, by omega, ?_⟩⟩
+  · obtain ⟨_, _, _, h7⟩ := col_neg7_of_fits_0001 hfits (m := m₂ - 2) (by omega)
+    rw [h7, show m₂ - 2 + 2 = m₂ by omega, hfalse]; rfl
+  · obtain ⟨_, _, _, h7⟩ := col_neg7_of_fits_0001 hfits (m := m₁ - 2) (by omega)
+    rw [h7, show m₁ - 2 + 2 = m₁ by omega, htrue]; rfl
+
 end Rule30PeriodFourSkeleton
 end Ruliology.CellularAutomata
