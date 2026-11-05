@@ -2027,5 +2027,136 @@ theorem problem1_of_maxBlockEnergyLittleO_and_even_subseq
       obtain ⟨r, hr, hs⟩ := heven m hm
       exact ⟨r, hr, (halfDensity_iff_maxBlockEnergyLittleO _).mpr hs⟩)
 
+/-! ### Unit-Stride Subsequence Identity, Complete Five-Form Progression Closures, and Simultaneous `Problem1 ∧ Problem2` Reductions -/
+
+/-- **Unit-Stride Subsequence Identity (`subseq_one_zero`):** subsampling any sequence `f` with
+stride `1` and offset `0` returns `f` identically (`subseq f 1 0 = f`). -/
+theorem subseq_one_zero (f : Nat → Bool) : subseq f 1 0 = f := by
+  funext k
+  unfold subseq
+  exact congrArg f (by omega)
+
+/-- **Full `Problem1` Closure from `DensityHalf` on Progressions (`problem1_of_subseq_densityHalf`):**
+if for every modulus `L > 0` there is a canonical remainder `r < L` with
+`DensityHalf (subseq center L r)`, then `Problem1` holds unconditionally. -/
+theorem problem1_of_subseq_densityHalf
+    (h : ∀ L : Nat, 0 < L → ∃ r : Nat, r < L ∧ DensityHalf (subseq center L r)) :
+    Problem1 :=
+  Rule30LeftAntiPeriod.problem1_of_subseq_halfDensity_lt (fun L hL => by
+    obtain ⟨r, hr, hd⟩ := h L hL
+    exact ⟨r, hr, (halfDensity_iff_densityHalf _).mpr hd⟩)
+
+/-- **Full `Problem1` Closure from `FlexibleEnergyToZero` on Progressions
+(`problem1_of_subseq_flexibleEnergyToZero`):** if for every modulus `L > 0` there is a canonical
+remainder `r < L` with `FlexibleEnergyToZero (subseq center L r)`, then `Problem1` holds. -/
+theorem problem1_of_subseq_flexibleEnergyToZero
+    (h : ∀ L : Nat, 0 < L → ∃ r : Nat, r < L ∧ FlexibleEnergyToZero (subseq center L r)) :
+    Problem1 :=
+  Rule30LeftAntiPeriod.problem1_of_subseq_halfDensity_lt (fun L hL => by
+    obtain ⟨r, hr, hf⟩ := h L hL
+    exact ⟨r, hr, (halfDensity_iff_flexibleEnergyToZero _).mpr hf⟩)
+
+/-- **Full `Problem1` Closure from `OrderedEnergyLittleO` on Progressions
+(`problem1_of_subseq_orderedEnergyLittleO`):** if for every modulus `L > 0` there is a canonical
+remainder `r < L` with `OrderedEnergyLittleO (subseq center L r)`, then `Problem1` holds. -/
+theorem problem1_of_subseq_orderedEnergyLittleO
+    (h : ∀ L : Nat, 0 < L → ∃ r : Nat, r < L ∧ OrderedEnergyLittleO (subseq center L r)) :
+    Problem1 :=
+  Rule30LeftAntiPeriod.problem1_of_subseq_halfDensity_lt (fun L hL => by
+    obtain ⟨r, hr, ho⟩ := h L hL
+    exact ⟨r, hr, (halfDensity_iff_orderedEnergyLittleO _).mpr ho⟩)
+
+/-- **Reduction of `Problem1` to Center + Even-Stride `DensityHalf`
+(`problem1_of_densityHalf_and_even_subseq`):** `DensityHalf center` together with an even-stride
+canonical remainder satisfying `DensityHalf (subseq center (2 * m) r)` for each `m > 0` implies `Problem1`. -/
+theorem problem1_of_densityHalf_and_even_subseq
+    (h0 : DensityHalf center)
+    (heven : ∀ m : Nat, 0 < m → ∃ r : Nat, r < 2 * m ∧ DensityHalf (subseq center (2 * m) r)) :
+    Problem1 :=
+  Rule30LeftAntiPeriod.problem1_of_problem2_and_even_subseq_halfDensity_lt
+    (problem2_iff_densityHalf.mpr h0)
+    (fun m hm => by
+      obtain ⟨r, hr, hd⟩ := heven m hm
+      exact ⟨r, hr, (halfDensity_iff_densityHalf _).mpr hd⟩)
+
+/-- **Reduction of `Problem1` to Center + Even-Stride `FlexibleEnergyToZero`
+(`problem1_of_flexibleEnergyToZero_and_even_subseq`):** `FlexibleEnergyToZero center` together with
+an even-stride canonical remainder satisfying `FlexibleEnergyToZero (subseq center (2 * m) r)`
+for each `m > 0` implies `Problem1`. -/
+theorem problem1_of_flexibleEnergyToZero_and_even_subseq
+    (h0 : FlexibleEnergyToZero center)
+    (heven : ∀ m : Nat, 0 < m → ∃ r : Nat, r < 2 * m ∧ FlexibleEnergyToZero (subseq center (2 * m) r)) :
+    Problem1 :=
+  Rule30LeftAntiPeriod.problem1_of_problem2_and_even_subseq_halfDensity_lt
+    (problem2_iff_flexibleEnergyToZero.mpr h0)
+    (fun m hm => by
+      obtain ⟨r, hr, hf⟩ := heven m hm
+      exact ⟨r, hr, (halfDensity_iff_flexibleEnergyToZero _).mpr hf⟩)
+
+/-- **Reduction of `Problem1` to Center + Even-Stride `OrderedEnergyLittleO`
+(`problem1_of_orderedEnergyLittleO_and_even_subseq`):** `OrderedEnergyLittleO center` together with
+an even-stride canonical remainder satisfying `OrderedEnergyLittleO (subseq center (2 * m) r)`
+for each `m > 0` implies `Problem1`. -/
+theorem problem1_of_orderedEnergyLittleO_and_even_subseq
+    (h0 : OrderedEnergyLittleO center)
+    (heven : ∀ m : Nat, 0 < m → ∃ r : Nat, r < 2 * m ∧ OrderedEnergyLittleO (subseq center (2 * m) r)) :
+    Problem1 :=
+  Rule30LeftAntiPeriod.problem1_of_problem2_and_even_subseq_halfDensity_lt
+    (problem2_iff_orderedEnergyLittleO.mpr h0)
+    (fun m hm => by
+      obtain ⟨r, hr, ho⟩ := heven m hm
+      exact ⟨r, hr, (halfDensity_iff_orderedEnergyLittleO _).mpr ho⟩)
+
+/-- **`Problem2` from `ShellMaxLittleO` on Progressions (`problem2_of_subseq_shellMaxLittleO`):**
+specializing the progression hypothesis at modulus `L = 1` forces `r = 0` and recovers
+`ShellMaxLittleO center`, hence `Problem2`. -/
+theorem problem2_of_subseq_shellMaxLittleO
+    (h : ∀ L : Nat, 0 < L → ∃ r : Nat, r < L ∧ ShellMaxLittleO (subseq center L r)) :
+    Problem2 := by
+  obtain ⟨r, hr, hs⟩ := h 1 (by decide)
+  have hr0 : r = 0 := by omega
+  subst hr0
+  rw [subseq_one_zero] at hs
+  exact problem2_iff_shellMaxLittleO.mpr hs
+
+/-- **Single-Hypothesis Simultaneous Closure of `Problem1 ∧ Problem2` via `ShellMaxLittleO`
+(`problem1_and_problem2_of_subseq_shellMaxLittleO`):** if for every `L > 0` there is `r < L` with
+`ShellMaxLittleO (subseq center L r)`, then both `Problem1` and `Problem2` hold simultaneously. -/
+theorem problem1_and_problem2_of_subseq_shellMaxLittleO
+    (h : ∀ L : Nat, 0 < L → ∃ r : Nat, r < L ∧ ShellMaxLittleO (subseq center L r)) :
+    Problem1 ∧ Problem2 :=
+  ⟨problem1_of_subseq_shellMaxLittleO h, problem2_of_subseq_shellMaxLittleO h⟩
+
+/-- **Single-Hypothesis Simultaneous Closure of `Problem1 ∧ Problem2` via `MaxBlockEnergyLittleO`
+(`problem1_and_problem2_of_subseq_maxBlockEnergyLittleO`):** if for every `L > 0` there is `r < L`
+with `MaxBlockEnergyLittleO (subseq center L r)`, then both `Problem1` and `Problem2` hold. -/
+theorem problem1_and_problem2_of_subseq_maxBlockEnergyLittleO
+    (h : ∀ L : Nat, 0 < L → ∃ r : Nat, r < L ∧ MaxBlockEnergyLittleO (subseq center L r)) :
+    Problem1 ∧ Problem2 := by
+  refine ⟨problem1_of_subseq_maxBlockEnergyLittleO h, ?_⟩
+  obtain ⟨r, hr, hm⟩ := h 1 (by decide)
+  have hr0 : r = 0 := by omega
+  subst hr0
+  rw [subseq_one_zero] at hm
+  exact problem2_iff_maxBlockEnergyLittleO.mpr hm
+
+/-- **Simultaneous Closure of `Problem1 ∧ Problem2` from Center + Even-Stride `ShellMaxLittleO`
+(`problem1_and_problem2_of_shellMaxLittleO_and_even_subseq`):** `ShellMaxLittleO center` and
+even-stride `ShellMaxLittleO (subseq center (2 * m) r)` imply `Problem1 ∧ Problem2`. -/
+theorem problem1_and_problem2_of_shellMaxLittleO_and_even_subseq
+    (h0 : ShellMaxLittleO center)
+    (heven : ∀ m : Nat, 0 < m → ∃ r : Nat, r < 2 * m ∧ ShellMaxLittleO (subseq center (2 * m) r)) :
+    Problem1 ∧ Problem2 :=
+  ⟨problem1_of_shellMaxLittleO_and_even_subseq h0 heven, problem2_iff_shellMaxLittleO.mpr h0⟩
+
+/-- **Simultaneous Closure of `Problem1 ∧ Problem2` from Center + Even-Stride `MaxBlockEnergyLittleO`
+(`problem1_and_problem2_of_maxBlockEnergyLittleO_and_even_subseq`):** `MaxBlockEnergyLittleO center`
+and even-stride `MaxBlockEnergyLittleO (subseq center (2 * m) r)` imply `Problem1 ∧ Problem2`. -/
+theorem problem1_and_problem2_of_maxBlockEnergyLittleO_and_even_subseq
+    (h0 : MaxBlockEnergyLittleO center)
+    (heven : ∀ m : Nat, 0 < m → ∃ r : Nat, r < 2 * m ∧ MaxBlockEnergyLittleO (subseq center (2 * m) r)) :
+    Problem1 ∧ Problem2 :=
+  ⟨problem1_of_maxBlockEnergyLittleO_and_even_subseq h0 heven, problem2_iff_maxBlockEnergyLittleO.mpr h0⟩
+
 end Rule30P2Bridge
 end Ruliology.CellularAutomata
