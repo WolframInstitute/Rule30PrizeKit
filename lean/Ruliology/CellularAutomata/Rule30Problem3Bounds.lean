@@ -2451,5 +2451,82 @@ periodic (`Problem1`). This is the core-Lean (Mathlib-free) proof of the theorem
 theorem problem1_of_problem3 (hP3 : Problem3) : Problem1 :=
   problem1_of_problem3Robust (problem3Robust_of_problem3 hP3)
 
+/-! ### Canonical-Window Time and `RightSpan` Lower Bounds from `¬EvPer f (2 ^ k)`, `(2 ^ k)`-Anti-Periodicity, and `Problem1` -/
+
+/-- **Canonical-Window Step Lower Bound from `¬EvPer f (2 ^ k)`
+(`canon_window_time_ge_of_not_evPer_two_pow`):** if `¬EvPer f (2 ^ k)`, then for every machine
+`M` computing `f` in time `T`, there exists `r ∈ [2 ^ (k - 1), 2 ^ (k - 1) + 2 ^ k)` with
+`k + 1 ≤ T r`. -/
+theorem canon_window_time_ge_of_not_evPer_two_pow {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {k : Nat} (hnot : ¬EvPer f (2 ^ k)) :
+    ∃ r : Nat, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ T r := by
+  refine Classical.byContradiction fun h => ?_
+  have hwin : ∀ r : Nat, 2 ^ (k - 1) ≤ r → r < 2 ^ (k - 1) + 2 ^ k → T r ≤ k := by
+    intro r hr1 hr2
+    refine Classical.byContradiction fun hgt => h ⟨r, hr1, hr2, by omega⟩
+  exact hnot ⟨2 ^ (k - 1), period_of_canon_window_time_le hM hwin⟩
+
+/-- **Canonical-Window `RightSpan` Lower Bound from `¬EvPer f (2 ^ k)`
+(`canon_window_rightSpan_ge_of_not_evPer_two_pow`):** if `¬EvPer f (2 ^ k)`, then for every
+machine `M` computing `f` in time `T`, there exists `r ∈ [2 ^ (k - 1), 2 ^ (k - 1) + 2 ^ k)`
+with `k + 1 ≤ RightSpan M r (T r)`. -/
+theorem canon_window_rightSpan_ge_of_not_evPer_two_pow {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {k : Nat} (hnot : ¬EvPer f (2 ^ k)) :
+    ∃ r : Nat, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ RightSpan M r (T r) := by
+  refine Classical.byContradiction fun h => ?_
+  have hwin : ∀ r : Nat, 2 ^ (k - 1) ≤ r → r < 2 ^ (k - 1) + 2 ^ k → ScansBelow M r (T r) (k : Int) := by
+    intro r hr1 hr2
+    rw [scansBelow_iff_rightSpan_le]
+    refine Classical.byContradiction fun hgt => h ⟨r, hr1, hr2, by omega⟩
+  exact hnot ⟨2 ^ (k - 1), (period_and_halt_of_canon_window_scansBelow hM hwin).1⟩
+
+/-- **Universal Disjointness of Eventual `L`-Periodicity and Eventual `L`-Anti-Periodicity
+(`not_evPer_of_antiPeriodic`):** if `∀ n ≥ T₀, f (n + L) = !f n`, then `¬EvPer f L`. -/
+theorem not_evPer_of_antiPeriodic {f : Nat → Bool} {L T₀ : Nat}
+    (hanti : ∀ n : Nat, T₀ ≤ n → f (n + L) = !f n) : ¬EvPer f L := by
+  rintro ⟨T₁, hper⟩
+  have hp := hper (max T₀ T₁) (Nat.le_max_right T₀ T₁)
+  have ha := hanti (max T₀ T₁) (Nat.le_max_left T₀ T₁)
+  rw [hp] at ha
+  revert ha; cases f (max T₀ T₁) <;> decide
+
+/-- **Canonical-Window Step Lower Bound for `(2 ^ k)`-Anti-Periodic Sequences
+(`canon_window_time_ge_of_antiPeriodic_two_pow`):** if `∀ n ≥ T₀, f (n + 2 ^ k) = !f n`, then
+every machine `M` computing `f` in time `T` satisfies `k + 1 ≤ T r` for some
+`r ∈ [2 ^ (k - 1), 2 ^ (k - 1) + 2 ^ k)`. -/
+theorem canon_window_time_ge_of_antiPeriodic_two_pow {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {k T₀ : Nat}
+    (hanti : ∀ n : Nat, T₀ ≤ n → f (n + 2 ^ k) = !f n) :
+    ∃ r : Nat, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ T r :=
+  canon_window_time_ge_of_not_evPer_two_pow hM (not_evPer_of_antiPeriodic hanti)
+
+/-- **Canonical-Window `RightSpan` Lower Bound for `(2 ^ k)`-Anti-Periodic Sequences
+(`canon_window_rightSpan_ge_of_antiPeriodic_two_pow`):** if `∀ n ≥ T₀, f (n + 2 ^ k) = !f n`,
+then every machine `M` computing `f` in time `T` satisfies `k + 1 ≤ RightSpan M r (T r)` for
+some `r ∈ [2 ^ (k - 1), 2 ^ (k - 1) + 2 ^ k)`. -/
+theorem canon_window_rightSpan_ge_of_antiPeriodic_two_pow {M : Machine} {f : Nat → Bool} {T : Nat → Nat}
+    (hM : Computes M f T) {k T₀ : Nat}
+    (hanti : ∀ n : Nat, T₀ ≤ n → f (n + 2 ^ k) = !f n) :
+    ∃ r : Nat, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ RightSpan M r (T r) :=
+  canon_window_rightSpan_ge_of_not_evPer_two_pow hM (not_evPer_of_antiPeriodic hanti)
+
+/-- **All-Scale Canonical-Window Step Lower Bound Under `Problem1`
+(`canon_window_time_ge_of_problem1`):** under `Problem1` (**open**), for every scale `k : Nat`
+and every machine `M` computing `center` in time `T`, there exists
+`r ∈ [2 ^ (k - 1), 2 ^ (k - 1) + 2 ^ k)` with `k + 1 ≤ T r`. -/
+theorem canon_window_time_ge_of_problem1 (hP1 : Problem1) {M : Machine} {T : Nat → Nat}
+    (hM : Computes M center T) (k : Nat) :
+    ∃ r : Nat, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ T r :=
+  canon_window_time_ge_of_not_evPer_two_pow hM (fun ⟨T₀, hper⟩ => hP1 ⟨T₀, 2 ^ k, Nat.two_pow_pos k, hper⟩)
+
+/-- **All-Scale Canonical-Window `RightSpan` Lower Bound Under `Problem1`
+(`canon_window_rightSpan_ge_of_problem1`):** under `Problem1` (**open**), for every scale
+`k : Nat` and every machine `M` computing `center` in time `T`, there exists
+`r ∈ [2 ^ (k - 1), 2 ^ (k - 1) + 2 ^ k)` with `k + 1 ≤ RightSpan M r (T r)`. -/
+theorem canon_window_rightSpan_ge_of_problem1 (hP1 : Problem1) {M : Machine} {T : Nat → Nat}
+    (hM : Computes M center T) (k : Nat) :
+    ∃ r : Nat, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ RightSpan M r (T r) :=
+  canon_window_rightSpan_ge_of_not_evPer_two_pow hM (fun ⟨T₀, hper⟩ => hP1 ⟨T₀, 2 ^ k, Nat.two_pow_pos k, hper⟩)
+
 end Rule30Problem3Bounds
 end Ruliology.CellularAutomata
