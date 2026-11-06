@@ -424,4 +424,75 @@ theorem eternalTail_shiftPhase_iff {E : Nat → Nat → Bool} {p : Nat} (hE : Is
   · refine Classical.byContradiction fun hne => ?_
     exact (hb2.mp (hm.mp (hb1.mpr hne))) het
 
+/-! ### Period-Multiple Phase Lifting, Universal Episode Dichotomy, and Bidirectional `EternalTail` Characterizations -/
+
+/-- **Period-Multiple Lifting of `IsPhase` (`IsPhase.of_dvd`):** if `IsPhase E p` holds and
+`p ∣ q` with `0 < q`, then `IsPhase E q` holds. -/
+theorem IsPhase.of_dvd {E : Nat → Nat → Bool} {p q : Nat} (hE : IsPhase E p)
+    (hq : 0 < q) (hdvd : p ∣ q) : IsPhase E q where
+  pos := hq
+  step := hE.step
+  period j t := hE.period_dvd j t hdvd
+
+/-- **Additive Composition of `shiftPhase` (`shiftPhase_add`):** shifting a phase by `s₁` and
+then by `s₂` equals shifting by `s₁ + s₂`. -/
+theorem shiftPhase_add (E : Nat → Nat → Bool) (s₁ s₂ : Nat) :
+    shiftPhase (shiftPhase E s₁) s₂ = shiftPhase E (s₁ + s₂) := by
+  funext j t
+  unfold shiftPhase
+  rw [Nat.add_assoc, Nat.add_comm s₂ s₁]
+
+/-- **Exact Equivalence Between All-Time Pair Alignment and a Horizon Episode
+(`all_time_episode_iff_horizon`):** for any phase `hE : IsPhase E p`, depth `k`, code `x`, and
+alignment `a`, all-time alignment at `k, k + 1` is equivalent to `Episode E k x a (horizon k p)`. -/
+theorem all_time_episode_iff_horizon {E : Nat → Nat → Bool} {p : Nat} (hE : IsPhase E p)
+    (k : Nat) (x : Nat → Bool) (a : Nat) :
+    (∀ t : Nat, iter t x k = E k (t + a) ∧ iter t x (k + 1) = E (k + 1) (t + a)) ↔
+      Episode E k x a (horizon k p) := by
+  constructor
+  · intro hall t _
+    exact hall t
+  · exact episode_extend hE
+
+/-- **Universal Episode Dichotomy (`episode_lt_horizon_or_all_time`):** for any phase
+`hE : IsPhase E p`, every episode `Episode E k x a T` either has duration `T < horizon k p`
+or aligns with `E` at depths `k, k + 1` for all time `t : Nat`. -/
+theorem episode_lt_horizon_or_all_time {E : Nat → Nat → Bool} {p k a T : Nat} {x : Nat → Bool}
+    (hE : IsPhase E p) (hep : Episode E k x a T) :
+    T < horizon k p ∨
+      (∀ t : Nat, iter t x k = E k (t + a) ∧ iter t x (k + 1) = E (k + 1) (t + a)) := by
+  by_cases hlt : T < horizon k p
+  · exact Or.inl hlt
+  · refine Or.inr (episode_extend hE (hep.mono ?_))
+    omega
+
+/-- **Exact Characterization of `EternalTail` by Horizon Episodes
+(`eternalTail_iff_exists_horizon_episode`):** for any phase `hE : IsPhase E p`, `EternalTail E`
+holds if and only if some black-edge code `x` (`x 0 = true`) has an episode of length
+`horizon k p` at some depth `k` and alignment `a`. -/
+theorem eternalTail_iff_exists_horizon_episode {E : Nat → Nat → Bool} {p : Nat}
+    (hE : IsPhase E p) :
+    EternalTail E ↔
+      ∃ (x : Nat → Bool) (k a : Nat), x 0 = true ∧ Episode E k x a (horizon k p) := by
+  constructor
+  · rintro ⟨x, P, d, a, hx, -, -, htail⟩
+    refine ⟨x, d, a, hx, fun t _ => ⟨htail d (Nat.le_refl d) t, htail (d + 1) (by omega) t⟩⟩
+  · rintro ⟨x, k, a, hx, hep⟩
+    exact eternal_of_long hE hx hep
+
+/-- **Exact Characterization of `EternalTail` by Eventual Pair Alignment
+(`eternalTail_iff_exists_eventual_pair`):** for any phase `hE : IsPhase E p`, `EternalTail E`
+holds if and only if some black-edge code `x` (`x 0 = true`) eventually aligns with `E` at two
+consecutive depths `k, k + 1` from some onset `s` on. -/
+theorem eternalTail_iff_exists_eventual_pair {E : Nat → Nat → Bool} {p : Nat}
+    (hE : IsPhase E p) :
+    EternalTail E ↔
+      ∃ (x : Nat → Bool) (k s a : Nat), x 0 = true ∧
+        (∀ t : Nat, s ≤ t → iter t x k = E k (t + a) ∧ iter t x (k + 1) = E (k + 1) (t + a)) := by
+  constructor
+  · rintro ⟨x, P, d, a, hx, -, -, htail⟩
+    refine ⟨x, d, 0, a, hx, fun t _ => ⟨htail d (Nat.le_refl d) t, htail (d + 1) (by omega) t⟩⟩
+  · rintro ⟨x, k, s, a, hx, hev⟩
+    exact eternal_of_eventual hE hx hev
+
 end Ruliology.CellularAutomata.Rule30EpisodeBridge
