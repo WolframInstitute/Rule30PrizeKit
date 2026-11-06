@@ -203,4 +203,63 @@ theorem problem1_iff_seedTraceShiftFree : Rule30Prize.Problem1 ↔ SeedTraceShif
     rw [evol_seed, evol_seed, show T + P + t = (T + t) + P by omega]
     exact (hper (T + t) (by omega)).symm
 
+/-! ### Unconditional Left-Cone Arrival Divergence, Left-Half Shift-Freedom, and Exact Shift Recovery of `evol seed` -/
+
+/-- **Exact Arrival-Time Divergence of Shifted Seed Traces
+(`evol_seed_shift_arrival_true_and_false`):** for any `T P : Nat` with `0 < P` and column
+`c ≤ -((T + P : Nat) : Int)`, at time `t₀ = (-((T + P : Nat) : Int) - c).toNat`,
+`evol (evol seed (T + P)) t₀ c = true` and `evol (evol seed T) t₀ c = false`. -/
+theorem evol_seed_shift_arrival_true_and_false (T : Nat) {P : Nat} (hP : 0 < P)
+    {c : Int} (hc : c ≤ -((T + P : Nat) : Int)) :
+    evol (evol seed (T + P)) (-((T + P : Nat) : Int) - c).toNat c = true ∧
+      evol (evol seed T) (-((T + P : Nat) : Int) - c).toNat c = false := by
+  refine ⟨evol_eq_true_at_arrival (hasLeftEdge_evol_seed (T + P)) hc, ?_⟩
+  exact evol_eq_false_before_arrival (hasLeftEdge_evol_seed T) (by omega) (by omega)
+
+/-- **Unconditional Left-Cone Trace Shift-Freedom of `seed`
+(`seed_shift_trace_ne_of_le_neg_add`):** for any `T P : Nat` with `0 < P` and column
+`c ≤ -((T + P : Nat) : Int)`,
+`¬ (∀ t : Nat, evol (evol seed T) t c = evol (evol seed (T + P)) t c)`. -/
+theorem seed_shift_trace_ne_of_le_neg_add (T : Nat) {P : Nat} (hP : 0 < P)
+    {c : Int} (hc : c ≤ -((T + P : Nat) : Int)) :
+    ¬ (∀ t : Nat, evol (evol seed T) t c = evol (evol seed (T + P)) t c) := by
+  intro heq
+  obtain ⟨htrue, hfalse⟩ := evol_seed_shift_arrival_true_and_false T hP hc
+  have h := heq (-((T + P : Nat) : Int) - c).toNat
+  rw [htrue, hfalse] at h
+  cases h
+
+/-- **Unconditional Exclusion of Period `P` from `T` on Columns `c ≤ -(T + P)`
+(`not_cell_periodic_at_col_le_neg_add`):** for any `T P : Nat` with `0 < P` and column
+`c ≤ -((T + P : Nat) : Int)`, `¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c)`. -/
+theorem not_cell_periodic_at_col_le_neg_add (T : Nat) {P : Nat} (hP : 0 < P)
+    {c : Int} (hc : c ≤ -((T + P : Nat) : Int)) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  refine seed_shift_trace_ne_of_le_neg_add T hP hc (fun t => ?_)
+  rw [Rule30ZeroBoundaryBarriers.evol_restart, Rule30ZeroBoundaryBarriers.evol_restart,
+      evol_seed, evol_seed, show T + P + t = (T + t) + P by omega]
+  exact (hper (T + t) (by omega)).symm
+
+/-- **Exact Shift Recovery from Any Left-Bounded Observation Column
+(`seed_shift_eq_of_trace_eq_le`):** if `c ≤ -(T₁ : Int)`, `c ≤ -(T₂ : Int)`, and
+`∀ t : Nat, evol (evol seed T₁) t c = evol (evol seed T₂) t c`, then `T₁ = T₂`. -/
+theorem seed_shift_eq_of_trace_eq_le {T₁ T₂ : Nat} {c : Int}
+    (h1 : c ≤ -(T₁ : Int)) (h2 : c ≤ -(T₂ : Int))
+    (heq : ∀ t : Nat, evol (evol seed T₁) t c = evol (evol seed T₂) t c) :
+    T₁ = T₂ := by
+  have hneg := edges_equal_of_ge_col (hasLeftEdge_evol_seed T₁) (hasLeftEdge_evol_seed T₂) h1 h2 heq
+  omega
+
+/-- **Exact Bidirectional Equivalence for Left-Cone Seed Shifts
+(`seed_shift_trace_eq_iff_eq_of_le`):** when `c ≤ -(T₁ : Int)` and `c ≤ -(T₂ : Int)`,
+`(∀ t : Nat, evol (evol seed T₁) t c = evol (evol seed T₂) t c) ↔ T₁ = T₂`. -/
+theorem seed_shift_trace_eq_iff_eq_of_le {T₁ T₂ : Nat} {c : Int}
+    (h1 : c ≤ -(T₁ : Int)) (h2 : c ≤ -(T₂ : Int)) :
+    (∀ t : Nat, evol (evol seed T₁) t c = evol (evol seed T₂) t c) ↔ T₁ = T₂ := by
+  constructor
+  · exact seed_shift_eq_of_trace_eq_le h1 h2
+  · rintro rfl _
+    rfl
+
 end Ruliology.CellularAutomata.Rule30TraceEdge
