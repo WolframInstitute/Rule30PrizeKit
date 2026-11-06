@@ -108,6 +108,7 @@ public import Ruliology.CellularAutomata.Rule30SpacingGapCounterexample
 public import Ruliology.CellularAutomata.Rule30DrivenPrefix
 public import Ruliology.CellularAutomata.Rule30ExactReturn
 public import Ruliology.CellularAutomata.Rule30ControlledResponse
+public import Ruliology.CellularAutomata.Rule30ResponseAncestry
 public import Ruliology.CellularAutomata.Rule30PeriodicProfileCounter
 public import Ruliology.CellularAutomata.Rule30FeedbackErasure
 public import Ruliology.CellularAutomata.Rule30ClockMask
