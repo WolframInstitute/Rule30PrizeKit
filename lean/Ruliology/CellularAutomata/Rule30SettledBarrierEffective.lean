@@ -673,6 +673,106 @@ theorem exists_both_colors_in_window_loglog (a L : Nat) (ha : 256 ≤ a)
   exact ⟨exists_white_in_window_loglog a L (by omega) (by omega),
     exists_black_in_window_loglog a L ha hL⟩
 
+/-! ### Sub-Linear Center Transition Existence, Falling-Edge Extraction, and Column-`(-1)` Forcing -/
+
+theorem const_window_of_no_adj_ne (f : Nat → Bool) (a L : Nat)
+    (hno : ∀ k, k + 1 < L → f (a + k + 1) = f (a + k)) :
+    ∀ d, d < L → f (a + d) = f a
+  | 0, _ => by simp
+  | d + 1, hd => by
+    rw [show a + (d + 1) = a + d + 1 by omega, hno d hd,
+        const_window_of_no_adj_ne f a L hno d (by omega)]
+
+/-- **Discrete Intermediate Transition (`exists_adj_ne_of_false_and_true`):** if `[a, a + L)`
+contains both a `false` value and a `true` value of `f`, then it contains an adjacent step
+`k + 1 < L` where `f (a + k + 1) ≠ f (a + k)`. -/
+theorem exists_adj_ne_of_false_and_true {f : Nat → Bool} {a L : Nat}
+    (hf : ∃ i, i < L ∧ f (a + i) = false) (ht : ∃ j, j < L ∧ f (a + j) = true) :
+    ∃ k, k + 1 < L ∧ f (a + k + 1) ≠ f (a + k) := by
+  refine Classical.byContradiction fun hno => ?_
+  have hconst : ∀ k, k + 1 < L → f (a + k + 1) = f (a + k) := fun k hk =>
+    Classical.byContradiction fun hne => hno ⟨k, hk, hne⟩
+  obtain ⟨i, hi, hfi⟩ := hf
+  obtain ⟨j, hj, hfj⟩ := ht
+  have hi0 := const_window_of_no_adj_ne f a L hconst i hi
+  have hj0 := const_window_of_no_adj_ne f a L hconst j hj
+  rw [hi0] at hfi
+  rw [hj0, hfi] at hfj
+  cases hfj
+
+theorem true_of_no_falling_edge (f : Nat → Bool) (a i : Nat) (hi : f (a + i) = true)
+    (hno : ∀ k, i ≤ k → k < i + d → ¬ (f (a + k) = true ∧ f (a + k + 1) = false)) :
+    f (a + (i + d)) = true := by
+  induction d with
+  | zero => simpa using hi
+  | succ d ih =>
+    have hprev : f (a + (i + d)) = true := ih (fun k h1 h2 => hno k h1 (by omega))
+    have hstep := hno (i + d) (by omega) (by omega)
+    rw [show a + (i + (d + 1)) = a + (i + d) + 1 by omega]
+    cases hnext : f (a + (i + d) + 1)
+    · exact False.elim (hstep ⟨hprev, hnext⟩)
+    · rfl
+
+/-- **Falling-Edge Extraction (`exists_falling_edge_of_true_before_false`):** if `i < j < L`,
+`f (a + i) = true`, and `f (a + j) = false`, then there exists `k` with `i ≤ k < j` such that
+`f (a + k) = true` and `f (a + k + 1) = false`. -/
+theorem exists_falling_edge_of_true_before_false {f : Nat → Bool} {a L i j : Nat}
+    (hij : i < j) (_hjL : j < L) (hi : f (a + i) = true) (hj : f (a + j) = false) :
+    ∃ k, i ≤ k ∧ k < j ∧ f (a + k) = true ∧ f (a + k + 1) = false := by
+  refine Classical.byContradiction fun hno => ?_
+  have htrue := true_of_no_falling_edge f a i (d := j - i) hi (fun k h1 h2 hfall =>
+    hno ⟨k, h1, by omega, hfall⟩)
+  rw [show i + (j - i) = j by omega, hj] at htrue
+  cases htrue
+
+/-- **Effective Sub-Linear Window Existence of a Center Transition
+(`exists_transition_in_window_effective`):** for `1 ≤ m`, `2 ^ (2 ^ (m + 1) + m + 3) ≤ a`,
+and `a < L + m`, `[a, a + L)` contains an adjacent center transition
+`center (a + k + 1) ≠ center (a + k)` (`k + 1 < L`). -/
+theorem exists_transition_in_window_effective (m : Nat) (hm : 1 ≤ m) (a L : Nat)
+    (ha : 2 ^ (2 ^ (m + 1) + m + 3) ≤ a) (hL : a < L + m) :
+    ∃ k, k + 1 < L ∧ center (a + k + 1) ≠ center (a + k) := by
+  obtain ⟨hw, hb⟩ := exists_both_colors_in_window_effective m hm a L ha hL
+  exact exists_adj_ne_of_false_and_true hw hb
+
+/-- **Log-Log Sub-Linear Window Existence of a Center Transition
+(`exists_transition_in_window_loglog`):** for `256 ≤ a` and
+`a + 2 < L + Nat.log2 (Nat.log2 a)`, `[a, a + L)` contains an adjacent center transition
+`center (a + k + 1) ≠ center (a + k)` (`k + 1 < L`). -/
+theorem exists_transition_in_window_loglog (a L : Nat) (ha : 256 ≤ a)
+    (hL : a + 2 < L + Nat.log2 (Nat.log2 a)) :
+    ∃ k, k + 1 < L ∧ center (a + k + 1) ≠ center (a + k) := by
+  obtain ⟨hw, hb⟩ := exists_both_colors_in_window_loglog a L ha hL
+  exact exists_adj_ne_of_false_and_true hw hb
+
+/-- **Left-Neighbor Determination Under a Black Center Cell (`cell_neg1_of_center_true`):**
+whenever `center t = true`, `Rule30Jen.cell t (-1) = !center (t + 1)`. -/
+theorem cell_neg1_of_center_true {t : Nat} (hc : center t = true) :
+    Rule30Jen.cell t (-1) = !center (t + 1) := by
+  have h := Rule30Jen.cell_left t 0
+  change Rule30Jen.cell t (0 - 1) = xor (center (t + 1)) (center t || Rule30Jen.cell t (0 + 1)) at h
+  rw [hc, Bool.true_or] at h
+  simpa using h
+
+/-- **Log-Log Falling-Edge and Column-`(-1)` Black-Cell Forcing
+(`exists_falling_edge_and_col_neg1_true_loglog`):** if `16 ≤ a`, `center a = true`, and
+`3 * a + 21 < 5 * L + 3 * Nat.log2 (Nat.log2 a)`, then `[a, a + L)` contains a step `k + 1 < L`
+where `center (a + k) = true`, `center (a + k + 1) = false`, and `Rule30Jen.cell (a + k) (-1) = true`. -/
+theorem exists_falling_edge_and_col_neg1_true_loglog (a L : Nat) (ha : 16 ≤ a)
+    (ha0 : center a = true) (hL : 3 * a + 21 < 5 * L + 3 * Nat.log2 (Nat.log2 a)) :
+    ∃ k, k + 1 < L ∧ center (a + k) = true ∧ center (a + k + 1) = false ∧
+      Rule30Jen.cell (a + k) (-1) = true := by
+  obtain ⟨j, hjL, hjw⟩ := exists_white_in_window_loglog a L ha hL
+  have hjpos : 0 < j := by
+    rcases j with _ | j
+    · rw [Nat.add_zero, ha0] at hjw; cases hjw
+    · omega
+  obtain ⟨k, _, hkj, hk0, hk1⟩ :=
+    exists_falling_edge_of_true_before_false hjpos hjL (by simpa using ha0) hjw
+  refine ⟨k, by omega, hk0, hk1, ?_⟩
+  rw [cell_neg1_of_center_true hk0, show a + k + 1 = (a + k) + 1 by omega, hk1]
+  rfl
+
 end V3
 
 end Ruliology.CellularAutomata.Rule30SettledBarrierEffective
