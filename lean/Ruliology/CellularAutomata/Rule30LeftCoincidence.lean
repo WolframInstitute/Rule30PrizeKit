@@ -296,4 +296,96 @@ theorem D_two_step_retrodiction (j t : Nat) :
       (D (j + 1) t || D (j + 2) t) := by
   rw [D_farther_of_child j t, D_farther_of_child (j + 2) (t + 1)]
 
+/-! ### Exact `L`-Step XOR Divided-Difference Law Under Periodic Nearer and Anti-Periodic Parent Diagonals -/
+
+/-- **Exact `L`-Step Shift Law Under Periodic Nearer Child and Anti-Periodic Parent
+(`farther_shift_eq_xor_of_periodic_and_antiperiodic`):** if
+`∀ t, x (t + 1) = xor (a t) (b t || x t)`, `∀ t ≥ s0, b (t + L) = b t`, and
+`∀ t ≥ s0, x (t + L) = !x t`, then `∀ t ≥ s0, a (t + L) = xor (a t) (b t)`. -/
+theorem farther_shift_eq_xor_of_periodic_and_antiperiodic {x a b : Nat → Bool}
+    (hx : ∀ t : Nat, x (t + 1) = xor (a t) (b t || x t)) {s0 L : Nat}
+    (hb : ∀ t : Nat, s0 ≤ t → b (t + L) = b t)
+    (hanti : ∀ t : Nat, s0 ≤ t → x (t + L) = !x t) :
+    ∀ t : Nat, s0 ≤ t → a (t + L) = xor (a t) (b t) := by
+  intro t ht
+  have ha1 : a t = xor (x (t + 1)) (b t || x t) := by
+    rw [hx t]; cases a t <;> cases (b t || x t) <;> rfl
+  have ha2 : a (t + L) = xor (x (t + L + 1)) (b (t + L) || x (t + L)) := by
+    rw [hx (t + L)]; cases a (t + L) <;> cases (b (t + L) || x (t + L)) <;> rfl
+  have hx1 : x (t + L + 1) = !x (t + 1) := by
+    rw [show t + L + 1 = (t + 1) + L by omega]
+    exact hanti (t + 1) (by omega)
+  rw [ha2, ha1, hx1, hb t ht, hanti t ht]
+  cases b t <;> cases x t <;> cases x (t + 1) <;> rfl
+
+/-- **Exact Reconstruction of the Nearer Child as the `L`-Step Divided Difference of the Farther
+Child (`nearer_eq_xor_farther_shift_of_periodic_and_antiperiodic`):** under the hypotheses of
+`farther_shift_eq_xor_of_periodic_and_antiperiodic`, `∀ t ≥ s0, b t = xor (a t) (a (t + L))`. -/
+theorem nearer_eq_xor_farther_shift_of_periodic_and_antiperiodic {x a b : Nat → Bool}
+    (hx : ∀ t : Nat, x (t + 1) = xor (a t) (b t || x t)) {s0 L : Nat}
+    (hb : ∀ t : Nat, s0 ≤ t → b (t + L) = b t)
+    (hanti : ∀ t : Nat, s0 ≤ t → x (t + L) = !x t) :
+    ∀ t : Nat, s0 ≤ t → b t = xor (a t) (a (t + L)) := by
+  intro t ht
+  rw [farther_shift_eq_xor_of_periodic_and_antiperiodic hx hb hanti t ht]
+  cases a t <;> cases b t <;> rfl
+
+/-- **Left-Diagonal `L`-Step Divided-Difference Law (`D_shift_eq_xor_of_periodic_and_antiperiodic`):**
+if `D (j + 1)` is `L`-periodic from `s0` on and `D (j + 2)` is `L`-anti-periodic from `s0` on,
+then `∀ t ≥ s0, D j (t + L) = xor (D j t) (D (j + 1) t)`. -/
+theorem D_shift_eq_xor_of_periodic_and_antiperiodic {j s0 L : Nat}
+    (hb : ∀ t : Nat, s0 ≤ t → D (j + 1) (t + L) = D (j + 1) t)
+    (hanti : ∀ t : Nat, s0 ≤ t → D (j + 2) (t + L) = !D (j + 2) t) :
+    ∀ t : Nat, s0 ≤ t → D j (t + L) = xor (D j t) (D (j + 1) t) :=
+  farther_shift_eq_xor_of_periodic_and_antiperiodic (D_step j) hb hanti
+
+/-- **Exact Equivalence Between `L`-Periodicity of `D j` and Eventual Whiteness of `D (j + 1)`
+(`D_periodic_iff_nearer_white_of_periodic_and_antiperiodic`):** when `D (j + 1)` is `L`-periodic
+from `s0` on and `D (j + 2)` is `L`-anti-periodic from `s0` on, `D j` is `L`-periodic from `s0`
+on if and only if `∀ t ≥ s0, D (j + 1) t = false`. -/
+theorem D_periodic_iff_nearer_white_of_periodic_and_antiperiodic {j s0 L : Nat}
+    (hb : ∀ t : Nat, s0 ≤ t → D (j + 1) (t + L) = D (j + 1) t)
+    (hanti : ∀ t : Nat, s0 ≤ t → D (j + 2) (t + L) = !D (j + 2) t) :
+    (∀ t : Nat, s0 ≤ t → D j (t + L) = D j t) ↔ (∀ t : Nat, s0 ≤ t → D (j + 1) t = false) := by
+  constructor
+  · intro hper t ht
+    have hxor := D_shift_eq_xor_of_periodic_and_antiperiodic hb hanti t ht
+    rw [hper t ht] at hxor
+    revert hxor; cases D j t <;> cases D (j + 1) t <;> decide
+  · intro hwhite t ht
+    rw [D_shift_eq_xor_of_periodic_and_antiperiodic hb hanti t ht, hwhite t ht, Bool.xor_false]
+
+/-- **Exact Equivalence Between `L`-Anti-Periodicity of `D j` and Eventual Blackness of
+`D (j + 1)` (`D_antiperiodic_iff_nearer_black_of_periodic_and_antiperiodic`):** when `D (j + 1)`
+is `L`-periodic from `s0` on and `D (j + 2)` is `L`-anti-periodic from `s0` on, `D j` is
+`L`-anti-periodic from `s0` on if and only if `∀ t ≥ s0, D (j + 1) t = true`. -/
+theorem D_antiperiodic_iff_nearer_black_of_periodic_and_antiperiodic {j s0 L : Nat}
+    (hb : ∀ t : Nat, s0 ≤ t → D (j + 1) (t + L) = D (j + 1) t)
+    (hanti : ∀ t : Nat, s0 ≤ t → D (j + 2) (t + L) = !D (j + 2) t) :
+    (∀ t : Nat, s0 ≤ t → D j (t + L) = !D j t) ↔ (∀ t : Nat, s0 ≤ t → D (j + 1) t = true) := by
+  constructor
+  · intro hanti_j t ht
+    have hxor := D_shift_eq_xor_of_periodic_and_antiperiodic hb hanti t ht
+    rw [hanti_j t ht] at hxor
+    revert hxor; cases D j t <;> cases D (j + 1) t <;> decide
+  · intro hblack t ht
+    rw [D_shift_eq_xor_of_periodic_and_antiperiodic hb hanti t ht, hblack t ht]
+    cases D j t <;> rfl
+
+/-- **Unconditional `(2 * L)`-Periodicity of `D j` Under `L`-Periodic `D (j + 1)` and
+`L`-Anti-Periodic `D (j + 2)` (`D_two_mul_periodic_of_periodic_and_antiperiodic`):** whenever
+`D (j + 1)` is `L`-periodic from `s0` on and `D (j + 2)` is `L`-anti-periodic from `s0` on,
+`D j` is `(2 * L)`-periodic from `s0` on (`∀ t ≥ s0, D j (t + 2 * L) = D j t`). -/
+theorem D_two_mul_periodic_of_periodic_and_antiperiodic {j s0 L : Nat}
+    (hb : ∀ t : Nat, s0 ≤ t → D (j + 1) (t + L) = D (j + 1) t)
+    (hanti : ∀ t : Nat, s0 ≤ t → D (j + 2) (t + L) = !D (j + 2) t) :
+    ∀ t : Nat, s0 ≤ t → D j (t + 2 * L) = D j t := by
+  intro t ht
+  have h2L : t + 2 * L = (t + L) + L := by omega
+  rw [h2L,
+    D_shift_eq_xor_of_periodic_and_antiperiodic hb hanti (t + L) (by omega),
+    D_shift_eq_xor_of_periodic_and_antiperiodic hb hanti t ht,
+    hb t ht]
+  cases D j t <;> cases D (j + 1) t <;> rfl
+
 end Ruliology.CellularAutomata.Rule30LeftCoincidence
