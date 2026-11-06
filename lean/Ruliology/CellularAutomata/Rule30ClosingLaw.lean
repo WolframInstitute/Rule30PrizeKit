@@ -438,4 +438,123 @@ theorem five_mul_prefixExp_sub_le_or (x : Nat → Bool) {n : Nat}
     5 * (prefixExp (fun _ b s => b || s) x (n + m) - prefixExp (fun _ b s => b || s) x n) ≤ 3 * m + 8 :=
   five_mul_prefixExp_sub_le _ x (fun _ => quadratic_or) hE m
 
+/-! ### Order-Zero Non-Closure, Cumulative `(10)^m` Countdown Exponents, and the `E + 2 ^ E + 2` Closing-Horizon Jump -/
+
+/-- **Order-Zero Non-Closure (`not_period_two_mul_of_order_zero`):** for a quadratic gate `g`,
+if `1 ≤ v`, `s` has period `2 ^ v` with `order s (2 ^ v) = 0`, `b` is `(2 ^ v)`-anti-periodic,
+and `h (t + 1) = xor (h t) (g (b t) (s t))`, then `h` cannot close at period `2 * 2 ^ v`
+(`¬ ∀ t, h (t + 2 * 2 ^ v) = h t`). -/
+theorem not_period_two_mul_of_order_zero {g : Bool → Bool → Bool} {s b h : Nat → Bool} {v : Nat}
+    (hq : Quadratic g) (hv : 1 ≤ v) (hs : ∀ t, s (t + 2 ^ v) = s t)
+    (hb : ∀ t, b (t + 2 ^ v) = !b t) (hh : ∀ t, h (t + 1) = xor (h t) (g (b t) (s t)))
+    (hord : order s (2 ^ v) = 0) :
+    ¬ (∀ t, h (t + 2 * 2 ^ v) = h t) := by
+  intro hper
+  have hpos := order_pos_of_period hq hv hs hb hh hper
+  omega
+
+/-- **Order-Zero Non-Closure for Rule 30's OR Gate (`not_period_two_mul_of_order_zero_or`):**
+if `1 ≤ v`, `s` has period `2 ^ v` with `order s (2 ^ v) = 0`, `b` is `(2 ^ v)`-anti-periodic,
+and `h (t + 1) = xor (h t) (b t || s t)`, then `¬ ∀ t, h (t + 2 * 2 ^ v) = h t`. -/
+theorem not_period_two_mul_of_order_zero_or {s b h : Nat → Bool} {v : Nat}
+    (hv : 1 ≤ v) (hs : ∀ t, s (t + 2 ^ v) = s t) (hb : ∀ t, b (t + 2 ^ v) = !b t)
+    (hh : ∀ t, h (t + 1) = xor (h t) (b t || s t)) (hord : order s (2 ^ v) = 0) :
+    ¬ (∀ t, h (t + 2 * 2 ^ v) = h t) :=
+  not_period_two_mul_of_order_zero quadratic_or hv hs hb hh hord
+
+/-- **Exact Cumulative Prefix Exponent Along `(10)^m` Countdown Pairs
+(`prefixExp_after_closing_pairs`):** if `prefixExp g x (n + 1) = prefixExp g x n + 1` is
+followed by `m` pairs `(1, 0)` of `(double, keep)`, then for every `k ≤ m`,
+`prefixExp g x (n + 1 + 2 * k) = prefixExp g x n + 1 + k`. -/
+theorem prefixExp_after_closing_pairs (g : Nat → Bool → Bool → Bool) (x : Nat → Bool)
+    {n m : Nat} (h1 : prefixExp g x (n + 1) = prefixExp g x n + 1)
+    (hpair : ∀ i, i < m →
+      prefixExp g x (n + 1 + 2 * i + 1) = prefixExp g x (n + 1 + 2 * i) + 1 ∧
+      prefixExp g x (n + 1 + 2 * i + 1 + 1) = prefixExp g x (n + 1 + 2 * i + 1)) :
+    ∀ k, k ≤ m → prefixExp g x (n + 1 + 2 * k) = prefixExp g x n + 1 + k
+  | 0, _ => by simpa using h1
+  | k + 1, hk => by
+    have ih := prefixExp_after_closing_pairs g x h1 hpair k (by omega)
+    have hp := hpair k (by omega)
+    rw [show n + 1 + 2 * (k + 1) = n + 1 + 2 * k + 1 + 1 by omega, hp.2, hp.1, ih]
+    omega
+
+/-- **Complementary Keep Characterization in `closing_law` (`closing_law_keep_iff_lt`):** under
+the hypotheses of `closing_law`, column `n + 1 + 2 * m + 1 + 1` keeps the period
+(`prefixExp g x (n + 1 + 2 * m + 1 + 1) = prefixExp g x (n + 1 + 2 * m + 1)`) if and only if
+`m + 1 < 2 ^ prefixExp g x n`. -/
+theorem closing_law_keep_iff_lt (g : Nat → Bool → Bool → Bool) (x : Nat → Bool)
+    (hq : ∀ j, Quadratic (g j)) {n m : Nat}
+    (h1 : prefixExp g x (n + 1) = prefixExp g x n + 1)
+    (hpair : ∀ i, i < m →
+      prefixExp g x (n + 1 + 2 * i + 1) = prefixExp g x (n + 1 + 2 * i) + 1 ∧
+      prefixExp g x (n + 1 + 2 * i + 1 + 1) = prefixExp g x (n + 1 + 2 * i + 1))
+    (hlast : prefixExp g x (n + 1 + 2 * m + 1) = prefixExp g x (n + 1 + 2 * m) + 1) :
+    prefixExp g x (n + 1 + 2 * m + 1 + 1) = prefixExp g x (n + 1 + 2 * m + 1) ↔
+      m + 1 < 2 ^ prefixExp g x n := by
+  have hc := closing_law g x hq h1 hpair hlast
+  have hcases := prefixExp_succ_cases g x (n + 1 + 2 * m + 1)
+  constructor
+  · intro hkeep
+    have hne : m + 1 ≠ 2 ^ prefixExp g x n := by
+      intro heq
+      have hdbl := hc.2.mpr heq
+      omega
+    have hle := hc.1
+    omega
+  · intro hlt
+    rcases hcases with hkeep | hdbl
+    · exact hkeep
+    · have heq := hc.2.mp hdbl
+      omega
+
+/-- **Complementary Keep Characterization for Rule 30's OR Gate (`closing_law_keep_iff_lt_or`):**
+under the hypotheses of `closing_law_or`,
+`prefixExp (fun _ b s => b || s) x (n + 1 + 2 * m + 1 + 1) = prefixExp (fun _ b s => b || s) x (n + 1 + 2 * m + 1)`
+if and only if `m + 1 < 2 ^ prefixExp (fun _ b s => b || s) x n`. -/
+theorem closing_law_keep_iff_lt_or (x : Nat → Bool) {n m : Nat}
+    (h1 : prefixExp (fun _ b s => b || s) x (n + 1) = prefixExp (fun _ b s => b || s) x n + 1)
+    (hpair : ∀ i, i < m →
+      prefixExp (fun _ b s => b || s) x (n + 1 + 2 * i + 1) = prefixExp (fun _ b s => b || s) x (n + 1 + 2 * i) + 1 ∧
+      prefixExp (fun _ b s => b || s) x (n + 1 + 2 * i + 1 + 1) = prefixExp (fun _ b s => b || s) x (n + 1 + 2 * i + 1))
+    (hlast : prefixExp (fun _ b s => b || s) x (n + 1 + 2 * m + 1) =
+      prefixExp (fun _ b s => b || s) x (n + 1 + 2 * m) + 1) :
+    prefixExp (fun _ b s => b || s) x (n + 1 + 2 * m + 1 + 1) =
+      prefixExp (fun _ b s => b || s) x (n + 1 + 2 * m + 1) ↔
+      m + 1 < 2 ^ prefixExp (fun _ b s => b || s) x n :=
+  closing_law_keep_iff_lt _ x (fun _ => quadratic_or) h1 hpair hlast
+
+/-- **Exponential `E ↦ E + 2 ^ E + 2` Prefix-Exponent Jump Across a Completed Closing Run
+(`prefixExp_at_closing_horizon`):** when a closing run `1 (10)^m 1 1` completes with consecutive
+doublings at `n + 1 + 2 * m + 1` and `n + 1 + 2 * m + 1 + 1`, the prefix exponent at
+`n + 1 + 2 * m + 1 + 1` equals `prefixExp g x n + 2 ^ prefixExp g x n + 2`. -/
+theorem prefixExp_at_closing_horizon (g : Nat → Bool → Bool → Bool) (x : Nat → Bool)
+    (hq : ∀ j, Quadratic (g j)) {n m : Nat}
+    (h1 : prefixExp g x (n + 1) = prefixExp g x n + 1)
+    (hpair : ∀ i, i < m →
+      prefixExp g x (n + 1 + 2 * i + 1) = prefixExp g x (n + 1 + 2 * i) + 1 ∧
+      prefixExp g x (n + 1 + 2 * i + 1 + 1) = prefixExp g x (n + 1 + 2 * i + 1))
+    (hlast : prefixExp g x (n + 1 + 2 * m + 1) = prefixExp g x (n + 1 + 2 * m) + 1)
+    (hclose : prefixExp g x (n + 1 + 2 * m + 1 + 1) = prefixExp g x (n + 1 + 2 * m + 1) + 1) :
+    prefixExp g x (n + 1 + 2 * m + 1 + 1) = prefixExp g x n + 2 ^ prefixExp g x n + 2 := by
+  have hc := (closing_law g x hq h1 hpair hlast).2.mp hclose
+  have hcum := prefixExp_after_closing_pairs g x h1 hpair m (Nat.le_refl m)
+  omega
+
+/-- **Exponential `E ↦ E + 2 ^ E + 2` Prefix-Exponent Jump for Rule 30's OR Gate
+(`prefixExp_at_closing_horizon_or`):** when a right-edge OR closing run `1 (10)^m 1 1` completes,
+`prefixExp (fun _ b s => b || s) x (n + 1 + 2 * m + 1 + 1) = prefixExp (fun _ b s => b || s) x n + 2 ^ prefixExp (fun _ b s => b || s) x n + 2`. -/
+theorem prefixExp_at_closing_horizon_or (x : Nat → Bool) {n m : Nat}
+    (h1 : prefixExp (fun _ b s => b || s) x (n + 1) = prefixExp (fun _ b s => b || s) x n + 1)
+    (hpair : ∀ i, i < m →
+      prefixExp (fun _ b s => b || s) x (n + 1 + 2 * i + 1) = prefixExp (fun _ b s => b || s) x (n + 1 + 2 * i) + 1 ∧
+      prefixExp (fun _ b s => b || s) x (n + 1 + 2 * i + 1 + 1) = prefixExp (fun _ b s => b || s) x (n + 1 + 2 * i + 1))
+    (hlast : prefixExp (fun _ b s => b || s) x (n + 1 + 2 * m + 1) =
+      prefixExp (fun _ b s => b || s) x (n + 1 + 2 * m) + 1)
+    (hclose : prefixExp (fun _ b s => b || s) x (n + 1 + 2 * m + 1 + 1) =
+      prefixExp (fun _ b s => b || s) x (n + 1 + 2 * m + 1) + 1) :
+    prefixExp (fun _ b s => b || s) x (n + 1 + 2 * m + 1 + 1) =
+      prefixExp (fun _ b s => b || s) x n + 2 ^ prefixExp (fun _ b s => b || s) x n + 2 :=
+  prefixExp_at_closing_horizon _ x (fun _ => quadratic_or) h1 hpair hlast hclose
+
 end Ruliology.CellularAutomata.Rule30ClosingLaw
