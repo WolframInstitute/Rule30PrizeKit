@@ -2481,5 +2481,85 @@ theorem not_evPer_lt_two_pow_succ_of_dyadic_subseq_maxBlockEnergyLittleO
   have h1 : 2 ^ (K + 1) * 1 ≤ 2 ^ (K + 1) * q := Nat.mul_le_mul_left (2 ^ (K + 1)) hq
   omega
 
+/-! ### Exact Equivalence Between Eventual `M`-Anti-Periodicity and `(2 * M)`-Periodicity with Stride-`M` Balance Across All Five Problem 2 Energy Forms -/
+
+/-- **All-Residue Stride-`M` Energy Forms from Eventual `M`-Anti-Periodicity
+(`subseq_energy_forms_of_antiPeriodic`):** if `0 < M` and `∀ t ≥ T₀, f (t + M) = !f t`, then for
+every residue `r : Nat`, `subseq f M r` satisfies all five Problem 2 energy forms (`DensityHalf`,
+`ShellMaxLittleO`, `FlexibleEnergyToZero`, `OrderedEnergyLittleO`, `MaxBlockEnergyLittleO`). -/
+theorem subseq_energy_forms_of_antiPeriodic {f : Nat → Bool} {M T₀ : Nat} (hM : 0 < M)
+    (hanti : ∀ t : Nat, T₀ ≤ t → f (t + M) = !f t) (r : Nat) :
+    DensityHalf (subseq f M r) ∧
+    ShellMaxLittleO (subseq f M r) ∧
+    FlexibleEnergyToZero (subseq f M r) ∧
+    OrderedEnergyLittleO (subseq f M r) ∧
+    MaxBlockEnergyLittleO (subseq f M r) := by
+  have hhd : HalfDensity (subseq f M r) :=
+    Rule30LeftAntiPeriod.subseq_halfDensity_of_antiPeriodic hM hanti r
+  exact ⟨(halfDensity_iff_densityHalf (subseq f M r)).mp hhd,
+    (halfDensity_iff_shellMaxLittleO (subseq f M r)).mp hhd,
+    (halfDensity_iff_flexibleEnergyToZero (subseq f M r)).mp hhd,
+    (halfDensity_iff_orderedEnergyLittleO (subseq f M r)).mp hhd,
+    (halfDensity_iff_maxBlockEnergyLittleO (subseq f M r)).mp hhd⟩
+
+/-- **Exact Equivalence Between Eventual `M`-Anti-Periodicity and `(2 * M)`-Periodicity with
+All-Residue Stride-`M` `DensityHalf` (`evAntiPer_iff_evPer_two_mul_and_all_subseq_densityHalf`):**
+for `0 < M`, `(∃ T, ∀ t ≥ T, f (t + M) = !f t) ↔ EvPer f (2 * M) ∧ ∀ r < M, DensityHalf (subseq f M r)`. -/
+theorem evAntiPer_iff_evPer_two_mul_and_all_subseq_densityHalf {f : Nat → Bool} {M : Nat} (hM : 0 < M) :
+    (∃ T : Nat, ∀ t : Nat, T ≤ t → f (t + M) = !f t) ↔
+      (EvPer f (2 * M) ∧ ∀ r : Nat, r < M → DensityHalf (subseq f M r)) := by
+  rw [Rule30LeftAntiPeriod.evAntiPer_iff_evPer_two_mul_and_all_subseq_halfDensity hM]
+  constructor <;> rintro ⟨hper, h⟩ <;> refine ⟨hper, fun r hr => ?_⟩
+  · exact (halfDensity_iff_densityHalf (subseq f M r)).mp (h r hr)
+  · exact (halfDensity_iff_densityHalf (subseq f M r)).mpr (h r hr)
+
+/-- **Exact Equivalence Between Eventual `M`-Anti-Periodicity and `(2 * M)`-Periodicity with
+All-Residue Stride-`M` `ShellMaxLittleO`
+(`evAntiPer_iff_evPer_two_mul_and_all_subseq_shellMaxLittleO`):** for `0 < M`,
+`(∃ T, ∀ t ≥ T, f (t + M) = !f t) ↔ EvPer f (2 * M) ∧ ∀ r < M, ShellMaxLittleO (subseq f M r)`. -/
+theorem evAntiPer_iff_evPer_two_mul_and_all_subseq_shellMaxLittleO {f : Nat → Bool} {M : Nat} (hM : 0 < M) :
+    (∃ T : Nat, ∀ t : Nat, T ≤ t → f (t + M) = !f t) ↔
+      (EvPer f (2 * M) ∧ ∀ r : Nat, r < M → ShellMaxLittleO (subseq f M r)) := by
+  rw [Rule30LeftAntiPeriod.evAntiPer_iff_evPer_two_mul_and_all_subseq_halfDensity hM]
+  constructor <;> rintro ⟨hper, h⟩ <;> refine ⟨hper, fun r hr => ?_⟩
+  · exact (halfDensity_iff_shellMaxLittleO (subseq f M r)).mp (h r hr)
+  · exact (halfDensity_iff_shellMaxLittleO (subseq f M r)).mpr (h r hr)
+
+/-- **Exact Equivalence Between Eventual `M`-Anti-Periodicity and `(2 * M)`-Periodicity with
+All-Residue Stride-`M` `FlexibleEnergyToZero`
+(`evAntiPer_iff_evPer_two_mul_and_all_subseq_flexibleEnergyToZero`):** for `0 < M`,
+`(∃ T, ∀ t ≥ T, f (t + M) = !f t) ↔ EvPer f (2 * M) ∧ ∀ r < M, FlexibleEnergyToZero (subseq f M r)`. -/
+theorem evAntiPer_iff_evPer_two_mul_and_all_subseq_flexibleEnergyToZero {f : Nat → Bool} {M : Nat} (hM : 0 < M) :
+    (∃ T : Nat, ∀ t : Nat, T ≤ t → f (t + M) = !f t) ↔
+      (EvPer f (2 * M) ∧ ∀ r : Nat, r < M → FlexibleEnergyToZero (subseq f M r)) := by
+  rw [Rule30LeftAntiPeriod.evAntiPer_iff_evPer_two_mul_and_all_subseq_halfDensity hM]
+  constructor <;> rintro ⟨hper, h⟩ <;> refine ⟨hper, fun r hr => ?_⟩
+  · exact (halfDensity_iff_flexibleEnergyToZero (subseq f M r)).mp (h r hr)
+  · exact (halfDensity_iff_flexibleEnergyToZero (subseq f M r)).mpr (h r hr)
+
+/-- **Exact Equivalence Between Eventual `M`-Anti-Periodicity and `(2 * M)`-Periodicity with
+All-Residue Stride-`M` `OrderedEnergyLittleO`
+(`evAntiPer_iff_evPer_two_mul_and_all_subseq_orderedEnergyLittleO`):** for `0 < M`,
+`(∃ T, ∀ t ≥ T, f (t + M) = !f t) ↔ EvPer f (2 * M) ∧ ∀ r < M, OrderedEnergyLittleO (subseq f M r)`. -/
+theorem evAntiPer_iff_evPer_two_mul_and_all_subseq_orderedEnergyLittleO {f : Nat → Bool} {M : Nat} (hM : 0 < M) :
+    (∃ T : Nat, ∀ t : Nat, T ≤ t → f (t + M) = !f t) ↔
+      (EvPer f (2 * M) ∧ ∀ r : Nat, r < M → OrderedEnergyLittleO (subseq f M r)) := by
+  rw [Rule30LeftAntiPeriod.evAntiPer_iff_evPer_two_mul_and_all_subseq_halfDensity hM]
+  constructor <;> rintro ⟨hper, h⟩ <;> refine ⟨hper, fun r hr => ?_⟩
+  · exact (halfDensity_iff_orderedEnergyLittleO (subseq f M r)).mp (h r hr)
+  · exact (halfDensity_iff_orderedEnergyLittleO (subseq f M r)).mpr (h r hr)
+
+/-- **Exact Equivalence Between Eventual `M`-Anti-Periodicity and `(2 * M)`-Periodicity with
+All-Residue Stride-`M` `MaxBlockEnergyLittleO`
+(`evAntiPer_iff_evPer_two_mul_and_all_subseq_maxBlockEnergyLittleO`):** for `0 < M`,
+`(∃ T, ∀ t ≥ T, f (t + M) = !f t) ↔ EvPer f (2 * M) ∧ ∀ r < M, MaxBlockEnergyLittleO (subseq f M r)`. -/
+theorem evAntiPer_iff_evPer_two_mul_and_all_subseq_maxBlockEnergyLittleO {f : Nat → Bool} {M : Nat} (hM : 0 < M) :
+    (∃ T : Nat, ∀ t : Nat, T ≤ t → f (t + M) = !f t) ↔
+      (EvPer f (2 * M) ∧ ∀ r : Nat, r < M → MaxBlockEnergyLittleO (subseq f M r)) := by
+  rw [Rule30LeftAntiPeriod.evAntiPer_iff_evPer_two_mul_and_all_subseq_halfDensity hM]
+  constructor <;> rintro ⟨hper, h⟩ <;> refine ⟨hper, fun r hr => ?_⟩
+  · exact (halfDensity_iff_maxBlockEnergyLittleO (subseq f M r)).mp (h r hr)
+  · exact (halfDensity_iff_maxBlockEnergyLittleO (subseq f M r)).mpr (h r hr)
+
 end Rule30P2Bridge
 end Ruliology.CellularAutomata
