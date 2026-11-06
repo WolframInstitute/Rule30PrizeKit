@@ -1582,6 +1582,99 @@ theorem testBit_F_two_of_survive_one {Y : Nat} (h0 : Y.testBit 0 = true)
   revert h1
   cases Y.testBit 1 <;> cases Y.testBit 2 <;> cases Y.testBit 3 <;> decide
 
+/-! ### All-Time Light-Cone Envelope, Outward Top-Bit Propagation, and Strict Orbit Time-Injectivity of `iter F` and `iter G` -/
+
+/-- **Two-Step Outward Top-Bit Shift of `G` (`testBit_G_add_two_of_top`):** if bit `m` of `Y`
+is `true` and all bits above `m` are `false`, then bit `m + 2` of `G Y` is `true`. -/
+theorem testBit_G_add_two_of_top {Y m : Nat} (hm : Y.testBit m = true)
+    (htop : ∀ i, m < i → Y.testBit i = false) :
+    (G Y).testBit (m + 2) = true := by
+  unfold G
+  have hm1 : (F Y).testBit (m + 1) = true := testBit_F_succ_of_top hm htop
+  have htop1 : ∀ i, m + 1 < i → (F Y).testBit i = false := fun i hi =>
+    testBit_F_eq_false_of_ge (b := m + 1) (fun j hj => htop j (by omega)) (by omega)
+  exact testBit_F_succ_of_top hm1 htop1
+
+/-- **All-Time Bitwise Light-Cone Bound for `iter F` (`testBit_iter_F_eq_false_of_ge`):** if `Y`
+has no bits set at or above `b`, then for every `t : Nat` and `k ≥ b + t`,
+`(iter F t Y).testBit k = false`. -/
+theorem testBit_iter_F_eq_false_of_ge {Y b : Nat} (hY : ∀ i, b ≤ i → Y.testBit i = false)
+    (t : Nat) : ∀ {k : Nat}, b + t ≤ k → (iter F t Y).testBit k = false := by
+  induction t with
+  | zero =>
+    intro k hk
+    exact hY k (by omega)
+  | succ t ih =>
+    intro k hk
+    show (F (iter F t Y)).testBit k = false
+    exact testBit_F_eq_false_of_ge (b := b + t) (fun i hi => ih hi) (by omega)
+
+/-- **All-Time Bitwise Light-Cone Bound for `iter G` (`testBit_iter_G_eq_false_of_ge`):** if `Y`
+has no bits set at or above `b`, then for every `s : Nat` and `k ≥ b + 2 * s`,
+`(iter G s Y).testBit k = false`. -/
+theorem testBit_iter_G_eq_false_of_ge {Y b : Nat} (hY : ∀ i, b ≤ i → Y.testBit i = false)
+    (s : Nat) : ∀ {k : Nat}, b + 2 * s ≤ k → (iter G s Y).testBit k = false := by
+  induction s with
+  | zero =>
+    intro k hk
+    exact hY k (by omega)
+  | succ s ih =>
+    intro k hk
+    show (G (iter G s Y)).testBit k = false
+    exact testBit_G_eq_false_of_ge (b := b + 2 * s) (fun i hi => ih hi) (by omega)
+
+/-- **All-Time Outward Top-Bit Shift of `iter F` (`testBit_iter_F_add_of_top`):** if bit `m` of
+`Y` is `true` and all bits above `m` are `false`, then for every `t : Nat`,
+`(iter F t Y).testBit (m + t) = true`. -/
+theorem testBit_iter_F_add_of_top {Y m : Nat} (hm : Y.testBit m = true)
+    (htop : ∀ i, m < i → Y.testBit i = false) :
+    ∀ t : Nat, (iter F t Y).testBit (m + t) = true
+  | 0 => hm
+  | t + 1 => by
+    show (F (iter F t Y)).testBit (m + t + 1) = true
+    refine testBit_F_succ_of_top (testBit_iter_F_add_of_top hm htop t) (fun i hi => ?_)
+    exact testBit_iter_F_eq_false_of_ge (b := m + 1) (fun j hj => htop j (by omega)) t (by omega)
+
+/-- **All-Time Outward Top-Bit Shift of `iter G` (`testBit_iter_G_add_two_mul_of_top`):** if bit
+`m` of `Y` is `true` and all bits above `m` are `false`, then for every `s : Nat`,
+`(iter G s Y).testBit (m + 2 * s) = true`. -/
+theorem testBit_iter_G_add_two_mul_of_top {Y m : Nat} (hm : Y.testBit m = true)
+    (htop : ∀ i, m < i → Y.testBit i = false) :
+    ∀ s : Nat, (iter G s Y).testBit (m + 2 * s) = true
+  | 0 => hm
+  | s + 1 => by
+    show (G (iter G s Y)).testBit (m + 2 * s + 2) = true
+    refine testBit_G_add_two_of_top (testBit_iter_G_add_two_mul_of_top hm htop s) (fun i hi => ?_)
+    exact testBit_iter_G_eq_false_of_ge (b := m + 1) (fun j hj => htop j (by omega)) s (by omega)
+
+/-- **Strict Time-Injectivity of `iter F` (`iter_F_ne_of_lt_of_top`):** if bit `m` of `Y` is
+`true` and all bits above `m` are `false`, then `iter F t₁ Y ≠ iter F t₂ Y` for all `t₁ < t₂`. -/
+theorem iter_F_ne_of_lt_of_top {Y m t₁ t₂ : Nat} (hm : Y.testBit m = true)
+    (htop : ∀ i, m < i → Y.testBit i = false) (hlt : t₁ < t₂) :
+    iter F t₁ Y ≠ iter F t₂ Y := by
+  intro heq
+  have hbit := congrArg (fun z : Nat => z.testBit (m + t₂)) heq
+  have hfalse : (iter F t₁ Y).testBit (m + t₂) = false :=
+    testBit_iter_F_eq_false_of_ge (b := m + 1) (fun j hj => htop j (by omega)) t₁ (by omega)
+  have htrue : (iter F t₂ Y).testBit (m + t₂) = true :=
+    testBit_iter_F_add_of_top hm htop t₂
+  rw [hfalse, htrue] at hbit
+  cases hbit
+
+/-- **Strict Time-Injectivity of `iter G` (`iter_G_ne_of_lt_of_top`):** if bit `m` of `Y` is
+`true` and all bits above `m` are `false`, then `iter G s₁ Y ≠ iter G s₂ Y` for all `s₁ < s₂`. -/
+theorem iter_G_ne_of_lt_of_top {Y m s₁ s₂ : Nat} (hm : Y.testBit m = true)
+    (htop : ∀ i, m < i → Y.testBit i = false) (hlt : s₁ < s₂) :
+    iter G s₁ Y ≠ iter G s₂ Y := by
+  intro heq
+  have hbit := congrArg (fun z : Nat => z.testBit (m + 2 * s₂)) heq
+  have hfalse : (iter G s₁ Y).testBit (m + 2 * s₂) = false :=
+    testBit_iter_G_eq_false_of_ge (b := m + 1) (fun j hj => htop j (by omega)) s₁ (by omega)
+  have htrue : (iter G s₂ Y).testBit (m + 2 * s₂) = true :=
+    testBit_iter_G_add_two_mul_of_top hm htop s₂
+  rw [hfalse, htrue] at hbit
+  cases hbit
+
 end IntegerForm
 
 end Rule30ZeroBoundary
