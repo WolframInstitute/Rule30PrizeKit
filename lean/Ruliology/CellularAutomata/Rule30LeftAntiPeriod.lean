@@ -1582,5 +1582,85 @@ theorem evAntiPer_iff_evPer_two_mul_and_all_subseq_halfDensity
   · rintro ⟨⟨T₀, hper⟩, hhd⟩
     exact ⟨M * T₀, antiPeriodic_of_periodic_two_mul_and_all_subseq_halfDensity hM hper hhd⟩
 
+/-! ### Stride-Division Anti-Period Reduction (`d * q -> q`), Divisor-Stride `HalfDensity`, and the Dyadic Anti-Periodicity Tower -/
+
+/-- **Stride-Division Anti-Period Reduction (`subseq_antiPeriodic_of_antiPeriodic_mul`):** for
+`0 < d`, if `∀ t ≥ T₀, f (t + d * q) = !f t`, then for every residue `r : Nat` and `k ≥ T₀`,
+`subseq f d r (k + q) = !subseq f d r k`. -/
+theorem subseq_antiPeriodic_of_antiPeriodic_mul {f : Nat → Bool} {d q T₀ : Nat} (hd : 0 < d)
+    (hanti : ∀ t : Nat, T₀ ≤ t → f (t + d * q) = !f t) (r : Nat) :
+    ∀ k : Nat, T₀ ≤ k → subseq f d r (k + q) = !subseq f d r k := by
+  intro k hk
+  have hge : T₀ ≤ r + k * d := by
+    have : T₀ * d ≤ k * d := Nat.mul_le_mul_right d hk
+    have : T₀ ≤ T₀ * d := Nat.le_mul_of_pos_right T₀ hd
+    omega
+  simp only [subseq]
+  have hs : r + (k + q) * d = (r + k * d) + d * q := by
+    rw [Nat.add_mul, Nat.mul_comm q d, Nat.add_assoc]
+  rw [hs]
+  exact hanti (r + k * d) hge
+
+/-- **Global `(d * q)`-Anti-Periodicity from All-Residue Stride-`d` `q`-Anti-Periodicity
+(`antiPeriodic_mul_of_all_subseq_antiPeriodic`):** if `0 < d` and for every `r < d`,
+`∀ k ≥ T₀, subseq f d r (k + q) = !subseq f d r k`, then `∀ t ≥ d * T₀, f (t + d * q) = !f t`. -/
+theorem antiPeriodic_mul_of_all_subseq_antiPeriodic {f : Nat → Bool} {d q T₀ : Nat} (hd : 0 < d)
+    (hsub : ∀ r : Nat, r < d → ∀ k : Nat, T₀ ≤ k → subseq f d r (k + q) = !subseq f d r k) :
+    ∀ t : Nat, d * T₀ ≤ t → f (t + d * q) = !f t := by
+  intro t ht
+  let k := t / d
+  let r := t % d
+  have hr : r < d := Nat.mod_lt t hd
+  have hdiv : d * k + r = t := Nat.div_add_mod t d
+  have hk : T₀ ≤ k := by
+    refine Classical.byContradiction fun hlt => ?_
+    have hk1 : k + 1 ≤ T₀ := by omega
+    have hmul : d * (k + 1) ≤ d * T₀ := Nat.mul_le_mul_left d hk1
+    rw [Nat.mul_add, Nat.mul_one] at hmul
+    omega
+  have hstep := hsub r hr k hk
+  simp only [subseq] at hstep
+  have hd1 : r + k * d = t := by rw [Nat.mul_comm k d]; omega
+  have ht1 : r + (k + q) * d = t + d * q := by
+    rw [Nat.add_mul, Nat.mul_comm k d, Nat.mul_comm q d]; omega
+  rw [ht1, hd1] at hstep
+  exact hstep
+
+/-- **Divisor-Stride `HalfDensity` from `(d * q)`-Anti-Periodicity
+(`subseq_halfDensity_of_antiPeriodic_mul`):** if `0 < d`, `0 < q`, and
+`∀ t ≥ T₀, f (t + d * q) = !f t`, then `HalfDensity (subseq f d r)` holds for every residue `r : Nat`. -/
+theorem subseq_halfDensity_of_antiPeriodic_mul {f : Nat → Bool} {d q T₀ : Nat}
+    (hd : 0 < d) (hq : 0 < q)
+    (hanti : ∀ t : Nat, T₀ ≤ t → f (t + d * q) = !f t) (r : Nat) :
+    HalfDensity (subseq f d r) :=
+  halfDensity_of_antiperiodic hq ⟨T₀, subseq_antiPeriodic_of_antiPeriodic_mul hd hanti r⟩
+
+/-- **Full Dyadic Tower Characterization of Eventual `(2 ^ K)`-Anti-Periodicity
+(`evAntiPer_two_pow_iff_evPer_two_pow_succ_and_dyadic_tower_halfDensity`):** for any `K : Nat`,
+`f` is eventually `(2 ^ K)`-anti-periodic (`∃ T, ∀ t ≥ T, f (t + 2 ^ K) = !f t`) if and only if
+`EvPer f (2 ^ (K + 1))` holds and `HalfDensity (subseq f (2 ^ a) r)` holds at every intermediate
+dyadic scale `a ≤ K` and residue `r < 2 ^ a`. -/
+theorem evAntiPer_two_pow_iff_evPer_two_pow_succ_and_dyadic_tower_halfDensity
+    (f : Nat → Bool) (K : Nat) :
+    (∃ T : Nat, ∀ t : Nat, T ≤ t → f (t + 2 ^ K) = !f t) ↔
+      (EvPer f (2 ^ (K + 1)) ∧ ∀ a : Nat, a ≤ K → ∀ r : Nat, r < 2 ^ a → HalfDensity (subseq f (2 ^ a) r)) := by
+  have h2K : 0 < 2 ^ K := Nat.two_pow_pos K
+  have hpow : 2 ^ (K + 1) = 2 * 2 ^ K := by rw [Nat.pow_succ]; omega
+  constructor
+  · rintro ⟨T, hanti⟩
+    have hper : EvPer f (2 ^ (K + 1)) := by
+      rw [hpow]
+      exact ((evAntiPer_iff_evPer_two_mul_and_all_subseq_halfDensity h2K).mp ⟨T, hanti⟩).1
+    refine ⟨hper, fun a ha r _ => ?_⟩
+    have hsplit : 2 ^ K = 2 ^ a * 2 ^ (K - a) := by
+      rw [← Nat.pow_add, Nat.add_sub_of_le ha]
+    have hanti_mul : ∀ t : Nat, T ≤ t → f (t + 2 ^ a * 2 ^ (K - a)) = !f t := by
+      intro t ht; rw [← hsplit]; exact hanti t ht
+    exact subseq_halfDensity_of_antiPeriodic_mul (Nat.two_pow_pos a) (Nat.two_pow_pos (K - a)) hanti_mul r
+  · rintro ⟨hper, htower⟩
+    rw [hpow] at hper
+    exact (evAntiPer_iff_evPer_two_mul_and_all_subseq_halfDensity h2K).mpr
+      ⟨hper, fun r hr => htower K (Nat.le_refl K) r hr⟩
+
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
