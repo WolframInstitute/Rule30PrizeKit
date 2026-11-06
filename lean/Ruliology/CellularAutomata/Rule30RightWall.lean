@@ -1469,6 +1469,76 @@ theorem fwN_testBit_low_iff (k N y₁ y₂ : Nat) :
   have h2 := iter_fw y₂ k
   simpa [h1, h2] using iter_low_iff y₁.testBit y₂.testBit k N
 
+/-! ### Inward Self-Twin Anti-Periodicity, Unconditional `2 * P` Layer Return, and the `2 ^ d * P` Inward Periodicity Tower -/
+
+/-- **Global Collar Periodicity from One-Period Return (`iter_low_periodic_of_return`):** if
+`∀ j < N, iter x P j = x j`, then `∀ k, ∀ j < N, iter x (P + k) j = iter x k j`. -/
+theorem iter_low_periodic_of_return {x : Row} {N P : Nat}
+    (hret : ∀ j : Nat, j < N → iter x P j = x j) (k : Nat) :
+    ∀ j : Nat, j < N → iter x (P + k) j = iter x k j := by
+  rw [iter_add]
+  exact (iter_low_iff (iter x P) x k N).mpr hret
+
+/-- **Coherent Inward Period Preservation (`iter_periodic_at_low_boundary`):** if the outer
+collar `j < N` returns at step `P` (`∀ j < N, iter x P j = x j`) and depth `N` also returns
+(`iter x P N = x N`), then depth `N` is `P`-periodic for all time (`∀ k, iter x (P + k) N = iter x k N`). -/
+theorem iter_periodic_at_low_boundary {x : Row} {N P : Nat}
+    (hret : ∀ j : Nat, j < N → iter x P j = x j)
+    (hN : iter x P N = x N) (k : Nat) :
+    iter x (P + k) N = iter x k N := by
+  have hret_succ : ∀ j : Nat, j < N + 1 → iter x P j = x j := by
+    intro j hj
+    rcases Nat.lt_or_eq_of_le (Nat.lt_succ_iff.mp hj) with hlt | rfl
+    · exact hret j hlt
+    · exact hN
+  exact iter_low_periodic_of_return hret_succ k N (Nat.lt_succ_self N)
+
+/-- **Self-Twin Inward Anti-Periodicity (`iter_antiperiodic_at_low_boundary`):** if the outer
+collar `j < N` returns at step `P` (`∀ j < N, iter x P j = x j`) while depth `N` flips into its
+boundary twin (`iter x P N = !x N`), then depth `N` is globally `P`-anti-periodic for all time
+(`∀ k, iter x (P + k) N = !iter x k N`). -/
+theorem iter_antiperiodic_at_low_boundary {x : Row} {N P : Nat}
+    (hret : ∀ j : Nat, j < N → iter x P j = x j)
+    (hflip : iter x P N = !x N) (k : Nat) :
+    iter x (P + k) N = !iter x k N := by
+  rw [iter_add]
+  exact iter_flip_at_low_boundary hret hflip k
+
+/-- **Unconditional `(2 * P)`-Return of the Next Inward Layer
+(`iter_return_two_mul_of_low_return`):** whenever the outer collar `j < N` returns at step `P`
+(`∀ j < N, iter x P j = x j`), the expanded collar `j < N + 1` unconditionally returns at step
+`2 * P` (`∀ j < N + 1, iter x (2 * P) j = x j`). -/
+theorem iter_return_two_mul_of_low_return {x : Row} {N P : Nat}
+    (hret : ∀ j : Nat, j < N → iter x P j = x j) :
+    ∀ j : Nat, j < N + 1 → iter x (2 * P) j = x j := by
+  intro j hj
+  have h2P : 2 * P = P + P := by omega
+  rw [h2P]
+  rcases Nat.lt_or_eq_of_le (Nat.lt_succ_iff.mp hj) with hlt | rfl
+  · rw [iter_low_periodic_of_return hret P j hlt, hret j hlt]
+  · by_cases hN : iter x P j = x j
+    · rw [iter_periodic_at_low_boundary hret hN P, hN]
+    · have hflip : iter x P j = !x j := by
+        revert hN; cases iter x P j <;> cases x j <;> decide
+      rw [iter_antiperiodic_at_low_boundary hret hflip P, hflip, Bool.not_not]
+
+/-- **The Inward `2 ^ d * P` Complexity & Periodicity Tower (`iter_return_two_pow_mul`):** if
+the outer collar `j < N` returns at step `P` (`∀ j < N, iter x P j = x j`), then for every
+additional inward depth `d : Nat`, the collar `j < N + d` returns at step `2 ^ d * P`. -/
+theorem iter_return_two_pow_mul {x : Row} {N P : Nat}
+    (hret : ∀ j : Nat, j < N → iter x P j = x j) (d : Nat) :
+    ∀ j : Nat, j < N + d → iter x (2 ^ d * P) j = x j := by
+  induction d with
+  | zero =>
+    intro j hj
+    simpa using hret j hj
+  | succ d ih =>
+    intro j hj
+    have hpow : 2 ^ (d + 1) * P = 2 * (2 ^ d * P) := by
+      rw [Nat.pow_succ, Nat.mul_comm (2 ^ d) 2, Nat.mul_assoc]
+    rw [hpow]
+    exact iter_return_two_mul_of_low_return ih j (by omega)
+
 end WindowClosed
 
 end Ruliology.CellularAutomata.Rule30RightWall
