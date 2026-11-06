@@ -36,6 +36,7 @@ public import Ruliology.CellularAutomata.Rule30PeriodFourSkeleton
 public import Ruliology.CellularAutomata.Rule30Diagonals
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryLanes
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryWidth52
+public import Ruliology.CellularAutomata.Rule30FirstChecks
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryStripeFront
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryStripeFamily
 public import Ruliology.CellularAutomata.Rule30EtherTrap
