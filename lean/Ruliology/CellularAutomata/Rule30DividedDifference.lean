@@ -556,4 +556,121 @@ theorem hasLeftEdge_xor_of_lt {a b : Int → Bool} {u v : Int}
   · simp only [ha.1, hb.2 u huv, Bool.true_xor, Bool.not_false]
   · simp only [ha.2 p hp, hb.2 p (by omega), Bool.xor_self]
 
+/-! ### Canonical Seed Shift-Difference Modes and Bidirectional Divided-Difference Characterizations of `EdgeObservable` and `Problem1` -/
+
+open Ruliology.CellularAutomata.Rule30TraceEdge
+  (hasLeftEdge_evol_seed SeedTraceShiftFree problem1_iff_seedTraceShiftFree)
+
+/-- **Canonical Seed Shift-Difference Mode (`seedDiffMode`):** initial XOR difference between
+`evol seed (T + P)` and `evol seed T`. -/
+def seedDiffMode (T P : Nat) (p : Int) : Bool :=
+  xor (evol seed (T + P) p) (evol seed T p)
+
+/-- **Exact Left Edge of `seedDiffMode` (`hasLeftEdge_seedDiffMode`):** for any `T P : Nat`
+with `0 < P`, `HasLeftEdge (seedDiffMode T P) (-((T + P : Nat) : Int))`. -/
+theorem hasLeftEdge_seedDiffMode (T : Nat) {P : Nat} (hP : 0 < P) :
+    HasLeftEdge (seedDiffMode T P) (-((T + P : Nat) : Int)) :=
+  hasLeftEdge_xor_of_lt (hasLeftEdge_evol_seed (T + P)) (hasLeftEdge_evol_seed T) (by omega)
+
+/-- **All-Gauge Common-Field Property of `seedDiffMode` (`commonField_seedDiffMode`):** for any
+`T P : Nat` and local gauge `g`, `Front.mode (evol seed (T + P)) (evol seed T) g (seedDiffMode T P)`
+satisfies `CommonField (evol seed (T + P)) (evol seed T)`. -/
+theorem commonField_seedDiffMode (T P : Nat) (g : Nat → Int → Bool) :
+    CommonField (evol seed (T + P)) (evol seed T)
+      (Front.mode (evol seed (T + P)) (evol seed T) g (seedDiffMode T P)) :=
+  commonField_of_zeroGauge g (actual_difference_common (evol seed (T + P)) (evol seed T))
+
+/-- **Unconditional Left-of-Edge Observability of `seedDiffMode`
+(`seedDiffMode_observable_le_edge`):** for any `T P : Nat` with `0 < P`, local gauge `g`, and
+column `p ≤ -((T + P : Nat) : Int)`,
+`Front.mode (evol seed (T + P)) (evol seed T) g (seedDiffMode T P) (-((T + P : Nat) : Int) - p).toNat p = true`. -/
+theorem seedDiffMode_observable_le_edge (T : Nat) {P : Nat} (hP : 0 < P)
+    (g : Nat → Int → Bool) {p : Int} (hp : p ≤ -((T + P : Nat) : Int)) :
+    Front.mode (evol seed (T + P)) (evol seed T) g (seedDiffMode T P)
+      (-((T + P : Nat) : Int) - p).toNat p = true :=
+  Front.mode_observable_of_le_edge g
+    (hasLeftEdge_evol_seed (T + P)).2
+    (fun q hq => (hasLeftEdge_evol_seed T).2 q (by omega))
+    (hasLeftEdge_seedDiffMode T hP)
+    hp
+
+/-- **Exact Bidirectional Divided-Difference Characterization of `EdgeObservable`
+(`edgeObservable_iff_pairDiff_center_observable`):** `EdgeObservable` holds if and only if for
+every pair of finite configurations `a, b` with left edges `u < v`, their pair-difference mode
+`Front.mode a b zeroGauge (fun p => xor (a p) (b p))` reaches `true` at column `0`. -/
+theorem edgeObservable_iff_pairDiff_center_observable :
+    EdgeObservable ↔
+      (∀ (a b : Int → Bool) (u v : Int),
+        FinConfig a → FinConfig b → HasLeftEdge a u → HasLeftEdge b v → u < v →
+        ∃ t : Nat, Front.mode a b zeroGauge (fun p => xor (a p) (b p)) t 0 = true) := by
+  constructor
+  · intro hEO a b u v hfa hfb ha hb huv
+    refine Classical.byContradiction fun hno => ?_
+    have heq : ∀ t : Nat, evol a t 0 = evol b t 0 := by
+      intro t
+      have ht : Front.mode a b zeroGauge (fun p => xor (a p) (b p)) t 0 = false := by
+        cases hbit : Front.mode a b zeroGauge (fun p => xor (a p) (b p)) t 0
+        · rfl
+        · exact False.elim (hno ⟨t, hbit⟩)
+      rw [Front.actual_difference] at ht
+      revert ht; cases evol a t 0 <;> cases evol b t 0 <;> decide
+    have huv_eq := hEO a b hfa hfb u v ha hb heq
+    omega
+  · intro hpair a b hfa hfb u v ha hb heq
+    rcases Int.lt_trichotomy u v with huv | huv | huv
+    · obtain ⟨t, ht⟩ := hpair a b u v hfa hfb ha hb huv
+      rw [Front.actual_difference, heq t, Bool.xor_self] at ht
+      cases ht
+    · exact huv
+    · obtain ⟨t, ht⟩ := hpair b a v u hfb hfa hb ha huv
+      rw [Front.actual_difference, (heq t).symm, Bool.xor_self] at ht
+      cases ht
+
+/-- **Exact Bidirectional Divided-Difference Characterization of `Problem1`
+(`problem1_iff_seedDiffMode_center_observable`):** `Rule30Prize.Problem1` (**open**) holds if
+and only if for every `T P : Nat` with `0 < P`, the canonical shift-difference mode
+`seedDiffMode T P` reaches `true` at column `0` at some time `t : Nat`. -/
+theorem problem1_iff_seedDiffMode_center_observable :
+    Rule30Prize.Problem1 ↔
+      (∀ T P : Nat, 0 < P →
+        ∃ t : Nat,
+          Front.mode (evol seed (T + P)) (evol seed T) zeroGauge (seedDiffMode T P) t 0 = true) := by
+  rw [problem1_iff_seedTraceShiftFree]
+  constructor
+  · intro hS T P hP
+    refine Classical.byContradiction fun hno => hS T P hP (fun t => ?_)
+    have ht : Front.mode (evol seed (T + P)) (evol seed T) zeroGauge (seedDiffMode T P) t 0 = false := by
+      cases hbit : Front.mode (evol seed (T + P)) (evol seed T) zeroGauge (seedDiffMode T P) t 0
+      · rfl
+      · exact False.elim (hno ⟨t, hbit⟩)
+    unfold seedDiffMode at ht
+    rw [Front.actual_difference] at ht
+    revert ht
+    cases evol (evol seed T) t 0 <;> cases evol (evol seed (T + P)) t 0 <;> decide
+  · intro hobs T P hP heq
+    obtain ⟨t, ht⟩ := hobs T P hP
+    unfold seedDiffMode at ht
+    rw [Front.actual_difference, (heq t).symm, Bool.xor_self] at ht
+    cases ht
+
+/-- **All-Gauge Divided-Difference Equivalence for `Problem1`
+(`problem1_iff_seedDiffMode_any_gauge_center_observable`):** `Rule30Prize.Problem1` (**open**)
+holds if and only if for every local gauge `g` and every `T P : Nat` with `0 < P`,
+`Front.mode (evol seed (T + P)) (evol seed T) g (seedDiffMode T P)` reaches `true` at column `0`. -/
+theorem problem1_iff_seedDiffMode_any_gauge_center_observable :
+    Rule30Prize.Problem1 ↔
+      (∀ (g : Nat → Int → Bool) (T P : Nat), 0 < P →
+        ∃ t : Nat,
+          Front.mode (evol seed (T + P)) (evol seed T) g (seedDiffMode T P) t 0 = true) := by
+  rw [problem1_iff_seedDiffMode_center_observable]
+  constructor
+  · intro h0 g T P hP
+    obtain ⟨t, ht⟩ := h0 T P hP
+    refine ⟨t, ?_⟩
+    unfold seedDiffMode at ht ⊢
+    rw [Front.actual_difference] at ht ⊢
+    exact ht
+  · intro hg T P hP
+    exact hg zeroGauge T P hP
+
 end Ruliology.CellularAutomata.Rule30DividedDifference
