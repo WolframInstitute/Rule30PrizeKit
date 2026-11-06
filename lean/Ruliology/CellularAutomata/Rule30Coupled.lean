@@ -920,5 +920,123 @@ theorem problem1_of_subseq_two_four_halfDensity_and_problem2_and_canonical_balan
       · exact ⟨r₂, hd4⟩)
     hP2 hCQ
 
+/-! ### Exhaustive Classification of 4-Anti-Periodic Columns into Two Necklaces (`w00001111Col`, `w00101101Col`) and Period-8 Coupled Discharge -/
+
+/-- **The Canonical 8-Periodic 4-Contiguous-Black Column (`w00001111Col`):**
+`w00001111Col t = decide (4 ≤ t % 8)`, repeating `[false, false, false, false, true, true, true, true]`. -/
+def w00001111Col (t : Nat) : Bool := decide (4 ≤ t % 8)
+
+/-- **The Canonical 8-Periodic `00101101` Necklace Column (`w00101101Col`):** repeating
+`[false, false, true, false, true, true, false, true]`. -/
+def w00101101Col (t : Nat) : Bool :=
+  let r := t % 8
+  decide (r = 2 ∨ r = 4 ∨ r = 5 ∨ r = 7)
+
+/-- **Exhaustive 8-Bit Shift Classification of 4-Anti-Periodic Columns
+(`antiPeriodic_four_shift_eq_w00001111Col_or_w00101101Col`):** every sequence `ω : Nat → Bool`
+satisfying `∀ t, ω (t + 4) = !ω t` is a cyclic shift of either `w00001111Col` or `w00101101Col`. -/
+theorem antiPeriodic_four_shift_eq_w00001111Col_or_w00101101Col {ω : Nat → Bool}
+    (hanti : ∀ t : Nat, ω (t + 4) = !ω t) :
+    (∃ s : Nat, ∀ t : Nat, ω (t + s) = w00001111Col t) ∨
+    (∃ s : Nat, ∀ t : Nat, ω (t + s) = w00101101Col t) := by
+  have hper8 : ∀ t : Nat, ω (t + 8) = ω t := fun t => by
+    rw [show t + 8 = (t + 4) + 4 by omega, hanti (t + 4), hanti t, Bool.not_not]
+  have hmod8 : ∀ t : Nat, ω t = ω (t % 8) := fun t => by
+    have hdiv : ∀ q r : Nat, ω (r + 8 * q) = ω r := by
+      intro q r; induction q with
+      | zero => simp
+      | succ q ih => rw [Nat.mul_succ, ← Nat.add_assoc, hper8, ih]
+    conv => lhs; rw [← Nat.mod_add_div t 8]
+    exact hdiv (t / 8) (t % 8)
+  have h4 : ω 4 = !ω 0 := hanti 0
+  have h5 : ω 5 = !ω 1 := hanti 1
+  have h6 : ω 6 = !ω 2 := hanti 2
+  have h7 : ω 7 = !ω 3 := hanti 3
+  have hdec : ∀ b₀ b₁ b₂ b₃ : Bool,
+      (∃ s < 8, ∀ r < 8,
+        (let idx := (r + s) % 8
+         if idx = 0 then b₀ else if idx = 1 then b₁ else if idx = 2 then b₂ else if idx = 3 then b₃
+         else if idx = 4 then !b₀ else if idx = 5 then !b₁ else if idx = 6 then !b₂ else !b₃) =
+        w00001111Col r) ∨
+      (∃ s < 8, ∀ r < 8,
+        (let idx := (r + s) % 8
+         if idx = 0 then b₀ else if idx = 1 then b₁ else if idx = 2 then b₂ else if idx = 3 then b₃
+         else if idx = 4 then !b₀ else if idx = 5 then !b₁ else if idx = 6 then !b₂ else !b₃) =
+        w00101101Col r) := by decide
+  have hlookup : ∀ n : Nat, ω n =
+      (let idx := n % 8
+       if idx = 0 then ω 0 else if idx = 1 then ω 1 else if idx = 2 then ω 2 else if idx = 3 then ω 3
+       else if idx = 4 then !ω 0 else if idx = 5 then !ω 1 else if idx = 6 then !ω 2 else !ω 3) := by
+    intro n
+    rw [hmod8 n]
+    have hlt : n % 8 < 8 := Nat.mod_lt n (by decide)
+    rcases (by omega : n % 8 = 0 ∨ n % 8 = 1 ∨ n % 8 = 2 ∨ n % 8 = 3 ∨
+                       n % 8 = 4 ∨ n % 8 = 5 ∨ n % 8 = 6 ∨ n % 8 = 7) with
+      h | h | h | h | h | h | h | h <;> simp [h, h4, h5, h6, h7]
+  rcases hdec (ω 0) (ω 1) (ω 2) (ω 3) with ⟨s, _, hs⟩ | ⟨s, _, hs⟩
+  · left; refine ⟨s, fun t => ?_⟩
+    rw [hlookup (t + s)]
+    have hmod_add : (t + s) % 8 = (t % 8 + s) % 8 := by omega
+    have hw : w00001111Col t = w00001111Col (t % 8) := by
+      unfold w00001111Col; rw [Nat.mod_mod]
+    rw [hmod_add, hw]
+    exact hs (t % 8) (Nat.mod_lt t (by decide))
+  · right; refine ⟨s, fun t => ?_⟩
+    rw [hlookup (t + s)]
+    have hmod_add : (t + s) % 8 = (t % 8 + s) % 8 := by omega
+    have hw : w00101101Col t = w00101101Col (t % 8) := by
+      unfold w00101101Col; rw [Nat.mod_mod]
+    rw [hmod_add, hw]
+    exact hs (t % 8) (Nat.mod_lt t (by decide))
+
+/-- **Discharging All 4-Anti-Periodic Columns from `CQ w00001111Col` and `CQ w00101101Col`
+(`CQ_of_antiPeriodic_four`):** if `CQ w00001111Col` (**open**) and `CQ w00101101Col` (**open**)
+hold, then `CQ ω` holds for every 4-anti-periodic sequence `ω` (`∀ t, ω (t + 4) = !ω t`). -/
+theorem CQ_of_antiPeriodic_four {ω : Nat → Bool}
+    (h1 : CQ w00001111Col) (h2 : CQ w00101101Col)
+    (hanti : ∀ t : Nat, ω (t + 4) = !ω t) : CQ ω := by
+  rcases antiPeriodic_four_shift_eq_w00001111Col_or_w00101101Col hanti with ⟨s, hs⟩ | ⟨s, hs⟩
+  · rw [CQ_iff_no_finite_config] at h1 ⊢
+    rintro ⟨c, hfin, hcol⟩
+    refine h1 ⟨fun p => evol c s p, evol_finConfig hfin s, fun t => ?_⟩
+    rw [Rule30ZeroBoundaryBarriers.evol_restart c s t 0, hcol (s + t), Nat.add_comm s t, hs t]
+  · rw [CQ_iff_no_finite_config] at h2 ⊢
+    rintro ⟨c, hfin, hcol⟩
+    refine h2 ⟨fun p => evol c s p, evol_finConfig hfin s, fun t => ?_⟩
+    rw [Rule30ZeroBoundaryBarriers.evol_restart c s t 0, hcol (s + t), Nat.add_comm s t, hs t]
+
+/-- **Discharging Period 8 (`q = 1`) Under All-Residue Stride-4 `HalfDensity` and `CQ` on the Two
+Anti-Periodic Necklaces (`CQ_of_periodic_eight_and_all_subseq_four_halfDensity`):** if
+`∀ t, ω (t + 8) = ω t`, `∀ r < 4, HalfDensity (subseq ω 4 r)`, `CQ w00001111Col` (**open**),
+and `CQ w00101101Col` (**open**), then `CQ ω` holds. -/
+theorem CQ_of_periodic_eight_and_all_subseq_four_halfDensity {ω : Nat → Bool}
+    (h1 : CQ w00001111Col) (h2 : CQ w00101101Col)
+    (hper8 : ∀ t : Nat, ω (t + 8) = ω t)
+    (hhd4 : ∀ r : Nat, r < 4 → Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq ω 4 r)) :
+    CQ ω :=
+  CQ_of_antiPeriodic_four h1 h2
+    (fun t => Rule30LeftAntiPeriod.antiPeriodic_of_periodic_two_mul_and_all_subseq_halfDensity
+      (M := 4) (T₀ := 0) (by decide) (fun j _ => hper8 j) hhd4 t (Nat.zero_le t))
+
+/-- **Exclusion of Eventual 4-Anti-Periodicity of `center` Under `CQ w00001111Col` and
+`CQ w00101101Col` (`not_eventually_antiPeriodic_four_of_CQ`):** under `CQ w00001111Col`
+(**open**) and `CQ w00101101Col` (**open**), `Rule30Prize.center` is never eventually
+4-anti-periodic. -/
+theorem not_eventually_antiPeriodic_four_of_CQ
+    (h1 : CQ w00001111Col) (h2 : CQ w00101101Col) :
+    ¬ ∃ T : Nat, ∀ t : Nat, T ≤ t → Rule30Prize.center (t + 4) = !Rule30Prize.center t := by
+  rintro ⟨T, hanti⟩
+  let ω : Nat → Bool := fun t => Rule30Prize.center (T + t)
+  have hanti_ω : ∀ t : Nat, ω (t + 4) = !ω t := fun t => by
+    show Rule30Prize.center (T + (t + 4)) = !Rule30Prize.center (T + t)
+    rw [show T + (t + 4) = (T + t) + 4 by omega]
+    exact hanti (T + t) (by omega)
+  have hC : CQ ω := CQ_of_antiPeriodic_four h1 h2 hanti_ω
+  rw [CQ_iff_no_finite_config] at hC
+  have hseed : FinConfig seed := ⟨0, fun p hp => by show decide (p = 0) = false; simp; omega⟩
+  refine hC ⟨fun p => evol seed T p, evol_finConfig hseed T, fun t => ?_⟩
+  rw [Rule30ZeroBoundaryBarriers.evol_restart seed T t 0]
+  exact evol_seed (T + t) 0
+
 end Rule30Coupled
 end Ruliology.CellularAutomata
