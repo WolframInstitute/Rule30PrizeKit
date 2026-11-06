@@ -33,9 +33,10 @@ Control, `survival_counting_fails_without_runBound`: the counting inequality is 
 general, so the run bound is what carries it.
 
 Relation to `Rule30PeriodTwo.Q01`: mortality implies `Q01`
-(`Rule30AlternatingTraceBridge.Q01_of_mortality`, which has the proof). The converse is not proved and
-not known: mortality quantifies over every legal frontier, including ones not read off any left half.
-So a repeat budget, being equivalent to mortality, is at least as strong a target as `Q01`.
+(`Rule30AlternatingTraceBridge.Q01_of_mortality`, which has the proof), and `Q01` implies mortality
+(`Rule30FrontierChart.mortality_of_Q01`), although mortality quantifies over every legal frontier,
+including ones not read off any left half. So a repeat budget at every length is `Q01`
+(`Rule30FrontierChart.budget_iff_Q01`).
 
 Nothing here proves a budget, a capacity bound or mortality, and nothing here bounds the center
 column of Rule 30; Problems 1 to 3 stay open.
