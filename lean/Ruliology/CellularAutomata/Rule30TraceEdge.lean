@@ -2244,6 +2244,819 @@ theorem not_cell_periodic_at_col_le_neg_add_add_twenty_seven (T : Nat) {P : Nat}
   · exact not_cell_periodic_ge_thirty_one_at_col_le_neg_add_add_thirty T h31 (by omega) (by omega)
 
 
+
+
+
+/-- **Thirty-Column Inward Period-4 Exclusion (`not_cell_periodic_four_at_col_le_neg_add_twenty_six`):**
+for every `T : Nat` and column `c ≤ -4` with `c ≤ -(T : Int) + 26` (i.e. `c ≤ -(T + 4) + 30`),
+`¬ (∀ t : Nat, T ≤ t → cell (t + 4) c = cell t c)`. -/
+theorem not_cell_periodic_four_at_col_le_neg_add_twenty_six (T : Nat) {c : Int}
+    (hc0 : c ≤ -4) (hc : c ≤ -(T : Int) + 26) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 4) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 26) (by omega)
+  rw [hc_eq, show (s + 26) + 4 = s + 30 by omega, col_at_26 s (by omega), col_at_30 s (by omega)] at h0
+  have h1 := hper (s + 27) (by omega)
+  rw [hc_eq, show (s + 27) + 4 = s + 31 by omega, col_at_27 s (by omega), col_at_31 s (by omega)] at h1
+  have h2 := hper (s + 28) (by omega)
+  rw [hc_eq, show (s + 28) + 4 = s + 32 by omega, col_at_28 s (by omega), col_at_32 s (by omega)] at h2
+  have h3 := hper (s + 29) (by omega)
+  rw [hc_eq, show (s + 29) + 4 = s + 33 by omega, col_at_29 s (by omega), col_at_33 s (by omega)] at h3
+  revert h0 h1 h2 h3
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+/-- **Thirty-Three-Column Inward Period-7 Exclusion (`not_cell_periodic_seven_at_col_le_neg_add_twenty_six`):**
+for every `T : Nat` and column `c ≤ -6` with `c ≤ -(T : Int) + 26` (i.e. `c ≤ -(T + 7) + 33`),
+`¬ (∀ t : Nat, T ≤ t → cell (t + 7) c = cell t c)`. -/
+theorem not_cell_periodic_seven_at_col_le_neg_add_twenty_six (T : Nat) {c : Int}
+    (hc0 : c ≤ -6) (hc : c ≤ -(T : Int) + 26) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 7) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 26) (by omega)
+  rw [hc_eq, show (s + 26) + 7 = s + 33 by omega, col_at_26 s (by omega), col_at_33 s (by omega)] at h0
+  have h1 := hper (s + 27) (by omega)
+  rw [hc_eq, show (s + 27) + 7 = s + 34 by omega, col_at_27 s (by omega), col_at_34 s (by omega)] at h1
+  revert h0 h1
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+/-- **Twenty-Eight-Column Inward Period-8 Exclusion (`not_cell_periodic_eight_at_col_le_neg_add_twenty`):**
+for every `T : Nat` and column `c ≤ -4` with `c ≤ -(T : Int) + 20` (i.e. `c ≤ -(T + 8) + 28`),
+`¬ (∀ t : Nat, T ≤ t → cell (t + 8) c = cell t c)`. -/
+theorem not_cell_periodic_eight_at_col_le_neg_add_twenty (T : Nat) {c : Int}
+    (hc0 : c ≤ -4) (hc : c ≤ -(T : Int) + 20) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 8) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 20) (by omega)
+  rw [hc_eq, show (s + 20) + 8 = s + 28 by omega, col_at_20 s (by omega), col_at_28 s (by omega)] at h0
+  have h1 := hper (s + 21) (by omega)
+  rw [hc_eq, show (s + 21) + 8 = s + 29 by omega, col_at_21 s (by omega), col_at_29 s (by omega)] at h1
+  have h2 := hper (s + 22) (by omega)
+  rw [hc_eq, show (s + 22) + 8 = s + 30 by omega, col_at_22 s (by omega), col_at_30 s (by omega)] at h2
+  have h3 := hper (s + 24) (by omega)
+  rw [hc_eq, show (s + 24) + 8 = s + 32 by omega, col_at_24 s (by omega), col_at_32 s (by omega)] at h3
+  revert h0 h1 h2 h3
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+/-- **Thirty-Two-Column Inward Period-15 Exclusion (`not_cell_periodic_fifteen_at_col_le_neg_add_seventeen`):**
+for every `T : Nat` and column `c ≤ -6` with `c ≤ -(T : Int) + 17` (i.e. `c ≤ -(T + 15) + 32`),
+`¬ (∀ t : Nat, T ≤ t → cell (t + 15) c = cell t c)`. -/
+theorem not_cell_periodic_fifteen_at_col_le_neg_add_seventeen (T : Nat) {c : Int}
+    (hc0 : c ≤ -6) (hc : c ≤ -(T : Int) + 17) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 15) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 17) (by omega)
+  rw [hc_eq, show (s + 17) + 15 = s + 32 by omega, col_at_17 s (by omega), col_at_32 s (by omega)] at h0
+  have h1 := hper (s + 18) (by omega)
+  rw [hc_eq, show (s + 18) + 15 = s + 33 by omega, col_at_18 s (by omega), col_at_33 s (by omega)] at h1
+  have h2 := hper (s + 19) (by omega)
+  rw [hc_eq, show (s + 19) + 15 = s + 34 by omega, col_at_19 s (by omega), col_at_34 s (by omega)] at h2
+  revert h0 h1 h2
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+/-- **Thirty-Two-Column Inward Period-16 Exclusion (`not_cell_periodic_sixteen_at_col_le_neg_add_sixteen`):**
+for every `T : Nat` and column `c ≤ -6` with `c ≤ -(T : Int) + 16` (i.e. `c ≤ -(T + 16) + 32`),
+`¬ (∀ t : Nat, T ≤ t → cell (t + 16) c = cell t c)`. -/
+theorem not_cell_periodic_sixteen_at_col_le_neg_add_sixteen (T : Nat) {c : Int}
+    (hc0 : c ≤ -6) (hc : c ≤ -(T : Int) + 16) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 16) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 16) (by omega)
+  rw [hc_eq, show (s + 16) + 16 = s + 32 by omega, col_at_16 s (by omega), col_at_32 s (by omega)] at h0
+  have h1 := hper (s + 18) (by omega)
+  rw [hc_eq, show (s + 18) + 16 = s + 34 by omega, col_at_18 s (by omega), col_at_34 s (by omega)] at h1
+  revert h0 h1
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+/-- **All-Period Unconditional 28-Column Inward Non-Periodicity
+(`not_cell_periodic_at_col_le_neg_add_add_twenty_eight`):**
+for every `T : Nat`, every positive period `P > 0`, and every column `c ≤ -6` with
+`c ≤ -((T + P : Nat) : Int) + 28`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_at_col_le_neg_add_add_twenty_eight (T : Nat) {P : Nat} (hP : 0 < P)
+    {c : Int} (hc0 : c ≤ -6) (hc : c ≤ -((T + P : Nat) : Int) + 28) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  rcases (by omega : P = 1 ∨ P = 2 ∨ P = 3 ∨ P = 4 ∨ P = 5 ∨ P = 6 ∨ P = 7 ∨ P = 8 ∨
+      P = 9 ∨ P = 10 ∨ P = 11 ∨ P = 12 ∨ P = 13 ∨ P = 14 ∨ P = 15 ∨ P = 16 ∨ P = 17 ∨
+      P = 18 ∨ P = 19 ∨ P = 20 ∨ P = 21 ∨ P = 22 ∨ P = 23 ∨ P = 24 ∨ P = 25 ∨ P = 26 ∨
+      P = 27 ∨ P = 28 ∨ P = 29 ∨ P = 30 ∨ 31 ≤ P) with
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | h31
+  · exact not_cell_periodic_one_or_two_at_col_le_neg_add_twenty_eight T (by omega) (by omega) (by omega) (by omega)
+  · exact not_cell_periodic_one_or_two_at_col_le_neg_add_twenty_eight T (by omega) (by omega) (by omega) (by omega)
+  · exact not_cell_periodic_three_at_col_le_neg_add_twenty_five T (by omega) (by omega)
+  · exact not_cell_periodic_four_at_col_le_neg_add_twenty_six T (by omega) (by omega)
+  · exact not_cell_periodic_five_at_col_le_neg_add_twenty_five T (by omega) (by omega)
+  · exact not_cell_periodic_six_at_col_le_neg_add_twenty_three T (by omega) (by omega)
+  · exact not_cell_periodic_seven_at_col_le_neg_add_twenty_one T (by omega) (by omega)
+  · exact not_cell_periodic_eight_at_col_le_neg_add_twenty T (by omega) (by omega)
+  · exact not_cell_periodic_nine_at_col_le_neg_add_twenty_two T (by omega) (by omega)
+  · exact not_cell_periodic_ten_at_col_le_neg_add_eighteen T (by omega) (by omega)
+  · exact not_cell_periodic_eleven_at_col_le_neg_add_twenty T (by omega) (by omega)
+  · exact not_cell_periodic_twelve_at_col_le_neg_add_sixteen T (by omega) (by omega)
+  · exact not_cell_periodic_thirteen_at_col_le_neg_add_sixteen T (by omega) (by omega)
+  · exact not_cell_periodic_fourteen_at_col_le_neg_add_seventeen T (by omega) (by omega)
+  · exact not_cell_periodic_fifteen_at_col_le_neg_add_thirteen T (by omega) (by omega)
+  · exact not_cell_periodic_sixteen_at_col_le_neg_add_twelve T (by omega) (by omega)
+  · exact not_cell_periodic_seventeen_at_col_le_neg_add_twelve T (by omega) (by omega)
+  · exact not_cell_periodic_eighteen_at_col_le_neg_add_ten T (by omega) (by omega)
+  · exact not_cell_periodic_nineteen_at_col_le_neg_add_nine T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_at_col_le_neg_add_nine T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_one_at_col_le_neg_add_twelve T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_two_at_col_le_neg_add_seven T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_three_at_col_le_neg_add_seven T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_four_at_col_le_neg_add_four T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_five_at_col_le_neg_add_three T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_six_at_col_le_neg_add_six T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_seven_at_col_le_neg_add_one T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_eight_at_col_le_neg_add_two T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_nine_at_col_le_neg_zero T (by omega) (by omega)
+  · exact not_cell_periodic_thirty_at_col_le_neg_sub_one T (by omega) (by omega)
+  · exact not_cell_periodic_ge_thirty_one_at_col_le_neg_add_add_thirty T h31 (by omega) (by omega)
+
+
+
+
+private theorem d8_s_35 (s : Nat) (hs : 1 ≤ s) : D 8 (s + 35) = !D 10 (s + 8) := by
+  rw [show s + 35 = (s + 34) + 1 by omega, D_eight_succ_eq_D_ten (s + 34) (by omega), d10_s_34 s hs]
+private theorem d10_s_35 (s : Nat) (hs : 1 ≤ s) : D 10 (s + 35) = D 8 (s + 8) := by
+  rw [show s + 35 = (s + 34) + 1 by omega, D_ten_succ_eq_not_D_eight (s + 34) (by omega), d8_s_34 s hs, Bool.not_not]
+private theorem d29_s_35 (s : Nat) (hs : 2 ≤ s) : D 29 (s + 35) = xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29))))))) := by
+  rw [show s + 35 = (s + 34) + 1 by omega, D_twenty_nine_step_eq_xor_D_twenty_seven (s + 34) (by omega), D_twenty_seven_eq_nand_D_eight_D_ten (s + 34) (by omega), d8_s_34 s (by omega), d10_s_34 s (by omega), d29_s_34 s hs]
+private theorem d8_s_36 (s : Nat) (hs : 1 ≤ s) : D 8 (s + 36) = D 8 (s + 8) := by
+  rw [show s + 36 = (s + 35) + 1 by omega, D_eight_succ_eq_D_ten (s + 35) (by omega), d10_s_35 s hs]
+private theorem d10_s_36 (s : Nat) (hs : 1 ≤ s) : D 10 (s + 36) = D 10 (s + 8) := by
+  rw [show s + 36 = (s + 35) + 1 by omega, D_ten_succ_eq_not_D_eight (s + 35) (by omega), d8_s_35 s hs, Bool.not_not]
+private theorem d29_s_36 (s : Nat) (hs : 2 ≤ s) : D 29 (s + 36) = xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29)))))))) := by
+  rw [show s + 36 = (s + 35) + 1 by omega, D_twenty_nine_step_eq_xor_D_twenty_seven (s + 35) (by omega), D_twenty_seven_eq_nand_D_eight_D_ten (s + 35) (by omega), d8_s_35 s (by omega), d10_s_35 s (by omega), d29_s_35 s hs]
+
+private theorem col_at_35 (s : Nat) (hs : 5 ≤ s) :
+    cell (s + 35) (-(s : Int)) = (( !(!D 10 (s + 8)) && xor (D 8 (s + 8)) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29)))))))) ) || ( (!D 10 (s + 8)) && !(D 8 (s + 8)) && !(xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29)))))))) )) := by
+  have hd : cell (s + 35) (-(s : Int)) = D 35 (s + 35) := by unfold D; exact cell_congr (by omega)
+  rw [hd, D_thirty_five_eq_gate (s + 35) (by omega), d8_s_35 s (by omega), d10_s_35 s (by omega), d29_s_35 s (by omega)]
+
+private theorem col_at_36 (s : Nat) (hs : 10 ≤ s) :
+    cell (s + 36) (-(s : Int)) = ( (D 10 (s + 8)) && ( (D 8 (s + 8)) || !(xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29))))))))) ) ) := by
+  have hd : cell (s + 36) (-(s : Int)) = D 36 (s + 36) := by unfold D; exact cell_congr (by omega)
+  rw [hd, D_thirty_six_eq_gate (s + 36) (by omega), d8_s_36 s (by omega), d10_s_36 s (by omega), d29_s_36 s (by omega)]
+
+
+
+theorem not_cell_periodic_three_at_col_le_neg_add_thirty (T : Nat) {c : Int}
+    (hc0 : c ≤ -10) (hc : c ≤ -(T : Int) + 30) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 3) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 30) (by omega)
+  rw [hc_eq, show (s + 30) + 3 = s + 33 by omega, col_at_30 s (by omega), col_at_33 s (by omega)] at h0
+  have h1 := hper (s + 31) (by omega)
+  rw [hc_eq, show (s + 31) + 3 = s + 34 by omega, col_at_31 s (by omega), col_at_34 s (by omega)] at h1
+  have h2 := hper (s + 33) (by omega)
+  rw [hc_eq, show (s + 33) + 3 = s + 36 by omega, col_at_33 s (by omega), col_at_36 s (by omega)] at h2
+  revert h0 h1 h2
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_four_at_col_le_neg_add_thirty (T : Nat) {c : Int}
+    (hc0 : c ≤ -6) (hc : c ≤ -(T : Int) + 30) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 4) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 30) (by omega)
+  rw [hc_eq, show (s + 30) + 4 = s + 34 by omega, col_at_30 s (by omega), col_at_34 s (by omega)] at h0
+  have h1 := hper (s + 31) (by omega)
+  rw [hc_eq, show (s + 31) + 4 = s + 35 by omega, col_at_31 s (by omega), col_at_35 s (by omega)] at h1
+  revert h0 h1
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_ten_at_col_le_neg_add_twenty_two (T : Nat) {c : Int}
+    (hc0 : c ≤ -6) (hc : c ≤ -(T : Int) + 22) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 10) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 22) (by omega)
+  rw [hc_eq, show (s + 22) + 10 = s + 32 by omega, col_at_22 s (by omega), col_at_32 s (by omega)] at h0
+  have h1 := hper (s + 23) (by omega)
+  rw [hc_eq, show (s + 23) + 10 = s + 33 by omega, col_at_23 s (by omega), col_at_33 s (by omega)] at h1
+  have h2 := hper (s + 24) (by omega)
+  rw [hc_eq, show (s + 24) + 10 = s + 34 by omega, col_at_24 s (by omega), col_at_34 s (by omega)] at h2
+  have h3 := hper (s + 25) (by omega)
+  rw [hc_eq, show (s + 25) + 10 = s + 35 by omega, col_at_25 s (by omega), col_at_35 s (by omega)] at h3
+  revert h0 h1 h2 h3
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_twelve_at_col_le_neg_add_twenty_one (T : Nat) {c : Int}
+    (hc0 : c ≤ -5) (hc : c ≤ -(T : Int) + 21) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 12) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 21) (by omega)
+  rw [hc_eq, show (s + 21) + 12 = s + 33 by omega, col_at_21 s (by omega), col_at_33 s (by omega)] at h0
+  have h1 := hper (s + 23) (by omega)
+  rw [hc_eq, show (s + 23) + 12 = s + 35 by omega, col_at_23 s (by omega), col_at_35 s (by omega)] at h1
+  revert h0 h1
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_thirteen_at_col_le_neg_add_twenty_one (T : Nat) {c : Int}
+    (hc0 : c ≤ -6) (hc : c ≤ -(T : Int) + 21) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 13) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 21) (by omega)
+  rw [hc_eq, show (s + 21) + 13 = s + 34 by omega, col_at_21 s (by omega), col_at_34 s (by omega)] at h0
+  have h1 := hper (s + 22) (by omega)
+  rw [hc_eq, show (s + 22) + 13 = s + 35 by omega, col_at_22 s (by omega), col_at_35 s (by omega)] at h1
+  revert h0 h1
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_eighteen_at_col_le_neg_add_fifteen (T : Nat) {c : Int}
+    (hc0 : c ≤ -5) (hc : c ≤ -(T : Int) + 15) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 18) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 15) (by omega)
+  rw [hc_eq, show (s + 15) + 18 = s + 33 by omega, col_at_15 s (by omega), col_at_33 s (by omega)] at h0
+  have h1 := hper (s + 17) (by omega)
+  rw [hc_eq, show (s + 17) + 18 = s + 35 by omega, col_at_17 s (by omega), col_at_35 s (by omega)] at h1
+  revert h0 h1
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_nineteen_at_col_le_neg_add_thirteen (T : Nat) {c : Int}
+    (hc0 : c ≤ -6) (hc : c ≤ -(T : Int) + 13) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 19) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 13) (by omega)
+  rw [hc_eq, show (s + 13) + 19 = s + 32 by omega, col_at_13 s (by omega), col_at_32 s (by omega)] at h0
+  have h1 := hper (s + 15) (by omega)
+  rw [hc_eq, show (s + 15) + 19 = s + 34 by omega, col_at_15 s (by omega), col_at_34 s (by omega)] at h1
+  revert h0 h1
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_twenty_at_col_le_neg_add_thirteen (T : Nat) {c : Int}
+    (hc0 : c ≤ -6) (hc : c ≤ -(T : Int) + 13) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 20) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 13) (by omega)
+  rw [hc_eq, show (s + 13) + 20 = s + 33 by omega, col_at_13 s (by omega), col_at_33 s (by omega)] at h0
+  have h1 := hper (s + 14) (by omega)
+  rw [hc_eq, show (s + 14) + 20 = s + 34 by omega, col_at_14 s (by omega), col_at_34 s (by omega)] at h1
+  revert h0 h1
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_twenty_four_at_col_le_neg_add_ten (T : Nat) {c : Int}
+    (hc0 : c ≤ -10) (hc : c ≤ -(T : Int) + 10) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 24) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 10) (by omega)
+  rw [hc_eq, show (s + 10) + 24 = s + 34 by omega, col_at_10 s (by omega), col_at_34 s (by omega)] at h0
+  have h1 := hper (s + 11) (by omega)
+  rw [hc_eq, show (s + 11) + 24 = s + 35 by omega, col_at_11 s (by omega), col_at_35 s (by omega)] at h1
+  have h2 := hper (s + 12) (by omega)
+  rw [hc_eq, show (s + 12) + 24 = s + 36 by omega, col_at_12 s (by omega), col_at_36 s (by omega)] at h2
+  revert h0 h1 h2
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_twenty_five_at_col_le_neg_add_eight (T : Nat) {c : Int}
+    (hc0 : c ≤ -5) (hc : c ≤ -(T : Int) + 8) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 25) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 8) (by omega)
+  rw [hc_eq, show (s + 8) + 25 = s + 33 by omega, col_at_8 s (by omega), col_at_33 s (by omega)] at h0
+  have h1 := hper (s + 10) (by omega)
+  rw [hc_eq, show (s + 10) + 25 = s + 35 by omega, col_at_10 s (by omega), col_at_35 s (by omega)] at h1
+  revert h0 h1
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_twenty_seven_at_col_le_neg_add_five (T : Nat) {c : Int}
+    (hc0 : c ≤ -10) (hc : c ≤ -(T : Int) + 5) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 27) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 5) (by omega)
+  rw [hc_eq, show (s + 5) + 27 = s + 32 by omega, col_at_5 s (by omega), col_at_32 s (by omega)] at h0
+  have h1 := hper (s + 6) (by omega)
+  rw [hc_eq, show (s + 6) + 27 = s + 33 by omega, col_at_6 s (by omega), col_at_33 s (by omega)] at h1
+  have h2 := hper (s + 8) (by omega)
+  rw [hc_eq, show (s + 8) + 27 = s + 35 by omega, col_at_8 s (by omega), col_at_35 s (by omega)] at h2
+  have h3 := hper (s + 9) (by omega)
+  rw [hc_eq, show (s + 9) + 27 = s + 36 by omega, col_at_9 s (by omega), col_at_36 s (by omega)] at h3
+  revert h0 h1 h2 h3
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+/-- **Twenty-Nine-Column Inward Non-Periodicity for All `P ≠ 8`
+(`not_cell_periodic_ne_eight_at_col_le_neg_add_add_twenty_nine`):**
+for every `T : Nat`, every positive period `P > 0` with `P ≠ 8`, and every column `c ≤ -10` with
+`c ≤ -((T + P : Nat) : Int) + 29`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_ne_eight_at_col_le_neg_add_add_twenty_nine (T : Nat) {P : Nat}
+    (hP : 0 < P) (hne8 : P ≠ 8) {c : Int} (hc0 : c ≤ -10) (hc : c ≤ -((T + P : Nat) : Int) + 29) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  rcases (by omega : P = 1 ∨ P = 2 ∨ P = 3 ∨ P = 4 ∨ P = 5 ∨ P = 6 ∨ P = 7 ∨
+      P = 9 ∨ P = 10 ∨ P = 11 ∨ P = 12 ∨ P = 13 ∨ P = 14 ∨ P = 15 ∨ P = 16 ∨ P = 17 ∨
+      P = 18 ∨ P = 19 ∨ P = 20 ∨ P = 21 ∨ P = 22 ∨ P = 23 ∨ P = 24 ∨ P = 25 ∨ P = 26 ∨
+      P = 27 ∨ P = 28 ∨ P = 29 ∨ P = 30 ∨ 31 ≤ P) with
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | h31
+  · exact not_cell_periodic_one_or_two_at_col_le_neg_add_twenty_eight T (by omega) (by omega) (by omega) (by omega)
+  · exact not_cell_periodic_one_or_two_at_col_le_neg_add_twenty_eight T (by omega) (by omega) (by omega) (by omega)
+  · exact not_cell_periodic_three_at_col_le_neg_add_thirty T (by omega) (by omega)
+  · exact not_cell_periodic_four_at_col_le_neg_add_thirty T (by omega) (by omega)
+  · exact not_cell_periodic_five_at_col_le_neg_add_twenty_five T (by omega) (by omega)
+  · exact not_cell_periodic_six_at_col_le_neg_add_twenty_three T (by omega) (by omega)
+  · exact not_cell_periodic_seven_at_col_le_neg_add_twenty_six T (by omega) (by omega)
+  · exact not_cell_periodic_nine_at_col_le_neg_add_twenty_two T (by omega) (by omega)
+  · exact not_cell_periodic_ten_at_col_le_neg_add_twenty_two T (by omega) (by omega)
+  · exact not_cell_periodic_eleven_at_col_le_neg_add_twenty T (by omega) (by omega)
+  · exact not_cell_periodic_twelve_at_col_le_neg_add_twenty_one T (by omega) (by omega)
+  · exact not_cell_periodic_thirteen_at_col_le_neg_add_twenty_one T (by omega) (by omega)
+  · exact not_cell_periodic_fourteen_at_col_le_neg_add_seventeen T (by omega) (by omega)
+  · exact not_cell_periodic_fifteen_at_col_le_neg_add_seventeen T (by omega) (by omega)
+  · exact not_cell_periodic_sixteen_at_col_le_neg_add_sixteen T (by omega) (by omega)
+  · exact not_cell_periodic_seventeen_at_col_le_neg_add_twelve T (by omega) (by omega)
+  · exact not_cell_periodic_eighteen_at_col_le_neg_add_fifteen T (by omega) (by omega)
+  · exact not_cell_periodic_nineteen_at_col_le_neg_add_thirteen T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_at_col_le_neg_add_thirteen T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_one_at_col_le_neg_add_twelve T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_two_at_col_le_neg_add_seven T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_three_at_col_le_neg_add_seven T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_four_at_col_le_neg_add_ten T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_five_at_col_le_neg_add_eight T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_six_at_col_le_neg_add_six T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_seven_at_col_le_neg_add_five T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_eight_at_col_le_neg_add_two T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_nine_at_col_le_neg_zero T (by omega) (by omega)
+  · exact not_cell_periodic_thirty_at_col_le_neg_sub_one T (by omega) (by omega)
+  · exact not_cell_periodic_ge_thirty_one_at_col_le_neg_add_add_thirty T h31 (by omega) (by omega)
+
+/-- **Thirty-One-Column Inward Non-Periodicity for Intermediate Periods `P ∈ {4, 5, 7, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 24, 25, 26, 27}`
+(`not_cell_periodic_thirty_one_inward_of_four_to_twenty_seven`):**
+for every `T : Nat`, every `P ∈ {4, 7, 9, 10, 11, 12, 13, 14, 15, 16, 18, 19, 20, 21, 24, 25, 26, 27}`,
+and every column `c ≤ -10` with `c ≤ -((T + P : Nat) : Int) + 31`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_thirty_one_inward_of_four_to_twenty_seven (T : Nat) {P : Nat}
+    (hP : P = 4 ∨ P = 7 ∨ P = 9 ∨ P = 10 ∨ P = 11 ∨ P = 12 ∨ P = 13 ∨ P = 14 ∨ P = 15 ∨
+          P = 16 ∨ P = 18 ∨ P = 19 ∨ P = 20 ∨ P = 21 ∨ P = 24 ∨ P = 25 ∨ P = 26 ∨ P = 27)
+    {c : Int} (hc0 : c ≤ -10) (hc : c ≤ -((T + P : Nat) : Int) + 31) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  rcases hP with
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  · exact not_cell_periodic_four_at_col_le_neg_add_thirty T (by omega) (by omega)
+  · exact not_cell_periodic_seven_at_col_le_neg_add_twenty_six T (by omega) (by omega)
+  · exact not_cell_periodic_nine_at_col_le_neg_add_twenty_two T (by omega) (by omega)
+  · exact not_cell_periodic_ten_at_col_le_neg_add_twenty_two T (by omega) (by omega)
+  · exact not_cell_periodic_eleven_at_col_le_neg_add_twenty T (by omega) (by omega)
+  · exact not_cell_periodic_twelve_at_col_le_neg_add_twenty_one T (by omega) (by omega)
+  · exact not_cell_periodic_thirteen_at_col_le_neg_add_twenty_one T (by omega) (by omega)
+  · exact not_cell_periodic_fourteen_at_col_le_neg_add_seventeen T (by omega) (by omega)
+  · exact not_cell_periodic_fifteen_at_col_le_neg_add_seventeen T (by omega) (by omega)
+  · exact not_cell_periodic_sixteen_at_col_le_neg_add_sixteen T (by omega) (by omega)
+  · exact not_cell_periodic_eighteen_at_col_le_neg_add_fifteen T (by omega) (by omega)
+  · exact not_cell_periodic_nineteen_at_col_le_neg_add_thirteen T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_at_col_le_neg_add_thirteen T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_one_at_col_le_neg_add_twelve T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_four_at_col_le_neg_add_ten T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_five_at_col_le_neg_add_eight T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_six_at_col_le_neg_add_six T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_seven_at_col_le_neg_add_five T (by omega) (by omega)
+
+
+
+
+private theorem d8_s_37 (s : Nat) (hs : 1 ≤ s) : D 8 (s + 37) = D 10 (s + 8) := by
+  rw [show s + 37 = (s + 36) + 1 by omega, D_eight_succ_eq_D_ten (s + 36) (by omega), d10_s_36 s hs]
+private theorem d10_s_37 (s : Nat) (hs : 1 ≤ s) : D 10 (s + 37) = !D 8 (s + 8) := by
+  rw [show s + 37 = (s + 36) + 1 by omega, D_ten_succ_eq_not_D_eight (s + 36) (by omega), d8_s_36 s hs]
+private theorem d29_s_37 (s : Nat) (hs : 2 ≤ s) : D 29 (s + 37) = xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29))))))))) := by
+  rw [show s + 37 = (s + 36) + 1 by omega, D_twenty_nine_step_eq_xor_D_twenty_seven (s + 36) (by omega), D_twenty_seven_eq_nand_D_eight_D_ten (s + 36) (by omega), d8_s_36 s (by omega), d10_s_36 s (by omega), d29_s_36 s hs]
+private theorem d8_s_38 (s : Nat) (hs : 1 ≤ s) : D 8 (s + 38) = !D 8 (s + 8) := by
+  rw [show s + 38 = (s + 37) + 1 by omega, D_eight_succ_eq_D_ten (s + 37) (by omega), d10_s_37 s hs]
+private theorem d10_s_38 (s : Nat) (hs : 1 ≤ s) : D 10 (s + 38) = !D 10 (s + 8) := by
+  rw [show s + 38 = (s + 37) + 1 by omega, D_ten_succ_eq_not_D_eight (s + 37) (by omega), d8_s_37 s hs]
+private theorem d29_s_38 (s : Nat) (hs : 2 ≤ s) : D 29 (s + 38) = xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29)))))))))) := by
+  rw [show s + 38 = (s + 37) + 1 by omega, D_twenty_nine_step_eq_xor_D_twenty_seven (s + 37) (by omega), D_twenty_seven_eq_nand_D_eight_D_ten (s + 37) (by omega), d8_s_37 s (by omega), d10_s_37 s (by omega), d29_s_37 s hs]
+private theorem d8_s_39 (s : Nat) (hs : 1 ≤ s) : D 8 (s + 39) = !D 10 (s + 8) := by
+  rw [show s + 39 = (s + 38) + 1 by omega, D_eight_succ_eq_D_ten (s + 38) (by omega), d10_s_38 s hs]
+private theorem d10_s_39 (s : Nat) (hs : 1 ≤ s) : D 10 (s + 39) = D 8 (s + 8) := by
+  rw [show s + 39 = (s + 38) + 1 by omega, D_ten_succ_eq_not_D_eight (s + 38) (by omega), d8_s_38 s hs, Bool.not_not]
+private theorem d29_s_39 (s : Nat) (hs : 2 ≤ s) : D 29 (s + 39) = xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29))))))))))) := by
+  rw [show s + 39 = (s + 38) + 1 by omega, D_twenty_nine_step_eq_xor_D_twenty_seven (s + 38) (by omega), D_twenty_seven_eq_nand_D_eight_D_ten (s + 38) (by omega), d8_s_38 s (by omega), d10_s_38 s (by omega), d29_s_38 s hs]
+private theorem d8_s_40 (s : Nat) (hs : 1 ≤ s) : D 8 (s + 40) = D 8 (s + 8) := by
+  rw [show s + 40 = (s + 39) + 1 by omega, D_eight_succ_eq_D_ten (s + 39) (by omega), d10_s_39 s hs]
+private theorem d10_s_40 (s : Nat) (hs : 1 ≤ s) : D 10 (s + 40) = D 10 (s + 8) := by
+  rw [show s + 40 = (s + 39) + 1 by omega, D_ten_succ_eq_not_D_eight (s + 39) (by omega), d8_s_39 s hs, Bool.not_not]
+private theorem d29_s_40 (s : Nat) (hs : 2 ≤ s) : D 29 (s + 40) = xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29)))))))))))) := by
+  rw [show s + 40 = (s + 39) + 1 by omega, D_twenty_nine_step_eq_xor_D_twenty_seven (s + 39) (by omega), D_twenty_seven_eq_nand_D_eight_D_ten (s + 39) (by omega), d8_s_39 s (by omega), d10_s_39 s (by omega), d29_s_39 s hs]
+private theorem d8_s_41 (s : Nat) (hs : 1 ≤ s) : D 8 (s + 41) = D 10 (s + 8) := by
+  rw [show s + 41 = (s + 40) + 1 by omega, D_eight_succ_eq_D_ten (s + 40) (by omega), d10_s_40 s hs]
+private theorem d10_s_41 (s : Nat) (hs : 1 ≤ s) : D 10 (s + 41) = !D 8 (s + 8) := by
+  rw [show s + 41 = (s + 40) + 1 by omega, D_ten_succ_eq_not_D_eight (s + 40) (by omega), d8_s_40 s hs]
+private theorem d29_s_41 (s : Nat) (hs : 2 ≤ s) : D 29 (s + 41) = xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29))))))))))))) := by
+  rw [show s + 41 = (s + 40) + 1 by omega, D_twenty_nine_step_eq_xor_D_twenty_seven (s + 40) (by omega), D_twenty_seven_eq_nand_D_eight_D_ten (s + 40) (by omega), d8_s_40 s (by omega), d10_s_40 s (by omega), d29_s_40 s hs]
+
+private theorem col_at_38 (s : Nat) (hs : 10 ≤ s) :
+    cell (s + 38) (-(s : Int)) = ( !(!D 8 (s + 8)) || xor (!D 10 (s + 8)) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29))))))))))) ) := by
+  have hd : cell (s + 38) (-(s : Int)) = D 38 (s + 38) := by unfold D; exact cell_congr (by omega)
+  rw [hd, D_thirty_eight_eq_gate (s + 38) (by omega), d8_s_38 s (by omega), d10_s_38 s (by omega), d29_s_38 s (by omega)]
+
+private theorem col_at_39 (s : Nat) (hs : 11 ≤ s) :
+    cell (s + 39) (-(s : Int)) = ( !(!D 10 (s + 8)) && xor (D 8 (s + 8)) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29)))))))))))) ) := by
+  have hd : cell (s + 39) (-(s : Int)) = D 39 (s + 39) := by unfold D; exact cell_congr (by omega)
+  rw [hd, D_thirty_nine_eq_gate (s + 39) (by omega), d8_s_39 s (by omega), d10_s_39 s (by omega), d29_s_39 s (by omega)]
+
+private theorem col_at_40 (s : Nat) (hs : 15 ≤ s) :
+    cell (s + 40) (-(s : Int)) = ( !(xor (D 8 (s + 8)) (D 10 (s + 8))) && !(xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29))))))))))))) ) := by
+  have hd : cell (s + 40) (-(s : Int)) = D 40 (s + 40) := by unfold D; exact cell_congr (by omega)
+  rw [hd, D_forty_eq_gate (s + 40) (by omega), d8_s_40 s (by omega), d10_s_40 s (by omega), d29_s_40 s (by omega)]
+
+private theorem col_at_41 (s : Nat) (hs : 14 ≤ s) :
+    cell (s + 41) (-(s : Int)) = ( (D 10 (s + 8)) || !(!D 8 (s + 8)) || (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (xor (!(D 8 (s + 8) && D 10 (s + 8))) (xor (!(!D 10 (s + 8) && D 8 (s + 8))) (xor (!(!D 8 (s + 8) && !D 10 (s + 8))) (xor (!(D 10 (s + 8) && !D 8 (s + 8))) (D 29 (s + 29)))))))))))))) ) := by
+  have hd : cell (s + 41) (-(s : Int)) = D 41 (s + 41) := by unfold D; exact cell_congr (by omega)
+  rw [hd, D_forty_one_eq_gate (s + 41) (by omega), d8_s_41 s (by omega), d10_s_41 s (by omega), d29_s_41 s (by omega)]
+
+
+/-- **Thirty-Eight-Column Inward Period-8 Exclusion (`not_cell_periodic_eight_at_col_le_neg_add_thirty`):**
+for every `T : Nat` and column `c ≤ -15` with `c ≤ -(T : Int) + 30` (i.e. `c ≤ -(T + 8) + 38`),
+`¬ (∀ t : Nat, T ≤ t → cell (t + 8) c = cell t c)`. -/
+theorem not_cell_periodic_eight_at_col_le_neg_add_thirty (T : Nat) {c : Int}
+    (hc0 : c ≤ -15) (hc : c ≤ -(T : Int) + 30) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 8) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 30) (by omega)
+  rw [hc_eq, show (s + 30) + 8 = s + 38 by omega, col_at_30 s (by omega), col_at_38 s (by omega)] at h0
+  have h1 := hper (s + 31) (by omega)
+  rw [hc_eq, show (s + 31) + 8 = s + 39 by omega, col_at_31 s (by omega), col_at_39 s (by omega)] at h1
+  have h2 := hper (s + 32) (by omega)
+  rw [hc_eq, show (s + 32) + 8 = s + 40 by omega, col_at_32 s (by omega), col_at_40 s (by omega)] at h2
+  have h3 := hper (s + 33) (by omega)
+  rw [hc_eq, show (s + 33) + 8 = s + 41 by omega, col_at_33 s (by omega), col_at_41 s (by omega)] at h3
+  revert h0 h1 h2 h3
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+/-- **Thirty-Nine-Column Inward Period-17 Exclusion (`not_cell_periodic_seventeen_at_col_le_neg_add_twenty_two`):**
+for every `T : Nat` and column `c ≤ -15` with `c ≤ -(T : Int) + 22` (i.e. `c ≤ -(T + 17) + 39`),
+`¬ (∀ t : Nat, T ≤ t → cell (t + 17) c = cell t c)`. -/
+theorem not_cell_periodic_seventeen_at_col_le_neg_add_twenty_two (T : Nat) {c : Int}
+    (hc0 : c ≤ -15) (hc : c ≤ -(T : Int) + 22) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 17) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 22) (by omega)
+  rw [hc_eq, show (s + 22) + 17 = s + 39 by omega, col_at_22 s (by omega), col_at_39 s (by omega)] at h0
+  have h1 := hper (s + 23) (by omega)
+  rw [hc_eq, show (s + 23) + 17 = s + 40 by omega, col_at_23 s (by omega), col_at_40 s (by omega)] at h1
+  revert h0 h1
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+/-- **All-Period Unconditional 29-Column Inward Non-Periodicity
+(`not_cell_periodic_at_col_le_neg_add_add_twenty_nine`):**
+for every `T : Nat`, every positive period `P > 0`, and every column `c ≤ -15` with
+`c ≤ -((T + P : Nat) : Int) + 29`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_at_col_le_neg_add_add_twenty_nine (T : Nat) {P : Nat}
+    (hP : 0 < P) {c : Int} (hc0 : c ≤ -15) (hc : c ≤ -((T + P : Nat) : Int) + 29) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  by_cases h8 : P = 8
+  · subst h8
+    exact not_cell_periodic_eight_at_col_le_neg_add_thirty T (by omega) (by omega)
+  · exact not_cell_periodic_ne_eight_at_col_le_neg_add_add_twenty_nine T hP h8 (by omega) hc
+
+/-- **Thirty-One-Column Inward Non-Periodicity Across 21 Periods `P ∈ {3, 4, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 24, 25, 26, 27}`
+(`not_cell_periodic_thirty_one_inward_of_three_to_twenty_seven`):**
+for every `T : Nat`, every `P` in the 21-period set, and every column `c ≤ -15` with
+`c ≤ -((T + P : Nat) : Int) + 31`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_thirty_one_inward_of_three_to_twenty_seven (T : Nat) {P : Nat}
+    (hP : P = 3 ∨ P = 4 ∨ P = 7 ∨ P = 8 ∨ P = 9 ∨ P = 10 ∨ P = 11 ∨ P = 12 ∨ P = 13 ∨
+          P = 14 ∨ P = 15 ∨ P = 16 ∨ P = 17 ∨ P = 18 ∨ P = 19 ∨ P = 20 ∨ P = 21 ∨ P = 24 ∨
+          P = 25 ∨ P = 26 ∨ P = 27)
+    {c : Int} (hc0 : c ≤ -15) (hc : c ≤ -((T + P : Nat) : Int) + 31) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  rcases hP with
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  · exact not_cell_periodic_three_at_col_le_neg_add_thirty T (by omega) (by omega)
+  · exact not_cell_periodic_four_at_col_le_neg_add_thirty T (by omega) (by omega)
+  · exact not_cell_periodic_seven_at_col_le_neg_add_twenty_six T (by omega) (by omega)
+  · exact not_cell_periodic_eight_at_col_le_neg_add_thirty T (by omega) (by omega)
+  · exact not_cell_periodic_nine_at_col_le_neg_add_twenty_two T (by omega) (by omega)
+  · exact not_cell_periodic_ten_at_col_le_neg_add_twenty_two T (by omega) (by omega)
+  · exact not_cell_periodic_eleven_at_col_le_neg_add_twenty T (by omega) (by omega)
+  · exact not_cell_periodic_twelve_at_col_le_neg_add_twenty_one T (by omega) (by omega)
+  · exact not_cell_periodic_thirteen_at_col_le_neg_add_twenty_one T (by omega) (by omega)
+  · exact not_cell_periodic_fourteen_at_col_le_neg_add_seventeen T (by omega) (by omega)
+  · exact not_cell_periodic_fifteen_at_col_le_neg_add_seventeen T (by omega) (by omega)
+  · exact not_cell_periodic_sixteen_at_col_le_neg_add_sixteen T (by omega) (by omega)
+  · exact not_cell_periodic_seventeen_at_col_le_neg_add_twenty_two T (by omega) (by omega)
+  · exact not_cell_periodic_eighteen_at_col_le_neg_add_fifteen T (by omega) (by omega)
+  · exact not_cell_periodic_nineteen_at_col_le_neg_add_thirteen T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_at_col_le_neg_add_thirteen T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_one_at_col_le_neg_add_twelve T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_four_at_col_le_neg_add_ten T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_five_at_col_le_neg_add_eight T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_six_at_col_le_neg_add_six T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_seven_at_col_le_neg_add_five T (by omega) (by omega)
+
+
+/-! ### 15. Complete All-Period Unconditional 31-Column Inward Non-Periodicity Closure -/
+
+theorem not_cell_periodic_one_at_col_le_neg_add_thirty (T : Nat) {c : Int}
+    (hc0 : c ≤ -6) (hc : c ≤ -(T : Int) + 30) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 1) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 30) (by omega)
+  rw [hc_eq, show (s + 30) + 1 = s + 31 by omega, col_at_30 s (by omega), col_at_31 s (by omega)] at h0
+  have h1 := hper (s + 31) (by omega)
+  rw [hc_eq, show (s + 31) + 1 = s + 32 by omega, col_at_31 s (by omega), col_at_32 s (by omega)] at h1
+  have h2 := hper (s + 32) (by omega)
+  rw [hc_eq, show (s + 32) + 1 = s + 33 by omega, col_at_32 s (by omega), col_at_33 s (by omega)] at h2
+  have h3 := hper (s + 33) (by omega)
+  rw [hc_eq, show (s + 33) + 1 = s + 34 by omega, col_at_33 s (by omega), col_at_34 s (by omega)] at h3
+  revert h0 h1 h2 h3
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_two_at_col_le_neg_add_thirty (T : Nat) {c : Int}
+    (hc0 : c ≤ -6) (hc : c ≤ -(T : Int) + 30) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 2) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 30) (by omega)
+  rw [hc_eq, show (s + 30) + 2 = s + 32 by omega, col_at_30 s (by omega), col_at_32 s (by omega)] at h0
+  have h1 := hper (s + 31) (by omega)
+  rw [hc_eq, show (s + 31) + 2 = s + 33 by omega, col_at_31 s (by omega), col_at_33 s (by omega)] at h1
+  have h2 := hper (s + 32) (by omega)
+  rw [hc_eq, show (s + 32) + 2 = s + 34 by omega, col_at_32 s (by omega), col_at_34 s (by omega)] at h2
+  revert h0 h1 h2
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_five_at_col_le_neg_add_twenty_nine (T : Nat) {c : Int}
+    (hc0 : c ≤ -10) (hc : c ≤ -(T : Int) + 29) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 5) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 29) (by omega)
+  rw [hc_eq, show (s + 29) + 5 = s + 34 by omega, col_at_29 s (by omega), col_at_34 s (by omega)] at h0
+  have h1 := hper (s + 30) (by omega)
+  rw [hc_eq, show (s + 30) + 5 = s + 35 by omega, col_at_30 s (by omega), col_at_35 s (by omega)] at h1
+  have h2 := hper (s + 31) (by omega)
+  rw [hc_eq, show (s + 31) + 5 = s + 36 by omega, col_at_31 s (by omega), col_at_36 s (by omega)] at h2
+  revert h0 h1 h2
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_six_at_col_le_neg_add_twenty_seven (T : Nat) {c : Int}
+    (hc0 : c ≤ -10) (hc : c ≤ -(T : Int) + 27) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 6) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 27) (by omega)
+  rw [hc_eq, show (s + 27) + 6 = s + 33 by omega, col_at_27 s (by omega), col_at_33 s (by omega)] at h0
+  have h1 := hper (s + 28) (by omega)
+  rw [hc_eq, show (s + 28) + 6 = s + 34 by omega, col_at_28 s (by omega), col_at_34 s (by omega)] at h1
+  have h2 := hper (s + 30) (by omega)
+  rw [hc_eq, show (s + 30) + 6 = s + 36 by omega, col_at_30 s (by omega), col_at_36 s (by omega)] at h2
+  revert h0 h1 h2
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_twenty_two_at_col_le_neg_add_eleven (T : Nat) {c : Int}
+    (hc0 : c ≤ -10) (hc : c ≤ -(T : Int) + 11) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 22) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 11) (by omega)
+  rw [hc_eq, show (s + 11) + 22 = s + 33 by omega, col_at_11 s (by omega), col_at_33 s (by omega)] at h0
+  have h1 := hper (s + 12) (by omega)
+  rw [hc_eq, show (s + 12) + 22 = s + 34 by omega, col_at_12 s (by omega), col_at_34 s (by omega)] at h1
+  have h2 := hper (s + 13) (by omega)
+  rw [hc_eq, show (s + 13) + 22 = s + 35 by omega, col_at_13 s (by omega), col_at_35 s (by omega)] at h2
+  have h3 := hper (s + 14) (by omega)
+  rw [hc_eq, show (s + 14) + 22 = s + 36 by omega, col_at_14 s (by omega), col_at_36 s (by omega)] at h3
+  revert h0 h1 h2 h3
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_twenty_three_at_col_le_neg_add_eight (T : Nat) {c : Int}
+    (hc0 : c ≤ -6) (hc : c ≤ -(T : Int) + 8) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 23) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 8) (by omega)
+  rw [hc_eq, show (s + 8) + 23 = s + 31 by omega, col_at_8 s (by omega), col_at_31 s (by omega)] at h0
+  have h1 := hper (s + 9) (by omega)
+  rw [hc_eq, show (s + 9) + 23 = s + 32 by omega, col_at_9 s (by omega), col_at_32 s (by omega)] at h1
+  have h2 := hper (s + 11) (by omega)
+  rw [hc_eq, show (s + 11) + 23 = s + 34 by omega, col_at_11 s (by omega), col_at_34 s (by omega)] at h2
+  revert h0 h1 h2
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_twenty_eight_at_col_le_neg_add_five (T : Nat) {c : Int}
+    (hc0 : c ≤ -10) (hc : c ≤ -(T : Int) + 5) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 28) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 5) (by omega)
+  rw [hc_eq, show (s + 5) + 28 = s + 33 by omega, col_at_5 s (by omega), col_at_33 s (by omega)] at h0
+  have h1 := hper (s + 6) (by omega)
+  rw [hc_eq, show (s + 6) + 28 = s + 34 by omega, col_at_6 s (by omega), col_at_34 s (by omega)] at h1
+  have h2 := hper (s + 7) (by omega)
+  rw [hc_eq, show (s + 7) + 28 = s + 35 by omega, col_at_7 s (by omega), col_at_35 s (by omega)] at h2
+  have h3 := hper (s + 8) (by omega)
+  rw [hc_eq, show (s + 8) + 28 = s + 36 by omega, col_at_8 s (by omega), col_at_36 s (by omega)] at h3
+  revert h0 h1 h2 h3
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_twenty_nine_at_col_le_neg_add_three (T : Nat) {c : Int}
+    (hc0 : c ≤ -5) (hc : c ≤ -(T : Int) + 3) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 29) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 3) (by omega)
+  rw [hc_eq, show (s + 3) + 29 = s + 32 by omega, col_at_3 s (by omega), col_at_32 s (by omega)] at h0
+  have h1 := hper (s + 4) (by omega)
+  rw [hc_eq, show (s + 4) + 29 = s + 33 by omega, col_at_4 s (by omega), col_at_33 s (by omega)] at h1
+  have h2 := hper (s + 6) (by omega)
+  rw [hc_eq, show (s + 6) + 29 = s + 35 by omega, col_at_6 s (by omega), col_at_35 s (by omega)] at h2
+  revert h0 h1 h2
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_thirty_at_col_le_neg_add_two (T : Nat) {c : Int}
+    (hc0 : c ≤ -10) (hc : c ≤ -(T : Int) + 2) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 30) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 2) (by omega)
+  rw [hc_eq, show (s + 2) + 30 = s + 32 by omega, col_at_2 s (by omega), col_at_32 s (by omega)] at h0
+  have h1 := hper (s + 3) (by omega)
+  rw [hc_eq, show (s + 3) + 30 = s + 33 by omega, col_at_3 s (by omega), col_at_33 s (by omega)] at h1
+  have h2 := hper (s + 5) (by omega)
+  rw [hc_eq, show (s + 5) + 30 = s + 35 by omega, col_at_5 s (by omega), col_at_35 s (by omega)] at h2
+  have h3 := hper (s + 6) (by omega)
+  rw [hc_eq, show (s + 6) + 30 = s + 36 by omega, col_at_6 s (by omega), col_at_36 s (by omega)] at h3
+  revert h0 h1 h2 h3
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_thirty_one_at_col_le_neg_zero (T : Nat) {c : Int}
+    (hc0 : c ≤ -4) (hc : c ≤ -(T : Int)) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 31) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 0) (by omega)
+  rw [hc_eq, show (s + 0) + 31 = s + 31 by omega, col_at_0 s (by omega), col_at_31 s (by omega)] at h0
+  have h1 := hper (s + 1) (by omega)
+  rw [hc_eq, show (s + 1) + 31 = s + 32 by omega, col_at_1 s (by omega), col_at_32 s (by omega)] at h1
+  revert h0 h1
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_thirty_two_at_col_le_neg_zero (T : Nat) {c : Int}
+    (hc0 : c ≤ -6) (hc : c ≤ -(T : Int)) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 32) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 0) (by omega)
+  rw [hc_eq, show (s + 0) + 32 = s + 32 by omega, col_at_0 s (by omega), col_at_32 s (by omega)] at h0
+  have h1 := hper (s + 1) (by omega)
+  rw [hc_eq, show (s + 1) + 32 = s + 33 by omega, col_at_1 s (by omega), col_at_33 s (by omega)] at h1
+  have h2 := hper (s + 2) (by omega)
+  rw [hc_eq, show (s + 2) + 32 = s + 34 by omega, col_at_2 s (by omega), col_at_34 s (by omega)] at h2
+  revert h0 h1 h2
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_thirty_three_at_col_le_neg_sub_two (T : Nat) {c : Int}
+    (hc0 : c ≤ -4) (hc : c ≤ -(T : Int) - 2) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 33) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s - 2) (by omega)
+  rw [hc_eq, show (s - 2) + 33 = s + 31 by omega, cell_eq_false_of_lt (s - 2) (-(s : Int)) (by omega), col_at_31 s (by omega)] at h0
+  have h1 := hper (s - 1) (by omega)
+  rw [hc_eq, show (s - 1) + 33 = s + 32 by omega, cell_eq_false_of_lt (s - 1) (-(s : Int)) (by omega), col_at_32 s (by omega)] at h1
+  have h2 := hper (s + 0) (by omega)
+  rw [hc_eq, show (s + 0) + 33 = s + 33 by omega, col_at_0 s (by omega), col_at_33 s (by omega)] at h2
+  revert h0 h1 h2
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+theorem not_cell_periodic_thirty_four_at_col_le_neg_sub_one (T : Nat) {c : Int}
+    (hc0 : c ≤ -10) (hc : c ≤ -(T : Int) - 1) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 34) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s - 1) (by omega)
+  rw [hc_eq, show (s - 1) + 34 = s + 33 by omega, cell_eq_false_of_lt (s - 1) (-(s : Int)) (by omega), col_at_33 s (by omega)] at h0
+  have h1 := hper (s + 0) (by omega)
+  rw [hc_eq, show (s + 0) + 34 = s + 34 by omega, col_at_0 s (by omega), col_at_34 s (by omega)] at h1
+  have h2 := hper (s + 1) (by omega)
+  rw [hc_eq, show (s + 1) + 34 = s + 35 by omega, col_at_1 s (by omega), col_at_35 s (by omega)] at h2
+  have h3 := hper (s + 2) (by omega)
+  rw [hc_eq, show (s + 2) + 34 = s + 36 by omega, col_at_2 s (by omega), col_at_36 s (by omega)] at h3
+  revert h0 h1 h2 h3
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+/-- **Thirty-One-Column Inward Non-Periodicity for All Large Periods `P ≥ 35`
+(`not_cell_periodic_ge_thirty_five_at_col_le_neg_add_add_thirty_one`):**
+for every `T : Nat`, every period `P ≥ 35`, and every column `c ≤ -6` with
+`c ≤ -((T + P : Nat) : Int) + 31`, `¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c)`. -/
+theorem not_cell_periodic_ge_thirty_five_at_col_le_neg_add_add_thirty_one (T : Nat) {P : Nat}
+    (hP : 35 ≤ P) {c : Int} (hc0 : c ≤ -6) (hc : c ≤ -((T + P : Nat) : Int) + 31) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h0 := hper (s + 31 - P) (by omega)
+  rw [hc_eq, show (s + 31 - P) + P = s + 31 by omega,
+      cell_eq_false_of_lt (s + 31 - P) (-(s : Int)) (by omega), col_at_31 s (by omega)] at h0
+  have h1 := hper (s + 32 - P) (by omega)
+  rw [hc_eq, show (s + 32 - P) + P = s + 32 by omega,
+      cell_eq_false_of_lt (s + 32 - P) (-(s : Int)) (by omega), col_at_32 s (by omega)] at h1
+  have h2 := hper (s + 34 - P) (by omega)
+  rw [hc_eq, show (s + 34 - P) + P = s + 34 by omega,
+      cell_eq_false_of_lt (s + 34 - P) (-(s : Int)) (by omega), col_at_34 s (by omega)] at h2
+  revert h0 h1 h2
+  cases D 8 (s + 8) <;> cases D 10 (s + 8) <;> cases D 29 (s + 29) <;> decide
+
+/-- **All-Period Unconditional 31-Column Inward Non-Periodicity
+(`not_cell_periodic_at_col_le_neg_add_add_thirty_one`):**
+for every `T : Nat`, every positive period `P > 0`, and every column `c ≤ -15` with
+`c ≤ -((T + P : Nat) : Int) + 31`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_at_col_le_neg_add_add_thirty_one (T : Nat) {P : Nat}
+    (hP : 0 < P) {c : Int} (hc0 : c ≤ -15) (hc : c ≤ -((T + P : Nat) : Int) + 31) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  rcases (by omega : P = 1 ∨ P = 2 ∨ P = 3 ∨ P = 4 ∨ P = 5 ∨ P = 6 ∨ P = 7 ∨ P = 8 ∨
+      P = 9 ∨ P = 10 ∨ P = 11 ∨ P = 12 ∨ P = 13 ∨ P = 14 ∨ P = 15 ∨ P = 16 ∨ P = 17 ∨
+      P = 18 ∨ P = 19 ∨ P = 20 ∨ P = 21 ∨ P = 22 ∨ P = 23 ∨ P = 24 ∨ P = 25 ∨ P = 26 ∨
+      P = 27 ∨ P = 28 ∨ P = 29 ∨ P = 30 ∨ P = 31 ∨ P = 32 ∨ P = 33 ∨ P = 34 ∨ 35 ≤ P) with
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+    rfl | rfl | rfl | rfl | h35
+  · exact not_cell_periodic_one_at_col_le_neg_add_thirty T (by omega) (by omega)
+  · exact not_cell_periodic_two_at_col_le_neg_add_thirty T (by omega) (by omega)
+  · exact not_cell_periodic_three_at_col_le_neg_add_thirty T (by omega) (by omega)
+  · exact not_cell_periodic_four_at_col_le_neg_add_thirty T (by omega) (by omega)
+  · exact not_cell_periodic_five_at_col_le_neg_add_twenty_nine T (by omega) (by omega)
+  · exact not_cell_periodic_six_at_col_le_neg_add_twenty_seven T (by omega) (by omega)
+  · exact not_cell_periodic_seven_at_col_le_neg_add_twenty_six T (by omega) (by omega)
+  · exact not_cell_periodic_eight_at_col_le_neg_add_thirty T (by omega) (by omega)
+  · exact not_cell_periodic_nine_at_col_le_neg_add_twenty_two T (by omega) (by omega)
+  · exact not_cell_periodic_ten_at_col_le_neg_add_twenty_two T (by omega) (by omega)
+  · exact not_cell_periodic_eleven_at_col_le_neg_add_twenty T (by omega) (by omega)
+  · exact not_cell_periodic_twelve_at_col_le_neg_add_twenty_one T (by omega) (by omega)
+  · exact not_cell_periodic_thirteen_at_col_le_neg_add_twenty_one T (by omega) (by omega)
+  · exact not_cell_periodic_fourteen_at_col_le_neg_add_seventeen T (by omega) (by omega)
+  · exact not_cell_periodic_fifteen_at_col_le_neg_add_seventeen T (by omega) (by omega)
+  · exact not_cell_periodic_sixteen_at_col_le_neg_add_sixteen T (by omega) (by omega)
+  · exact not_cell_periodic_seventeen_at_col_le_neg_add_twenty_two T (by omega) (by omega)
+  · exact not_cell_periodic_eighteen_at_col_le_neg_add_fifteen T (by omega) (by omega)
+  · exact not_cell_periodic_nineteen_at_col_le_neg_add_thirteen T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_at_col_le_neg_add_thirteen T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_one_at_col_le_neg_add_twelve T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_two_at_col_le_neg_add_eleven T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_three_at_col_le_neg_add_eight T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_four_at_col_le_neg_add_ten T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_five_at_col_le_neg_add_eight T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_six_at_col_le_neg_add_six T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_seven_at_col_le_neg_add_five T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_eight_at_col_le_neg_add_five T (by omega) (by omega)
+  · exact not_cell_periodic_twenty_nine_at_col_le_neg_add_three T (by omega) (by omega)
+  · exact not_cell_periodic_thirty_at_col_le_neg_add_two T (by omega) (by omega)
+  · exact not_cell_periodic_thirty_one_at_col_le_neg_zero T (by omega) (by omega)
+  · exact not_cell_periodic_thirty_two_at_col_le_neg_zero T (by omega) (by omega)
+  · exact not_cell_periodic_thirty_three_at_col_le_neg_sub_two T (by omega) (by omega)
+  · exact not_cell_periodic_thirty_four_at_col_le_neg_sub_one T (by omega) (by omega)
+  · exact not_cell_periodic_ge_thirty_five_at_col_le_neg_add_add_thirty_one T h35 (by omega) (by omega)
+
+
 end Inward18Closure
 
 end Ruliology.CellularAutomata.Rule30TraceEdge
