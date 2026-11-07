@@ -35,10 +35,9 @@ history (`Rule30DrivenLeft.L`), so `immortalFromHistory` gives an immortal legal
 half and no realization of the centre by a row is needed. So mortality is at least as strong as
 `Q01`, and `Rule30PeriodTwo.not_eventually_period_two_of_Q01` already excludes an eventual period two
 of the official center column from it; `center_not_eventually_period_two_of_mortality` is the same
-exclusion by the direct route. The converse, `Q01` implies mortality, is not proved and not known:
-mortality quantifies over every legal finite frontier, and `Z` does not ask that a frontier or its
-scalar tape be read off any left half, which only enlarges the set of frontiers mortality must
-kill.
+exclusion by the direct route. The converse, `Q01` implies mortality, is `Rule30FrontierChart.mortality_of_Q01`: an immortal frontier
+gives a finitely supported start with column `-1` black at every even step, whether or not the frontier
+or its scalar tape was read off a left half.
 
 Control, `alternatingCenter_without_finiteSupport`: the 7-periodic row with ones at `j ≡ 6 (mod 7)` has
 temporal period 4 and center trace `0,1,0,1,...`, so finiteness cannot be dropped.
