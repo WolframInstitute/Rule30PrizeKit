@@ -1871,6 +1871,1005 @@ theorem evAntiPer_D_fifteen : EvAntiPer (D 15) 2 :=
 theorem halfDensity_D_fifteen : HalfDensity (D 15) :=
   halfDensity_of_antiperiodic (by decide : 0 < 2) evAntiPer_D_fifteen
 
+/-! ### Fast `O(j * t)` Dynamic-Programming Table and Cascade `D 16 .. D 31` (`R30-20261107-f15c70`) -/
+
+theorem D_eq_false_of_two_mul_lt (j t : Nat) (h : 2 * t < j) : D j t = false := by
+  unfold D
+  exact cell_eq_false_of_gt t ((j : Int) - (t : Int)) (by omega)
+
+private theorem d_0_0 : D 0 0 = true := D_zero 0
+private theorem d_1_0 : D 1 0 = false := by decide
+private theorem d_2_0 : D 2 0 = false := D_eq_false_of_two_mul_lt 2 0 (by decide)
+private theorem d_0_1 : D 0 1 = true := D_zero 1
+private theorem d_1_1 : D 1 1 = true := D_one 0
+private theorem d_2_1 : D 2 1 = true := by have h := D_step 0 0; rw [d_0_0, d_1_0, d_2_0] at h; exact h
+private theorem d_3_1 : D 3 1 = false := D_eq_false_of_two_mul_lt 3 1 (by decide)
+private theorem d_4_1 : D 4 1 = false := D_eq_false_of_two_mul_lt 4 1 (by decide)
+private theorem d_0_2 : D 0 2 = true := D_zero 2
+private theorem d_1_2 : D 1 2 = true := D_one 1
+private theorem d_2_2 : D 2 2 = false := by have h := D_step 0 1; rw [d_0_1, d_1_1, d_2_1] at h; exact h
+private theorem d_3_2 : D 3 2 = false := by have h := D_step 1 1; rw [d_1_1, d_2_1, d_3_1] at h; exact h
+private theorem d_4_2 : D 4 2 = true := by have h := D_step 2 1; rw [d_2_1, d_3_1, d_4_1] at h; exact h
+private theorem d_5_2 : D 5 2 = false := D_eq_false_of_two_mul_lt 5 2 (by decide)
+private theorem d_6_2 : D 6 2 = false := D_eq_false_of_two_mul_lt 6 2 (by decide)
+private theorem d_0_3 : D 0 3 = true := D_zero 3
+private theorem d_1_3 : D 1 3 = true := D_one 2
+private theorem d_2_3 : D 2 3 = false := by have h := D_step 0 2; rw [d_0_2, d_1_2, d_2_2] at h; exact h
+private theorem d_3_3 : D 3 3 = true := by have h := D_step 1 2; rw [d_1_2, d_2_2, d_3_2] at h; exact h
+private theorem d_4_3 : D 4 3 = true := by have h := D_step 2 2; rw [d_2_2, d_3_2, d_4_2] at h; exact h
+private theorem d_5_3 : D 5 3 = true := by have h := D_step 3 2; rw [d_3_2, d_4_2, d_5_2] at h; exact h
+private theorem d_6_3 : D 6 3 = true := by have h := D_step 4 2; rw [d_4_2, d_5_2, d_6_2] at h; exact h
+private theorem d_7_3 : D 7 3 = false := D_eq_false_of_two_mul_lt 7 3 (by decide)
+private theorem d_8_3 : D 8 3 = false := D_eq_false_of_two_mul_lt 8 3 (by decide)
+private theorem d_0_4 : D 0 4 = true := D_zero 4
+private theorem d_1_4 : D 1 4 = true := D_one 3
+private theorem d_2_4 : D 2 4 = false := by have h := D_step 0 3; rw [d_0_3, d_1_3, d_2_3] at h; exact h
+private theorem d_3_4 : D 3 4 = false := by have h := D_step 1 3; rw [d_1_3, d_2_3, d_3_3] at h; exact h
+private theorem d_4_4 : D 4 4 = true := by have h := D_step 2 3; rw [d_2_3, d_3_3, d_4_3] at h; exact h
+private theorem d_5_4 : D 5 4 = false := by have h := D_step 3 3; rw [d_3_3, d_4_3, d_5_3] at h; exact h
+private theorem d_6_4 : D 6 4 = false := by have h := D_step 4 3; rw [d_4_3, d_5_3, d_6_3] at h; exact h
+private theorem d_7_4 : D 7 4 = false := by have h := D_step 5 3; rw [d_5_3, d_6_3, d_7_3] at h; exact h
+private theorem d_8_4 : D 8 4 = true := by have h := D_step 6 3; rw [d_6_3, d_7_3, d_8_3] at h; exact h
+private theorem d_9_4 : D 9 4 = false := D_eq_false_of_two_mul_lt 9 4 (by decide)
+private theorem d_10_4 : D 10 4 = false := D_eq_false_of_two_mul_lt 10 4 (by decide)
+private theorem d_0_5 : D 0 5 = true := D_zero 5
+private theorem d_1_5 : D 1 5 = true := D_one 4
+private theorem d_2_5 : D 2 5 = false := by have h := D_step 0 4; rw [d_0_4, d_1_4, d_2_4] at h; exact h
+private theorem d_3_5 : D 3 5 = true := by have h := D_step 1 4; rw [d_1_4, d_2_4, d_3_4] at h; exact h
+private theorem d_4_5 : D 4 5 = true := by have h := D_step 2 4; rw [d_2_4, d_3_4, d_4_4] at h; exact h
+private theorem d_5_5 : D 5 5 = true := by have h := D_step 3 4; rw [d_3_4, d_4_4, d_5_4] at h; exact h
+private theorem d_6_5 : D 6 5 = true := by have h := D_step 4 4; rw [d_4_4, d_5_4, d_6_4] at h; exact h
+private theorem d_7_5 : D 7 5 = false := by have h := D_step 5 4; rw [d_5_4, d_6_4, d_7_4] at h; exact h
+private theorem d_8_5 : D 8 5 = true := by have h := D_step 6 4; rw [d_6_4, d_7_4, d_8_4] at h; exact h
+private theorem d_9_5 : D 9 5 = true := by have h := D_step 7 4; rw [d_7_4, d_8_4, d_9_4] at h; exact h
+private theorem d_10_5 : D 10 5 = true := by have h := D_step 8 4; rw [d_8_4, d_9_4, d_10_4] at h; exact h
+private theorem d_11_5 : D 11 5 = false := D_eq_false_of_two_mul_lt 11 5 (by decide)
+private theorem d_12_5 : D 12 5 = false := D_eq_false_of_two_mul_lt 12 5 (by decide)
+private theorem d_0_6 : D 0 6 = true := D_zero 6
+private theorem d_1_6 : D 1 6 = true := D_one 5
+private theorem d_2_6 : D 2 6 = false := by have h := D_step 0 5; rw [d_0_5, d_1_5, d_2_5] at h; exact h
+private theorem d_3_6 : D 3 6 = false := by have h := D_step 1 5; rw [d_1_5, d_2_5, d_3_5] at h; exact h
+private theorem d_4_6 : D 4 6 = true := by have h := D_step 2 5; rw [d_2_5, d_3_5, d_4_5] at h; exact h
+private theorem d_5_6 : D 5 6 = false := by have h := D_step 3 5; rw [d_3_5, d_4_5, d_5_5] at h; exact h
+private theorem d_6_6 : D 6 6 = false := by have h := D_step 4 5; rw [d_4_5, d_5_5, d_6_5] at h; exact h
+private theorem d_7_6 : D 7 6 = false := by have h := D_step 5 5; rw [d_5_5, d_6_5, d_7_5] at h; exact h
+private theorem d_8_6 : D 8 6 = false := by have h := D_step 6 5; rw [d_6_5, d_7_5, d_8_5] at h; exact h
+private theorem d_9_6 : D 9 6 = true := by have h := D_step 7 5; rw [d_7_5, d_8_5, d_9_5] at h; exact h
+private theorem d_10_6 : D 10 6 = false := by have h := D_step 8 5; rw [d_8_5, d_9_5, d_10_5] at h; exact h
+private theorem d_11_6 : D 11 6 = false := by have h := D_step 9 5; rw [d_9_5, d_10_5, d_11_5] at h; exact h
+private theorem d_12_6 : D 12 6 = true := by have h := D_step 10 5; rw [d_10_5, d_11_5, d_12_5] at h; exact h
+private theorem d_13_6 : D 13 6 = false := D_eq_false_of_two_mul_lt 13 6 (by decide)
+private theorem d_14_6 : D 14 6 = false := D_eq_false_of_two_mul_lt 14 6 (by decide)
+private theorem d_0_7 : D 0 7 = true := D_zero 7
+private theorem d_1_7 : D 1 7 = true := D_one 6
+private theorem d_2_7 : D 2 7 = false := by have h := D_step 0 6; rw [d_0_6, d_1_6, d_2_6] at h; exact h
+private theorem d_3_7 : D 3 7 = true := by have h := D_step 1 6; rw [d_1_6, d_2_6, d_3_6] at h; exact h
+private theorem d_4_7 : D 4 7 = true := by have h := D_step 2 6; rw [d_2_6, d_3_6, d_4_6] at h; exact h
+private theorem d_5_7 : D 5 7 = true := by have h := D_step 3 6; rw [d_3_6, d_4_6, d_5_6] at h; exact h
+private theorem d_6_7 : D 6 7 = true := by have h := D_step 4 6; rw [d_4_6, d_5_6, d_6_6] at h; exact h
+private theorem d_7_7 : D 7 7 = false := by have h := D_step 5 6; rw [d_5_6, d_6_6, d_7_6] at h; exact h
+private theorem d_8_7 : D 8 7 = false := by have h := D_step 6 6; rw [d_6_6, d_7_6, d_8_6] at h; exact h
+private theorem d_9_7 : D 9 7 = true := by have h := D_step 7 6; rw [d_7_6, d_8_6, d_9_6] at h; exact h
+private theorem d_10_7 : D 10 7 = true := by have h := D_step 8 6; rw [d_8_6, d_9_6, d_10_6] at h; exact h
+private theorem d_11_7 : D 11 7 = true := by have h := D_step 9 6; rw [d_9_6, d_10_6, d_11_6] at h; exact h
+private theorem d_12_7 : D 12 7 = true := by have h := D_step 10 6; rw [d_10_6, d_11_6, d_12_6] at h; exact h
+private theorem d_13_7 : D 13 7 = true := by have h := D_step 11 6; rw [d_11_6, d_12_6, d_13_6] at h; exact h
+private theorem d_14_7 : D 14 7 = true := by have h := D_step 12 6; rw [d_12_6, d_13_6, d_14_6] at h; exact h
+private theorem d_15_7 : D 15 7 = false := D_eq_false_of_two_mul_lt 15 7 (by decide)
+private theorem d_16_7 : D 16 7 = false := D_eq_false_of_two_mul_lt 16 7 (by decide)
+private theorem d_0_8 : D 0 8 = true := D_zero 8
+private theorem d_1_8 : D 1 8 = true := D_one 7
+private theorem d_2_8 : D 2 8 = false := by have h := D_step 0 7; rw [d_0_7, d_1_7, d_2_7] at h; exact h
+private theorem d_3_8 : D 3 8 = false := by have h := D_step 1 7; rw [d_1_7, d_2_7, d_3_7] at h; exact h
+private theorem d_4_8 : D 4 8 = true := by have h := D_step 2 7; rw [d_2_7, d_3_7, d_4_7] at h; exact h
+private theorem d_5_8 : D 5 8 = false := by have h := D_step 3 7; rw [d_3_7, d_4_7, d_5_7] at h; exact h
+private theorem d_6_8 : D 6 8 = false := by have h := D_step 4 7; rw [d_4_7, d_5_7, d_6_7] at h; exact h
+private theorem d_7_8 : D 7 8 = false := by have h := D_step 5 7; rw [d_5_7, d_6_7, d_7_7] at h; exact h
+private theorem d_8_8 : D 8 8 = true := by have h := D_step 6 7; rw [d_6_7, d_7_7, d_8_7] at h; exact h
+private theorem d_9_8 : D 9 8 = true := by have h := D_step 7 7; rw [d_7_7, d_8_7, d_9_7] at h; exact h
+private theorem d_10_8 : D 10 8 = true := by have h := D_step 8 7; rw [d_8_7, d_9_7, d_10_7] at h; exact h
+private theorem d_11_8 : D 11 8 = false := by have h := D_step 9 7; rw [d_9_7, d_10_7, d_11_7] at h; exact h
+private theorem d_12_8 : D 12 8 = false := by have h := D_step 10 7; rw [d_10_7, d_11_7, d_12_7] at h; exact h
+private theorem d_13_8 : D 13 8 = false := by have h := D_step 11 7; rw [d_11_7, d_12_7, d_13_7] at h; exact h
+private theorem d_14_8 : D 14 8 = false := by have h := D_step 12 7; rw [d_12_7, d_13_7, d_14_7] at h; exact h
+private theorem d_15_8 : D 15 8 = false := by have h := D_step 13 7; rw [d_13_7, d_14_7, d_15_7] at h; exact h
+private theorem d_16_8 : D 16 8 = true := by have h := D_step 14 7; rw [d_14_7, d_15_7, d_16_7] at h; exact h
+private theorem d_17_8 : D 17 8 = false := D_eq_false_of_two_mul_lt 17 8 (by decide)
+private theorem d_18_8 : D 18 8 = false := D_eq_false_of_two_mul_lt 18 8 (by decide)
+private theorem d_0_9 : D 0 9 = true := D_zero 9
+private theorem d_1_9 : D 1 9 = true := D_one 8
+private theorem d_2_9 : D 2 9 = false := by have h := D_step 0 8; rw [d_0_8, d_1_8, d_2_8] at h; exact h
+private theorem d_3_9 : D 3 9 = true := by have h := D_step 1 8; rw [d_1_8, d_2_8, d_3_8] at h; exact h
+private theorem d_4_9 : D 4 9 = true := by have h := D_step 2 8; rw [d_2_8, d_3_8, d_4_8] at h; exact h
+private theorem d_5_9 : D 5 9 = true := by have h := D_step 3 8; rw [d_3_8, d_4_8, d_5_8] at h; exact h
+private theorem d_6_9 : D 6 9 = true := by have h := D_step 4 8; rw [d_4_8, d_5_8, d_6_8] at h; exact h
+private theorem d_7_9 : D 7 9 = false := by have h := D_step 5 8; rw [d_5_8, d_6_8, d_7_8] at h; exact h
+private theorem d_8_9 : D 8 9 = true := by have h := D_step 6 8; rw [d_6_8, d_7_8, d_8_8] at h; exact h
+private theorem d_9_9 : D 9 9 = true := by have h := D_step 7 8; rw [d_7_8, d_8_8, d_9_8] at h; exact h
+private theorem d_10_9 : D 10 9 = false := by have h := D_step 8 8; rw [d_8_8, d_9_8, d_10_8] at h; exact h
+private theorem d_11_9 : D 11 9 = false := by have h := D_step 9 8; rw [d_9_8, d_10_8, d_11_8] at h; exact h
+private theorem d_12_9 : D 12 9 = true := by have h := D_step 10 8; rw [d_10_8, d_11_8, d_12_8] at h; exact h
+private theorem d_13_9 : D 13 9 = false := by have h := D_step 11 8; rw [d_11_8, d_12_8, d_13_8] at h; exact h
+private theorem d_14_9 : D 14 9 = false := by have h := D_step 12 8; rw [d_12_8, d_13_8, d_14_8] at h; exact h
+private theorem d_15_9 : D 15 9 = false := by have h := D_step 13 8; rw [d_13_8, d_14_8, d_15_8] at h; exact h
+private theorem d_16_9 : D 16 9 = true := by have h := D_step 14 8; rw [d_14_8, d_15_8, d_16_8] at h; exact h
+private theorem d_17_9 : D 17 9 = true := by have h := D_step 15 8; rw [d_15_8, d_16_8, d_17_8] at h; exact h
+private theorem d_18_9 : D 18 9 = true := by have h := D_step 16 8; rw [d_16_8, d_17_8, d_18_8] at h; exact h
+private theorem d_19_9 : D 19 9 = false := D_eq_false_of_two_mul_lt 19 9 (by decide)
+private theorem d_20_9 : D 20 9 = false := D_eq_false_of_two_mul_lt 20 9 (by decide)
+private theorem d_0_10 : D 0 10 = true := D_zero 10
+private theorem d_1_10 : D 1 10 = true := D_one 9
+private theorem d_2_10 : D 2 10 = false := by have h := D_step 0 9; rw [d_0_9, d_1_9, d_2_9] at h; exact h
+private theorem d_3_10 : D 3 10 = false := by have h := D_step 1 9; rw [d_1_9, d_2_9, d_3_9] at h; exact h
+private theorem d_4_10 : D 4 10 = true := by have h := D_step 2 9; rw [d_2_9, d_3_9, d_4_9] at h; exact h
+private theorem d_5_10 : D 5 10 = false := by have h := D_step 3 9; rw [d_3_9, d_4_9, d_5_9] at h; exact h
+private theorem d_6_10 : D 6 10 = false := by have h := D_step 4 9; rw [d_4_9, d_5_9, d_6_9] at h; exact h
+private theorem d_7_10 : D 7 10 = false := by have h := D_step 5 9; rw [d_5_9, d_6_9, d_7_9] at h; exact h
+private theorem d_8_10 : D 8 10 = false := by have h := D_step 6 9; rw [d_6_9, d_7_9, d_8_9] at h; exact h
+private theorem d_9_10 : D 9 10 = true := by have h := D_step 7 9; rw [d_7_9, d_8_9, d_9_9] at h; exact h
+private theorem d_10_10 : D 10 10 = false := by have h := D_step 8 9; rw [d_8_9, d_9_9, d_10_9] at h; exact h
+private theorem d_11_10 : D 11 10 = true := by have h := D_step 9 9; rw [d_9_9, d_10_9, d_11_9] at h; exact h
+private theorem d_12_10 : D 12 10 = true := by have h := D_step 10 9; rw [d_10_9, d_11_9, d_12_9] at h; exact h
+private theorem d_13_10 : D 13 10 = true := by have h := D_step 11 9; rw [d_11_9, d_12_9, d_13_9] at h; exact h
+private theorem d_14_10 : D 14 10 = true := by have h := D_step 12 9; rw [d_12_9, d_13_9, d_14_9] at h; exact h
+private theorem d_15_10 : D 15 10 = false := by have h := D_step 13 9; rw [d_13_9, d_14_9, d_15_9] at h; exact h
+private theorem d_16_10 : D 16 10 = true := by have h := D_step 14 9; rw [d_14_9, d_15_9, d_16_9] at h; exact h
+private theorem d_17_10 : D 17 10 = true := by have h := D_step 15 9; rw [d_15_9, d_16_9, d_17_9] at h; exact h
+private theorem d_18_10 : D 18 10 = false := by have h := D_step 16 9; rw [d_16_9, d_17_9, d_18_9] at h; exact h
+private theorem d_19_10 : D 19 10 = false := by have h := D_step 17 9; rw [d_17_9, d_18_9, d_19_9] at h; exact h
+private theorem d_20_10 : D 20 10 = true := by have h := D_step 18 9; rw [d_18_9, d_19_9, d_20_9] at h; exact h
+private theorem d_21_10 : D 21 10 = false := D_eq_false_of_two_mul_lt 21 10 (by decide)
+private theorem d_22_10 : D 22 10 = false := D_eq_false_of_two_mul_lt 22 10 (by decide)
+private theorem d_0_11 : D 0 11 = true := D_zero 11
+private theorem d_1_11 : D 1 11 = true := D_one 10
+private theorem d_2_11 : D 2 11 = false := by have h := D_step 0 10; rw [d_0_10, d_1_10, d_2_10] at h; exact h
+private theorem d_3_11 : D 3 11 = true := by have h := D_step 1 10; rw [d_1_10, d_2_10, d_3_10] at h; exact h
+private theorem d_4_11 : D 4 11 = true := by have h := D_step 2 10; rw [d_2_10, d_3_10, d_4_10] at h; exact h
+private theorem d_5_11 : D 5 11 = true := by have h := D_step 3 10; rw [d_3_10, d_4_10, d_5_10] at h; exact h
+private theorem d_6_11 : D 6 11 = true := by have h := D_step 4 10; rw [d_4_10, d_5_10, d_6_10] at h; exact h
+private theorem d_7_11 : D 7 11 = false := by have h := D_step 5 10; rw [d_5_10, d_6_10, d_7_10] at h; exact h
+private theorem d_8_11 : D 8 11 = false := by have h := D_step 6 10; rw [d_6_10, d_7_10, d_8_10] at h; exact h
+private theorem d_9_11 : D 9 11 = true := by have h := D_step 7 10; rw [d_7_10, d_8_10, d_9_10] at h; exact h
+private theorem d_10_11 : D 10 11 = true := by have h := D_step 8 10; rw [d_8_10, d_9_10, d_10_10] at h; exact h
+private theorem d_11_11 : D 11 11 = false := by have h := D_step 9 10; rw [d_9_10, d_10_10, d_11_10] at h; exact h
+private theorem d_12_11 : D 12 11 = true := by have h := D_step 10 10; rw [d_10_10, d_11_10, d_12_10] at h; exact h
+private theorem d_13_11 : D 13 11 = false := by have h := D_step 11 10; rw [d_11_10, d_12_10, d_13_10] at h; exact h
+private theorem d_14_11 : D 14 11 = false := by have h := D_step 12 10; rw [d_12_10, d_13_10, d_14_10] at h; exact h
+private theorem d_15_11 : D 15 11 = false := by have h := D_step 13 10; rw [d_13_10, d_14_10, d_15_10] at h; exact h
+private theorem d_16_11 : D 16 11 = false := by have h := D_step 14 10; rw [d_14_10, d_15_10, d_16_10] at h; exact h
+private theorem d_17_11 : D 17 11 = true := by have h := D_step 15 10; rw [d_15_10, d_16_10, d_17_10] at h; exact h
+private theorem d_18_11 : D 18 11 = false := by have h := D_step 16 10; rw [d_16_10, d_17_10, d_18_10] at h; exact h
+private theorem d_19_11 : D 19 11 = true := by have h := D_step 17 10; rw [d_17_10, d_18_10, d_19_10] at h; exact h
+private theorem d_20_11 : D 20 11 = true := by have h := D_step 18 10; rw [d_18_10, d_19_10, d_20_10] at h; exact h
+private theorem d_21_11 : D 21 11 = true := by have h := D_step 19 10; rw [d_19_10, d_20_10, d_21_10] at h; exact h
+private theorem d_22_11 : D 22 11 = true := by have h := D_step 20 10; rw [d_20_10, d_21_10, d_22_10] at h; exact h
+private theorem d_23_11 : D 23 11 = false := D_eq_false_of_two_mul_lt 23 11 (by decide)
+private theorem d_24_11 : D 24 11 = false := D_eq_false_of_two_mul_lt 24 11 (by decide)
+private theorem d_0_12 : D 0 12 = true := D_zero 12
+private theorem d_1_12 : D 1 12 = true := D_one 11
+private theorem d_2_12 : D 2 12 = false := by have h := D_step 0 11; rw [d_0_11, d_1_11, d_2_11] at h; exact h
+private theorem d_3_12 : D 3 12 = false := by have h := D_step 1 11; rw [d_1_11, d_2_11, d_3_11] at h; exact h
+private theorem d_4_12 : D 4 12 = true := by have h := D_step 2 11; rw [d_2_11, d_3_11, d_4_11] at h; exact h
+private theorem d_5_12 : D 5 12 = false := by have h := D_step 3 11; rw [d_3_11, d_4_11, d_5_11] at h; exact h
+private theorem d_6_12 : D 6 12 = false := by have h := D_step 4 11; rw [d_4_11, d_5_11, d_6_11] at h; exact h
+private theorem d_7_12 : D 7 12 = false := by have h := D_step 5 11; rw [d_5_11, d_6_11, d_7_11] at h; exact h
+private theorem d_8_12 : D 8 12 = true := by have h := D_step 6 11; rw [d_6_11, d_7_11, d_8_11] at h; exact h
+private theorem d_9_12 : D 9 12 = true := by have h := D_step 7 11; rw [d_7_11, d_8_11, d_9_11] at h; exact h
+private theorem d_10_12 : D 10 12 = true := by have h := D_step 8 11; rw [d_8_11, d_9_11, d_10_11] at h; exact h
+private theorem d_11_12 : D 11 12 = false := by have h := D_step 9 11; rw [d_9_11, d_10_11, d_11_11] at h; exact h
+private theorem d_12_12 : D 12 12 = false := by have h := D_step 10 11; rw [d_10_11, d_11_11, d_12_11] at h; exact h
+private theorem d_13_12 : D 13 12 = true := by have h := D_step 11 11; rw [d_11_11, d_12_11, d_13_11] at h; exact h
+private theorem d_14_12 : D 14 12 = true := by have h := D_step 12 11; rw [d_12_11, d_13_11, d_14_11] at h; exact h
+private theorem d_15_12 : D 15 12 = false := by have h := D_step 13 11; rw [d_13_11, d_14_11, d_15_11] at h; exact h
+private theorem d_16_12 : D 16 12 = false := by have h := D_step 14 11; rw [d_14_11, d_15_11, d_16_11] at h; exact h
+private theorem d_17_12 : D 17 12 = true := by have h := D_step 15 11; rw [d_15_11, d_16_11, d_17_11] at h; exact h
+private theorem d_18_12 : D 18 12 = true := by have h := D_step 16 11; rw [d_16_11, d_17_11, d_18_11] at h; exact h
+private theorem d_19_12 : D 19 12 = false := by have h := D_step 17 11; rw [d_17_11, d_18_11, d_19_11] at h; exact h
+private theorem d_20_12 : D 20 12 = true := by have h := D_step 18 11; rw [d_18_11, d_19_11, d_20_11] at h; exact h
+private theorem d_21_12 : D 21 12 = false := by have h := D_step 19 11; rw [d_19_11, d_20_11, d_21_11] at h; exact h
+private theorem d_22_12 : D 22 12 = false := by have h := D_step 20 11; rw [d_20_11, d_21_11, d_22_11] at h; exact h
+private theorem d_23_12 : D 23 12 = false := by have h := D_step 21 11; rw [d_21_11, d_22_11, d_23_11] at h; exact h
+private theorem d_24_12 : D 24 12 = true := by have h := D_step 22 11; rw [d_22_11, d_23_11, d_24_11] at h; exact h
+private theorem d_25_12 : D 25 12 = false := D_eq_false_of_two_mul_lt 25 12 (by decide)
+private theorem d_26_12 : D 26 12 = false := D_eq_false_of_two_mul_lt 26 12 (by decide)
+private theorem d_0_13 : D 0 13 = true := D_zero 13
+private theorem d_1_13 : D 1 13 = true := D_one 12
+private theorem d_2_13 : D 2 13 = false := by have h := D_step 0 12; rw [d_0_12, d_1_12, d_2_12] at h; exact h
+private theorem d_3_13 : D 3 13 = true := by have h := D_step 1 12; rw [d_1_12, d_2_12, d_3_12] at h; exact h
+private theorem d_4_13 : D 4 13 = true := by have h := D_step 2 12; rw [d_2_12, d_3_12, d_4_12] at h; exact h
+private theorem d_5_13 : D 5 13 = true := by have h := D_step 3 12; rw [d_3_12, d_4_12, d_5_12] at h; exact h
+private theorem d_6_13 : D 6 13 = true := by have h := D_step 4 12; rw [d_4_12, d_5_12, d_6_12] at h; exact h
+private theorem d_7_13 : D 7 13 = false := by have h := D_step 5 12; rw [d_5_12, d_6_12, d_7_12] at h; exact h
+private theorem d_8_13 : D 8 13 = true := by have h := D_step 6 12; rw [d_6_12, d_7_12, d_8_12] at h; exact h
+private theorem d_9_13 : D 9 13 = true := by have h := D_step 7 12; rw [d_7_12, d_8_12, d_9_12] at h; exact h
+private theorem d_10_13 : D 10 13 = false := by have h := D_step 8 12; rw [d_8_12, d_9_12, d_10_12] at h; exact h
+private theorem d_11_13 : D 11 13 = false := by have h := D_step 9 12; rw [d_9_12, d_10_12, d_11_12] at h; exact h
+private theorem d_12_13 : D 12 13 = true := by have h := D_step 10 12; rw [d_10_12, d_11_12, d_12_12] at h; exact h
+private theorem d_13_13 : D 13 13 = true := by have h := D_step 11 12; rw [d_11_12, d_12_12, d_13_12] at h; exact h
+private theorem d_14_13 : D 14 13 = true := by have h := D_step 12 12; rw [d_12_12, d_13_12, d_14_12] at h; exact h
+private theorem d_15_13 : D 15 13 = false := by have h := D_step 13 12; rw [d_13_12, d_14_12, d_15_12] at h; exact h
+private theorem d_16_13 : D 16 13 = true := by have h := D_step 14 12; rw [d_14_12, d_15_12, d_16_12] at h; exact h
+private theorem d_17_13 : D 17 13 = true := by have h := D_step 15 12; rw [d_15_12, d_16_12, d_17_12] at h; exact h
+private theorem d_18_13 : D 18 13 = true := by have h := D_step 16 12; rw [d_16_12, d_17_12, d_18_12] at h; exact h
+private theorem d_19_13 : D 19 13 = false := by have h := D_step 17 12; rw [d_17_12, d_18_12, d_19_12] at h; exact h
+private theorem d_20_13 : D 20 13 = false := by have h := D_step 18 12; rw [d_18_12, d_19_12, d_20_12] at h; exact h
+private theorem d_21_13 : D 21 13 = true := by have h := D_step 19 12; rw [d_19_12, d_20_12, d_21_12] at h; exact h
+private theorem d_22_13 : D 22 13 = true := by have h := D_step 20 12; rw [d_20_12, d_21_12, d_22_12] at h; exact h
+private theorem d_23_13 : D 23 13 = false := by have h := D_step 21 12; rw [d_21_12, d_22_12, d_23_12] at h; exact h
+private theorem d_24_13 : D 24 13 = true := by have h := D_step 22 12; rw [d_22_12, d_23_12, d_24_12] at h; exact h
+private theorem d_25_13 : D 25 13 = true := by have h := D_step 23 12; rw [d_23_12, d_24_12, d_25_12] at h; exact h
+private theorem d_26_13 : D 26 13 = true := by have h := D_step 24 12; rw [d_24_12, d_25_12, d_26_12] at h; exact h
+private theorem d_27_13 : D 27 13 = false := D_eq_false_of_two_mul_lt 27 13 (by decide)
+private theorem d_28_13 : D 28 13 = false := D_eq_false_of_two_mul_lt 28 13 (by decide)
+private theorem d_0_14 : D 0 14 = true := D_zero 14
+private theorem d_1_14 : D 1 14 = true := D_one 13
+private theorem d_2_14 : D 2 14 = false := by have h := D_step 0 13; rw [d_0_13, d_1_13, d_2_13] at h; exact h
+private theorem d_3_14 : D 3 14 = false := by have h := D_step 1 13; rw [d_1_13, d_2_13, d_3_13] at h; exact h
+private theorem d_4_14 : D 4 14 = true := by have h := D_step 2 13; rw [d_2_13, d_3_13, d_4_13] at h; exact h
+private theorem d_5_14 : D 5 14 = false := by have h := D_step 3 13; rw [d_3_13, d_4_13, d_5_13] at h; exact h
+private theorem d_6_14 : D 6 14 = false := by have h := D_step 4 13; rw [d_4_13, d_5_13, d_6_13] at h; exact h
+private theorem d_7_14 : D 7 14 = false := by have h := D_step 5 13; rw [d_5_13, d_6_13, d_7_13] at h; exact h
+private theorem d_8_14 : D 8 14 = false := by have h := D_step 6 13; rw [d_6_13, d_7_13, d_8_13] at h; exact h
+private theorem d_9_14 : D 9 14 = true := by have h := D_step 7 13; rw [d_7_13, d_8_13, d_9_13] at h; exact h
+private theorem d_10_14 : D 10 14 = false := by have h := D_step 8 13; rw [d_8_13, d_9_13, d_10_13] at h; exact h
+private theorem d_11_14 : D 11 14 = true := by have h := D_step 9 13; rw [d_9_13, d_10_13, d_11_13] at h; exact h
+private theorem d_12_14 : D 12 14 = true := by have h := D_step 10 13; rw [d_10_13, d_11_13, d_12_13] at h; exact h
+private theorem d_13_14 : D 13 14 = true := by have h := D_step 11 13; rw [d_11_13, d_12_13, d_13_13] at h; exact h
+private theorem d_14_14 : D 14 14 = false := by have h := D_step 12 13; rw [d_12_13, d_13_13, d_14_13] at h; exact h
+private theorem d_15_14 : D 15 14 = false := by have h := D_step 13 13; rw [d_13_13, d_14_13, d_15_13] at h; exact h
+private theorem d_16_14 : D 16 14 = false := by have h := D_step 14 13; rw [d_14_13, d_15_13, d_16_13] at h; exact h
+private theorem d_17_14 : D 17 14 = true := by have h := D_step 15 13; rw [d_15_13, d_16_13, d_17_13] at h; exact h
+private theorem d_18_14 : D 18 14 = false := by have h := D_step 16 13; rw [d_16_13, d_17_13, d_18_13] at h; exact h
+private theorem d_19_14 : D 19 14 = false := by have h := D_step 17 13; rw [d_17_13, d_18_13, d_19_13] at h; exact h
+private theorem d_20_14 : D 20 14 = true := by have h := D_step 18 13; rw [d_18_13, d_19_13, d_20_13] at h; exact h
+private theorem d_21_14 : D 21 14 = true := by have h := D_step 19 13; rw [d_19_13, d_20_13, d_21_13] at h; exact h
+private theorem d_22_14 : D 22 14 = true := by have h := D_step 20 13; rw [d_20_13, d_21_13, d_22_13] at h; exact h
+private theorem d_23_14 : D 23 14 = false := by have h := D_step 21 13; rw [d_21_13, d_22_13, d_23_13] at h; exact h
+private theorem d_24_14 : D 24 14 = false := by have h := D_step 22 13; rw [d_22_13, d_23_13, d_24_13] at h; exact h
+private theorem d_25_14 : D 25 14 = true := by have h := D_step 23 13; rw [d_23_13, d_24_13, d_25_13] at h; exact h
+private theorem d_26_14 : D 26 14 = false := by have h := D_step 24 13; rw [d_24_13, d_25_13, d_26_13] at h; exact h
+private theorem d_27_14 : D 27 14 = false := by have h := D_step 25 13; rw [d_25_13, d_26_13, d_27_13] at h; exact h
+private theorem d_28_14 : D 28 14 = true := by have h := D_step 26 13; rw [d_26_13, d_27_13, d_28_13] at h; exact h
+private theorem d_29_14 : D 29 14 = false := D_eq_false_of_two_mul_lt 29 14 (by decide)
+private theorem d_30_14 : D 30 14 = false := D_eq_false_of_two_mul_lt 30 14 (by decide)
+private theorem d_0_15 : D 0 15 = true := D_zero 15
+private theorem d_1_15 : D 1 15 = true := D_one 14
+private theorem d_2_15 : D 2 15 = false := by have h := D_step 0 14; rw [d_0_14, d_1_14, d_2_14] at h; exact h
+private theorem d_3_15 : D 3 15 = true := by have h := D_step 1 14; rw [d_1_14, d_2_14, d_3_14] at h; exact h
+private theorem d_4_15 : D 4 15 = true := by have h := D_step 2 14; rw [d_2_14, d_3_14, d_4_14] at h; exact h
+private theorem d_5_15 : D 5 15 = true := by have h := D_step 3 14; rw [d_3_14, d_4_14, d_5_14] at h; exact h
+private theorem d_6_15 : D 6 15 = true := by have h := D_step 4 14; rw [d_4_14, d_5_14, d_6_14] at h; exact h
+private theorem d_7_15 : D 7 15 = false := by have h := D_step 5 14; rw [d_5_14, d_6_14, d_7_14] at h; exact h
+private theorem d_8_15 : D 8 15 = false := by have h := D_step 6 14; rw [d_6_14, d_7_14, d_8_14] at h; exact h
+private theorem d_9_15 : D 9 15 = true := by have h := D_step 7 14; rw [d_7_14, d_8_14, d_9_14] at h; exact h
+private theorem d_10_15 : D 10 15 = true := by have h := D_step 8 14; rw [d_8_14, d_9_14, d_10_14] at h; exact h
+private theorem d_11_15 : D 11 15 = false := by have h := D_step 9 14; rw [d_9_14, d_10_14, d_11_14] at h; exact h
+private theorem d_12_15 : D 12 15 = true := by have h := D_step 10 14; rw [d_10_14, d_11_14, d_12_14] at h; exact h
+private theorem d_13_15 : D 13 15 = false := by have h := D_step 11 14; rw [d_11_14, d_12_14, d_13_14] at h; exact h
+private theorem d_14_15 : D 14 15 = false := by have h := D_step 12 14; rw [d_12_14, d_13_14, d_14_14] at h; exact h
+private theorem d_15_15 : D 15 15 = true := by have h := D_step 13 14; rw [d_13_14, d_14_14, d_15_14] at h; exact h
+private theorem d_16_15 : D 16 15 = false := by have h := D_step 14 14; rw [d_14_14, d_15_14, d_16_14] at h; exact h
+private theorem d_17_15 : D 17 15 = true := by have h := D_step 15 14; rw [d_15_14, d_16_14, d_17_14] at h; exact h
+private theorem d_18_15 : D 18 15 = true := by have h := D_step 16 14; rw [d_16_14, d_17_14, d_18_14] at h; exact h
+private theorem d_19_15 : D 19 15 = true := by have h := D_step 17 14; rw [d_17_14, d_18_14, d_19_14] at h; exact h
+private theorem d_20_15 : D 20 15 = true := by have h := D_step 18 14; rw [d_18_14, d_19_14, d_20_14] at h; exact h
+private theorem d_21_15 : D 21 15 = true := by have h := D_step 19 14; rw [d_19_14, d_20_14, d_21_14] at h; exact h
+private theorem d_22_15 : D 22 15 = false := by have h := D_step 20 14; rw [d_20_14, d_21_14, d_22_14] at h; exact h
+private theorem d_23_15 : D 23 15 = false := by have h := D_step 21 14; rw [d_21_14, d_22_14, d_23_14] at h; exact h
+private theorem d_24_15 : D 24 15 = true := by have h := D_step 22 14; rw [d_22_14, d_23_14, d_24_14] at h; exact h
+private theorem d_25_15 : D 25 15 = true := by have h := D_step 23 14; rw [d_23_14, d_24_14, d_25_14] at h; exact h
+private theorem d_26_15 : D 26 15 = true := by have h := D_step 24 14; rw [d_24_14, d_25_14, d_26_14] at h; exact h
+private theorem d_27_15 : D 27 15 = true := by have h := D_step 25 14; rw [d_25_14, d_26_14, d_27_14] at h; exact h
+private theorem d_28_15 : D 28 15 = true := by have h := D_step 26 14; rw [d_26_14, d_27_14, d_28_14] at h; exact h
+private theorem d_29_15 : D 29 15 = true := by have h := D_step 27 14; rw [d_27_14, d_28_14, d_29_14] at h; exact h
+private theorem d_30_15 : D 30 15 = true := by have h := D_step 28 14; rw [d_28_14, d_29_14, d_30_14] at h; exact h
+private theorem d_0_16 : D 0 16 = true := D_zero 16
+private theorem d_1_16 : D 1 16 = true := D_one 15
+private theorem d_2_16 : D 2 16 = false := by have h := D_step 0 15; rw [d_0_15, d_1_15, d_2_15] at h; exact h
+private theorem d_3_16 : D 3 16 = false := by have h := D_step 1 15; rw [d_1_15, d_2_15, d_3_15] at h; exact h
+private theorem d_4_16 : D 4 16 = true := by have h := D_step 2 15; rw [d_2_15, d_3_15, d_4_15] at h; exact h
+private theorem d_5_16 : D 5 16 = false := by have h := D_step 3 15; rw [d_3_15, d_4_15, d_5_15] at h; exact h
+private theorem d_6_16 : D 6 16 = false := by have h := D_step 4 15; rw [d_4_15, d_5_15, d_6_15] at h; exact h
+private theorem d_7_16 : D 7 16 = false := by have h := D_step 5 15; rw [d_5_15, d_6_15, d_7_15] at h; exact h
+private theorem d_8_16 : D 8 16 = true := by have h := D_step 6 15; rw [d_6_15, d_7_15, d_8_15] at h; exact h
+private theorem d_9_16 : D 9 16 = true := by have h := D_step 7 15; rw [d_7_15, d_8_15, d_9_15] at h; exact h
+private theorem d_10_16 : D 10 16 = true := by have h := D_step 8 15; rw [d_8_15, d_9_15, d_10_15] at h; exact h
+private theorem d_11_16 : D 11 16 = false := by have h := D_step 9 15; rw [d_9_15, d_10_15, d_11_15] at h; exact h
+private theorem d_12_16 : D 12 16 = false := by have h := D_step 10 15; rw [d_10_15, d_11_15, d_12_15] at h; exact h
+private theorem d_13_16 : D 13 16 = true := by have h := D_step 11 15; rw [d_11_15, d_12_15, d_13_15] at h; exact h
+private theorem d_14_16 : D 14 16 = true := by have h := D_step 12 15; rw [d_12_15, d_13_15, d_14_15] at h; exact h
+private theorem d_15_16 : D 15 16 = true := by have h := D_step 13 15; rw [d_13_15, d_14_15, d_15_15] at h; exact h
+private theorem d_16_16 : D 16 16 = true := by have h := D_step 14 15; rw [d_14_15, d_15_15, d_16_15] at h; exact h
+private theorem d_17_16 : D 17 16 = false := by have h := D_step 15 15; rw [d_15_15, d_16_15, d_17_15] at h; exact h
+private theorem d_18_16 : D 18 16 = true := by have h := D_step 16 15; rw [d_16_15, d_17_15, d_18_15] at h; exact h
+private theorem d_19_16 : D 19 16 = false := by have h := D_step 17 15; rw [d_17_15, d_18_15, d_19_15] at h; exact h
+private theorem d_20_16 : D 20 16 = false := by have h := D_step 18 15; rw [d_18_15, d_19_15, d_20_15] at h; exact h
+private theorem d_21_16 : D 21 16 = false := by have h := D_step 19 15; rw [d_19_15, d_20_15, d_21_15] at h; exact h
+private theorem d_22_16 : D 22 16 = false := by have h := D_step 20 15; rw [d_20_15, d_21_15, d_22_15] at h; exact h
+private theorem d_23_16 : D 23 16 = true := by have h := D_step 21 15; rw [d_21_15, d_22_15, d_23_15] at h; exact h
+private theorem d_24_16 : D 24 16 = true := by have h := D_step 22 15; rw [d_22_15, d_23_15, d_24_15] at h; exact h
+private theorem d_25_16 : D 25 16 = true := by have h := D_step 23 15; rw [d_23_15, d_24_15, d_25_15] at h; exact h
+private theorem d_26_16 : D 26 16 = false := by have h := D_step 24 15; rw [d_24_15, d_25_15, d_26_15] at h; exact h
+private theorem d_27_16 : D 27 16 = false := by have h := D_step 25 15; rw [d_25_15, d_26_15, d_27_15] at h; exact h
+private theorem d_28_16 : D 28 16 = false := by have h := D_step 26 15; rw [d_26_15, d_27_15, d_28_15] at h; exact h
+private theorem d_29_16 : D 29 16 = false := by have h := D_step 27 15; rw [d_27_15, d_28_15, d_29_15] at h; exact h
+private theorem d_30_16 : D 30 16 = false := by have h := D_step 28 15; rw [d_28_15, d_29_15, d_30_15] at h; exact h
+private theorem d_0_17 : D 0 17 = true := D_zero 17
+private theorem d_1_17 : D 1 17 = true := D_one 16
+private theorem d_2_17 : D 2 17 = false := by have h := D_step 0 16; rw [d_0_16, d_1_16, d_2_16] at h; exact h
+private theorem d_3_17 : D 3 17 = true := by have h := D_step 1 16; rw [d_1_16, d_2_16, d_3_16] at h; exact h
+private theorem d_4_17 : D 4 17 = true := by have h := D_step 2 16; rw [d_2_16, d_3_16, d_4_16] at h; exact h
+private theorem d_5_17 : D 5 17 = true := by have h := D_step 3 16; rw [d_3_16, d_4_16, d_5_16] at h; exact h
+private theorem d_6_17 : D 6 17 = true := by have h := D_step 4 16; rw [d_4_16, d_5_16, d_6_16] at h; exact h
+private theorem d_7_17 : D 7 17 = false := by have h := D_step 5 16; rw [d_5_16, d_6_16, d_7_16] at h; exact h
+private theorem d_8_17 : D 8 17 = true := by have h := D_step 6 16; rw [d_6_16, d_7_16, d_8_16] at h; exact h
+private theorem d_9_17 : D 9 17 = true := by have h := D_step 7 16; rw [d_7_16, d_8_16, d_9_16] at h; exact h
+private theorem d_10_17 : D 10 17 = false := by have h := D_step 8 16; rw [d_8_16, d_9_16, d_10_16] at h; exact h
+private theorem d_11_17 : D 11 17 = false := by have h := D_step 9 16; rw [d_9_16, d_10_16, d_11_16] at h; exact h
+private theorem d_12_17 : D 12 17 = true := by have h := D_step 10 16; rw [d_10_16, d_11_16, d_12_16] at h; exact h
+private theorem d_13_17 : D 13 17 = true := by have h := D_step 11 16; rw [d_11_16, d_12_16, d_13_16] at h; exact h
+private theorem d_14_17 : D 14 17 = true := by have h := D_step 12 16; rw [d_12_16, d_13_16, d_14_16] at h; exact h
+private theorem d_15_17 : D 15 17 = false := by have h := D_step 13 16; rw [d_13_16, d_14_16, d_15_16] at h; exact h
+private theorem d_16_17 : D 16 17 = false := by have h := D_step 14 16; rw [d_14_16, d_15_16, d_16_16] at h; exact h
+private theorem d_17_17 : D 17 17 = false := by have h := D_step 15 16; rw [d_15_16, d_16_16, d_17_16] at h; exact h
+private theorem d_18_17 : D 18 17 = false := by have h := D_step 16 16; rw [d_16_16, d_17_16, d_18_16] at h; exact h
+private theorem d_19_17 : D 19 17 = true := by have h := D_step 17 16; rw [d_17_16, d_18_16, d_19_16] at h; exact h
+private theorem d_20_17 : D 20 17 = true := by have h := D_step 18 16; rw [d_18_16, d_19_16, d_20_16] at h; exact h
+private theorem d_21_17 : D 21 17 = false := by have h := D_step 19 16; rw [d_19_16, d_20_16, d_21_16] at h; exact h
+private theorem d_22_17 : D 22 17 = false := by have h := D_step 20 16; rw [d_20_16, d_21_16, d_22_16] at h; exact h
+private theorem d_23_17 : D 23 17 = true := by have h := D_step 21 16; rw [d_21_16, d_22_16, d_23_16] at h; exact h
+private theorem d_24_17 : D 24 17 = true := by have h := D_step 22 16; rw [d_22_16, d_23_16, d_24_16] at h; exact h
+private theorem d_25_17 : D 25 17 = false := by have h := D_step 23 16; rw [d_23_16, d_24_16, d_25_16] at h; exact h
+private theorem d_26_17 : D 26 17 = false := by have h := D_step 24 16; rw [d_24_16, d_25_16, d_26_16] at h; exact h
+private theorem d_27_17 : D 27 17 = true := by have h := D_step 25 16; rw [d_25_16, d_26_16, d_27_16] at h; exact h
+private theorem d_28_17 : D 28 17 = false := by have h := D_step 26 16; rw [d_26_16, d_27_16, d_28_16] at h; exact h
+private theorem d_29_17 : D 29 17 = false := by have h := D_step 27 16; rw [d_27_16, d_28_16, d_29_16] at h; exact h
+private theorem d_30_17 : D 30 17 = false := by have h := D_step 28 16; rw [d_28_16, d_29_16, d_30_16] at h; exact h
+private theorem d_0_18 : D 0 18 = true := D_zero 18
+private theorem d_1_18 : D 1 18 = true := D_one 17
+private theorem d_2_18 : D 2 18 = false := by have h := D_step 0 17; rw [d_0_17, d_1_17, d_2_17] at h; exact h
+private theorem d_3_18 : D 3 18 = false := by have h := D_step 1 17; rw [d_1_17, d_2_17, d_3_17] at h; exact h
+private theorem d_4_18 : D 4 18 = true := by have h := D_step 2 17; rw [d_2_17, d_3_17, d_4_17] at h; exact h
+private theorem d_5_18 : D 5 18 = false := by have h := D_step 3 17; rw [d_3_17, d_4_17, d_5_17] at h; exact h
+private theorem d_6_18 : D 6 18 = false := by have h := D_step 4 17; rw [d_4_17, d_5_17, d_6_17] at h; exact h
+private theorem d_7_18 : D 7 18 = false := by have h := D_step 5 17; rw [d_5_17, d_6_17, d_7_17] at h; exact h
+private theorem d_8_18 : D 8 18 = false := by have h := D_step 6 17; rw [d_6_17, d_7_17, d_8_17] at h; exact h
+private theorem d_9_18 : D 9 18 = true := by have h := D_step 7 17; rw [d_7_17, d_8_17, d_9_17] at h; exact h
+private theorem d_10_18 : D 10 18 = false := by have h := D_step 8 17; rw [d_8_17, d_9_17, d_10_17] at h; exact h
+private theorem d_11_18 : D 11 18 = true := by have h := D_step 9 17; rw [d_9_17, d_10_17, d_11_17] at h; exact h
+private theorem d_12_18 : D 12 18 = true := by have h := D_step 10 17; rw [d_10_17, d_11_17, d_12_17] at h; exact h
+private theorem d_13_18 : D 13 18 = true := by have h := D_step 11 17; rw [d_11_17, d_12_17, d_13_17] at h; exact h
+private theorem d_14_18 : D 14 18 = false := by have h := D_step 12 17; rw [d_12_17, d_13_17, d_14_17] at h; exact h
+private theorem d_15_18 : D 15 18 = false := by have h := D_step 13 17; rw [d_13_17, d_14_17, d_15_17] at h; exact h
+private theorem d_16_18 : D 16 18 = true := by have h := D_step 14 17; rw [d_14_17, d_15_17, d_16_17] at h; exact h
+private theorem d_17_18 : D 17 18 = false := by have h := D_step 15 17; rw [d_15_17, d_16_17, d_17_17] at h; exact h
+private theorem d_18_18 : D 18 18 = false := by have h := D_step 16 17; rw [d_16_17, d_17_17, d_18_17] at h; exact h
+private theorem d_19_18 : D 19 18 = true := by have h := D_step 17 17; rw [d_17_17, d_18_17, d_19_17] at h; exact h
+private theorem d_20_18 : D 20 18 = true := by have h := D_step 18 17; rw [d_18_17, d_19_17, d_20_17] at h; exact h
+private theorem d_21_18 : D 21 18 = false := by have h := D_step 19 17; rw [d_19_17, d_20_17, d_21_17] at h; exact h
+private theorem d_22_18 : D 22 18 = true := by have h := D_step 20 17; rw [d_20_17, d_21_17, d_22_17] at h; exact h
+private theorem d_23_18 : D 23 18 = true := by have h := D_step 21 17; rw [d_21_17, d_22_17, d_23_17] at h; exact h
+private theorem d_24_18 : D 24 18 = true := by have h := D_step 22 17; rw [d_22_17, d_23_17, d_24_17] at h; exact h
+private theorem d_25_18 : D 25 18 = false := by have h := D_step 23 17; rw [d_23_17, d_24_17, d_25_17] at h; exact h
+private theorem d_26_18 : D 26 18 = true := by have h := D_step 24 17; rw [d_24_17, d_25_17, d_26_17] at h; exact h
+private theorem d_27_18 : D 27 18 = true := by have h := D_step 25 17; rw [d_25_17, d_26_17, d_27_17] at h; exact h
+private theorem d_28_18 : D 28 18 = true := by have h := D_step 26 17; rw [d_26_17, d_27_17, d_28_17] at h; exact h
+private theorem d_29_18 : D 29 18 = true := by have h := D_step 27 17; rw [d_27_17, d_28_17, d_29_17] at h; exact h
+private theorem d_30_18 : D 30 18 = false := by have h := D_step 28 17; rw [d_28_17, d_29_17, d_30_17] at h; exact h
+private theorem d_0_19 : D 0 19 = true := D_zero 19
+private theorem d_1_19 : D 1 19 = true := D_one 18
+private theorem d_2_19 : D 2 19 = false := by have h := D_step 0 18; rw [d_0_18, d_1_18, d_2_18] at h; exact h
+private theorem d_3_19 : D 3 19 = true := by have h := D_step 1 18; rw [d_1_18, d_2_18, d_3_18] at h; exact h
+private theorem d_4_19 : D 4 19 = true := by have h := D_step 2 18; rw [d_2_18, d_3_18, d_4_18] at h; exact h
+private theorem d_5_19 : D 5 19 = true := by have h := D_step 3 18; rw [d_3_18, d_4_18, d_5_18] at h; exact h
+private theorem d_6_19 : D 6 19 = true := by have h := D_step 4 18; rw [d_4_18, d_5_18, d_6_18] at h; exact h
+private theorem d_7_19 : D 7 19 = false := by have h := D_step 5 18; rw [d_5_18, d_6_18, d_7_18] at h; exact h
+private theorem d_8_19 : D 8 19 = false := by have h := D_step 6 18; rw [d_6_18, d_7_18, d_8_18] at h; exact h
+private theorem d_9_19 : D 9 19 = true := by have h := D_step 7 18; rw [d_7_18, d_8_18, d_9_18] at h; exact h
+private theorem d_10_19 : D 10 19 = true := by have h := D_step 8 18; rw [d_8_18, d_9_18, d_10_18] at h; exact h
+private theorem d_11_19 : D 11 19 = false := by have h := D_step 9 18; rw [d_9_18, d_10_18, d_11_18] at h; exact h
+private theorem d_12_19 : D 12 19 = true := by have h := D_step 10 18; rw [d_10_18, d_11_18, d_12_18] at h; exact h
+private theorem d_13_19 : D 13 19 = false := by have h := D_step 11 18; rw [d_11_18, d_12_18, d_13_18] at h; exact h
+private theorem d_14_19 : D 14 19 = false := by have h := D_step 12 18; rw [d_12_18, d_13_18, d_14_18] at h; exact h
+private theorem d_15_19 : D 15 19 = true := by have h := D_step 13 18; rw [d_13_18, d_14_18, d_15_18] at h; exact h
+private theorem d_16_19 : D 16 19 = true := by have h := D_step 14 18; rw [d_14_18, d_15_18, d_16_18] at h; exact h
+private theorem d_17_19 : D 17 19 = true := by have h := D_step 15 18; rw [d_15_18, d_16_18, d_17_18] at h; exact h
+private theorem d_18_19 : D 18 19 = true := by have h := D_step 16 18; rw [d_16_18, d_17_18, d_18_18] at h; exact h
+private theorem d_19_19 : D 19 19 = true := by have h := D_step 17 18; rw [d_17_18, d_18_18, d_19_18] at h; exact h
+private theorem d_20_19 : D 20 19 = true := by have h := D_step 18 18; rw [d_18_18, d_19_18, d_20_18] at h; exact h
+private theorem d_21_19 : D 21 19 = false := by have h := D_step 19 18; rw [d_19_18, d_20_18, d_21_18] at h; exact h
+private theorem d_22_19 : D 22 19 = false := by have h := D_step 20 18; rw [d_20_18, d_21_18, d_22_18] at h; exact h
+private theorem d_23_19 : D 23 19 = true := by have h := D_step 21 18; rw [d_21_18, d_22_18, d_23_18] at h; exact h
+private theorem d_24_19 : D 24 19 = false := by have h := D_step 22 18; rw [d_22_18, d_23_18, d_24_18] at h; exact h
+private theorem d_25_19 : D 25 19 = false := by have h := D_step 23 18; rw [d_23_18, d_24_18, d_25_18] at h; exact h
+private theorem d_26_19 : D 26 19 = false := by have h := D_step 24 18; rw [d_24_18, d_25_18, d_26_18] at h; exact h
+private theorem d_27_19 : D 27 19 = true := by have h := D_step 25 18; rw [d_25_18, d_26_18, d_27_18] at h; exact h
+private theorem d_28_19 : D 28 19 = false := by have h := D_step 26 18; rw [d_26_18, d_27_18, d_28_18] at h; exact h
+private theorem d_29_19 : D 29 19 = false := by have h := D_step 27 18; rw [d_27_18, d_28_18, d_29_18] at h; exact h
+private theorem d_30_19 : D 30 19 = false := by have h := D_step 28 18; rw [d_28_18, d_29_18, d_30_18] at h; exact h
+private theorem d_0_20 : D 0 20 = true := D_zero 20
+private theorem d_1_20 : D 1 20 = true := D_one 19
+private theorem d_2_20 : D 2 20 = false := by have h := D_step 0 19; rw [d_0_19, d_1_19, d_2_19] at h; exact h
+private theorem d_3_20 : D 3 20 = false := by have h := D_step 1 19; rw [d_1_19, d_2_19, d_3_19] at h; exact h
+private theorem d_4_20 : D 4 20 = true := by have h := D_step 2 19; rw [d_2_19, d_3_19, d_4_19] at h; exact h
+private theorem d_5_20 : D 5 20 = false := by have h := D_step 3 19; rw [d_3_19, d_4_19, d_5_19] at h; exact h
+private theorem d_6_20 : D 6 20 = false := by have h := D_step 4 19; rw [d_4_19, d_5_19, d_6_19] at h; exact h
+private theorem d_7_20 : D 7 20 = false := by have h := D_step 5 19; rw [d_5_19, d_6_19, d_7_19] at h; exact h
+private theorem d_8_20 : D 8 20 = true := by have h := D_step 6 19; rw [d_6_19, d_7_19, d_8_19] at h; exact h
+private theorem d_9_20 : D 9 20 = true := by have h := D_step 7 19; rw [d_7_19, d_8_19, d_9_19] at h; exact h
+private theorem d_10_20 : D 10 20 = true := by have h := D_step 8 19; rw [d_8_19, d_9_19, d_10_19] at h; exact h
+private theorem d_11_20 : D 11 20 = false := by have h := D_step 9 19; rw [d_9_19, d_10_19, d_11_19] at h; exact h
+private theorem d_12_20 : D 12 20 = false := by have h := D_step 10 19; rw [d_10_19, d_11_19, d_12_19] at h; exact h
+private theorem d_13_20 : D 13 20 = true := by have h := D_step 11 19; rw [d_11_19, d_12_19, d_13_19] at h; exact h
+private theorem d_14_20 : D 14 20 = true := by have h := D_step 12 19; rw [d_12_19, d_13_19, d_14_19] at h; exact h
+private theorem d_15_20 : D 15 20 = true := by have h := D_step 13 19; rw [d_13_19, d_14_19, d_15_19] at h; exact h
+private theorem d_16_20 : D 16 20 = true := by have h := D_step 14 19; rw [d_14_19, d_15_19, d_16_19] at h; exact h
+private theorem d_17_20 : D 17 20 = false := by have h := D_step 15 19; rw [d_15_19, d_16_19, d_17_19] at h; exact h
+private theorem d_18_20 : D 18 20 = false := by have h := D_step 16 19; rw [d_16_19, d_17_19, d_18_19] at h; exact h
+private theorem d_19_20 : D 19 20 = false := by have h := D_step 17 19; rw [d_17_19, d_18_19, d_19_19] at h; exact h
+private theorem d_20_20 : D 20 20 = false := by have h := D_step 18 19; rw [d_18_19, d_19_19, d_20_19] at h; exact h
+private theorem d_21_20 : D 21 20 = false := by have h := D_step 19 19; rw [d_19_19, d_20_19, d_21_19] at h; exact h
+private theorem d_22_20 : D 22 20 = true := by have h := D_step 20 19; rw [d_20_19, d_21_19, d_22_19] at h; exact h
+private theorem d_23_20 : D 23 20 = true := by have h := D_step 21 19; rw [d_21_19, d_22_19, d_23_19] at h; exact h
+private theorem d_24_20 : D 24 20 = true := by have h := D_step 22 19; rw [d_22_19, d_23_19, d_24_19] at h; exact h
+private theorem d_25_20 : D 25 20 = true := by have h := D_step 23 19; rw [d_23_19, d_24_19, d_25_19] at h; exact h
+private theorem d_26_20 : D 26 20 = false := by have h := D_step 24 19; rw [d_24_19, d_25_19, d_26_19] at h; exact h
+private theorem d_27_20 : D 27 20 = true := by have h := D_step 25 19; rw [d_25_19, d_26_19, d_27_19] at h; exact h
+private theorem d_28_20 : D 28 20 = true := by have h := D_step 26 19; rw [d_26_19, d_27_19, d_28_19] at h; exact h
+private theorem d_29_20 : D 29 20 = true := by have h := D_step 27 19; rw [d_27_19, d_28_19, d_29_19] at h; exact h
+private theorem d_30_20 : D 30 20 = false := by have h := D_step 28 19; rw [d_28_19, d_29_19, d_30_19] at h; exact h
+private theorem d_0_21 : D 0 21 = true := D_zero 21
+private theorem d_1_21 : D 1 21 = true := D_one 20
+private theorem d_2_21 : D 2 21 = false := by have h := D_step 0 20; rw [d_0_20, d_1_20, d_2_20] at h; exact h
+private theorem d_3_21 : D 3 21 = true := by have h := D_step 1 20; rw [d_1_20, d_2_20, d_3_20] at h; exact h
+private theorem d_4_21 : D 4 21 = true := by have h := D_step 2 20; rw [d_2_20, d_3_20, d_4_20] at h; exact h
+private theorem d_5_21 : D 5 21 = true := by have h := D_step 3 20; rw [d_3_20, d_4_20, d_5_20] at h; exact h
+private theorem d_6_21 : D 6 21 = true := by have h := D_step 4 20; rw [d_4_20, d_5_20, d_6_20] at h; exact h
+private theorem d_7_21 : D 7 21 = false := by have h := D_step 5 20; rw [d_5_20, d_6_20, d_7_20] at h; exact h
+private theorem d_8_21 : D 8 21 = true := by have h := D_step 6 20; rw [d_6_20, d_7_20, d_8_20] at h; exact h
+private theorem d_9_21 : D 9 21 = true := by have h := D_step 7 20; rw [d_7_20, d_8_20, d_9_20] at h; exact h
+private theorem d_10_21 : D 10 21 = false := by have h := D_step 8 20; rw [d_8_20, d_9_20, d_10_20] at h; exact h
+private theorem d_11_21 : D 11 21 = false := by have h := D_step 9 20; rw [d_9_20, d_10_20, d_11_20] at h; exact h
+private theorem d_12_21 : D 12 21 = true := by have h := D_step 10 20; rw [d_10_20, d_11_20, d_12_20] at h; exact h
+private theorem d_13_21 : D 13 21 = true := by have h := D_step 11 20; rw [d_11_20, d_12_20, d_13_20] at h; exact h
+private theorem d_14_21 : D 14 21 = true := by have h := D_step 12 20; rw [d_12_20, d_13_20, d_14_20] at h; exact h
+private theorem d_15_21 : D 15 21 = false := by have h := D_step 13 20; rw [d_13_20, d_14_20, d_15_20] at h; exact h
+private theorem d_16_21 : D 16 21 = false := by have h := D_step 14 20; rw [d_14_20, d_15_20, d_16_20] at h; exact h
+private theorem d_17_21 : D 17 21 = false := by have h := D_step 15 20; rw [d_15_20, d_16_20, d_17_20] at h; exact h
+private theorem d_18_21 : D 18 21 = true := by have h := D_step 16 20; rw [d_16_20, d_17_20, d_18_20] at h; exact h
+private theorem d_19_21 : D 19 21 = false := by have h := D_step 17 20; rw [d_17_20, d_18_20, d_19_20] at h; exact h
+private theorem d_20_21 : D 20 21 = false := by have h := D_step 18 20; rw [d_18_20, d_19_20, d_20_20] at h; exact h
+private theorem d_21_21 : D 21 21 = false := by have h := D_step 19 20; rw [d_19_20, d_20_20, d_21_20] at h; exact h
+private theorem d_22_21 : D 22 21 = true := by have h := D_step 20 20; rw [d_20_20, d_21_20, d_22_20] at h; exact h
+private theorem d_23_21 : D 23 21 = true := by have h := D_step 21 20; rw [d_21_20, d_22_20, d_23_20] at h; exact h
+private theorem d_24_21 : D 24 21 = false := by have h := D_step 22 20; rw [d_22_20, d_23_20, d_24_20] at h; exact h
+private theorem d_25_21 : D 25 21 = false := by have h := D_step 23 20; rw [d_23_20, d_24_20, d_25_20] at h; exact h
+private theorem d_26_21 : D 26 21 = false := by have h := D_step 24 20; rw [d_24_20, d_25_20, d_26_20] at h; exact h
+private theorem d_27_21 : D 27 21 = false := by have h := D_step 25 20; rw [d_25_20, d_26_20, d_27_20] at h; exact h
+private theorem d_28_21 : D 28 21 = true := by have h := D_step 26 20; rw [d_26_20, d_27_20, d_28_20] at h; exact h
+private theorem d_29_21 : D 29 21 = false := by have h := D_step 27 20; rw [d_27_20, d_28_20, d_29_20] at h; exact h
+private theorem d_30_21 : D 30 21 = false := by have h := D_step 28 20; rw [d_28_20, d_29_20, d_30_20] at h; exact h
+private theorem d_0_22 : D 0 22 = true := D_zero 22
+private theorem d_1_22 : D 1 22 = true := D_one 21
+private theorem d_2_22 : D 2 22 = false := by have h := D_step 0 21; rw [d_0_21, d_1_21, d_2_21] at h; exact h
+private theorem d_3_22 : D 3 22 = false := by have h := D_step 1 21; rw [d_1_21, d_2_21, d_3_21] at h; exact h
+private theorem d_4_22 : D 4 22 = true := by have h := D_step 2 21; rw [d_2_21, d_3_21, d_4_21] at h; exact h
+private theorem d_5_22 : D 5 22 = false := by have h := D_step 3 21; rw [d_3_21, d_4_21, d_5_21] at h; exact h
+private theorem d_6_22 : D 6 22 = false := by have h := D_step 4 21; rw [d_4_21, d_5_21, d_6_21] at h; exact h
+private theorem d_7_22 : D 7 22 = false := by have h := D_step 5 21; rw [d_5_21, d_6_21, d_7_21] at h; exact h
+private theorem d_8_22 : D 8 22 = false := by have h := D_step 6 21; rw [d_6_21, d_7_21, d_8_21] at h; exact h
+private theorem d_9_22 : D 9 22 = true := by have h := D_step 7 21; rw [d_7_21, d_8_21, d_9_21] at h; exact h
+private theorem d_10_22 : D 10 22 = false := by have h := D_step 8 21; rw [d_8_21, d_9_21, d_10_21] at h; exact h
+private theorem d_11_22 : D 11 22 = true := by have h := D_step 9 21; rw [d_9_21, d_10_21, d_11_21] at h; exact h
+private theorem d_12_22 : D 12 22 = true := by have h := D_step 10 21; rw [d_10_21, d_11_21, d_12_21] at h; exact h
+private theorem d_13_22 : D 13 22 = true := by have h := D_step 11 21; rw [d_11_21, d_12_21, d_13_21] at h; exact h
+private theorem d_14_22 : D 14 22 = false := by have h := D_step 12 21; rw [d_12_21, d_13_21, d_14_21] at h; exact h
+private theorem d_15_22 : D 15 22 = false := by have h := D_step 13 21; rw [d_13_21, d_14_21, d_15_21] at h; exact h
+private theorem d_16_22 : D 16 22 = true := by have h := D_step 14 21; rw [d_14_21, d_15_21, d_16_21] at h; exact h
+private theorem d_17_22 : D 17 22 = false := by have h := D_step 15 21; rw [d_15_21, d_16_21, d_17_21] at h; exact h
+private theorem d_18_22 : D 18 22 = true := by have h := D_step 16 21; rw [d_16_21, d_17_21, d_18_21] at h; exact h
+private theorem d_19_22 : D 19 22 = true := by have h := D_step 17 21; rw [d_17_21, d_18_21, d_19_21] at h; exact h
+private theorem d_20_22 : D 20 22 = true := by have h := D_step 18 21; rw [d_18_21, d_19_21, d_20_21] at h; exact h
+private theorem d_21_22 : D 21 22 = false := by have h := D_step 19 21; rw [d_19_21, d_20_21, d_21_21] at h; exact h
+private theorem d_22_22 : D 22 22 = true := by have h := D_step 20 21; rw [d_20_21, d_21_21, d_22_21] at h; exact h
+private theorem d_23_22 : D 23 22 = true := by have h := D_step 21 21; rw [d_21_21, d_22_21, d_23_21] at h; exact h
+private theorem d_24_22 : D 24 22 = false := by have h := D_step 22 21; rw [d_22_21, d_23_21, d_24_21] at h; exact h
+private theorem d_25_22 : D 25 22 = true := by have h := D_step 23 21; rw [d_23_21, d_24_21, d_25_21] at h; exact h
+private theorem d_26_22 : D 26 22 = false := by have h := D_step 24 21; rw [d_24_21, d_25_21, d_26_21] at h; exact h
+private theorem d_27_22 : D 27 22 = false := by have h := D_step 25 21; rw [d_25_21, d_26_21, d_27_21] at h; exact h
+private theorem d_28_22 : D 28 22 = true := by have h := D_step 26 21; rw [d_26_21, d_27_21, d_28_21] at h; exact h
+private theorem d_29_22 : D 29 22 = true := by have h := D_step 27 21; rw [d_27_21, d_28_21, d_29_21] at h; exact h
+private theorem d_30_22 : D 30 22 = true := by have h := D_step 28 21; rw [d_28_21, d_29_21, d_30_21] at h; exact h
+private theorem d_0_23 : D 0 23 = true := D_zero 23
+private theorem d_1_23 : D 1 23 = true := D_one 22
+private theorem d_2_23 : D 2 23 = false := by have h := D_step 0 22; rw [d_0_22, d_1_22, d_2_22] at h; exact h
+private theorem d_3_23 : D 3 23 = true := by have h := D_step 1 22; rw [d_1_22, d_2_22, d_3_22] at h; exact h
+private theorem d_4_23 : D 4 23 = true := by have h := D_step 2 22; rw [d_2_22, d_3_22, d_4_22] at h; exact h
+private theorem d_5_23 : D 5 23 = true := by have h := D_step 3 22; rw [d_3_22, d_4_22, d_5_22] at h; exact h
+private theorem d_6_23 : D 6 23 = true := by have h := D_step 4 22; rw [d_4_22, d_5_22, d_6_22] at h; exact h
+private theorem d_7_23 : D 7 23 = false := by have h := D_step 5 22; rw [d_5_22, d_6_22, d_7_22] at h; exact h
+private theorem d_8_23 : D 8 23 = false := by have h := D_step 6 22; rw [d_6_22, d_7_22, d_8_22] at h; exact h
+private theorem d_9_23 : D 9 23 = true := by have h := D_step 7 22; rw [d_7_22, d_8_22, d_9_22] at h; exact h
+private theorem d_10_23 : D 10 23 = true := by have h := D_step 8 22; rw [d_8_22, d_9_22, d_10_22] at h; exact h
+private theorem d_11_23 : D 11 23 = false := by have h := D_step 9 22; rw [d_9_22, d_10_22, d_11_22] at h; exact h
+private theorem d_12_23 : D 12 23 = true := by have h := D_step 10 22; rw [d_10_22, d_11_22, d_12_22] at h; exact h
+private theorem d_13_23 : D 13 23 = false := by have h := D_step 11 22; rw [d_11_22, d_12_22, d_13_22] at h; exact h
+private theorem d_14_23 : D 14 23 = false := by have h := D_step 12 22; rw [d_12_22, d_13_22, d_14_22] at h; exact h
+private theorem d_15_23 : D 15 23 = true := by have h := D_step 13 22; rw [d_13_22, d_14_22, d_15_22] at h; exact h
+private theorem d_16_23 : D 16 23 = true := by have h := D_step 14 22; rw [d_14_22, d_15_22, d_16_22] at h; exact h
+private theorem d_17_23 : D 17 23 = true := by have h := D_step 15 22; rw [d_15_22, d_16_22, d_17_22] at h; exact h
+private theorem d_18_23 : D 18 23 = false := by have h := D_step 16 22; rw [d_16_22, d_17_22, d_18_22] at h; exact h
+private theorem d_19_23 : D 19 23 = true := by have h := D_step 17 22; rw [d_17_22, d_18_22, d_19_22] at h; exact h
+private theorem d_20_23 : D 20 23 = false := by have h := D_step 18 22; rw [d_18_22, d_19_22, d_20_22] at h; exact h
+private theorem d_21_23 : D 21 23 = false := by have h := D_step 19 22; rw [d_19_22, d_20_22, d_21_22] at h; exact h
+private theorem d_22_23 : D 22 23 = false := by have h := D_step 20 22; rw [d_20_22, d_21_22, d_22_22] at h; exact h
+private theorem d_23_23 : D 23 23 = true := by have h := D_step 21 22; rw [d_21_22, d_22_22, d_23_22] at h; exact h
+private theorem d_24_23 : D 24 23 = false := by have h := D_step 22 22; rw [d_22_22, d_23_22, d_24_22] at h; exact h
+private theorem d_25_23 : D 25 23 = false := by have h := D_step 23 22; rw [d_23_22, d_24_22, d_25_22] at h; exact h
+private theorem d_26_23 : D 26 23 = true := by have h := D_step 24 22; rw [d_24_22, d_25_22, d_26_22] at h; exact h
+private theorem d_27_23 : D 27 23 = true := by have h := D_step 25 22; rw [d_25_22, d_26_22, d_27_22] at h; exact h
+private theorem d_28_23 : D 28 23 = true := by have h := D_step 26 22; rw [d_26_22, d_27_22, d_28_22] at h; exact h
+private theorem d_29_23 : D 29 23 = true := by have h := D_step 27 22; rw [d_27_22, d_28_22, d_29_22] at h; exact h
+private theorem d_30_23 : D 30 23 = false := by have h := D_step 28 22; rw [d_28_22, d_29_22, d_30_22] at h; exact h
+private theorem d_0_24 : D 0 24 = true := D_zero 24
+private theorem d_1_24 : D 1 24 = true := D_one 23
+private theorem d_2_24 : D 2 24 = false := by have h := D_step 0 23; rw [d_0_23, d_1_23, d_2_23] at h; exact h
+private theorem d_3_24 : D 3 24 = false := by have h := D_step 1 23; rw [d_1_23, d_2_23, d_3_23] at h; exact h
+private theorem d_4_24 : D 4 24 = true := by have h := D_step 2 23; rw [d_2_23, d_3_23, d_4_23] at h; exact h
+private theorem d_5_24 : D 5 24 = false := by have h := D_step 3 23; rw [d_3_23, d_4_23, d_5_23] at h; exact h
+private theorem d_6_24 : D 6 24 = false := by have h := D_step 4 23; rw [d_4_23, d_5_23, d_6_23] at h; exact h
+private theorem d_7_24 : D 7 24 = false := by have h := D_step 5 23; rw [d_5_23, d_6_23, d_7_23] at h; exact h
+private theorem d_8_24 : D 8 24 = true := by have h := D_step 6 23; rw [d_6_23, d_7_23, d_8_23] at h; exact h
+private theorem d_9_24 : D 9 24 = true := by have h := D_step 7 23; rw [d_7_23, d_8_23, d_9_23] at h; exact h
+private theorem d_10_24 : D 10 24 = true := by have h := D_step 8 23; rw [d_8_23, d_9_23, d_10_23] at h; exact h
+private theorem d_12_24 : D 12 24 = false := by have h := D_step 10 23; rw [d_10_23, d_11_23, d_12_23] at h; exact h
+private theorem d_13_24 : D 13 24 = true := by have h := D_step 11 23; rw [d_11_23, d_12_23, d_13_23] at h; exact h
+private theorem d_14_24 : D 14 24 = true := by have h := D_step 12 23; rw [d_12_23, d_13_23, d_14_23] at h; exact h
+private theorem d_15_24 : D 15 24 = true := by have h := D_step 13 23; rw [d_13_23, d_14_23, d_15_23] at h; exact h
+private theorem d_16_24 : D 16 24 = true := by have h := D_step 14 23; rw [d_14_23, d_15_23, d_16_23] at h; exact h
+private theorem d_17_24 : D 17 24 = false := by have h := D_step 15 23; rw [d_15_23, d_16_23, d_17_23] at h; exact h
+private theorem d_18_24 : D 18 24 = false := by have h := D_step 16 23; rw [d_16_23, d_17_23, d_18_23] at h; exact h
+private theorem d_19_24 : D 19 24 = false := by have h := D_step 17 23; rw [d_17_23, d_18_23, d_19_23] at h; exact h
+private theorem d_20_24 : D 20 24 = true := by have h := D_step 18 23; rw [d_18_23, d_19_23, d_20_23] at h; exact h
+private theorem d_21_24 : D 21 24 = true := by have h := D_step 19 23; rw [d_19_23, d_20_23, d_21_23] at h; exact h
+private theorem d_22_24 : D 22 24 = false := by have h := D_step 20 23; rw [d_20_23, d_21_23, d_22_23] at h; exact h
+private theorem d_23_24 : D 23 24 = true := by have h := D_step 21 23; rw [d_21_23, d_22_23, d_23_23] at h; exact h
+private theorem d_24_24 : D 24 24 = true := by have h := D_step 22 23; rw [d_22_23, d_23_23, d_24_23] at h; exact h
+private theorem d_25_24 : D 25 24 = true := by have h := D_step 23 23; rw [d_23_23, d_24_23, d_25_23] at h; exact h
+private theorem d_26_24 : D 26 24 = true := by have h := D_step 24 23; rw [d_24_23, d_25_23, d_26_23] at h; exact h
+private theorem d_27_24 : D 27 24 = true := by have h := D_step 25 23; rw [d_25_23, d_26_23, d_27_23] at h; exact h
+private theorem d_28_24 : D 28 24 = false := by have h := D_step 26 23; rw [d_26_23, d_27_23, d_28_23] at h; exact h
+private theorem d_29_24 : D 29 24 = false := by have h := D_step 27 23; rw [d_27_23, d_28_23, d_29_23] at h; exact h
+private theorem d_30_24 : D 30 24 = false := by have h := D_step 28 23; rw [d_28_23, d_29_23, d_30_23] at h; exact h
+private theorem d_0_25 : D 0 25 = true := D_zero 25
+private theorem d_1_25 : D 1 25 = true := D_one 24
+private theorem d_2_25 : D 2 25 = false := by have h := D_step 0 24; rw [d_0_24, d_1_24, d_2_24] at h; exact h
+private theorem d_3_25 : D 3 25 = true := by have h := D_step 1 24; rw [d_1_24, d_2_24, d_3_24] at h; exact h
+private theorem d_4_25 : D 4 25 = true := by have h := D_step 2 24; rw [d_2_24, d_3_24, d_4_24] at h; exact h
+private theorem d_5_25 : D 5 25 = true := by have h := D_step 3 24; rw [d_3_24, d_4_24, d_5_24] at h; exact h
+private theorem d_6_25 : D 6 25 = true := by have h := D_step 4 24; rw [d_4_24, d_5_24, d_6_24] at h; exact h
+private theorem d_7_25 : D 7 25 = false := by have h := D_step 5 24; rw [d_5_24, d_6_24, d_7_24] at h; exact h
+private theorem d_8_25 : D 8 25 = true := by have h := D_step 6 24; rw [d_6_24, d_7_24, d_8_24] at h; exact h
+private theorem d_9_25 : D 9 25 = true := by have h := D_step 7 24; rw [d_7_24, d_8_24, d_9_24] at h; exact h
+private theorem d_10_25 : D 10 25 = false := by have h := D_step 8 24; rw [d_8_24, d_9_24, d_10_24] at h; exact h
+private theorem d_14_25 : D 14 25 = true := by have h := D_step 12 24; rw [d_12_24, d_13_24, d_14_24] at h; exact h
+private theorem d_15_25 : D 15 25 = false := by have h := D_step 13 24; rw [d_13_24, d_14_24, d_15_24] at h; exact h
+private theorem d_16_25 : D 16 25 = false := by have h := D_step 14 24; rw [d_14_24, d_15_24, d_16_24] at h; exact h
+private theorem d_17_25 : D 17 25 = false := by have h := D_step 15 24; rw [d_15_24, d_16_24, d_17_24] at h; exact h
+private theorem d_18_25 : D 18 25 = true := by have h := D_step 16 24; rw [d_16_24, d_17_24, d_18_24] at h; exact h
+private theorem d_19_25 : D 19 25 = false := by have h := D_step 17 24; rw [d_17_24, d_18_24, d_19_24] at h; exact h
+private theorem d_20_25 : D 20 25 = true := by have h := D_step 18 24; rw [d_18_24, d_19_24, d_20_24] at h; exact h
+private theorem d_21_25 : D 21 25 = true := by have h := D_step 19 24; rw [d_19_24, d_20_24, d_21_24] at h; exact h
+private theorem d_22_25 : D 22 25 = false := by have h := D_step 20 24; rw [d_20_24, d_21_24, d_22_24] at h; exact h
+private theorem d_23_25 : D 23 25 = false := by have h := D_step 21 24; rw [d_21_24, d_22_24, d_23_24] at h; exact h
+private theorem d_24_25 : D 24 25 = true := by have h := D_step 22 24; rw [d_22_24, d_23_24, d_24_24] at h; exact h
+private theorem d_25_25 : D 25 25 = false := by have h := D_step 23 24; rw [d_23_24, d_24_24, d_25_24] at h; exact h
+private theorem d_26_25 : D 26 25 = false := by have h := D_step 24 24; rw [d_24_24, d_25_24, d_26_24] at h; exact h
+private theorem d_27_25 : D 27 25 = false := by have h := D_step 25 24; rw [d_25_24, d_26_24, d_27_24] at h; exact h
+private theorem d_28_25 : D 28 25 = false := by have h := D_step 26 24; rw [d_26_24, d_27_24, d_28_24] at h; exact h
+private theorem d_29_25 : D 29 25 = true := by have h := D_step 27 24; rw [d_27_24, d_28_24, d_29_24] at h; exact h
+private theorem d_30_25 : D 30 25 = false := by have h := D_step 28 24; rw [d_28_24, d_29_24, d_30_24] at h; exact h
+private theorem d_0_26 : D 0 26 = true := D_zero 26
+private theorem d_1_26 : D 1 26 = true := D_one 25
+private theorem d_2_26 : D 2 26 = false := by have h := D_step 0 25; rw [d_0_25, d_1_25, d_2_25] at h; exact h
+private theorem d_3_26 : D 3 26 = false := by have h := D_step 1 25; rw [d_1_25, d_2_25, d_3_25] at h; exact h
+private theorem d_4_26 : D 4 26 = true := by have h := D_step 2 25; rw [d_2_25, d_3_25, d_4_25] at h; exact h
+private theorem d_5_26 : D 5 26 = false := by have h := D_step 3 25; rw [d_3_25, d_4_25, d_5_25] at h; exact h
+private theorem d_6_26 : D 6 26 = false := by have h := D_step 4 25; rw [d_4_25, d_5_25, d_6_25] at h; exact h
+private theorem d_7_26 : D 7 26 = false := by have h := D_step 5 25; rw [d_5_25, d_6_25, d_7_25] at h; exact h
+private theorem d_8_26 : D 8 26 = false := by have h := D_step 6 25; rw [d_6_25, d_7_25, d_8_25] at h; exact h
+private theorem d_9_26 : D 9 26 = true := by have h := D_step 7 25; rw [d_7_25, d_8_25, d_9_25] at h; exact h
+private theorem d_10_26 : D 10 26 = false := by have h := D_step 8 25; rw [d_8_25, d_9_25, d_10_25] at h; exact h
+private theorem d_16_26 : D 16 26 = true := by have h := D_step 14 25; rw [d_14_25, d_15_25, d_16_25] at h; exact h
+private theorem d_17_26 : D 17 26 = false := by have h := D_step 15 25; rw [d_15_25, d_16_25, d_17_25] at h; exact h
+private theorem d_18_26 : D 18 26 = true := by have h := D_step 16 25; rw [d_16_25, d_17_25, d_18_25] at h; exact h
+private theorem d_19_26 : D 19 26 = true := by have h := D_step 17 25; rw [d_17_25, d_18_25, d_19_25] at h; exact h
+private theorem d_20_26 : D 20 26 = false := by have h := D_step 18 25; rw [d_18_25, d_19_25, d_20_25] at h; exact h
+private theorem d_21_26 : D 21 26 = true := by have h := D_step 19 25; rw [d_19_25, d_20_25, d_21_25] at h; exact h
+private theorem d_22_26 : D 22 26 = false := by have h := D_step 20 25; rw [d_20_25, d_21_25, d_22_25] at h; exact h
+private theorem d_23_26 : D 23 26 = true := by have h := D_step 21 25; rw [d_21_25, d_22_25, d_23_25] at h; exact h
+private theorem d_24_26 : D 24 26 = true := by have h := D_step 22 25; rw [d_22_25, d_23_25, d_24_25] at h; exact h
+private theorem d_25_26 : D 25 26 = true := by have h := D_step 23 25; rw [d_23_25, d_24_25, d_25_25] at h; exact h
+private theorem d_26_26 : D 26 26 = true := by have h := D_step 24 25; rw [d_24_25, d_25_25, d_26_25] at h; exact h
+private theorem d_27_26 : D 27 26 = false := by have h := D_step 25 25; rw [d_25_25, d_26_25, d_27_25] at h; exact h
+private theorem d_28_26 : D 28 26 = false := by have h := D_step 26 25; rw [d_26_25, d_27_25, d_28_25] at h; exact h
+private theorem d_29_26 : D 29 26 = true := by have h := D_step 27 25; rw [d_27_25, d_28_25, d_29_25] at h; exact h
+private theorem d_30_26 : D 30 26 = true := by have h := D_step 28 25; rw [d_28_25, d_29_25, d_30_25] at h; exact h
+private theorem d_2_27 : D 2 27 = false := by have h := D_step 0 26; rw [d_0_26, d_1_26, d_2_26] at h; exact h
+private theorem d_3_27 : D 3 27 = true := by have h := D_step 1 26; rw [d_1_26, d_2_26, d_3_26] at h; exact h
+private theorem d_4_27 : D 4 27 = true := by have h := D_step 2 26; rw [d_2_26, d_3_26, d_4_26] at h; exact h
+private theorem d_5_27 : D 5 27 = true := by have h := D_step 3 26; rw [d_3_26, d_4_26, d_5_26] at h; exact h
+private theorem d_6_27 : D 6 27 = true := by have h := D_step 4 26; rw [d_4_26, d_5_26, d_6_26] at h; exact h
+private theorem d_7_27 : D 7 27 = false := by have h := D_step 5 26; rw [d_5_26, d_6_26, d_7_26] at h; exact h
+private theorem d_8_27 : D 8 27 = false := by have h := D_step 6 26; rw [d_6_26, d_7_26, d_8_26] at h; exact h
+private theorem d_9_27 : D 9 27 = true := by have h := D_step 7 26; rw [d_7_26, d_8_26, d_9_26] at h; exact h
+private theorem d_10_27 : D 10 27 = true := by have h := D_step 8 26; rw [d_8_26, d_9_26, d_10_26] at h; exact h
+private theorem d_18_27 : D 18 27 = false := by have h := D_step 16 26; rw [d_16_26, d_17_26, d_18_26] at h; exact h
+private theorem d_19_27 : D 19 27 = true := by have h := D_step 17 26; rw [d_17_26, d_18_26, d_19_26] at h; exact h
+private theorem d_20_27 : D 20 27 = false := by have h := D_step 18 26; rw [d_18_26, d_19_26, d_20_26] at h; exact h
+private theorem d_21_27 : D 21 27 = false := by have h := D_step 19 26; rw [d_19_26, d_20_26, d_21_26] at h; exact h
+private theorem d_22_27 : D 22 27 = true := by have h := D_step 20 26; rw [d_20_26, d_21_26, d_22_26] at h; exact h
+private theorem d_23_27 : D 23 27 = false := by have h := D_step 21 26; rw [d_21_26, d_22_26, d_23_26] at h; exact h
+private theorem d_24_27 : D 24 27 = true := by have h := D_step 22 26; rw [d_22_26, d_23_26, d_24_26] at h; exact h
+private theorem d_25_27 : D 25 27 = false := by have h := D_step 23 26; rw [d_23_26, d_24_26, d_25_26] at h; exact h
+private theorem d_26_27 : D 26 27 = false := by have h := D_step 24 26; rw [d_24_26, d_25_26, d_26_26] at h; exact h
+private theorem d_27_27 : D 27 27 = false := by have h := D_step 25 26; rw [d_25_26, d_26_26, d_27_26] at h; exact h
+private theorem d_28_27 : D 28 27 = true := by have h := D_step 26 26; rw [d_26_26, d_27_26, d_28_26] at h; exact h
+private theorem d_29_27 : D 29 27 = true := by have h := D_step 27 26; rw [d_27_26, d_28_26, d_29_26] at h; exact h
+private theorem d_30_27 : D 30 27 = true := by have h := D_step 28 26; rw [d_28_26, d_29_26, d_30_26] at h; exact h
+private theorem d_4_28 : D 4 28 = true := by have h := D_step 2 27; rw [d_2_27, d_3_27, d_4_27] at h; exact h
+private theorem d_5_28 : D 5 28 = false := by have h := D_step 3 27; rw [d_3_27, d_4_27, d_5_27] at h; exact h
+private theorem d_6_28 : D 6 28 = false := by have h := D_step 4 27; rw [d_4_27, d_5_27, d_6_27] at h; exact h
+private theorem d_7_28 : D 7 28 = false := by have h := D_step 5 27; rw [d_5_27, d_6_27, d_7_27] at h; exact h
+private theorem d_8_28 : D 8 28 = true := by have h := D_step 6 27; rw [d_6_27, d_7_27, d_8_27] at h; exact h
+private theorem d_9_28 : D 9 28 = true := by have h := D_step 7 27; rw [d_7_27, d_8_27, d_9_27] at h; exact h
+private theorem d_10_28 : D 10 28 = true := by have h := D_step 8 27; rw [d_8_27, d_9_27, d_10_27] at h; exact h
+private theorem d_20_28 : D 20 28 = true := by have h := D_step 18 27; rw [d_18_27, d_19_27, d_20_27] at h; exact h
+private theorem d_21_28 : D 21 28 = true := by have h := D_step 19 27; rw [d_19_27, d_20_27, d_21_27] at h; exact h
+private theorem d_22_28 : D 22 28 = true := by have h := D_step 20 27; rw [d_20_27, d_21_27, d_22_27] at h; exact h
+private theorem d_23_28 : D 23 28 = true := by have h := D_step 21 27; rw [d_21_27, d_22_27, d_23_27] at h; exact h
+private theorem d_24_28 : D 24 28 = false := by have h := D_step 22 27; rw [d_22_27, d_23_27, d_24_27] at h; exact h
+private theorem d_25_28 : D 25 28 = true := by have h := D_step 23 27; rw [d_23_27, d_24_27, d_25_27] at h; exact h
+private theorem d_26_28 : D 26 28 = true := by have h := D_step 24 27; rw [d_24_27, d_25_27, d_26_27] at h; exact h
+private theorem d_27_28 : D 27 28 = false := by have h := D_step 25 27; rw [d_25_27, d_26_27, d_27_27] at h; exact h
+private theorem d_28_28 : D 28 28 = true := by have h := D_step 26 27; rw [d_26_27, d_27_27, d_28_27] at h; exact h
+private theorem d_29_28 : D 29 28 = true := by have h := D_step 27 27; rw [d_27_27, d_28_27, d_29_27] at h; exact h
+private theorem d_30_28 : D 30 28 = false := by have h := D_step 28 27; rw [d_28_27, d_29_27, d_30_27] at h; exact h
+private theorem d_6_29 : D 6 29 = true := by have h := D_step 4 28; rw [d_4_28, d_5_28, d_6_28] at h; exact h
+private theorem d_7_29 : D 7 29 = false := by have h := D_step 5 28; rw [d_5_28, d_6_28, d_7_28] at h; exact h
+private theorem d_8_29 : D 8 29 = true := by have h := D_step 6 28; rw [d_6_28, d_7_28, d_8_28] at h; exact h
+private theorem d_9_29 : D 9 29 = true := by have h := D_step 7 28; rw [d_7_28, d_8_28, d_9_28] at h; exact h
+private theorem d_10_29 : D 10 29 = false := by have h := D_step 8 28; rw [d_8_28, d_9_28, d_10_28] at h; exact h
+private theorem d_22_29 : D 22 29 = false := by have h := D_step 20 28; rw [d_20_28, d_21_28, d_22_28] at h; exact h
+private theorem d_23_29 : D 23 29 = false := by have h := D_step 21 28; rw [d_21_28, d_22_28, d_23_28] at h; exact h
+private theorem d_24_29 : D 24 29 = false := by have h := D_step 22 28; rw [d_22_28, d_23_28, d_24_28] at h; exact h
+private theorem d_25_29 : D 25 29 = false := by have h := D_step 23 28; rw [d_23_28, d_24_28, d_25_28] at h; exact h
+private theorem d_26_29 : D 26 29 = true := by have h := D_step 24 28; rw [d_24_28, d_25_28, d_26_28] at h; exact h
+private theorem d_27_29 : D 27 29 = false := by have h := D_step 25 28; rw [d_25_28, d_26_28, d_27_28] at h; exact h
+private theorem d_28_29 : D 28 29 = false := by have h := D_step 26 28; rw [d_26_28, d_27_28, d_28_28] at h; exact h
+private theorem d_29_29 : D 29 29 = true := by have h := D_step 27 28; rw [d_27_28, d_28_28, d_29_28] at h; exact h
+private theorem d_30_29 : D 30 29 = false := by have h := D_step 28 28; rw [d_28_28, d_29_28, d_30_28] at h; exact h
+private theorem d_8_30 : D 8 30 = false := by have h := D_step 6 29; rw [d_6_29, d_7_29, d_8_29] at h; exact h
+private theorem d_10_30 : D 10 30 = false := by have h := D_step 8 29; rw [d_8_29, d_9_29, d_10_29] at h; exact h
+private theorem d_24_30 : D 24 30 = false := by have h := D_step 22 29; rw [d_22_29, d_23_29, d_24_29] at h; exact h
+private theorem d_25_30 : D 25 30 = false := by have h := D_step 23 29; rw [d_23_29, d_24_29, d_25_29] at h; exact h
+private theorem d_26_30 : D 26 30 = true := by have h := D_step 24 29; rw [d_24_29, d_25_29, d_26_29] at h; exact h
+private theorem d_27_30 : D 27 30 = true := by have h := D_step 25 29; rw [d_25_29, d_26_29, d_27_29] at h; exact h
+private theorem d_28_30 : D 28 30 = true := by have h := D_step 26 29; rw [d_26_29, d_27_29, d_28_29] at h; exact h
+private theorem d_29_30 : D 29 30 = true := by have h := D_step 27 29; rw [d_27_29, d_28_29, d_29_29] at h; exact h
+private theorem d_30_30 : D 30 30 = true := by have h := D_step 28 29; rw [d_28_29, d_29_29, d_30_29] at h; exact h
+private theorem d_26_31 : D 26 31 = true := by have h := D_step 24 30; rw [d_24_30, d_25_30, d_26_30] at h; exact h
+private theorem d_27_31 : D 27 31 = true := by have h := D_step 25 30; rw [d_25_30, d_26_30, d_27_30] at h; exact h
+private theorem d_28_31 : D 28 31 = false := by have h := D_step 26 30; rw [d_26_30, d_27_30, d_28_30] at h; exact h
+private theorem d_29_31 : D 29 31 = false := by have h := D_step 27 30; rw [d_27_30, d_28_30, d_29_30] at h; exact h
+private theorem d_30_31 : D 30 31 = false := by have h := D_step 28 30; rw [d_28_30, d_29_30, d_30_30] at h; exact h
+private theorem d_28_32 : D 28 32 = false := by have h := D_step 26 31; rw [d_26_31, d_27_31, d_28_31] at h; exact h
+private theorem d_29_32 : D 29 32 = true := by have h := D_step 27 31; rw [d_27_31, d_28_31, d_29_31] at h; exact h
+private theorem d_30_32 : D 30 32 = false := by have h := D_step 28 31; rw [d_28_31, d_29_31, d_30_31] at h; exact h
+private theorem d_30_33 : D 30 33 = true := by have h := D_step 28 32; rw [d_28_32, d_29_32, d_30_32] at h; exact h
+
+/-- **Implication-Gate Law for the Sixteenth Left Diagonal (`D_sixteen_eq_not_D_eight_or_D_ten`):**
+for every `t ≥ 16`, `D 16 t = (!D 8 t || D 10 t)`. -/
+theorem D_sixteen_eq_not_D_eight_or_D_ten : ∀ t : Nat, 16 ≤ t → D 16 t = (!D 8 t || D 10 t)
+  | 16, _ => by rw [d_16_16, d_8_16, d_10_16]; rfl
+  | t + 1, ht => by
+    by_cases h : t < 16
+    · have h_eq : t + 1 = 16 := by omega
+      rw [h_eq, d_16_16, d_8_16, d_10_16]; rfl
+    · have ih := D_sixteen_eq_not_D_eight_or_D_ten t (by omega)
+      have hstep := D_step 14 t
+      rw [D_fourteen_eq_D_eight t (by omega), D_fifteen_eq_D_ten t (by omega), ih] at hstep
+      rw [hstep, D_eight_succ_eq_D_ten t (by omega), D_ten_succ_eq_not_D_eight t (by omega)]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Inhibition-Gate Law for the Seventeenth Left Diagonal (`D_seventeen_eq_not_D_eight_and_D_ten`):**
+for every `t ≥ 16`, `D 17 t = (!D 8 t && D 10 t)`. -/
+theorem D_seventeen_eq_not_D_eight_and_D_ten : ∀ t : Nat, 16 ≤ t → D 17 t = (!D 8 t && D 10 t)
+  | 16, _ => by rw [d_17_16, d_8_16, d_10_16]; rfl
+  | t + 1, ht => by
+    by_cases h : t < 16
+    · have h_eq : t + 1 = 16 := by omega
+      rw [h_eq, d_17_16, d_8_16, d_10_16]; rfl
+    · have ih := D_seventeen_eq_not_D_eight_and_D_ten t (by omega)
+      have hstep := D_step 15 t
+      rw [D_fifteen_eq_D_ten t (by omega), D_sixteen_eq_not_D_eight_or_D_ten t (by omega), ih] at hstep
+      rw [hstep, D_eight_succ_eq_D_ten t (by omega), D_ten_succ_eq_not_D_eight t (by omega)]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Complementation of the Eighteenth and Tenth Left Diagonals (`D_eighteen_eq_not_D_ten`):**
+for every `t ≥ 20`, `D 18 t = !D 10 t`. -/
+theorem D_eighteen_eq_not_D_ten : ∀ t : Nat, 20 ≤ t → D 18 t = !D 10 t
+  | 20, _ => by rw [d_18_20, d_10_20]; rfl
+  | t + 1, ht => by
+    by_cases h : t < 20
+    · have h_eq : t + 1 = 20 := by omega
+      rw [h_eq, d_18_20, d_10_20]; rfl
+    · have ih := D_eighteen_eq_not_D_ten t (by omega)
+      have hstep := D_step 16 t
+      rw [D_sixteen_eq_not_D_eight_or_D_ten t (by omega), D_seventeen_eq_not_D_eight_and_D_ten t (by omega), ih] at hstep
+      rw [hstep, D_ten_succ_eq_not_D_eight t (by omega)]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Complementation of the Nineteenth and Eighth Left Diagonals (`D_nineteen_eq_not_D_eight`):**
+for every `t ≥ 20`, `D 19 t = !D 8 t`. -/
+theorem D_nineteen_eq_not_D_eight : ∀ t : Nat, 20 ≤ t → D 19 t = !D 8 t
+  | 20, _ => by rw [d_19_20, d_8_20]; rfl
+  | t + 1, ht => by
+    by_cases h : t < 20
+    · have h_eq : t + 1 = 20 := by omega
+      rw [h_eq, d_19_20, d_8_20]; rfl
+    · have ih := D_nineteen_eq_not_D_eight t (by omega)
+      have hstep := D_step 17 t
+      rw [D_seventeen_eq_not_D_eight_and_D_ten t (by omega), D_eighteen_eq_not_D_ten t (by omega), ih] at hstep
+      rw [hstep, D_eight_succ_eq_D_ten t (by omega)]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Phase-Locking of the Twentieth and Eighth Left Diagonals (`D_twenty_eq_D_eight`):**
+for every `t ≥ 23`, `D 20 t = D 8 t`. -/
+theorem D_twenty_eq_D_eight : ∀ t : Nat, 23 ≤ t → D 20 t = D 8 t
+  | 23, _ => by rw [d_20_23, d_8_23]
+  | t + 1, ht => by
+    by_cases h : t < 23
+    · have h_eq : t + 1 = 23 := by omega
+      rw [h_eq, d_20_23, d_8_23]
+    · have ih := D_twenty_eq_D_eight t (by omega)
+      have hstep := D_step 18 t
+      rw [D_eighteen_eq_not_D_ten t (by omega), D_nineteen_eq_not_D_eight t (by omega), ih] at hstep
+      rw [hstep, D_eight_succ_eq_D_ten t (by omega)]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Implication-Gate Law for the Twenty-First Left Diagonal (`D_twenty_one_eq_D_eight_or_not_D_ten`):**
+for every `t ≥ 23`, `D 21 t = (D 8 t || !D 10 t)`. -/
+theorem D_twenty_one_eq_D_eight_or_not_D_ten : ∀ t : Nat, 23 ≤ t → D 21 t = (D 8 t || !D 10 t)
+  | 23, _ => by rw [d_21_23, d_8_23, d_10_23]; rfl
+  | t + 1, ht => by
+    by_cases h : t < 23
+    · have h_eq : t + 1 = 23 := by omega
+      rw [h_eq, d_21_23, d_8_23, d_10_23]; rfl
+    · have ih := D_twenty_one_eq_D_eight_or_not_D_ten t (by omega)
+      have hstep := D_step 19 t
+      rw [D_nineteen_eq_not_D_eight t (by omega), D_twenty_eq_D_eight t (by omega), ih] at hstep
+      rw [hstep, D_eight_succ_eq_D_ten t (by omega), D_ten_succ_eq_not_D_eight t (by omega)]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Phase-Locking of the Twenty-Second and Tenth Left Diagonals (`D_twenty_two_eq_D_ten`):**
+for every `t ≥ 25`, `D 22 t = D 10 t`. -/
+theorem D_twenty_two_eq_D_ten : ∀ t : Nat, 25 ≤ t → D 22 t = D 10 t
+  | 25, _ => by rw [d_22_25, d_10_25]
+  | t + 1, ht => by
+    by_cases h : t < 25
+    · have h_eq : t + 1 = 25 := by omega
+      rw [h_eq, d_22_25, d_10_25]
+    · have ih := D_twenty_two_eq_D_ten t (by omega)
+      have hstep := D_step 20 t
+      rw [D_twenty_eq_D_eight t (by omega), D_twenty_one_eq_D_eight_or_not_D_ten t (by omega), ih] at hstep
+      rw [hstep, D_ten_succ_eq_not_D_eight t (by omega)]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **XNOR-Gate Law for the Twenty-Third Left Diagonal (`D_twenty_three_eq_not_xor_D_eight_D_ten`):**
+for every `t ≥ 25`, `D 23 t = !xor (D 8 t) (D 10 t)`. -/
+theorem D_twenty_three_eq_not_xor_D_eight_D_ten : ∀ t : Nat, 25 ≤ t → D 23 t = !xor (D 8 t) (D 10 t)
+  | 25, _ => by rw [d_23_25, d_8_25, d_10_25]; rfl
+  | t + 1, ht => by
+    by_cases h : t < 25
+    · have h_eq : t + 1 = 25 := by omega
+      rw [h_eq, d_23_25, d_8_25, d_10_25]; rfl
+    · have ih := D_twenty_three_eq_not_xor_D_eight_D_ten t (by omega)
+      have hstep := D_step 21 t
+      rw [D_twenty_one_eq_D_eight_or_not_D_ten t (by omega), D_twenty_two_eq_D_ten t (by omega), ih] at hstep
+      rw [hstep, D_eight_succ_eq_D_ten t (by omega), D_ten_succ_eq_not_D_eight t (by omega)]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Exact 1-Anti-Periodicity of the Twenty-Third Left Diagonal (`D_twenty_three_succ_eq_not`):**
+for every `t ≥ 25`, `D 23 (t + 1) = !D 23 t`. -/
+theorem D_twenty_three_succ_eq_not (t : Nat) (ht : 25 ≤ t) :
+    D 23 (t + 1) = !D 23 t := by
+  rw [D_twenty_three_eq_not_xor_D_eight_D_ten (t + 1) (by omega),
+      D_twenty_three_eq_not_xor_D_eight_D_ten t ht,
+      D_eight_succ_eq_D_ten t (by omega), D_ten_succ_eq_not_D_eight t (by omega)]
+  cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Eventual 1-Anti-Periodicity of Diagonal `D 23` (`evAntiPer_D_twenty_three`):**
+`EvAntiPer (D 23) 1` holds with onset `25`. -/
+theorem evAntiPer_D_twenty_three : EvAntiPer (D 23) 1 :=
+  ⟨25, D_twenty_three_succ_eq_not⟩
+
+/-- **Unconditional Asymptotic Density `1/2` of Diagonal `D 23` (`halfDensity_D_twenty_three`):**
+`HalfDensity (D 23)` holds unconditionally. -/
+theorem halfDensity_D_twenty_three : HalfDensity (D 23) :=
+  halfDensity_of_antiperiodic (by decide : 0 < 1) evAntiPer_D_twenty_three
+
+/-- **Inhibition-Gate Law for the Twenty-Fourth Left Diagonal (`D_twenty_four_eq_not_D_eight_and_D_ten`):**
+for every `t ≥ 27`, `D 24 t = (!D 8 t && D 10 t)`. -/
+theorem D_twenty_four_eq_not_D_eight_and_D_ten : ∀ t : Nat, 27 ≤ t → D 24 t = (!D 8 t && D 10 t)
+  | 27, _ => by rw [d_24_27, d_8_27, d_10_27]; rfl
+  | t + 1, ht => by
+    by_cases h : t < 27
+    · have h_eq : t + 1 = 27 := by omega
+      rw [h_eq, d_24_27, d_8_27, d_10_27]; rfl
+    · have ih := D_twenty_four_eq_not_D_eight_and_D_ten t (by omega)
+      have hstep := D_step 22 t
+      rw [D_twenty_two_eq_D_ten t (by omega), D_twenty_three_eq_not_xor_D_eight_D_ten t (by omega), ih] at hstep
+      rw [hstep, D_eight_succ_eq_D_ten t (by omega), D_ten_succ_eq_not_D_eight t (by omega)]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Phase-Locking of the Twenty-Fifth and Tenth Left Diagonals (`D_twenty_five_eq_D_ten`):**
+for every `t ≥ 28`, `D 25 t = D 10 t`. -/
+theorem D_twenty_five_eq_D_ten : ∀ t : Nat, 28 ≤ t → D 25 t = D 10 t
+  | 28, _ => by rw [d_25_28, d_10_28]
+  | t + 1, ht => by
+    by_cases h : t < 28
+    · have h_eq : t + 1 = 28 := by omega
+      rw [h_eq, d_25_28, d_10_28]
+    · have ih := D_twenty_five_eq_D_ten t (by omega)
+      have hstep := D_step 23 t
+      rw [D_twenty_three_eq_not_xor_D_eight_D_ten t (by omega), D_twenty_four_eq_not_D_eight_and_D_ten t (by omega), ih] at hstep
+      rw [hstep, D_ten_succ_eq_not_D_eight t (by omega)]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **NAND-Gate Law for the Twenty-Sixth Left Diagonal (`D_twenty_six_eq_nand_D_eight_D_ten`):**
+for every `t ≥ 29`, `D 26 t = !(D 8 t && D 10 t)`. -/
+theorem D_twenty_six_eq_nand_D_eight_D_ten : ∀ t : Nat, 29 ≤ t → D 26 t = !(D 8 t && D 10 t)
+  | 29, _ => by rw [d_26_29, d_8_29, d_10_29]; rfl
+  | t + 1, ht => by
+    by_cases h : t < 29
+    · have h_eq : t + 1 = 29 := by omega
+      rw [h_eq, d_26_29, d_8_29, d_10_29]; rfl
+    · have ih := D_twenty_six_eq_nand_D_eight_D_ten t (by omega)
+      have hstep := D_step 24 t
+      rw [D_twenty_four_eq_not_D_eight_and_D_ten t (by omega), D_twenty_five_eq_D_ten t (by omega), ih] at hstep
+      rw [hstep, D_eight_succ_eq_D_ten t (by omega), D_ten_succ_eq_not_D_eight t (by omega)]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Twin-NAND Coincidence on the Twenty-Seventh Left Diagonal (`D_twenty_seven_eq_nand_D_eight_D_ten`):**
+for every `t ≥ 30`, `D 27 t = !(D 8 t && D 10 t)`. -/
+theorem D_twenty_seven_eq_nand_D_eight_D_ten : ∀ t : Nat, 30 ≤ t → D 27 t = !(D 8 t && D 10 t)
+  | 30, _ => by rw [d_27_30, d_8_30, d_10_30]; rfl
+  | t + 1, ht => by
+    by_cases h : t < 30
+    · have h_eq : t + 1 = 30 := by omega
+      rw [h_eq, d_27_30, d_8_30, d_10_30]; rfl
+    · have ih := D_twenty_seven_eq_nand_D_eight_D_ten t (by omega)
+      have hstep := D_step 25 t
+      rw [D_twenty_five_eq_D_ten t (by omega), D_twenty_six_eq_nand_D_eight_D_ten t (by omega), ih] at hstep
+      rw [hstep, D_eight_succ_eq_D_ten t (by omega), D_ten_succ_eq_not_D_eight t (by omega)]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Third Universal All-White Reset Diagonal (`D_twenty_eight_eq_false`):**
+for every `t ≥ 31`, `D 28 t = false`. -/
+theorem D_twenty_eight_eq_false : ∀ t : Nat, 31 ≤ t → D 28 t = false
+  | 31, _ => d_28_31
+  | t + 1, ht => by
+    by_cases h : t < 31
+    · have h_eq : t + 1 = 31 := by omega
+      rw [h_eq]; exact d_28_31
+    · have ih := D_twenty_eight_eq_false t (by omega)
+      have hstep := D_step 26 t
+      rw [D_twenty_six_eq_nand_D_eight_D_ten t (by omega),
+          D_twenty_seven_eq_nand_D_eight_D_ten t (by omega), ih] at hstep
+      rw [hstep]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Diagonal `D 28` Is Eventually White (`evWhite_D_twenty_eight`):**
+`EvWhite (D 28)` holds with onset `31`. -/
+theorem evWhite_D_twenty_eight : Rule30LeftReset.EvWhite (D 28) :=
+  ⟨31, D_twenty_eight_eq_false⟩
+
+/-- **Post-Reset XOR Recurrence of the Twenty-Ninth Left Diagonal (`D_twenty_nine_step_eq_xor_D_twenty_seven`):**
+for every `t ≥ 31`, `D 29 (t + 1) = xor (D 27 t) (D 29 t)`. -/
+theorem D_twenty_nine_step_eq_xor_D_twenty_seven (t : Nat) (ht : 31 ≤ t) :
+    D 29 (t + 1) = xor (D 27 t) (D 29 t) := by
+  have hstep := D_step 27 t
+  rw [D_twenty_eight_eq_false t ht, Bool.false_or] at hstep
+  exact hstep
+
+/-- **Exact 4-Anti-Periodicity of the Twenty-Ninth Left Diagonal (`D_twenty_nine_antiperiodic_four`):**
+for every `t ≥ 31`, `D 29 (t + 4) = !D 29 t`. -/
+theorem D_twenty_nine_antiperiodic_four (t : Nat) (ht : 31 ≤ t) :
+    D 29 (t + 4) = !D 29 t := by
+  have s0 := D_twenty_nine_step_eq_xor_D_twenty_seven t ht
+  have s1 := D_twenty_nine_step_eq_xor_D_twenty_seven (t + 1) (by omega)
+  have s2 := D_twenty_nine_step_eq_xor_D_twenty_seven (t + 2) (by omega)
+  have s3 := D_twenty_nine_step_eq_xor_D_twenty_seven (t + 3) (by omega)
+  have g0 := D_twenty_seven_eq_nand_D_eight_D_ten t (by omega)
+  have g1 := D_twenty_seven_eq_nand_D_eight_D_ten (t + 1) (by omega)
+  have g2 := D_twenty_seven_eq_nand_D_eight_D_ten (t + 2) (by omega)
+  have g3 := D_twenty_seven_eq_nand_D_eight_D_ten (t + 3) (by omega)
+  have a8_1 := D_eight_succ_eq_D_ten t (by omega)
+  have a10_1 := D_ten_succ_eq_not_D_eight t (by omega)
+  have a8_2 := D_eight_antiperiodic_two t (by omega)
+  have a10_2 : D 10 (t + 2) = !D 10 t := by
+    rw [show t + 2 = (t + 1) + 1 by omega, D_ten_succ_eq_not_D_eight (t + 1) (by omega), a8_1]
+  have a8_3 : D 8 (t + 3) = !D 10 t := by
+    rw [show t + 3 = (t + 1) + 2 by omega, D_eight_antiperiodic_two (t + 1) (by omega), a8_1]
+  have a10_3 : D 10 (t + 3) = D 8 t := by
+    rw [show t + 3 = (t + 2) + 1 by omega, D_ten_succ_eq_not_D_eight (t + 2) (by omega), a8_2, Bool.not_not]
+  rw [a8_1, a10_1] at g1
+  rw [a8_2, a10_2] at g2
+  rw [a8_3, a10_3] at g3
+  rw [show t + 1 + 1 = t + 2 by omega] at s1
+  rw [show t + 2 + 1 = t + 3 by omega] at s2
+  rw [show t + 3 + 1 = t + 4 by omega] at s3
+  rw [s3, s2, s1, s0, g0, g1, g2, g3]
+  cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> decide
+
+/-- **Eventual 4-Anti-Periodicity of Diagonal `D 29` (`evAntiPer_D_twenty_nine`):**
+`EvAntiPer (D 29) 4` holds with onset `31`. -/
+theorem evAntiPer_D_twenty_nine : EvAntiPer (D 29) 4 :=
+  ⟨31, D_twenty_nine_antiperiodic_four⟩
+
+/-- **Unconditional Asymptotic Density `1/2` of Diagonal `D 29` (`halfDensity_D_twenty_nine`):**
+`HalfDensity (D 29)` holds unconditionally. -/
+theorem halfDensity_D_twenty_nine : HalfDensity (D 29) :=
+  halfDensity_of_antiperiodic (by decide : 0 < 4) evAntiPer_D_twenty_nine
+
+/-- **Third Universal All-Black Shield Diagonal (`D_thirty_eq_true`):**
+for every `t ≥ 33`, `D 30 t = true`. -/
+theorem D_thirty_eq_true : ∀ t : Nat, 33 ≤ t → D 30 t = true
+  | 33, _ => d_30_33
+  | t + 1, ht => by
+    by_cases h : t < 33
+    · have h_eq : t + 1 = 33 := by omega
+      rw [h_eq]; exact d_30_33
+    · have ih := D_thirty_eq_true t (by omega)
+      have hstep := D_step 28 t
+      rw [D_twenty_eight_eq_false t (by omega), ih, Bool.or_true, Bool.false_xor] at hstep
+      exact hstep
+
+/-- **Diagonal `D 30` Is Eventually Black (`evBlack_D_thirty`):**
+`EvBlack (D 30)` holds with onset `33`. -/
+theorem evBlack_D_thirty : Rule30WhiteSpacing.EvBlack (D 30) :=
+  ⟨33, D_thirty_eq_true⟩
+
+/-- **Shielded Complement Transfer from `D 29` to `D 31` (`D_thirty_one_succ_eq_not_D_twenty_nine`):**
+for every `t ≥ 33`, `D 31 (t + 1) = !D 29 t`. -/
+theorem D_thirty_one_succ_eq_not_D_twenty_nine (t : Nat) (ht : 33 ≤ t) :
+    D 31 (t + 1) = !D 29 t := by
+  have hstep := D_step 29 t
+  rw [D_thirty_eq_true t ht, Bool.true_or, Bool.xor_true] at hstep
+  exact hstep
+
+/-- **Exact 4-Anti-Periodicity of the Thirty-First Left Diagonal (`D_thirty_one_antiperiodic_four`):**
+for every `t ≥ 34`, `D 31 (t + 4) = !D 31 t`. -/
+theorem D_thirty_one_antiperiodic_four (t : Nat) (ht : 34 ≤ t) :
+    D 31 (t + 4) = !D 31 t := by
+  have h1 := D_thirty_one_succ_eq_not_D_twenty_nine (t - 1) (by omega)
+  have h2 := D_thirty_one_succ_eq_not_D_twenty_nine (t + 3) (by omega)
+  have h29 := D_twenty_nine_antiperiodic_four (t - 1) (by omega)
+  rw [show t - 1 + 1 = t by omega] at h1
+  rw [show t - 1 + 4 = t + 3 by omega] at h29
+  rw [show t + 4 = (t + 3) + 1 by omega, h2, h29, h1]
+
+/-- **Eventual 4-Anti-Periodicity of Diagonal `D 31` (`evAntiPer_D_thirty_one`):**
+`EvAntiPer (D 31) 4` holds with onset `34`. -/
+theorem evAntiPer_D_thirty_one : EvAntiPer (D 31) 4 :=
+  ⟨34, D_thirty_one_antiperiodic_four⟩
+
+/-- **Unconditional Asymptotic Density `1/2` of Diagonal `D 31` (`halfDensity_D_thirty_one`):**
+`HalfDensity (D 31)` holds unconditionally. -/
+theorem halfDensity_D_thirty_one : HalfDensity (D 31) :=
+  halfDensity_of_antiperiodic (by decide : 0 < 4) evAntiPer_D_thirty_one
+
 
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
