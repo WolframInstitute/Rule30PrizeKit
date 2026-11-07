@@ -29,6 +29,13 @@ forced at the black phases of the center by left permutivity.
 Both statements are open. Evidence (a C search, not kernel-checked):
 every start of width `W ≤ 37` violates `Q001`'s constraint by time `94`, and every start of width
 `W ≤ 70` violates the `011` constraint by time `99` (all three phases).
+
+For every word `w`, `C3w w` is equivalent to its all-times form `C3w0 w`, which only forbids a
+finitely supported start that fits `P_w` at every time (`C3w_iff_C3w0`): a start that fits from
+time `K` on gives, after `3 K` steps, a finitely supported row that fits at every time, since the
+driver has period `3`. So the reduction for `011` needs only the all-times form
+(`not_eventually_011_of_C3w0`), and so does the reduction for `001` through `C3w w001`
+(`not_eventually_001_of_C3w0`).
 -/
 
 @[expose] public section
@@ -395,6 +402,63 @@ theorem etherLeft_sub_twelve (p : Int) :
     etherLeft (p - 12) = etherLeft p := by
   unfold etherLeft
   exact ether3_congr (by omega) rfl
+
+/-! ### The all-times form of `C3w` -/
+
+/-- **`C3w0 w`**, the all-times form of `C3w w` (open for `w011` and `w001`). No finitely
+supported left configuration, run as in `C3w w`, keeps column `-1` equal to `P_w` at its fixed
+phases at every time. -/
+def C3w0 (w : List Bool) : Prop :=
+  ∀ s : Int → Bool, (∃ M : Nat, ∀ p : Int, p < -(M : Int) → s p = false) →
+    ¬ ∀ k, fits3 (colPattern3 w) (k % 3) (L (fun k => wordAt3 (effWord3 w) k) s k (-1)) = true
+
+/-- Finite support spreads by one cell per step: if the start is white left of `-M`, the driven
+left half is white left of `-(M + t)` at time `t`, whatever the driver. -/
+theorem L_eq_false_of_lt (c : Nat → Bool) (s : Int → Bool) (M : Nat)
+    (hs : ∀ p : Int, p < -(M : Int) → s p = false) :
+    ∀ t (p : Int), p < -((M + t : Nat) : Int) → L c s t p = false := by
+  intro t
+  induction t with
+  | zero => intro p hp; rw [L_zero (by omega)]; exact hs p (by omega)
+  | succ t ih =>
+    intro p hp
+    rw [L_succ (by omega), ih (p - 1) (by omega), ih p (by omega), ih (p + 1) (by omega)]
+    rfl
+
+/-- `wordAt3` has period `3`. -/
+theorem wordAt3_three_mul_add (w : List Bool) (K k : Nat) :
+    wordAt3 w (3 * K + k) = wordAt3 w k := by
+  unfold wordAt3; rw [show (3 * K + k) % 3 = k % 3 by omega]
+
+/-- **The two forms of `C3w` are equivalent**, for every word `w`. A start that fits `P_w` from
+time `K` on gives, after `3 K` steps (`L_add`), a row that is again finitely supported
+(`L_eq_false_of_lt`) and fits at every time, since the driver has period `3`. -/
+theorem C3w_iff_C3w0 (w : List Bool) : C3w w ↔ C3w0 w := by
+  constructor
+  · intro h s hs hall
+    exact h s hs ⟨0, fun k _ => hall k⟩
+  · rintro h s ⟨M, hM⟩ ⟨K, hK⟩
+    refine h (L (fun k => wordAt3 (effWord3 w) k) s (3 * K)) ⟨M + 3 * K, fun p hp => ?_⟩
+      (fun k => ?_)
+    · exact L_eq_false_of_lt _ s M hM (3 * K) p hp
+    · have hk := hK (3 * K + k) (by omega)
+      rw [show (3 * K + k) % 3 = k % 3 by omega, L_add _ s (3 * K) k (-1) (by omega)] at hk
+      have hdrv : (fun j => wordAt3 (effWord3 w) (3 * K + j)) = fun j => wordAt3 (effWord3 w) j :=
+        funext fun j => wordAt3_three_mul_add (effWord3 w) K j
+      rw [hdrv] at hk
+      exact hk
+
+/-- **`C3w0 w011` excludes `011^∞`** as a tail of the center column, for every transient: the
+reduction `not_eventually_011_of_C3w` needs only the all-times form. -/
+theorem not_eventually_011_of_C3w0 (hC : C3w0 w011) :
+    ¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt3 w011 (t - T) :=
+  not_eventually_011_of_C3w ((C3w_iff_C3w0 w011).mpr hC)
+
+/-- **`C3w0 w001` excludes `001^∞`** as a tail of the center column, for every transient: the
+reduction `not_eventually_001_of_C3w` needs only the all-times form. -/
+theorem not_eventually_001_of_C3w0 (hC : C3w0 w001) :
+    ¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt3 w001 (t - T) :=
+  not_eventually_001_of_C3w ((C3w_iff_C3w0 w001).mpr hC)
 
 end Rule30EtherThree
 end Ruliology.CellularAutomata
