@@ -810,5 +810,53 @@ theorem not_cell_periodic_six_at_col_le_neg_add_eight (T : Nat) {c : Int}
   rw [hc_eq, show s + 8 + 6 = s + 14 by omega, hflip] at h
   revert h; cases cell (s + 8) (-(s : Int)) <;> decide
 
+/-- **Thirty-Column Inward Period-1 and Period-2 Exclusion
+(`not_cell_periodic_one_or_two_at_col_le_neg_add_twenty_eight`):**
+for every `T : Nat`, `P ∈ {1, 2}`, and column `c ≤ -3` with `c ≤ -(T : Int) + 28`
+(for `P = 2`, 30 columns inside the light cone: `c ≤ -(T + 2) + 30`),
+`cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_one_or_two_at_col_le_neg_add_twenty_eight (T : Nat) {P : Nat}
+    (hP1 : 1 ≤ P) (hP2 : P ≤ 2) {c : Int} (hc0 : c ≤ -3) (hc : c ≤ -(T : Int) + 28) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h28_d : cell (s + 28) (-(s : Int)) = Rule30Diagonals.D 28 (s + 28) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h28 : cell (s + 28) (-(s : Int)) = false := by
+    rw [h28_d, Rule30LeftAntiPeriod.D_twenty_eight_eq_false (s + 28) (by omega)]
+  have h30_d : cell (s + 30) (-(s : Int)) = Rule30Diagonals.D 30 (s + 30) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h30 : cell (s + 30) (-(s : Int)) = true := by
+    rw [h30_d, Rule30LeftAntiPeriod.D_thirty_eq_true (s + 30) (by omega)]
+  rcases (by omega : P = 1 ∨ P = 2) with rfl | rfl
+  · have ha := hper (s + 28) (by omega)
+    have hb := hper (s + 29) (by omega)
+    rw [hc_eq, show s + 28 + 1 = s + 29 by omega, h28] at ha
+    rw [hc_eq, show s + 29 + 1 = s + 30 by omega, h30, ha] at hb
+    cases hb
+  · have h := hper (s + 28) (by omega)
+    rw [hc_eq, show s + 28 + 2 = s + 30 by omega, h30, h28] at h
+    cases h
+
+/-- **Thirty-Column Inward Non-Periodicity for All `P ≥ 31`
+(`not_cell_periodic_ge_thirty_one_at_col_le_neg_add_add_thirty`):**
+for every `T : Nat`, `P ≥ 31`, and column `c ≤ -3` with `c ≤ -((T + P : Nat) : Int) + 30`,
+`cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_ge_thirty_one_at_col_le_neg_add_add_thirty (T : Nat) {P : Nat}
+    (hP : 31 ≤ P) {c : Int} (hc0 : c ≤ -3) (hc : c ≤ -((T + P : Nat) : Int) + 30) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h30_d : cell (s + 30) (-(s : Int)) = Rule30Diagonals.D 30 (s + 30) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h30 : cell (s + 30) (-(s : Int)) = true := by
+    rw [h30_d, Rule30LeftAntiPeriod.D_thirty_eq_true (s + 30) (by omega)]
+  have h := hper (s + 30 - P) (by omega)
+  rw [hc_eq, show s + 30 - P + P = s + 30 by omega, h30,
+      cell_eq_false_of_lt (s + 30 - P) (-(s : Int)) (by omega)] at h
+  cases h
+
 
 end Ruliology.CellularAutomata.Rule30TraceEdge
