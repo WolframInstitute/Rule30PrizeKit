@@ -858,5 +858,158 @@ theorem not_cell_periodic_ge_thirty_one_at_col_le_neg_add_add_thirty (T : Nat) {
       cell_eq_false_of_lt (s + 30 - P) (-(s : Int)) (by omega)] at h
   cases h
 
+/-- **Universal Adjacent Column Flip at Ticks `s + 14` and `s + 15` (`cell_neg_flip_fourteen_fifteen`):**
+for every `s : Nat`, `cell (s + 15) (-(s : Int)) = !cell (s + 14) (-(s : Int))`. -/
+theorem cell_neg_flip_fourteen_fifteen (s : Nat) :
+    cell (s + 15) (-(s : Int)) = !cell (s + 14) (-(s : Int)) := by
+  have h14 : cell (s + 14) (-(s : Int)) = Rule30Diagonals.D 14 (s + 14) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h15 : cell (s + 15) (-(s : Int)) = Rule30Diagonals.D 15 (s + 15) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  rw [h14, h15, Rule30LeftAntiPeriod.D_fourteen_eq_D_eight (s + 14) (by omega),
+      Rule30LeftAntiPeriod.D_fifteen_eq_D_ten (s + 15) (by omega),
+      show s + 15 = (s + 14) + 1 by omega,
+      Rule30LeftAntiPeriod.D_ten_succ_eq_not_D_eight (s + 14) (by omega)]
+
+/-- **Fifteen-Column Inward Period-1 Exclusion (`not_cell_periodic_one_at_col_le_neg_add_fourteen`):**
+for every `T : Nat` and column `c ≤ 0` with `c ≤ -(T : Int) + 14`,
+`¬ (∀ t : Nat, T ≤ t → cell (t + 1) c = cell t c)`. -/
+theorem not_cell_periodic_one_at_col_le_neg_add_fourteen (T : Nat) {c : Int}
+    (hc0 : c ≤ 0) (hc : c ≤ -(T : Int) + 14) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 1) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h := hper (s + 14) (by omega)
+  have hflip := cell_neg_flip_fourteen_fifteen s
+  rw [hc_eq, show s + 14 + 1 = s + 15 by omega, hflip] at h
+  revert h; cases cell (s + 14) (-(s : Int)) <;> decide
+
+/-- **Universal Lag-8 Column Flip at Ticks `s + 10` and `s + 18` (`cell_neg_flip_ten_eighteen`):**
+for every `s ≥ 2`, `cell (s + 18) (-(s : Int)) = !cell (s + 10) (-(s : Int))`. -/
+theorem cell_neg_flip_ten_eighteen (s : Nat) (hs : 2 ≤ s) :
+    cell (s + 18) (-(s : Int)) = !cell (s + 10) (-(s : Int)) := by
+  have h10 : cell (s + 10) (-(s : Int)) = Rule30Diagonals.D 10 (s + 10) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h18 : cell (s + 18) (-(s : Int)) = Rule30Diagonals.D 18 (s + 18) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have p1 : Rule30Diagonals.D 10 (s + 12) = !Rule30Diagonals.D 10 (s + 10) :=
+    Rule30LeftAntiPeriod.D_ten_antiperiodic_two (s + 10) (by omega)
+  have p2 : Rule30Diagonals.D 10 (s + 14) = Rule30Diagonals.D 10 (s + 10) := by
+    have h := Rule30LeftAntiPeriod.D_ten_antiperiodic_two (s + 12) (by omega)
+    rw [show s + 12 + 2 = s + 14 by omega, p1, Bool.not_not] at h; exact h
+  have p3 : Rule30Diagonals.D 10 (s + 16) = !Rule30Diagonals.D 10 (s + 10) := by
+    have h := Rule30LeftAntiPeriod.D_ten_antiperiodic_two (s + 14) (by omega)
+    rw [show s + 14 + 2 = s + 16 by omega, p2] at h; exact h
+  have p4 : Rule30Diagonals.D 10 (s + 18) = Rule30Diagonals.D 10 (s + 10) := by
+    have h := Rule30LeftAntiPeriod.D_ten_antiperiodic_two (s + 16) (by omega)
+    rw [show s + 16 + 2 = s + 18 by omega, p3, Bool.not_not] at h; exact h
+  rw [h10, h18, Rule30LeftAntiPeriod.D_eighteen_eq_not_D_ten (s + 18) (by omega), p4]
+
+/-- **Eighteen-Column Inward Period-8 Exclusion (`not_cell_periodic_eight_at_col_le_neg_add_ten`):**
+for every `T : Nat` and column `c ≤ -2` with `c ≤ -(T : Int) + 10` (i.e. `c ≤ -(T + 8) + 18`),
+`¬ (∀ t : Nat, T ≤ t → cell (t + 8) c = cell t c)`. -/
+theorem not_cell_periodic_eight_at_col_le_neg_add_ten (T : Nat) {c : Int}
+    (hc0 : c ≤ -2) (hc : c ≤ -(T : Int) + 10) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 8) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h := hper (s + 10) (by omega)
+  have hflip := cell_neg_flip_ten_eighteen s (by omega)
+  rw [hc_eq, show s + 10 + 8 = s + 18 by omega, hflip] at h
+  revert h; cases cell (s + 10) (-(s : Int)) <;> decide
+
+/-- **Universal Lag-3 Column Flip at Ticks `s + 19` and `s + 22` (`cell_neg_flip_nineteen_twenty_two`):**
+for every `s ≥ 3`, `cell (s + 22) (-(s : Int)) = !cell (s + 19) (-(s : Int))`. -/
+theorem cell_neg_flip_nineteen_twenty_two (s : Nat) (hs : 3 ≤ s) :
+    cell (s + 22) (-(s : Int)) = !cell (s + 19) (-(s : Int)) := by
+  have h19 : cell (s + 19) (-(s : Int)) = Rule30Diagonals.D 19 (s + 19) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h22 : cell (s + 22) (-(s : Int)) = Rule30Diagonals.D 22 (s + 22) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have p1 : Rule30Diagonals.D 10 (s + 22) = !Rule30Diagonals.D 10 (s + 20) :=
+    Rule30LeftAntiPeriod.D_ten_antiperiodic_two (s + 20) (by omega)
+  have p2 : Rule30Diagonals.D 10 (s + 20) = !Rule30Diagonals.D 8 (s + 19) :=
+    Rule30LeftAntiPeriod.D_ten_succ_eq_not_D_eight (s + 19) (by omega)
+  rw [h19, h22, Rule30LeftAntiPeriod.D_nineteen_eq_not_D_eight (s + 19) (by omega),
+      Rule30LeftAntiPeriod.D_twenty_two_eq_D_ten (s + 22) (by omega), p1, p2, Bool.not_not]
+
+/-- **Twenty-Two-Column Inward Period-3 Exclusion (`not_cell_periodic_three_at_col_le_neg_add_nineteen`):**
+for every `T : Nat` and column `c ≤ -3` with `c ≤ -(T : Int) + 19` (i.e. `c ≤ -(T + 3) + 22`),
+`¬ (∀ t : Nat, T ≤ t → cell (t + 3) c = cell t c)`. -/
+theorem not_cell_periodic_three_at_col_le_neg_add_nineteen (T : Nat) {c : Int}
+    (hc0 : c ≤ -3) (hc : c ≤ -(T : Int) + 19) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 3) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h := hper (s + 19) (by omega)
+  have hflip := cell_neg_flip_nineteen_twenty_two s (by omega)
+  rw [hc_eq, show s + 19 + 3 = s + 22 by omega, hflip] at h
+  revert h; cases cell (s + 19) (-(s : Int)) <;> decide
+
+/-- **Universal Lag-4 Column Flip at Ticks `s + 18` and `s + 22` (`cell_neg_flip_eighteen_twenty_two`):**
+for every `s ≥ 3`, `cell (s + 22) (-(s : Int)) = !cell (s + 18) (-(s : Int))`. -/
+theorem cell_neg_flip_eighteen_twenty_two (s : Nat) (hs : 3 ≤ s) :
+    cell (s + 22) (-(s : Int)) = !cell (s + 18) (-(s : Int)) := by
+  have h18 : cell (s + 18) (-(s : Int)) = Rule30Diagonals.D 18 (s + 18) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h22 : cell (s + 22) (-(s : Int)) = Rule30Diagonals.D 22 (s + 22) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have p1 : Rule30Diagonals.D 10 (s + 20) = !Rule30Diagonals.D 10 (s + 18) :=
+    Rule30LeftAntiPeriod.D_ten_antiperiodic_two (s + 18) (by omega)
+  have p2 : Rule30Diagonals.D 10 (s + 22) = Rule30Diagonals.D 10 (s + 18) := by
+    have h := Rule30LeftAntiPeriod.D_ten_antiperiodic_two (s + 20) (by omega)
+    rw [show s + 20 + 2 = s + 22 by omega, p1, Bool.not_not] at h; exact h
+  rw [h18, h22, Rule30LeftAntiPeriod.D_eighteen_eq_not_D_ten (s + 18) (by omega),
+      Rule30LeftAntiPeriod.D_twenty_two_eq_D_ten (s + 22) (by omega), p2, Bool.not_not]
+
+/-- **Twenty-Two-Column Inward Period-4 Exclusion (`not_cell_periodic_four_at_col_le_neg_add_eighteen`):**
+for every `T : Nat` and column `c ≤ -3` with `c ≤ -(T : Int) + 18` (i.e. `c ≤ -(T + 4) + 22`),
+`¬ (∀ t : Nat, T ≤ t → cell (t + 4) c = cell t c)`. -/
+theorem not_cell_periodic_four_at_col_le_neg_add_eighteen (T : Nat) {c : Int}
+    (hc0 : c ≤ -3) (hc : c ≤ -(T : Int) + 18) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 4) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h := hper (s + 18) (by omega)
+  have hflip := cell_neg_flip_eighteen_twenty_two s (by omega)
+  rw [hc_eq, show s + 18 + 4 = s + 22 by omega, hflip] at h
+  revert h; cases cell (s + 18) (-(s : Int)) <;> decide
+
+/-- **Universal Lag-5 Column Flip at Ticks `s + 20` and `s + 25` (`cell_neg_flip_twenty_twenty_five`):**
+for every `s ≥ 3`, `cell (s + 25) (-(s : Int)) = !cell (s + 20) (-(s : Int))`. -/
+theorem cell_neg_flip_twenty_twenty_five (s : Nat) (hs : 3 ≤ s) :
+    cell (s + 25) (-(s : Int)) = !cell (s + 20) (-(s : Int)) := by
+  have h20 : cell (s + 20) (-(s : Int)) = Rule30Diagonals.D 20 (s + 20) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h25 : cell (s + 25) (-(s : Int)) = Rule30Diagonals.D 25 (s + 25) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have p1 : Rule30Diagonals.D 10 (s + 23) = !Rule30Diagonals.D 10 (s + 21) :=
+    Rule30LeftAntiPeriod.D_ten_antiperiodic_two (s + 21) (by omega)
+  have p2 : Rule30Diagonals.D 10 (s + 25) = Rule30Diagonals.D 10 (s + 21) := by
+    have h := Rule30LeftAntiPeriod.D_ten_antiperiodic_two (s + 23) (by omega)
+    rw [show s + 23 + 2 = s + 25 by omega, p1, Bool.not_not] at h; exact h
+  have p3 : Rule30Diagonals.D 10 (s + 21) = !Rule30Diagonals.D 8 (s + 20) :=
+    Rule30LeftAntiPeriod.D_ten_succ_eq_not_D_eight (s + 20) (by omega)
+  rw [h20, h25, Rule30LeftAntiPeriod.D_twenty_eq_D_eight (s + 20) (by omega),
+      Rule30LeftAntiPeriod.D_twenty_five_eq_D_ten (s + 25) (by omega), p2, p3]
+
+/-- **Twenty-Five-Column Inward Period-5 Exclusion (`not_cell_periodic_five_at_col_le_neg_add_twenty`):**
+for every `T : Nat` and column `c ≤ -3` with `c ≤ -(T : Int) + 20` (i.e. `c ≤ -(T + 5) + 25`),
+`¬ (∀ t : Nat, T ≤ t → cell (t + 5) c = cell t c)`. -/
+theorem not_cell_periodic_five_at_col_le_neg_add_twenty (T : Nat) {c : Int}
+    (hc0 : c ≤ -3) (hc : c ≤ -(T : Int) + 20) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 5) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h := hper (s + 20) (by omega)
+  have hflip := cell_neg_flip_twenty_twenty_five s (by omega)
+  rw [hc_eq, show s + 20 + 5 = s + 25 by omega, hflip] at h
+  revert h; cases cell (s + 20) (-(s : Int)) <;> decide
+
 
 end Ruliology.CellularAutomata.Rule30TraceEdge
