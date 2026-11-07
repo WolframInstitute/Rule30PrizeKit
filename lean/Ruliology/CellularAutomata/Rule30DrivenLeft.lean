@@ -736,5 +736,193 @@ theorem cofinal_true_and_false_free_phase_of_bounded {c : Nat → Bool} {s : Int
     dsimp only
     rw [hm1, hm0]
 
+/-! ### All-Column Window Locality, Top-Edge Bit-Flip Propagation, Space-Time Slice Bijection, and Single-Free-Phase Determination -/
+
+/-- **All-Column Window Locality (`L_neg_eq_of_col_neg1_window_eq`):** for every column depth
+`d : Nat` and time `t : Nat`, `L c s t (-(d : Int) - 1)` is completely determined by the driver
+`c` and the values of column `-1` across the finite time window `[t, t + d]`. -/
+theorem L_neg_eq_of_col_neg1_window_eq (c : Nat → Bool) (s₁ s₂ : Int → Bool) :
+    ∀ (d t : Nat),
+      (∀ k : Nat, t ≤ k → k ≤ t + d → L c s₁ k (-1) = L c s₂ k (-1)) →
+      L c s₁ t (-(d : Int) - 1) = L c s₂ t (-(d : Int) - 1)
+  | 0, t, h => by
+    simpa using h t (Nat.le_refl t) (by omega)
+  | d + 1, t, h => by
+    have step1 := L_left (c := c) (s := s₁) (p := -(d : Int) - 1) t (by omega)
+    have step2 := L_left (c := c) (s := s₂) (p := -(d : Int) - 1) t (by omega)
+    have hcol : (-(d : Int) - 1) - 1 = -((d + 1 : Nat) : Int) - 1 := by omega
+    rw [hcol] at step1 step2
+    have ih_top : L c s₁ (t + 1) (-(d : Int) - 1) = L c s₂ (t + 1) (-(d : Int) - 1) :=
+      L_neg_eq_of_col_neg1_window_eq c s₁ s₂ d (t + 1) (fun k hk1 hk2 => h k (by omega) (by omega))
+    have ih_mid : L c s₁ t (-(d : Int) - 1) = L c s₂ t (-(d : Int) - 1) :=
+      L_neg_eq_of_col_neg1_window_eq c s₁ s₂ d t (fun k hk1 hk2 => h k hk1 (by omega))
+    have ih_right : L c s₁ t (-(d : Int) - 1 + 1) = L c s₂ t (-(d : Int) - 1 + 1) := by
+      cases d with
+      | zero =>
+        have h0 : (-(0 : Nat) : Int) - 1 + 1 = 0 := by decide
+        rw [h0, L_col0, L_col0]
+      | succ d' =>
+        have h1 : -((d' + 1 : Nat) : Int) - 1 + 1 = -(d' : Int) - 1 := by omega
+        rw [h1]
+        exact L_neg_eq_of_col_neg1_window_eq c s₁ s₂ d' t (fun k hk1 hk2 => h k hk1 (by omega))
+    rw [step1, step2, ih_top, ih_mid, ih_right]
+
+/-- **All-Column Top-Edge Bit-Flip Propagation (`L_neg_flip_of_col_neg1_top_flip`):** for every
+column depth `d : Nat` and time `t : Nat`, if `s₁` and `s₂` agree on column `-1` across
+`[t, t + d)` and differ at `t + d` (`L c s₁ (t + d) (-1) = !L c s₂ (t + d) (-1)`), then their
+values at column `-(d : Int) - 1` at time `t` are opposite. -/
+theorem L_neg_flip_of_col_neg1_top_flip (c : Nat → Bool) (s₁ s₂ : Int → Bool) :
+    ∀ (d t : Nat),
+      (∀ k : Nat, t ≤ k → k < t + d → L c s₁ k (-1) = L c s₂ k (-1)) →
+      L c s₁ (t + d) (-1) = !L c s₂ (t + d) (-1) →
+      L c s₁ t (-(d : Int) - 1) = !L c s₂ t (-(d : Int) - 1)
+  | 0, t, _, htop => by
+    simpa using htop
+  | d + 1, t, hlow, htop => by
+    have step1 := L_left (c := c) (s := s₁) (p := -(d : Int) - 1) t (by omega)
+    have step2 := L_left (c := c) (s := s₂) (p := -(d : Int) - 1) t (by omega)
+    have hcol : (-(d : Int) - 1) - 1 = -((d + 1 : Nat) : Int) - 1 := by omega
+    rw [hcol] at step1 step2
+    have ih_top : L c s₁ (t + 1) (-(d : Int) - 1) = !L c s₂ (t + 1) (-(d : Int) - 1) :=
+      L_neg_flip_of_col_neg1_top_flip c s₁ s₂ d (t + 1)
+        (fun k hk1 hk2 => hlow k (by omega) (by omega))
+        (by simpa [show t + 1 + d = t + (d + 1) by omega] using htop)
+    have ih_mid : L c s₁ t (-(d : Int) - 1) = L c s₂ t (-(d : Int) - 1) :=
+      L_neg_eq_of_col_neg1_window_eq c s₁ s₂ d t (fun k hk1 hk2 => hlow k hk1 (by omega))
+    have ih_right : L c s₁ t (-(d : Int) - 1 + 1) = L c s₂ t (-(d : Int) - 1 + 1) := by
+      cases d with
+      | zero =>
+        have h0 : (-(0 : Nat) : Int) - 1 + 1 = 0 := by decide
+        rw [h0, L_col0, L_col0]
+      | succ d' =>
+        have h1 : -((d' + 1 : Nat) : Int) - 1 + 1 = -(d' : Int) - 1 := by omega
+        rw [h1]
+        exact L_neg_eq_of_col_neg1_window_eq c s₁ s₂ d' t (fun k hk1 hk2 => hlow k hk1 (by omega))
+    rw [step1, step2, ih_top, ih_mid, ih_right]
+    cases L c s₂ (t + 1) (-(d : Int) - 1) <;>
+      cases (L c s₂ t (-(d : Int) - 1) || L c s₂ t (-(d : Int) - 1 + 1)) <;> rfl
+
+/-- **All-Column Space-Time Slice Bijection (`L_spatial_slice_eq_iff_col_neg1_window_eq`):** for
+every time `t₀ : Nat` and horizon `D : Nat`, `s₁` and `s₂` agree across the spatial slice
+`-(d : Int) - 1` (`d ≤ D`) at time `t₀` if and only if they agree on column `-1` across the
+temporal window `[t₀, t₀ + D]`. -/
+theorem L_spatial_slice_eq_iff_col_neg1_window_eq (c : Nat → Bool) (s₁ s₂ : Int → Bool)
+    (t₀ D : Nat) :
+    (∀ d : Nat, d ≤ D → L c s₁ t₀ (-(d : Int) - 1) = L c s₂ t₀ (-(d : Int) - 1)) ↔
+    (∀ k : Nat, k ≤ D → L c s₁ (t₀ + k) (-1) = L c s₂ (t₀ + k) (-1)) := by
+  induction D with
+  | zero =>
+    constructor <;> intro h n hn <;> have h0 : n = 0 := by omega
+    · subst h0; simpa using h 0 (Nat.le_refl 0)
+    · subst h0; simpa using h 0 (Nat.le_refl 0)
+  | succ D ih =>
+    constructor
+    · intro hslice
+      have hprev : ∀ k : Nat, k ≤ D → L c s₁ (t₀ + k) (-1) = L c s₂ (t₀ + k) (-1) :=
+        ih.mp (fun d hd => hslice d (by omega))
+      intro k hk
+      by_cases hkD : k ≤ D
+      · exact hprev k hkD
+      · have hk_eq : k = D + 1 := by omega
+        subst hk_eq
+        refine Classical.byContradiction fun hne => ?_
+        have htop : L c s₁ (t₀ + (D + 1)) (-1) = !L c s₂ (t₀ + (D + 1)) (-1) := by
+          revert hne; cases L c s₁ (t₀ + (D + 1)) (-1) <;> cases L c s₂ (t₀ + (D + 1)) (-1) <;> decide
+        have hflip := L_neg_flip_of_col_neg1_top_flip c s₁ s₂ (D + 1) t₀
+          (fun j hj1 hj2 => by
+            have hsub : j - t₀ ≤ D := by omega
+            simpa [show t₀ + (j - t₀) = j by omega] using hprev (j - t₀) hsub)
+          htop
+        have heq := hslice (D + 1) (Nat.le_refl (D + 1))
+        rw [heq] at hflip
+        revert hflip; cases L c s₂ t₀ (-((D + 1 : Nat) : Int) - 1) <;> decide
+    · intro hwin d hd
+      exact L_neg_eq_of_col_neg1_window_eq c s₁ s₂ d t₀ (fun k hk1 hk2 => by
+        have hsub : k - t₀ ≤ D + 1 := by omega
+        simpa [show t₀ + (k - t₀) = k by omega] using hwin (k - t₀) hsub)
+
+/-- **Initial-Prefix Bijection (`init_prefix_eq_iff_col_neg1_prefix_eq`):** two initial starts
+`s₁, s₂` agree on `[-(D : Int) - 1, -1]` if and only if their column-`-1` traces under `c` agree
+on `[0, D]`. -/
+theorem init_prefix_eq_iff_col_neg1_prefix_eq (c : Nat → Bool) (s₁ s₂ : Int → Bool) (D : Nat) :
+    (∀ d : Nat, d ≤ D → s₁ (-(d : Int) - 1) = s₂ (-(d : Int) - 1)) ↔
+    (∀ k : Nat, k ≤ D → L c s₁ k (-1) = L c s₂ k (-1)) := by
+  constructor
+  · intro hs k hk
+    have h0 := (L_spatial_slice_eq_iff_col_neg1_window_eq c s₁ s₂ 0 D).mp (fun d hd => by
+      rw [L_zero (by omega), L_zero (by omega)]
+      exact hs d hd) k hk
+    simpa using h0
+  · intro hcol d hd
+    have h0 := (L_spatial_slice_eq_iff_col_neg1_window_eq c s₁ s₂ 0 D).mpr (fun k hk => by
+      simpa using hcol k hk) d hd
+    rwa [L_zero (by omega), L_zero (by omega)] at h0
+
+/-- **Finite-Prefix Determination of the Entire Left Half-Plane for Left-Bounded Starts
+(`L_eq_all_of_left_bounded_col_neg1_prefix_eq`):** if `s₁` and `s₂` both vanish below `-(M : Int)`
+and agree on column `-1` for the first `M` steps (`∀ k < M, L c s₁ k (-1) = L c s₂ k (-1)`),
+then `L c s₁ t (-(d : Int) - 1) = L c s₂ t (-(d : Int) - 1)` for every time `t : Nat` and
+every column depth `d : Nat`. -/
+theorem L_eq_all_of_left_bounded_col_neg1_prefix_eq (c : Nat → Bool) (s₁ s₂ : Int → Bool)
+    (M : Nat)
+    (hb₁ : ∀ p : Int, p < -(M : Int) → s₁ p = false)
+    (hb₂ : ∀ p : Int, p < -(M : Int) → s₂ p = false)
+    (hpref : ∀ k : Nat, k < M → L c s₁ k (-1) = L c s₂ k (-1))
+    (t d : Nat) :
+    L c s₁ t (-(d : Int) - 1) = L c s₂ t (-(d : Int) - 1) := by
+  have hs_all : ∀ j : Nat, s₁ (-(j : Int) - 1) = s₂ (-(j : Int) - 1) := by
+    intro j
+    by_cases hj : j < M
+    · cases M with
+      | zero => omega
+      | succ M' =>
+        have hinit := (init_prefix_eq_iff_col_neg1_prefix_eq c s₁ s₂ M').mpr
+          (fun k hk => hpref k (by omega))
+        exact hinit j (by omega)
+    · rw [hb₁ (-(j : Int) - 1) (by omega), hb₂ (-(j : Int) - 1) (by omega)]
+  have hcol1_all : ∀ k : Nat, L c s₁ k (-1) = L c s₂ k (-1) := fun k =>
+    (init_prefix_eq_iff_col_neg1_prefix_eq c s₁ s₂ k).mp (fun j _ => hs_all j) k (Nat.le_refl k)
+  exact L_neg_eq_of_col_neg1_window_eq c s₁ s₂ d t (fun k _ _ => hcol1_all k)
+
+/-- **All-Column Determination by the Single Free Phase Stream
+(`L_neg_eq_of_free_phase_window_eq`):** when all phases `k % P ≠ φ₀` of column `-1` agree across
+`[t, t + d]`, every column `-(d : Int) - 1` (`∀ d : Nat`) at time `t` is completely determined
+by the single free-phase stream `m ↦ L c s (P * m + φ₀) (-1)` inside `[t, t + d]`. -/
+theorem L_neg_eq_of_free_phase_window_eq (c : Nat → Bool) (s₁ s₂ : Int → Bool)
+    (P φ₀ d t : Nat)
+    (hfixed : ∀ k : Nat, t ≤ k → k ≤ t + d → k % P ≠ φ₀ → L c s₁ k (-1) = L c s₂ k (-1))
+    (hfree : ∀ m : Nat, t ≤ P * m + φ₀ → P * m + φ₀ ≤ t + d →
+      L c s₁ (P * m + φ₀) (-1) = L c s₂ (P * m + φ₀) (-1)) :
+    L c s₁ t (-(d : Int) - 1) = L c s₂ t (-(d : Int) - 1) := by
+  refine L_neg_eq_of_col_neg1_window_eq c s₁ s₂ d t (fun k hk1 hk2 => ?_)
+  by_cases hmod : k % P = φ₀
+  · have hdiv : P * (k / P) + φ₀ = k := by
+      have hd := Nat.div_add_mod k P
+      omega
+    simpa [hdiv] using hfree (k / P) (by omega) (by omega)
+  · exact hfixed k hk1 hk2 hmod
+
+/-- **All-Column Compression of Left-Bounded Starts to Initial Free-Phase Bits
+(`L_eq_all_of_left_bounded_free_phase_prefix_eq`):** if `s₁, s₂` vanish below `-(M : Int)`,
+agree on the constrained phases `k % P ≠ φ₀` of column `-1` for `k < M`, and agree on the
+free-phase bits `L c s (P * m + φ₀) (-1)` with `P * m + φ₀ < M`, then they agree at every
+column `-(d : Int) - 1` (`∀ d : Nat`) and every time `t : Nat`. -/
+theorem L_eq_all_of_left_bounded_free_phase_prefix_eq (c : Nat → Bool) (s₁ s₂ : Int → Bool)
+    (P φ₀ M : Nat)
+    (hb₁ : ∀ p : Int, p < -(M : Int) → s₁ p = false)
+    (hb₂ : ∀ p : Int, p < -(M : Int) → s₂ p = false)
+    (hfixed : ∀ k : Nat, k < M → k % P ≠ φ₀ → L c s₁ k (-1) = L c s₂ k (-1))
+    (hfree : ∀ m : Nat, P * m + φ₀ < M →
+      L c s₁ (P * m + φ₀) (-1) = L c s₂ (P * m + φ₀) (-1))
+    (t d : Nat) :
+    L c s₁ t (-(d : Int) - 1) = L c s₂ t (-(d : Int) - 1) := by
+  refine L_eq_all_of_left_bounded_col_neg1_prefix_eq c s₁ s₂ M hb₁ hb₂ (fun k hk => ?_) t d
+  by_cases hmod : k % P = φ₀
+  · have hdiv : P * (k / P) + φ₀ = k := by
+      have hd := Nat.div_add_mod k P
+      omega
+    simpa [hdiv] using hfree (k / P) (by omega)
+  · exact hfixed k hk hmod
+
 end Rule30DrivenLeft
 end Ruliology.CellularAutomata
