@@ -1,5 +1,7 @@
 module
 
+public import Ruliology.CellularAutomata.Rule30LeftAntiPeriod
+
 public import Ruliology.CellularAutomata.Rule30Problem3
 public import Ruliology.CellularAutomata.Rule30BlackRuns
 public import Ruliology.CellularAutomata.Rule30CenterRuns
@@ -2528,5 +2530,52 @@ theorem canon_window_rightSpan_ge_of_problem1 (hP1 : Problem1) {M : Machine} {T 
     ∃ r : Nat, 2 ^ (k - 1) ≤ r ∧ r < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ RightSpan M r (T r) :=
   canon_window_rightSpan_ge_of_not_evPer_two_pow hM (fun ⟨T₀, hper⟩ => hP1 ⟨T₀, 2 ^ k, Nat.two_pow_pos k, hper⟩)
 
-end Rule30Problem3Bounds
-end Ruliology.CellularAutomata
+/-! ### Canonical-Window Time and Spatial Border Protection From Single-Scale Dyadic Balance -/
+
+/-- **Canonical-Window Time-Border Protection (`canon_window_time_border_protection`):** if at
+scale `k`, `center` has a balanced dyadic progression `r < 2 ^ k`
+(`Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq center (2 ^ k) r)`),
+then for every one-tape Turing machine `M` computing `center` in time `T`, the canonical window
+`[2 ^ (k - 1), 2 ^ (k - 1) + 2 ^ k)` must contain an input `m` that breaks the time border `k + 1 ≤ T m`. -/
+theorem canon_window_time_border_protection {M : Machine} {T : Nat → Nat}
+    (hcomp : Computes M center T) (k : Nat)
+    (hbal : ∃ r : Nat, r < 2 ^ k ∧
+      Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq center (2 ^ k) r)) :
+    ∃ m : Nat, 2 ^ (k - 1) ≤ m ∧ m < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ T m := by
+  refine Classical.byContradiction fun hno => ?_
+  have hle : ∀ m : Nat, 2 ^ (k - 1) ≤ m → m < 2 ^ (k - 1) + 2 ^ k → T m ≤ k := by
+    intro m hm1 hm2
+    exact Classical.byContradiction fun hgt => hno ⟨m, hm1, hm2, by omega⟩
+  have hper := period_of_canon_window_time_le (k := k) hcomp hle
+  have hev : EvPer center (2 ^ k) := ⟨2 ^ (k - 1), hper⟩
+  obtain ⟨r, _, hhalf⟩ := hbal
+  have hnot := Rule30LeftAntiPeriod.not_evPer_two_pow_mul_odd_of_subseq_halfDensity
+    (f := center) (a := k) (r := r) hhalf 0
+  rw [Nat.mul_one] at hnot
+  exact hnot hev
+
+/-- **Canonical-Window Spatial-Border Protection (`canon_window_space_border_protection`):** if at
+scale `k`, `center` has a balanced dyadic progression `r < 2 ^ k`
+(`Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq center (2 ^ k) r)`),
+then for every one-tape Turing machine `M` computing `center` in time `T`, the canonical window
+`[2 ^ (k - 1), 2 ^ (k - 1) + 2 ^ k)` must contain an input `m` that breaks the spatial border
+`k + 1 ≤ RightSpan M m (T m)`. -/
+theorem canon_window_space_border_protection {M : Machine} {T : Nat → Nat}
+    (hcomp : Computes M center T) (k : Nat)
+    (hbal : ∃ r : Nat, r < 2 ^ k ∧
+      Rule30LeftAntiPeriod.HalfDensity (Rule30LeftAntiPeriod.subseq center (2 ^ k) r)) :
+    ∃ m : Nat, 2 ^ (k - 1) ≤ m ∧ m < 2 ^ (k - 1) + 2 ^ k ∧ k + 1 ≤ RightSpan M m (T m) := by
+  refine Classical.byContradiction fun hno => ?_
+  have hscan : ∀ m : Nat, 2 ^ (k - 1) ≤ m → m < 2 ^ (k - 1) + 2 ^ k → ScansBelow M m (T m) k := by
+    intro m hm1 hm2
+    rw [scansBelow_iff_rightSpan_le]
+    exact Classical.byContradiction fun hgt => hno ⟨m, hm1, hm2, by omega⟩
+  have hper := (period_and_halt_of_canon_window_scansBelow (k := k) hcomp hscan).1
+  have hev : EvPer center (2 ^ k) := ⟨2 ^ (k - 1), hper⟩
+  obtain ⟨r, _, hhalf⟩ := hbal
+  have hnot := Rule30LeftAntiPeriod.not_evPer_two_pow_mul_odd_of_subseq_halfDensity
+    (f := center) (a := k) (r := r) hhalf 0
+  rw [Nat.mul_one] at hnot
+  exact hnot hev
+
+end Ruliology.CellularAutomata.Rule30Problem3Bounds

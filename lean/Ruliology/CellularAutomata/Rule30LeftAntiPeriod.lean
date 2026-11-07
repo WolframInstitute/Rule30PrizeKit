@@ -1662,5 +1662,215 @@ theorem evAntiPer_two_pow_iff_evPer_two_pow_succ_and_dyadic_tower_halfDensity
     exact (evAntiPer_iff_evPer_two_mul_and_all_subseq_halfDensity h2K).mpr
       ⟨hper, fun r hr => htower K (Nat.le_refl K) r hr⟩
 
+/-! ### Exact 2-Anti-Periodicity and Asymptotic Density `1/2` of the Eighth Left Diagonal `D 8` -/
+
+/-- **Post-Reset XOR Recurrence of the Eighth Left Diagonal (`D_eight_step_eq_xor_D_three`):**
+for every `t ≥ 7`, `D 8 (t + 1) = xor (D 3 t) (D 8 t)`. -/
+theorem D_eight_step_eq_xor_D_three (t : Nat) (ht : 7 ≤ t) :
+    D 8 (t + 1) = xor (D 3 t) (D 8 t) := by
+  have hstep := D_step 6 t
+  rw [Rule30WhiteSpacing.D_six_eq_D_three t (by omega),
+      Rule30WhiteSpacing.D_seven_eq_false t ht, Bool.false_or] at hstep
+  exact hstep
+
+/-- **Exact 2-Anti-Periodicity of the Eighth Left Diagonal from `t = 7`
+(`D_eight_antiperiodic_two`):** for every `t ≥ 7`, `D 8 (t + 2) = !D 8 t`. -/
+theorem D_eight_antiperiodic_two (t : Nat) (ht : 7 ≤ t) :
+    D 8 (t + 2) = !D 8 t := by
+  have h1 := D_eight_step_eq_xor_D_three t ht
+  have h2 := D_eight_step_eq_xor_D_three (t + 1) (by omega)
+  have h3 := Rule30WhiteSpacing.D_three_succ t (by omega)
+  rw [show t + 1 + 1 = t + 2 by omega, h1, h3] at h2
+  revert h2
+  cases D 3 t <;> cases D 8 t <;> cases D 8 (t + 2) <;> decide
+
+/-- **Eventual 2-Anti-Periodicity of Diagonal `D 8` (`evAntiPer_D_eight`):**
+`EvAntiPer (D 8) 2` holds with onset `7`. -/
+theorem evAntiPer_D_eight : EvAntiPer (D 8) 2 :=
+  ⟨7, D_eight_antiperiodic_two⟩
+
+/-- **Unconditional Asymptotic Density `1/2` of Diagonal `D 8` (`halfDensity_D_eight`):**
+`HalfDensity (D 8)` holds unconditionally. -/
+theorem halfDensity_D_eight : HalfDensity (D 8) :=
+  halfDensity_of_antiperiodic (by decide : 0 < 2) evAntiPer_D_eight
+
+/-- **Second All-Black Shield Diagonal (`D_nine_eq_true`):** for every `t ≥ 8`, `D 9 t = true`. -/
+theorem D_nine_eq_true : ∀ t : Nat, 8 ≤ t → D 9 t = true
+  | 8, _ => by decide
+  | t + 1, ht => by
+    by_cases h8 : t < 8
+    · have h_eq : t + 1 = 8 := by omega
+      rw [h_eq]; decide
+    · have ih := D_nine_eq_true t (by omega)
+      have hstep := D_step 7 t
+      rw [Rule30WhiteSpacing.D_seven_eq_false t (by omega), ih, Bool.or_true, Bool.false_xor] at hstep
+      exact hstep
+
+/-- **Diagonal `D 9` Is Eventually Black (`evBlack_D_nine`):** `EvBlack (D 9)` holds with onset `8`. -/
+theorem evBlack_D_nine : Rule30WhiteSpacing.EvBlack (D 9) :=
+  ⟨8, D_nine_eq_true⟩
+
+/-- **Shielded Complement Transfer from `D 8` to `D 10` (`D_ten_succ_eq_not_D_eight`):**
+for every `t ≥ 8`, `D 10 (t + 1) = !D 8 t`. -/
+theorem D_ten_succ_eq_not_D_eight (t : Nat) (ht : 8 ≤ t) :
+    D 10 (t + 1) = !D 8 t := by
+  have hstep := D_step 8 t
+  rw [D_nine_eq_true t ht, Bool.true_or, Bool.xor_true] at hstep
+  exact hstep
+
+/-- **Exact 2-Anti-Periodicity of the Tenth Left Diagonal (`D_ten_antiperiodic_two`):**
+for every `t ≥ 9`, `D 10 (t + 2) = !D 10 t`. -/
+theorem D_ten_antiperiodic_two (t : Nat) (ht : 9 ≤ t) :
+    D 10 (t + 2) = !D 10 t := by
+  have h1 := D_ten_succ_eq_not_D_eight (t - 1) (by omega)
+  have h2 := D_ten_succ_eq_not_D_eight (t + 1) (by omega)
+  have h8 := D_eight_antiperiodic_two (t - 1) (by omega)
+  rw [show t - 1 + 1 = t by omega] at h1
+  rw [show t - 1 + 2 = t + 1 by omega] at h8
+  rw [h2, h8, h1]
+
+/-- **Eventual 2-Anti-Periodicity of Diagonal `D 10` (`evAntiPer_D_ten`):**
+`EvAntiPer (D 10) 2` holds with onset `9`. -/
+theorem evAntiPer_D_ten : EvAntiPer (D 10) 2 :=
+  ⟨9, D_ten_antiperiodic_two⟩
+
+/-- **Unconditional Asymptotic Density `1/2` of Diagonal `D 10` (`halfDensity_D_ten`):**
+`HalfDensity (D 10)` holds unconditionally. -/
+theorem halfDensity_D_ten : HalfDensity (D 10) :=
+  halfDensity_of_antiperiodic (by decide : 0 < 2) evAntiPer_D_ten
+
+/-! ### The `(D 8, D 10)` Gray-Code Oscillator and Boolean Gate Laws for `D 11 .. D 15` -/
+
+/-- **First-Step Oscillator Coupling (`D_eight_succ_eq_D_ten`):** for every `t ≥ 9`,
+`D 8 (t + 1) = D 10 t`. -/
+theorem D_eight_succ_eq_D_ten (t : Nat) (ht : 9 ≤ t) :
+    D 8 (t + 1) = D 10 t := by
+  have h10 := D_ten_succ_eq_not_D_eight (t - 1) (by omega)
+  have h8 := D_eight_antiperiodic_two (t - 1) (by omega)
+  rw [show t - 1 + 1 = t by omega] at h10
+  rw [show t - 1 + 2 = t + 1 by omega] at h8
+  rw [h8, h10]
+
+/-- **NOR-Gate Law for the Eleventh Left Diagonal (`D_eleven_eq_nor_D_eight_D_ten`):**
+for every `t ≥ 10`, `D 11 t = !(D 8 t || D 10 t)`. -/
+theorem D_eleven_eq_nor_D_eight_D_ten : ∀ t : Nat, 10 ≤ t → D 11 t = !(D 8 t || D 10 t)
+  | 10, _ => by decide
+  | t + 1, ht => by
+    by_cases h10 : t < 10
+    · have h_eq : t + 1 = 10 := by omega
+      rw [h_eq]; decide
+    · have ih := D_eleven_eq_nor_D_eight_D_ten t (by omega)
+      have hstep := D_step 9 t
+      have h9 := D_nine_eq_true t (by omega)
+      have h8s := D_eight_succ_eq_D_ten t (by omega)
+      have h10s := D_ten_succ_eq_not_D_eight t (by omega)
+      rw [h9, ih] at hstep
+      rw [hstep, h8s, h10s]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **NAND-Gate Law for the Twelfth Left Diagonal (`D_twelve_eq_nand_D_eight_D_ten`):**
+for every `t ≥ 10`, `D 12 t = !(D 8 t && D 10 t)`. -/
+theorem D_twelve_eq_nand_D_eight_D_ten : ∀ t : Nat, 10 ≤ t → D 12 t = !(D 8 t && D 10 t)
+  | 10, _ => by decide
+  | t + 1, ht => by
+    by_cases h10 : t < 10
+    · have h_eq : t + 1 = 10 := by omega
+      rw [h_eq]; decide
+    · have ih := D_twelve_eq_nand_D_eight_D_ten t (by omega)
+      have h11 := D_eleven_eq_nor_D_eight_D_ten t (by omega)
+      have hstep := D_step 10 t
+      have h8s := D_eight_succ_eq_D_ten t (by omega)
+      have h10s := D_ten_succ_eq_not_D_eight t (by omega)
+      rw [h11, ih] at hstep
+      rw [hstep, h8s, h10s]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Implication-Gate Law for the Thirteenth Left Diagonal (`D_thirteen_eq_or_not_D_eight_D_ten`):**
+for every `t ≥ 11`, `D 13 t = (D 8 t || !D 10 t)`. -/
+theorem D_thirteen_eq_or_not_D_eight_D_ten : ∀ t : Nat, 11 ≤ t → D 13 t = (D 8 t || !D 10 t)
+  | 11, _ => by decide
+  | t + 1, ht => by
+    by_cases h11 : t < 11
+    · have h_eq : t + 1 = 11 := by omega
+      rw [h_eq]; decide
+    · have ih := D_thirteen_eq_or_not_D_eight_D_ten t (by omega)
+      have h11_eq := D_eleven_eq_nor_D_eight_D_ten t (by omega)
+      have h12_eq := D_twelve_eq_nand_D_eight_D_ten t (by omega)
+      have hstep := D_step 11 t
+      have h8s := D_eight_succ_eq_D_ten t (by omega)
+      have h10s := D_ten_succ_eq_not_D_eight t (by omega)
+      rw [h11_eq, h12_eq, ih] at hstep
+      rw [hstep, h8s, h10s]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Exact Phase-Locking of the Fourteenth and Eighth Left Diagonals (`D_fourteen_eq_D_eight`):**
+for every `t ≥ 11`, `D 14 t = D 8 t`. -/
+theorem D_fourteen_eq_D_eight : ∀ t : Nat, 11 ≤ t → D 14 t = D 8 t
+  | 11, _ => by decide
+  | t + 1, ht => by
+    by_cases h11 : t < 11
+    · have h_eq : t + 1 = 11 := by omega
+      rw [h_eq]; decide
+    · have ih := D_fourteen_eq_D_eight t (by omega)
+      have h12_eq := D_twelve_eq_nand_D_eight_D_ten t (by omega)
+      have h13_eq := D_thirteen_eq_or_not_D_eight_D_ten t (by omega)
+      have hstep := D_step 12 t
+      have h8s := D_eight_succ_eq_D_ten t (by omega)
+      rw [h12_eq, h13_eq, ih] at hstep
+      rw [hstep, h8s]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Exact 2-Anti-Periodicity of the Fourteenth Left Diagonal (`D_fourteen_antiperiodic_two`):**
+for every `t ≥ 11`, `D 14 (t + 2) = !D 14 t`. -/
+theorem D_fourteen_antiperiodic_two (t : Nat) (ht : 11 ≤ t) :
+    D 14 (t + 2) = !D 14 t := by
+  rw [D_fourteen_eq_D_eight (t + 2) (by omega), D_fourteen_eq_D_eight t ht]
+  exact D_eight_antiperiodic_two t (by omega)
+
+/-- **Eventual 2-Anti-Periodicity of Diagonal `D 14` (`evAntiPer_D_fourteen`):**
+`EvAntiPer (D 14) 2` holds with onset `11`. -/
+theorem evAntiPer_D_fourteen : EvAntiPer (D 14) 2 :=
+  ⟨11, D_fourteen_antiperiodic_two⟩
+
+/-- **Unconditional Asymptotic Density `1/2` of Diagonal `D 14` (`halfDensity_D_fourteen`):**
+`HalfDensity (D 14)` holds unconditionally. -/
+theorem halfDensity_D_fourteen : HalfDensity (D 14) :=
+  halfDensity_of_antiperiodic (by decide : 0 < 2) evAntiPer_D_fourteen
+
+/-- **Exact Phase-Locking of the Fifteenth and Tenth Left Diagonals (`D_fifteen_eq_D_ten`):**
+for every `t ≥ 13`, `D 15 t = D 10 t`. -/
+theorem D_fifteen_eq_D_ten : ∀ t : Nat, 13 ≤ t → D 15 t = D 10 t
+  | 13, _ => by decide
+  | t + 1, ht => by
+    by_cases h13 : t < 13
+    · have h_eq : t + 1 = 13 := by omega
+      rw [h_eq]; decide
+    · have ih := D_fifteen_eq_D_ten t (by omega)
+      have h13_eq := D_thirteen_eq_or_not_D_eight_D_ten t (by omega)
+      have h14_eq := D_fourteen_eq_D_eight t (by omega)
+      have hstep := D_step 13 t
+      have h10s := D_ten_succ_eq_not_D_eight t (by omega)
+      rw [h13_eq, h14_eq, ih] at hstep
+      rw [hstep, h10s]
+      cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **Exact 2-Anti-Periodicity of the Fifteenth Left Diagonal (`D_fifteen_antiperiodic_two`):**
+for every `t ≥ 13`, `D 15 (t + 2) = !D 15 t`. -/
+theorem D_fifteen_antiperiodic_two (t : Nat) (ht : 13 ≤ t) :
+    D 15 (t + 2) = !D 15 t := by
+  rw [D_fifteen_eq_D_ten (t + 2) (by omega), D_fifteen_eq_D_ten t ht,
+      D_ten_antiperiodic_two t (by omega)]
+
+/-- **Eventual 2-Anti-Periodicity of Diagonal `D 15` (`evAntiPer_D_fifteen`):**
+`EvAntiPer (D 15) 2` holds with onset `13`. -/
+theorem evAntiPer_D_fifteen : EvAntiPer (D 15) 2 :=
+  ⟨13, D_fifteen_antiperiodic_two⟩
+
+/-- **Unconditional Asymptotic Density `1/2` of Diagonal `D 15` (`halfDensity_D_fifteen`):**
+`HalfDensity (D 15)` holds unconditionally. -/
+theorem halfDensity_D_fifteen : HalfDensity (D 15) :=
+  halfDensity_of_antiperiodic (by decide : 0 < 2) evAntiPer_D_fifteen
+
+
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
