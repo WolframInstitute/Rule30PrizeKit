@@ -2870,6 +2870,145 @@ theorem evAntiPer_D_thirty_one : EvAntiPer (D 31) 4 :=
 theorem halfDensity_D_thirty_one : HalfDensity (D 31) :=
   halfDensity_of_antiperiodic (by decide : 0 < 4) evAntiPer_D_thirty_one
 
+/-! ### Exact `whiteCount` Classification Through Depth 33 (`7 ≤ j ≤ 33`) -/
+
+private theorem oscillator_steps (t : Nat) (ht : 9 ≤ t) :
+    D 8 (t + 1) = D 10 t ∧
+      D 10 (t + 1) = !D 8 t ∧
+      D 8 (t + 2) = !D 8 t ∧
+      D 10 (t + 2) = !D 10 t ∧
+      D 8 (t + 3) = !D 10 t ∧
+      D 10 (t + 3) = D 8 t := by
+  have a8_1 := D_eight_succ_eq_D_ten t ht
+  have a10_1 := D_ten_succ_eq_not_D_eight t (by omega)
+  have a8_2 := D_eight_antiperiodic_two t (by omega)
+  have a10_2 := D_ten_antiperiodic_two t ht
+  have a8_3 : D 8 (t + 3) = !D 10 t := by
+    rw [show t + 3 = (t + 1) + 2 by omega, D_eight_antiperiodic_two (t + 1) (by omega), a8_1]
+  have a10_3 : D 10 (t + 3) = D 8 t := by
+    rw [show t + 3 = (t + 2) + 1 by omega, D_ten_succ_eq_not_D_eight (t + 2) (by omega), a8_2, Bool.not_not]
+  exact ⟨a8_1, a10_1, a8_2, a10_2, a8_3, a10_3⟩
+
+/-- **No Eventually White Left Diagonals on `[13, 27]` (`not_evWhite_between_thirteen_and_twenty_eight`):**
+for every `j` with `13 ≤ j < 28`, `¬ EvWhite (D j)`. -/
+theorem not_evWhite_between_thirteen_and_twenty_eight {j : Nat} (h1 : 13 ≤ j) (h2 : j < 28) :
+    ¬ Rule30LeftReset.EvWhite (D j) := by
+  rintro ⟨t0, hw⟩
+  let t := Nat.max t0 30
+  have ht0 : t0 ≤ t := Nat.le_max_left t0 30
+  have ht30 : 30 ≤ t := Nat.le_max_right t0 30
+  have w0 : D j t = false := hw t ht0
+  have w1 : D j (t + 1) = false := hw (t + 1) (by omega)
+  have w2 : D j (t + 2) = false := hw (t + 2) (by omega)
+  have w3 : D j (t + 3) = false := hw (t + 3) (by omega)
+  obtain ⟨s8_1, s10_1, s8_2, s10_2, s8_3, s10_3⟩ := oscillator_steps t (by omega)
+  rcases (by omega : j = 13 ∨ j = 14 ∨ j = 15 ∨ j = 16 ∨ j = 17 ∨ j = 18 ∨ j = 19 ∨ j = 20 ∨
+      j = 21 ∨ j = 22 ∨ j = 23 ∨ j = 24 ∨ j = 25 ∨ j = 26 ∨ j = 27) with
+    rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+  · rw [D_thirteen_eq_or_not_D_eight_D_ten t (by omega)] at w0
+    rw [D_thirteen_eq_or_not_D_eight_D_ten (t + 1) (by omega), s8_1, s10_1] at w1
+    revert w0 w1; cases D 8 t <;> cases D 10 t <;> decide
+  · rw [D_fourteen_eq_D_eight t (by omega)] at w0
+    rw [D_fourteen_eq_D_eight (t + 2) (by omega), s8_2] at w2
+    revert w0 w2; cases D 8 t <;> decide
+  · rw [D_fifteen_eq_D_ten t (by omega)] at w0
+    rw [D_fifteen_eq_D_ten (t + 2) (by omega), s10_2] at w2
+    revert w0 w2; cases D 10 t <;> decide
+  · rw [D_sixteen_eq_not_D_eight_or_D_ten t (by omega)] at w0
+    rw [D_sixteen_eq_not_D_eight_or_D_ten (t + 1) (by omega), s8_1, s10_1] at w1
+    revert w0 w1; cases D 8 t <;> cases D 10 t <;> decide
+  · rw [D_seventeen_eq_not_D_eight_and_D_ten t (by omega)] at w0
+    rw [D_seventeen_eq_not_D_eight_and_D_ten (t + 1) (by omega), s8_1, s10_1] at w1
+    rw [D_seventeen_eq_not_D_eight_and_D_ten (t + 2) (by omega), s8_2, s10_2] at w2
+    rw [D_seventeen_eq_not_D_eight_and_D_ten (t + 3) (by omega), s8_3, s10_3] at w3
+    revert w0 w1 w2 w3; cases D 8 t <;> cases D 10 t <;> decide
+  · rw [D_eighteen_eq_not_D_ten t (by omega)] at w0
+    rw [D_eighteen_eq_not_D_ten (t + 2) (by omega), s10_2] at w2
+    revert w0 w2; cases D 10 t <;> decide
+  · rw [D_nineteen_eq_not_D_eight t (by omega)] at w0
+    rw [D_nineteen_eq_not_D_eight (t + 2) (by omega), s8_2] at w2
+    revert w0 w2; cases D 8 t <;> decide
+  · rw [D_twenty_eq_D_eight t (by omega)] at w0
+    rw [D_twenty_eq_D_eight (t + 2) (by omega), s8_2] at w2
+    revert w0 w2; cases D 8 t <;> decide
+  · rw [D_twenty_one_eq_D_eight_or_not_D_ten t (by omega)] at w0
+    rw [D_twenty_one_eq_D_eight_or_not_D_ten (t + 1) (by omega), s8_1, s10_1] at w1
+    revert w0 w1; cases D 8 t <;> cases D 10 t <;> decide
+  · rw [D_twenty_two_eq_D_ten t (by omega)] at w0
+    rw [D_twenty_two_eq_D_ten (t + 2) (by omega), s10_2] at w2
+    revert w0 w2; cases D 10 t <;> decide
+  · rw [D_twenty_three_eq_not_xor_D_eight_D_ten t (by omega)] at w0
+    rw [D_twenty_three_eq_not_xor_D_eight_D_ten (t + 1) (by omega), s8_1, s10_1] at w1
+    revert w0 w1; cases D 8 t <;> cases D 10 t <;> decide
+  · rw [D_twenty_four_eq_not_D_eight_and_D_ten t (by omega)] at w0
+    rw [D_twenty_four_eq_not_D_eight_and_D_ten (t + 1) (by omega), s8_1, s10_1] at w1
+    rw [D_twenty_four_eq_not_D_eight_and_D_ten (t + 2) (by omega), s8_2, s10_2] at w2
+    rw [D_twenty_four_eq_not_D_eight_and_D_ten (t + 3) (by omega), s8_3, s10_3] at w3
+    revert w0 w1 w2 w3; cases D 8 t <;> cases D 10 t <;> decide
+  · rw [D_twenty_five_eq_D_ten t (by omega)] at w0
+    rw [D_twenty_five_eq_D_ten (t + 2) (by omega), s10_2] at w2
+    revert w0 w2; cases D 10 t <;> decide
+  · rw [D_twenty_six_eq_nand_D_eight_D_ten t (by omega)] at w0
+    rw [D_twenty_six_eq_nand_D_eight_D_ten (t + 1) (by omega), s8_1, s10_1] at w1
+    revert w0 w1; cases D 8 t <;> cases D 10 t <;> decide
+  · rw [D_twenty_seven_eq_nand_D_eight_D_ten t (by omega)] at w0
+    rw [D_twenty_seven_eq_nand_D_eight_D_ten (t + 1) (by omega), s8_1, s10_1] at w1
+    revert w0 w1; cases D 8 t <;> cases D 10 t <;> decide
+
+/-- **No Eventually White Left Diagonals Strictly Between `7` and `28`
+(`not_evWhite_between_seven_and_twenty_eight`):** for every `j` with `7 < j < 28`, `¬ EvWhite (D j)`. -/
+theorem not_evWhite_between_seven_and_twenty_eight {j : Nat} (h1 : 7 < j) (h2 : j < 28) :
+    ¬ Rule30LeftReset.EvWhite (D j) := by
+  by_cases h13 : j < 13
+  · exact Rule30WhiteSpacing.not_evWhite_between_seven_and_thirteen h1 h13
+  · exact not_evWhite_between_thirteen_and_twenty_eight (by omega) h2
+
+private theorem whiteCount_eq_of_no_white_local {m N : Nat}
+    (hno : ∀ i, m < i → i ≤ N → ¬ Rule30LeftReset.EvWhite (D i)) :
+    ∀ j, m ≤ j → j ≤ N → Rule30LeftReset.whiteCount j = Rule30LeftReset.whiteCount m
+  | 0, hm, _ => by
+    have h0 : m = 0 := by omega
+    rw [h0]
+  | j + 1, hm, hN => by
+    by_cases hmj : j < m
+    · have heq : j + 1 = m := by omega
+      rw [heq]
+    · have ih := whiteCount_eq_of_no_white_local hno j (by omega) (by omega)
+      have hnw : ¬ Rule30LeftReset.EvWhite (D (j + 1)) := hno (j + 1) (by omega) hN
+      simp [Rule30LeftReset.whiteCount, hnw, ih]
+
+/-- **Exact Value of `whiteCount` on `[7, 27]` (`whiteCount_eq_two_of_seven_le_le_twenty_seven`):**
+for every `j` with `7 ≤ j ≤ 27`, `Rule30LeftReset.whiteCount j = 2`. -/
+theorem whiteCount_eq_two_of_seven_le_le_twenty_seven (j : Nat) (h1 : 7 ≤ j) (h2 : j ≤ 27) :
+    Rule30LeftReset.whiteCount j = 2 := by
+  have hconst := whiteCount_eq_of_no_white_local (m := 7) (N := 27)
+    (fun i hi1 hi2 => not_evWhite_between_seven_and_twenty_eight hi1 (by omega))
+  rw [hconst j h1 h2, Rule30WhiteSpacing.whiteCount_seven]
+
+/-- **Exact Value `whiteCount 28 = 3` (`whiteCount_twenty_eight`):**
+`Rule30LeftReset.whiteCount 28 = 3`. -/
+theorem whiteCount_twenty_eight : Rule30LeftReset.whiteCount 28 = 3 := by
+  have hcount : Rule30LeftReset.whiteCount (27 + 1) = Rule30LeftReset.whiteCount 27 + 1 := by
+    simp [Rule30LeftReset.whiteCount, evWhite_D_twenty_eight]
+  rw [show (28 : Nat) = 27 + 1 by rfl, hcount,
+      whiteCount_eq_two_of_seven_le_le_twenty_seven 27 (by omega) (by omega)]
+
+/-- **No Eventually White Left Diagonals Strictly Between `28` and `34`
+(`not_evWhite_between_twenty_eight_and_thirty_four`):** for `28 < j < 34`, `¬ EvWhite (D j)`. -/
+theorem not_evWhite_between_twenty_eight_and_thirty_four {j : Nat} (h1 : 28 < j) (h2 : j < 34) :
+    ¬ Rule30LeftReset.EvWhite (D j) := by
+  intro hj
+  have := Rule30WhiteSpacing.white_spacing_six evWhite_D_twenty_eight hj h1 (by decide)
+  omega
+
+/-- **Exact Value of `whiteCount` on `[28, 33]` (`whiteCount_eq_three_of_twenty_eight_le_le_thirty_three`):**
+for every `j` with `28 ≤ j ≤ 33`, `Rule30LeftReset.whiteCount j = 3`. -/
+theorem whiteCount_eq_three_of_twenty_eight_le_le_thirty_three (j : Nat) (h1 : 28 ≤ j) (h2 : j ≤ 33) :
+    Rule30LeftReset.whiteCount j = 3 := by
+  have hconst := whiteCount_eq_of_no_white_local (m := 28) (N := 33)
+    (fun i hi1 hi2 => not_evWhite_between_twenty_eight_and_thirty_four hi1 (by omega))
+  rw [hconst j h1 h2, whiteCount_twenty_eight]
+
 
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
