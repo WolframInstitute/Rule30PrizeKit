@@ -3009,6 +3009,17 @@ theorem whiteCount_eq_three_of_twenty_eight_le_le_thirty_three (j : Nat) (h1 : 2
     (fun i hi1 hi2 => not_evWhite_between_twenty_eight_and_thirty_four hi1 (by omega))
   rw [hconst j h1 h2, whiteCount_twenty_eight]
 
+/-- **Exact Complementation of the Twenty-Third and Third Left Diagonals (`D_twenty_three_eq_not_D_three`):**
+for every `t ≥ 25`, `D 23 t = !D 3 t`. -/
+theorem D_twenty_three_eq_not_D_three : ∀ t : Nat, 25 ≤ t → D 23 t = !D 3 t
+  | 25, _ => by rw [d_23_25, d_3_25]; rfl
+  | t + 1, ht => by
+    by_cases h : t < 25
+    · have h_eq : t + 1 = 25 := by omega
+      rw [h_eq, d_23_25, d_3_25]; rfl
+    · have ih := D_twenty_three_eq_not_D_three t (by omega)
+      rw [D_twenty_three_succ_eq_not t (by omega), Rule30WhiteSpacing.D_three_succ t (by omega), ih]
+
 
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
