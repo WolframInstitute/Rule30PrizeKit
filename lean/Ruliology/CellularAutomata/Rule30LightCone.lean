@@ -804,5 +804,122 @@ theorem block_evol_rightmost_leaf_eq_of_white (b m : Nat) (k : Int) {x x₀ : In
     getD_block b x₀ (k + m) hi]
   exact (hx₀ ((k + m) * b + i) (by omega)).symm
 
+/-! ### Constructive Leftmost-Leaf Surjectivity and Exact `2 ^ b` Possibility-Space Bijection Across the Space-Time Block Grid -/
+
+/-- **Downward Triangular Suffix Synthesis on the Leftmost Ancestor Leaf
+(`exists_leftmost_leaf_suffix_match`):** for any `b m : Nat`, `k : Int`, background `x₀`,
+`target : List Bool`, and `d ≤ b`, there exists `x : Int → Bool` agreeing with `x₀` outside
+`[(k - m) * b, (k - m) * b + b)` whose evolved block at `(m * b, k)` agrees with `target` on
+all entries `b - d ≤ j < b`. -/
+theorem exists_leftmost_leaf_suffix_match (b m : Nat) (k : Int) (x₀ : Int → Bool)
+    (target : List Bool) :
+    ∀ d : Nat, d ≤ b →
+      ∃ x : Int → Bool,
+        (∀ q : Int, q < (k - m) * b ∨ (k - m) * b + b ≤ q → x q = x₀ q) ∧
+        (∀ j : Nat, b - d ≤ j → j < b →
+          (block b (fun p => evol x (m * b) p) k).getD j false = target.getD j false) := by
+  intro d
+  induction d with
+  | zero =>
+    intro _
+    exact ⟨x₀, fun _ _ => rfl, fun j hj1 hj2 => by omega⟩
+  | succ d ih =>
+    intro hd
+    rcases ih (by omega) with ⟨x, hx_out, hx_top⟩
+    let i : Nat := b - (d + 1)
+    have hib : i < b := by omega
+    by_cases hmatch : ((block b (fun p => evol x (m * b) p) k).getD i false == target.getD i false) = true
+    · refine ⟨x, hx_out, fun j hj1 hj2 => ?_⟩
+      by_cases hgt : b - d ≤ j
+      · exact hx_top j hgt hj2
+      · have hj_eq : j = i := by omega
+        subst hj_eq
+        exact LawfulBEq.eq_of_beq hmatch
+    · let q_i : Int := (k - m) * b + i
+      let x' : Int → Bool := fun q => if q = q_i then !x q else x q
+      have hx'_out : ∀ q : Int, q < (k - m) * b ∨ (k - m) * b + b ≤ q → x' q = x₀ q := by
+        intro q hq
+        have hne : q ≠ q_i := by
+          rcases hq with hlt | hge <;> omega
+        simp only [x', ite_eq_right hne]
+        exact hx_out q hq
+      have hcone_gt : ∀ j : Nat, i < j → j < b →
+          (block b (fun p => evol x' (m * b) p) k).getD j false =
+            (block b (fun p => evol x (m * b) p) k).getD j false := by
+        intro j hij hjb
+        refine block_evol_getD_gt_congr_left b m k hij hjb (fun q hq1 _ => ?_)
+        have hne : q ≠ q_i := by omega
+        simp only [x', ite_eq_right hne]
+      have hflip_i : (block b (fun p => evol x' (m * b) p) k).getD i false =
+          !(block b (fun p => evol x (m * b) p) k).getD i false := by
+        refine block_evol_getD_flip_leftmost b m k hib
+          (fun q hq1 _ => by
+            have hne : q ≠ q_i := by omega
+            simp only [x', ite_eq_right hne])
+          ?_
+        rw [getD_block b x' (k - m) hib, getD_block b x (k - m) hib]
+        simp only [x', q_i, ite_eq_left rfl]
+      refine ⟨x', hx'_out, fun j hj1 hj2 => ?_⟩
+      by_cases hgt : b - d ≤ j
+      · have hij : i < j := by omega
+        rw [hcone_gt j hij hj2]
+        exact hx_top j hgt hj2
+      · have hj_eq : j = i := by omega
+        subst hj_eq
+        rw [hflip_i]
+        revert hmatch
+        cases (block b (fun p => evol x (m * b) p) k).getD i false <;>
+          cases target.getD i false <;> decide
+
+/-- **General Block-Grid Leftmost Ancestor Leaf Surjectivity
+(`block_evol_leftmost_leaf_surjective`):** for any `b m : Nat`, `k : Int`, background
+`x₀ : Int → Bool`, and `target : List Bool` with `target.length = b`, there exists
+`x : Int → Bool` agreeing with `x₀` outside `[(k - m) * b, (k - m + 1) * b)` such that
+`block b (fun p => evol x (m * b) p) k = target`. -/
+theorem block_evol_leftmost_leaf_surjective (b m : Nat) (k : Int) (x₀ : Int → Bool)
+    (target : List Bool) (htarget : target.length = b) :
+    ∃ x : Int → Bool,
+      (∀ q : Int, q < (k - m) * b ∨ (k - m + 1) * b ≤ q → x q = x₀ q) ∧
+      block b (fun p => evol x (m * b) p) k = target := by
+  rcases exists_leftmost_leaf_suffix_match b m k x₀ target b (Nat.le_refl b) with ⟨x, hx_out, hx_all⟩
+  have h1 : (k - (m : Int) + 1) * (b : Int) = (k - (m : Int)) * b + b := by
+    rw [Int.add_mul, Int.one_mul]
+  refine ⟨x, fun q hq => hx_out q (by omega), ?_⟩
+  apply list_eq_of_length_eq_of_getD (length_block b _ k) htarget
+  intro i hi
+  exact hx_all i (by omega) hi
+
+/-- **Root-Block Multi-Level Leftmost Ancestor Leaf Surjectivity
+(`root_block_leftmost_leaf_surjective`):** at any tree height `m : Nat` and block width
+`b : Nat`, every `b`-bit `target : List Bool` is realized at the origin root block
+`block b (fun p => evol x (m * b) p) 0` by varying only the leftmost leaf `[-m * b, (-m + 1) * b)`. -/
+theorem root_block_leftmost_leaf_surjective (b m : Nat) (x₀ : Int → Bool)
+    (target : List Bool) (htarget : target.length = b) :
+    ∃ x : Int → Bool,
+      (∀ q : Int, q < -(m : Int) * b ∨ (-(m : Int) + 1) * b ≤ q → x q = x₀ q) ∧
+      block b (fun p => evol x (m * b) p) 0 = target := by
+  simpa [Int.zero_sub] using block_evol_leftmost_leaf_surjective b m 0 x₀ target htarget
+
+/-- **General Block-Grid Leftmost Ancestor Leaf Existence and Uniqueness
+(`block_evol_leftmost_leaf_exists_unique`):** for any `b m : Nat`, `k : Int`, background
+`x₀ : Int → Bool`, and `target : List Bool` with `target.length = b`, there exists `x` agreeing
+with `x₀` outside `[(k - m) * b, (k - m + 1) * b)` such that
+`block b (fun p => evol x (m * b) p) k = target`, and any `x'` agreeing with `x₀` on the collar
+`[(k - m + 1) * b, (k + m + 1) * b)` that also produces `target` at `(m * b, k)` has
+`block b x' (k - m) = block b x (k - m)`. -/
+theorem block_evol_leftmost_leaf_exists_unique (b m : Nat) (k : Int) (x₀ : Int → Bool)
+    (target : List Bool) (htarget : target.length = b) :
+    ∃ x : Int → Bool,
+      (∀ q : Int, q < (k - m) * b ∨ (k - m + 1) * b ≤ q → x q = x₀ q) ∧
+      block b (fun p => evol x (m * b) p) k = target ∧
+      (∀ x' : Int → Bool,
+        (∀ q : Int, (k - m + 1) * b ≤ q → q < (k + m + 1) * b → x' q = x₀ q) →
+        block b (fun p => evol x' (m * b) p) k = target →
+        block b x' (k - m) = block b x (k - m)) := by
+  rcases block_evol_leftmost_leaf_surjective b m k x₀ target htarget with ⟨x, hx_out, hx_blk⟩
+  refine ⟨x, hx_out, hx_blk, fun x' hx'_col hx'_blk => ?_⟩
+  refine block_evol_leftmost_leaf_injective b m k (fun q hq1 hq2 => ?_) (hx'_blk.trans hx_blk.symm)
+  rw [hx'_col q hq1 hq2, hx_out q (Or.inr hq1)]
+
 end Rule30LightCone
 end Ruliology.CellularAutomata
