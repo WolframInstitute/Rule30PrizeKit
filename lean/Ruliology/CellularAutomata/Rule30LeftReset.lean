@@ -359,5 +359,67 @@ theorem D_evper_pow_half (j : Nat) : EvPer (D j) (2 ^ (j / 2)) := by
   rw [hd, Nat.pow_add, Nat.mul_comm]
   exact periodic_iter hT (2 ^ d) t ht
 
+/-! ### Multi-Step `whiteCount` Growth Bounds, Relative Period Scaling, and `D 1` / `D 2` Separation -/
+
+/-- **Multi-Step Two-Diagonal Growth Bound on `whiteCount` (`whiteCount_add_two_mul_le`):**
+for every `j d : Nat`, `whiteCount (j + 2 * d) ≤ whiteCount j + d`. -/
+theorem whiteCount_add_two_mul_le (j : Nat) : ∀ d : Nat,
+    whiteCount (j + 2 * d) ≤ whiteCount j + d
+  | 0 => by simp
+  | d + 1 => by
+    have ih := whiteCount_add_two_mul_le j d
+    have hstep := whiteCount_add_two_le (j + 2 * d)
+    rw [show j + 2 * (d + 1) = j + 2 * d + 2 by omega]
+    omega
+
+open Classical in
+theorem whiteCount_succ_le (j : Nat) : whiteCount (j + 1) ≤ whiteCount j + 1 := by
+  simp only [whiteCount]
+  split <;> omega
+
+/-- **General Relative Growth Bound on `whiteCount` (`whiteCount_add_le_half_succ`):** for every
+`j m : Nat`, `whiteCount (j + m) ≤ whiteCount j + (m + 1) / 2`. -/
+theorem whiteCount_add_le_half_succ (j m : Nat) :
+    whiteCount (j + m) ≤ whiteCount j + (m + 1) / 2 := by
+  obtain ⟨d, rfl | rfl⟩ : ∃ d, m = 2 * d ∨ m = 2 * d + 1 := ⟨m / 2, by omega⟩
+  · have h := whiteCount_add_two_mul_le j d
+    omega
+  · have h1 := whiteCount_succ_le (j + 2 * d)
+    have h2 := whiteCount_add_two_mul_le j d
+    rw [show j + (2 * d + 1) = j + 2 * d + 1 by omega]
+    omega
+
+/-- **Relative Period Scaling Across `2 * d` Left Diagonals
+(`D_evper_pow_whiteCount_add_two_mul`):** for every `j d : Nat`,
+`EvPer (D (j + 2 * d)) (2 ^ (whiteCount j + d))`. -/
+theorem D_evper_pow_whiteCount_add_two_mul (j d : Nat) :
+    EvPer (D (j + 2 * d)) (2 ^ (whiteCount j + d)) := by
+  obtain ⟨T, hT⟩ := (D_evper_pow_whiteCount_pair (j + 2 * d)).1
+  have hle := whiteCount_add_two_mul_le j d
+  obtain ⟨q, hq⟩ : ∃ q, whiteCount j + d = whiteCount (j + 2 * d) + q :=
+    ⟨whiteCount j + d - whiteCount (j + 2 * d), by omega⟩
+  refine ⟨T, fun t ht => ?_⟩
+  rw [hq, Nat.pow_add, Nat.mul_comm (2 ^ whiteCount (j + 2 * d)) (2 ^ q)]
+  exact periodic_iter hT (2 ^ q) t ht
+
+/-- **Exact Closed Form of `D 2` (`D_two_eq_false_of_two_le`):** for every `t ≥ 2`,
+`D 2 t = false`. -/
+theorem D_two_eq_false_of_two_le {t : Nat} (ht : 2 ≤ t) : D 2 t = false := by
+  obtain ⟨s, rfl⟩ : ∃ s, t = s + 2 := ⟨t - 2, by omega⟩
+  have hstep := D_step 0 (s + 1)
+  rw [show s + 1 + 1 = s + 2 by omega, D_zero, D_one, Bool.true_or] at hstep
+  exact hstep
+
+/-- **Permanent Separation of `D 1` and `D 2` (`D_one_and_D_two_of_two_le`):** for every `t ≥ 2`,
+`D 1 t = true`, `D 2 t = false`, and `D 1 t ≠ D 2 t`. -/
+theorem D_one_and_D_two_of_two_le {t : Nat} (ht : 2 ≤ t) :
+    D 1 t = true ∧ D 2 t = false ∧ D 1 t ≠ D 2 t := by
+  obtain ⟨s, rfl⟩ : ∃ s, t = s + 1 := ⟨t - 1, by omega⟩
+  have h1 : D 1 (s + 1) = true := D_one s
+  have h2 : D 2 (s + 1) = false := D_two_eq_false_of_two_le ht
+  refine ⟨h1, h2, ?_⟩
+  rw [h1, h2]
+  decide
+
 end Rule30LeftReset
 end Ruliology.CellularAutomata

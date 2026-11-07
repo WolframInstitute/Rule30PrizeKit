@@ -248,10 +248,6 @@ theorem whiteCount_le_self : ∀ j, Rule30LeftReset.whiteCount j ≤ j := by
     simp only [Rule30LeftReset.whiteCount]
     split <;> omega
 
-theorem whiteCount_succ_le (j : Nat) : Rule30LeftReset.whiteCount (j + 1) ≤ Rule30LeftReset.whiteCount j + 1 := by
-  simp only [Rule30LeftReset.whiteCount]
-  split <;> omega
-
 theorem whiteCount_le_of_no_white {m N : Nat} (hm : 1 ≤ m)
     (h : ∀ i, m ≤ i → i ≤ N → ¬ EvWhite (D i)) :
     ∀ j, j ≤ N → Rule30LeftReset.whiteCount j ≤ m - 1 := by
