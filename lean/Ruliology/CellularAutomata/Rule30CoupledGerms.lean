@@ -1058,4 +1058,91 @@ theorem exists_finSupp_ne_and_Psi_eq :
     revert h3
     decide
 
+/-! ### Universal `01 <-> 011` Twin Partner Collapse, Permanent Even-Step Edge Divergence, and Even-Germ Invariance -/
+
+/-- **Universal Right-Edge Twin Partner (`twinPartner`):** adjoins a black cell at `M + 1` to
+a right half `R : Nat → Bool`. -/
+def twinPartner (M : Nat) (R : Nat → Bool) (p : Nat) : Bool :=
+  if p = M + 1 then true else R p
+
+/-- **Universal `RightEdgeTwin` Formation (`rightEdgeTwin_twinPartner`):** for any right half `R`
+with `2 ≤ M`, `R (M - 1) = false`, `R M = true`, and `∀ p ≥ M + 1, R p = false`,
+`RightEdgeTwin M R (twinPartner M R)` holds. -/
+theorem rightEdgeTwin_twinPartner {M : Nat} {R : Nat → Bool} (hM : 2 ≤ M)
+    (hm1 : R (M - 1) = false) (hm : R M = true) (htail : ∀ p, M + 1 ≤ p → R p = false) :
+    RightEdgeTwin M R (twinPartner M R) := by
+  refine ⟨hM, ?_, hm1, hm, htail (M + 1) (Nat.le_refl _), ?_, ?_⟩
+  · intro p hp
+    have hne : p ≠ M + 1 := by omega
+    simp [twinPartner, hne]
+  · simp [twinPartner]
+  · intro p hp
+    have hne : p ≠ M + 1 := by omega
+    refine ⟨htail p (by omega), ?_⟩
+    simp [twinPartner, hne, htail p (by omega)]
+
+/-- **Distinctness of `twinPartner` (`ne_twinPartner`):** if `R (M + 1) = false`, then
+`R ≠ twinPartner M R`. -/
+theorem ne_twinPartner {M : Nat} {R : Nat → Bool} (hM1 : R (M + 1) = false) :
+    R ≠ twinPartner M R := by
+  intro heq
+  have h := congrFun heq (M + 1)
+  simp [twinPartner, hM1] at h
+
+/-- **Trace Equality `u (twinPartner M R) = u R` (`u_twinPartner_eq`):** for any right half `R`
+with `2 ≤ M`, `R (M - 1) = false`, `R M = true`, and `∀ p ≥ M + 1, R p = false`,
+`u (twinPartner M R) = u R`. -/
+theorem u_twinPartner_eq {M : Nat} {R : Nat → Bool} (hM : 2 ≤ M)
+    (hm1 : R (M - 1) = false) (hm : R M = true) (htail : ∀ p, M + 1 ≤ p → R p = false) :
+    u (twinPartner M R) = u R :=
+  (u_eq_of_rightEdgeTwin (rightEdgeTwin_twinPartner hM hm1 hm htail)).symm
+
+/-- **Sideways Germ Map Equality `Psi (twinPartner M R) = Psi R` (`Psi_twinPartner_eq`):** for
+any right half `R` with `2 ≤ M`, `R (M - 1) = false`, `R M = true`, and
+`∀ p ≥ M + 1, R p = false`, `Psi (twinPartner M R) = Psi R`. -/
+theorem Psi_twinPartner_eq {M : Nat} {R : Nat → Bool} (hM : 2 ≤ M)
+    (hm1 : R (M - 1) = false) (hm : R M = true) (htail : ∀ p, M + 1 ≤ p → R p = false) :
+    Psi (twinPartner M R) = Psi R :=
+  (Psi_eq_of_rightEdgeTwin (rightEdgeTwin_twinPartner hM hm1 hm htail)).symm
+
+/-- **Twin Equivalence of `FinSupp (Psi ·)` (`finSupp_Psi_twinPartner_iff`):** under the
+hypotheses of `rightEdgeTwin_twinPartner`, `FinSupp (Psi (twinPartner M R)) ↔ FinSupp (Psi R)`. -/
+theorem finSupp_Psi_twinPartner_iff {M : Nat} {R : Nat → Bool} (hM : 2 ≤ M)
+    (hm1 : R (M - 1) = false) (hm : R M = true) (htail : ∀ p, M + 1 ≤ p → R p = false) :
+    FinSupp (Psi (twinPartner M R)) ↔ FinSupp (Psi R) := by
+  rw [Psi_twinPartner_eq hM hm1 hm htail]
+
+/-- **Permanent Even-Step Moving-Edge Divergence of `RightEdgeTwin`
+(`drv_even_edge_ne_of_rightEdgeTwin`):** if `RightEdgeTwin M R1 R2` holds, then for every
+driver `c` and step `s : Nat`, `drv c R1 (2 * s) (M + 2 * s + 1) = false` and
+`drv c R2 (2 * s) (M + 2 * s + 1) = true`. -/
+theorem drv_even_edge_ne_of_rightEdgeTwin (c : Nat → Bool) {M : Nat} {R1 R2 : Nat → Bool}
+    (htwin : RightEdgeTwin M R1 R2) (s : Nat) :
+    drv c R1 (2 * s) (M + 2 * s + 1) = false ∧ drv c R2 (2 * s) (M + 2 * s + 1) = true := by
+  rcases rightEdgeTwin_drv_two_mul s c htwin with ⟨_, _, _, _, h1, h2, _⟩
+  exact ⟨h1, h2⟩
+
+/-- **Even-Germ Invariance Under `RightEdgeTwin` (`drivenGamma_even_eq_of_rightEdgeTwin`):**
+if `RightEdgeTwin M R1 R2` holds, then for every driver `c` and step `s : Nat`,
+`drivenGamma c R1 (2 * s) = drivenGamma c R2 (2 * s)`. -/
+theorem drivenGamma_even_eq_of_rightEdgeTwin (c : Nat → Bool) {M : Nat} {R1 R2 : Nat → Bool}
+    (htwin : RightEdgeTwin M R1 R2) (s : Nat) :
+    drivenGamma c R1 (2 * s) = drivenGamma c R2 (2 * s) := by
+  have hM : 2 ≤ M := htwin.1
+  unfold drivenGamma
+  by_cases h3 : 3 ≤ M + 2 * (2 * s / 2)
+  · rw [drv_eq_of_rightEdgeTwin c htwin (2 * s) 1 (by omega),
+        drv_eq_of_rightEdgeTwin c htwin (2 * s) 2 (by omega),
+        drv_eq_of_rightEdgeTwin c htwin (2 * s) 3 h3]
+  · have hs0 : s = 0 := by omega
+    have hM2 : M = 2 := by omega
+    subst hs0; subst hM2
+    have h1 := drv_eq_of_rightEdgeTwin c htwin 0 1 (by omega)
+    have h2 : drv c R1 0 2 = true := by
+      rw [Rule30Ether.drv_init c R1 2 (by omega)]
+      exact htwin.2.2.2.1
+    have h2' : drv c R2 0 2 = true := by
+      rw [← drv_eq_of_rightEdgeTwin c htwin 0 2 (by omega), h2]
+    simp [h1, h2, h2']
+
 end Ruliology.CellularAutomata.Rule30CoupledGerms
