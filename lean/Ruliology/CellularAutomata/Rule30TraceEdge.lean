@@ -1,5 +1,9 @@
 module
 
+public import Ruliology.CellularAutomata.Rule30LeftAntiPeriod
+
+public import Ruliology.CellularAutomata.Rule30WhiteSpacing
+
 public import Ruliology.CellularAutomata.Rule30FiniteConfigs
 
 /-!
@@ -542,5 +546,269 @@ theorem periodic_center_forces_col_one_ne_within_horizon {T P : Nat} (hP : 0 < P
   obtain ⟨t, ht1, ht2, hc0 | hc1⟩ := exists_center_or_col_one_ne_within_horizon T hP
   · exact False.elim (hc0 (hper t ht1))
   · exact ⟨t, ht1, ht2, hc1⟩
+
+/-! ### Depth-7 Left-Space Arrival Profile (`D 0 .. D 7`) and Four-to-Seven-Column Inward Non-Periodicity -/
+
+/-- **Sixth Left Diagonal Complements Third Left Diagonal at Lag 3 (`D_six_eq_not_D_three`):**
+for every `s : Nat`, `D 6 (s + 6) = !D 3 (s + 3)`. -/
+theorem D_six_eq_not_D_three (s : Nat) :
+    Rule30Diagonals.D 6 (s + 6) = !Rule30Diagonals.D 3 (s + 3) := by
+  have h6 : Rule30Diagonals.D 6 (s + 6) = Rule30Diagonals.D 3 (s + 6) :=
+    Rule30WhiteSpacing.D_six_eq_D_three (s + 6) (by omega)
+  have h3_1 : Rule30Diagonals.D 3 (s + 4) = !Rule30Diagonals.D 3 (s + 3) :=
+    Rule30WhiteSpacing.D_three_succ (s + 3) (by omega)
+  have h3_2 : Rule30Diagonals.D 3 (s + 5) = Rule30Diagonals.D 3 (s + 3) := by
+    rw [show s + 5 = (s + 4) + 1 by omega, Rule30WhiteSpacing.D_three_succ (s + 4) (by omega), h3_1, Bool.not_not]
+  have h3_3 : Rule30Diagonals.D 3 (s + 6) = !Rule30Diagonals.D 3 (s + 3) := by
+    rw [show s + 6 = (s + 5) + 1 by omega, Rule30WhiteSpacing.D_three_succ (s + 5) (by omega), h3_2]
+  rw [h6, h3_3]
+
+/-- **Exact 7-Tick Arrival Profile at Column `-s` (`cell_neg_arrival_seven`):** for every `s : Nat`,
+at column `-(s : Int)`:
+- `cell s (-s) = true` (`D 0`),
+- `cell (s + 1) (-s) = true` (`D 1`),
+- `cell (s + 2) (-s) = false` (`D 2`, first white reset border),
+- `cell (s + 4) (-s) = true` (`D 4`, all-black shield),
+- `cell (s + 5) (-s) = cell (s + 3) (-s)` (`D 5 = D 3`),
+- `cell (s + 6) (-s) = !cell (s + 3) (-s)` (`D 6` complements `D 3` at lag 3), and
+- `cell (s + 7) (-s) = false` (`D 7`, second white reset border). -/
+theorem cell_neg_arrival_seven (s : Nat) :
+    cell s (-(s : Int)) = true ∧
+      cell (s + 1) (-(s : Int)) = true ∧
+      cell (s + 2) (-(s : Int)) = false ∧
+      cell (s + 4) (-(s : Int)) = true ∧
+      cell (s + 5) (-(s : Int)) = cell (s + 3) (-(s : Int)) ∧
+      cell (s + 6) (-(s : Int)) = !cell (s + 3) (-(s : Int)) ∧
+      cell (s + 7) (-(s : Int)) = false := by
+  obtain ⟨h0, h1, h2, h4, h53⟩ := cell_neg_arrival_five s
+  have h3 : cell (s + 3) (-(s : Int)) = Rule30Diagonals.D 3 (s + 3) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h6 : cell (s + 6) (-(s : Int)) = Rule30Diagonals.D 6 (s + 6) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h63 : cell (s + 6) (-(s : Int)) = !cell (s + 3) (-(s : Int)) := by
+    rw [h6, h3, D_six_eq_not_D_three s]
+  have h7 : cell (s + 7) (-(s : Int)) = Rule30Diagonals.D 7 (s + 7) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h7_false : cell (s + 7) (-(s : Int)) = false := by
+    rw [h7, Rule30WhiteSpacing.D_seven_eq_false (s + 7) (by omega)]
+  exact ⟨h0, h1, h2, h4, h53, h63, h7_false⟩
+
+/-- **Universal Flip Between Ticks `s + 5` and `s + 6` at Every Left Column `-s`
+(`cell_neg_flip_five_six`):** for every `s : Nat`, `cell (s + 6) (-(s : Int)) = !cell (s + 5) (-(s : Int))`. -/
+theorem cell_neg_flip_five_six (s : Nat) :
+    cell (s + 6) (-(s : Int)) = !cell (s + 5) (-(s : Int)) := by
+  obtain ⟨_, _, _, _, h53, h63, _⟩ := cell_neg_arrival_seven s
+  rw [h63, h53]
+
+/-- **Seven-Column Inward Period-3 Exclusion (`not_cell_periodic_three_at_col_le_neg_add_four`):**
+for every `T : Nat` and column `c ≤ 0` with `c ≤ -(T : Int) + 4` (i.e. `c ≤ -(T + 3) + 7`),
+`¬ (∀ t : Nat, T ≤ t → cell (t + 3) c = cell t c)`. -/
+theorem not_cell_periodic_three_at_col_le_neg_add_four (T : Nat) {c : Int}
+    (hc0 : c ≤ 0) (hc : c ≤ -(T : Int) + 4) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 3) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  obtain ⟨_, _, _, h4, _, _, h7⟩ := cell_neg_arrival_seven s
+  have h := hper (s + 4) (by omega)
+  rw [hc_eq, show s + 4 + 3 = s + 7 by omega, h7, h4] at h
+  cases h
+
+/-- **Uniform Inward Non-Periodicity for `1 ≤ P ≤ 4` on `c ≤ -T + 2`
+(`not_cell_periodic_le_four_at_col_le_neg_add_two`):** for every `T : Nat`, `1 ≤ P ≤ 4`,
+and column `c ≤ 0` with `c ≤ -(T : Int) + 2` (which for `P = 4` is `c ≤ -(T + 4) + 6`),
+`cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_le_four_at_col_le_neg_add_two (T : Nat) {P : Nat}
+    (hP1 : 1 ≤ P) (hP4 : P ≤ 4) {c : Int} (hc0 : c ≤ 0)
+    (hc : c ≤ -(T : Int) + 2) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  obtain ⟨_, _, h2, h4, h53, h63, h7⟩ := cell_neg_arrival_seven s
+  rcases (by omega : P = 1 ∨ P = 2 ∨ P = 3 ∨ P = 4) with rfl | rfl | rfl | rfl
+  · have h := hper (s + 5) (by omega)
+    rw [hc_eq, show s + 5 + 1 = s + 6 by omega, h63, h53] at h
+    revert h; cases cell (s + 3) (-(s : Int)) <;> decide
+  · have h := hper (s + 2) (by omega)
+    rw [hc_eq, show s + 2 + 2 = s + 4 by omega, h4, h2] at h
+    cases h
+  · exact not_cell_periodic_three_at_col_le_neg_add_four T hc0 (by omega) hper
+  · cases h3_val : cell (s + 3) (-(s : Int))
+    · have h6_true : cell (s + 6) (-(s : Int)) = true := by rw [h63, h3_val]; rfl
+      have h := hper (s + 2) (by omega)
+      rw [hc_eq, show s + 2 + 4 = s + 6 by omega, h6_true, h2] at h
+      cases h
+    · have h := hper (s + 3) (by omega)
+      rw [hc_eq, show s + 3 + 4 = s + 7 by omega, h7, h3_val] at h
+      cases h
+
+/-- **Unconditional Non-Periodicity Four Columns Inside the Light Cone for All `P > 0`
+(`not_cell_periodic_at_col_le_neg_add_add_four`):** for every `T P : Nat` with `0 < P` and every
+column `c ≤ 0` with `c ≤ -((T + P : Nat) : Int) + 4`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_at_col_le_neg_add_add_four (T : Nat) {P : Nat} (hP : 0 < P)
+    {c : Int} (hc0 : c ≤ 0) (hc : c ≤ -((T + P : Nat) : Int) + 4) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  by_cases hle4 : P ≤ 4
+  · rcases (by omega : P = 1 ∨ P = 2 ∨ P = 3 ∨ P = 4) with rfl | rfl | rfl | rfl
+    · intro hper
+      let s : Nat := (-c).toNat
+      have hc_eq : c = -(s : Int) := by omega
+      obtain ⟨_, _, _, _, h53, h63, _⟩ := cell_neg_arrival_seven s
+      have h := hper (s + 5) (by omega)
+      rw [hc_eq, show s + 5 + 1 = s + 6 by omega, h63, h53] at h
+      revert h; cases cell (s + 3) (-(s : Int)) <;> decide
+    · exact not_cell_periodic_le_four_at_col_le_neg_add_two T (by decide) (by decide) hc0 (by omega)
+    · exact not_cell_periodic_three_at_col_le_neg_add_four T hc0 (by omega)
+    · exact not_cell_periodic_le_four_at_col_le_neg_add_two T (by decide) (by decide) hc0 (by omega)
+  · intro hper
+    let s : Nat := (-c).toNat
+    have hc_eq : c = -(s : Int) := by omega
+    obtain ⟨_, _, _, h4, _, _, _⟩ := cell_neg_arrival_seven s
+    have h := hper (s + 4 - P) (by omega)
+    rw [hc_eq, show s + 4 - P + P = s + 4 by omega, h4,
+        cell_eq_false_of_lt (s + 4 - P) (-(s : Int)) (by omega)] at h
+    cases h
+
+/-- **Depth-9 Arrival Profile at Column `-s` (`cell_neg_arrival_nine`):** for every `s : Nat`,
+at column `-(s : Int)`, `cell s (-s) = true`, `cell (s + 1) (-s) = true`, `cell (s + 2) (-s) = false`,
+`cell (s + 4) (-s) = true`, `cell (s + 5) (-s) = cell (s + 3) (-s)`, `cell (s + 6) (-s) = !cell (s + 5) (-s)`,
+`cell (s + 7) (-s) = false`, and `cell (s + 9) (-s) = true`. -/
+theorem cell_neg_arrival_nine (s : Nat) :
+    cell s (-(s : Int)) = true ∧
+      cell (s + 1) (-(s : Int)) = true ∧
+      cell (s + 2) (-(s : Int)) = false ∧
+      cell (s + 4) (-(s : Int)) = true ∧
+      cell (s + 5) (-(s : Int)) = cell (s + 3) (-(s : Int)) ∧
+      cell (s + 6) (-(s : Int)) = !cell (s + 5) (-(s : Int)) ∧
+      cell (s + 7) (-(s : Int)) = false ∧
+      cell (s + 9) (-(s : Int)) = true := by
+  obtain ⟨h0, h1, h2, h4, h53, h63, h7⟩ := cell_neg_arrival_seven s
+  have h65 : cell (s + 6) (-(s : Int)) = !cell (s + 5) (-(s : Int)) := cell_neg_flip_five_six s
+  have h9 : cell (s + 9) (-(s : Int)) = Rule30Diagonals.D 9 (s + 9) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h9_true : cell (s + 9) (-(s : Int)) = true := by
+    rw [h9, Rule30LeftAntiPeriod.D_nine_eq_true (s + 9) (by omega)]
+  exact ⟨h0, h1, h2, h4, h53, h65, h7, h9_true⟩
+
+/-- **Nine-Column Inward Period-1 and Period-2 Exclusion (`not_cell_periodic_one_or_two_at_col_le_neg_add_seven`):**
+for every `T : Nat`, `P ∈ {1, 2}`, and column `c ≤ 0` with `c ≤ -(T : Int) + 7`,
+`cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_one_or_two_at_col_le_neg_add_seven (T : Nat) {P : Nat}
+    (hP1 : 1 ≤ P) (hP2 : P ≤ 2) {c : Int} (hc0 : c ≤ 0) (hc : c ≤ -(T : Int) + 7) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  obtain ⟨_, _, _, _, _, _, h7, h9⟩ := cell_neg_arrival_nine s
+  rcases (by omega : P = 1 ∨ P = 2) with rfl | rfl
+  · have ha := hper (s + 7) (by omega)
+    have hb := hper (s + 8) (by omega)
+    rw [hc_eq, show s + 7 + 1 = s + 8 by omega, h7] at ha
+    rw [hc_eq, show s + 8 + 1 = s + 9 by omega, h9, ha] at hb
+    cases hb
+  · have h := hper (s + 7) (by omega)
+    rw [hc_eq, show s + 7 + 2 = s + 9 by omega, h9, h7] at h
+    cases h
+
+/-- **Nine-Column Inward Non-Periodicity for All `P ≥ 10` (`not_cell_periodic_ge_ten_at_col_le_neg_add_add_nine`):**
+for every `T : Nat`, `P ≥ 10`, and column `c ≤ 0` with `c ≤ -((T + P : Nat) : Int) + 9`,
+`cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_ge_ten_at_col_le_neg_add_add_nine (T : Nat) {P : Nat} (hP : 10 ≤ P)
+    {c : Int} (hc0 : c ≤ 0) (hc : c ≤ -((T + P : Nat) : Int) + 9) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  obtain ⟨_, _, _, _, _, _, _, h9⟩ := cell_neg_arrival_nine s
+  have h := hper (s + 9 - P) (by omega)
+  rw [hc_eq, show s + 9 - P + P = s + 9 by omega, h9,
+      cell_eq_false_of_lt (s + 9 - P) (-(s : Int)) (by omega)] at h
+  cases h
+
+/-- **Unconditional Non-Periodicity Five Columns Inside the Light Cone for All `P > 0`
+(`not_cell_periodic_at_col_le_neg_add_add_five`):** for every `T P : Nat` with `0 < P` and every
+column `c ≤ 0` with `c ≤ -((T + P : Nat) : Int) + 5`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_at_col_le_neg_add_add_five (T : Nat) {P : Nat} (hP : 0 < P)
+    {c : Int} (hc0 : c ≤ 0) (hc : c ≤ -((T + P : Nat) : Int) + 5) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  obtain ⟨h0, h1, h2, h4, h53, h65, h7, h9⟩ := cell_neg_arrival_nine s
+  by_cases hle6 : P ≤ 6
+  · rcases (by omega : P = 1 ∨ P = 2 ∨ P = 3 ∨ P = 4 ∨ P = 5 ∨ P = 6) with rfl | rfl | rfl | rfl | rfl | rfl
+    · exact not_cell_periodic_one_or_two_at_col_le_neg_add_seven T (by decide) (by decide) hc0 (by omega) hper
+    · exact not_cell_periodic_one_or_two_at_col_le_neg_add_seven T (by decide) (by decide) hc0 (by omega) hper
+    · have h := hper (s + 4) (by omega)
+      rw [hc_eq, show s + 4 + 3 = s + 7 by omega, h7, h4] at h
+      cases h
+    · cases h5_val : cell (s + 5) (-(s : Int))
+      · have h := hper (s + 1) (by omega)
+        rw [hc_eq, show s + 1 + 4 = s + 5 by omega, h5_val, h1] at h
+        cases h
+      · have h3_true : cell (s + 3) (-(s : Int)) = true := by rw [← h53, h5_val]
+        have h := hper (s + 3) (by omega)
+        rw [hc_eq, show s + 3 + 4 = s + 7 by omega, h7, h3_true] at h
+        cases h
+    · cases h5_val : cell (s + 5) (-(s : Int))
+      · have h := hper s (by omega)
+        rw [hc_eq, h5_val, h0] at h
+        cases h
+      · have h6_false : cell (s + 6) (-(s : Int)) = false := by rw [h65, h5_val]; rfl
+        have h := hper (s + 1) (by omega)
+        rw [hc_eq, show s + 1 + 5 = s + 6 by omega, h6_false, h1] at h
+        cases h
+    · have h := hper (s + 1) (by omega)
+      rw [hc_eq, show s + 1 + 6 = s + 7 by omega, h7, h1] at h
+      cases h
+  · cases h5_val : cell (s + 5) (-(s : Int))
+    · have h6_true : cell (s + 6) (-(s : Int)) = true := by rw [h65, h5_val]; rfl
+      have h := hper (s + 6 - P) (by omega)
+      rw [hc_eq, show s + 6 - P + P = s + 6 by omega, h6_true,
+          cell_eq_false_of_lt (s + 6 - P) (-(s : Int)) (by omega)] at h
+      cases h
+    · have h := hper (s + 5 - P) (by omega)
+      rw [hc_eq, show s + 5 - P + P = s + 5 by omega, h5_val,
+          cell_eq_false_of_lt (s + 5 - P) (-(s : Int)) (by omega)] at h
+      cases h
+
+/-- **Universal Lag-6 Flip Between Ticks `s + 8` and `s + 14` at Every Left Column `-s`
+(`cell_neg_flip_eight_fourteen`):** for every `s : Nat`,
+`cell (s + 14) (-(s : Int)) = !cell (s + 8) (-(s : Int))`. -/
+theorem cell_neg_flip_eight_fourteen (s : Nat) :
+    cell (s + 14) (-(s : Int)) = !cell (s + 8) (-(s : Int)) := by
+  have h8 : cell (s + 8) (-(s : Int)) = Rule30Diagonals.D 8 (s + 8) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h14 : cell (s + 14) (-(s : Int)) = Rule30Diagonals.D 14 (s + 14) := by
+    unfold Rule30Diagonals.D; exact Rule30Diagonals.cell_congr (by omega)
+  have h14_8 : Rule30Diagonals.D 14 (s + 14) = Rule30Diagonals.D 8 (s + 14) :=
+    Rule30LeftAntiPeriod.D_fourteen_eq_D_eight (s + 14) (by omega)
+  have ha1 : Rule30Diagonals.D 8 (s + 10) = !Rule30Diagonals.D 8 (s + 8) := by
+    simpa [Nat.add_assoc] using Rule30LeftAntiPeriod.D_eight_antiperiodic_two (s + 8) (by omega)
+  have ha2 : Rule30Diagonals.D 8 (s + 12) = Rule30Diagonals.D 8 (s + 8) := by
+    have h := Rule30LeftAntiPeriod.D_eight_antiperiodic_two (s + 10) (by omega)
+    rw [show s + 10 + 2 = s + 12 by omega, ha1, Bool.not_not] at h
+    exact h
+  have ha3 : Rule30Diagonals.D 8 (s + 14) = !Rule30Diagonals.D 8 (s + 8) := by
+    have h := Rule30LeftAntiPeriod.D_eight_antiperiodic_two (s + 12) (by omega)
+    rw [show s + 12 + 2 = s + 14 by omega, ha2] at h
+    exact h
+  rw [h14, h8, h14_8, ha3]
+
+/-- **Fourteen-Column Inward Period-6 Exclusion (`not_cell_periodic_six_at_col_le_neg_add_eight`):**
+for every `T : Nat` and column `c ≤ 0` with `c ≤ -(T : Int) + 8` (i.e. `c ≤ -(T + 6) + 14`,
+14 columns inside the light cone), `¬ (∀ t : Nat, T ≤ t → cell (t + 6) c = cell t c)`. -/
+theorem not_cell_periodic_six_at_col_le_neg_add_eight (T : Nat) {c : Int}
+    (hc0 : c ≤ 0) (hc : c ≤ -(T : Int) + 8) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 6) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have h := hper (s + 8) (by omega)
+  have hflip := cell_neg_flip_eight_fourteen s
+  rw [hc_eq, show s + 8 + 6 = s + 14 by omega, hflip] at h
+  revert h; cases cell (s + 8) (-(s : Int)) <;> decide
+
 
 end Ruliology.CellularAutomata.Rule30TraceEdge
