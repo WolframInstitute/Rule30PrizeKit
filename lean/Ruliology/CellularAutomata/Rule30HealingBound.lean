@@ -209,4 +209,113 @@ theorem stationary_wall_of_col_black {E G : Nat → Int → Bool} (hE : IsR30Z E
   have hK := KFrom_eq_add_of_col_black E a t (fun s _ => hb s)
   exact healing_bound_from hE hG h0 t x (by omega)
 
+/-! ### `KFrom` Envelope Bounds, Perturbation Invariance, Zero-Recruitment Equivalence, and Boundary-Twin Sharpness -/
+
+/-- **One-Step Growth Bounds for `KFrom` (`KFrom_succ_bounds`):** at every step `t : Nat`,
+`KFrom E a t ≤ KFrom E a (t + 1)` and `KFrom E a (t + 1) ≤ KFrom E a t + 1`. -/
+theorem KFrom_succ_bounds (E : Nat → Int → Bool) (a : Int) (t : Nat) :
+    KFrom E a t ≤ KFrom E a (t + 1) ∧ KFrom E a (t + 1) ≤ KFrom E a t + 1 := by
+  show KFrom E a t ≤ (if E t (KFrom E a t - t) then KFrom E a t + 1 else KFrom E a t) ∧
+    (if E t (KFrom E a t - t) then KFrom E a t + 1 else KFrom E a t) ≤ KFrom E a t + 1
+  cases E t (KFrom E a t - t) <;> simp <;> omega
+
+/-- **Global Envelope Bounds for `KFrom` (`KFrom_bounds`):** for every background `E`, anchor
+`a : Int`, and time `t : Nat`, `a ≤ KFrom E a t` and `KFrom E a t ≤ a + t`. -/
+theorem KFrom_bounds (E : Nat → Int → Bool) (a : Int) :
+    ∀ t : Nat, a ≤ KFrom E a t ∧ KFrom E a t ≤ a + (t : Int)
+  | 0 => by simp [KFrom]
+  | t + 1 => by
+    have ih := KFrom_bounds E a t
+    have hs := KFrom_succ_bounds E a t
+    omega
+
+/-- **Exact Perturbation Invariance of `KFrom` (`KFrom_eq_of_init_agree`):** if two Rule 30
+evolutions `E` and `G` agree at `t = 0` on `x ≤ a`, then `KFrom G a t = KFrom E a t` at every
+time `t : Nat`. -/
+theorem KFrom_eq_of_init_agree {E G : Nat → Int → Bool} (hE : IsR30Z E) (hG : IsR30Z G) {a : Int}
+    (h0 : ∀ x : Int, x ≤ a → G 0 x = E 0 x) :
+    ∀ t : Nat, KFrom G a t = KFrom E a t
+  | 0 => rfl
+  | t + 1 => by
+    have ih := KFrom_eq_of_init_agree hE hG h0 t
+    have hcell : G t (KFrom E a t - t) = E t (KFrom E a t - t) :=
+      healing_bound_from hE hG h0 t (KFrom E a t - t) (by omega)
+    show (if G t (KFrom G a t - t) then KFrom G a t + 1 else KFrom G a t) =
+      (if E t (KFrom E a t - t) then KFrom E a t + 1 else KFrom E a t)
+    rw [ih, hcell]
+
+/-- **Perturbation Invariance of `K` (`K_eq_of_init_agree`):** if two Rule 30 evolutions `E`
+and `G` agree at `t = 0` on `x ≤ -1`, then `K G t = K E t` at every time `t : Nat`. -/
+theorem K_eq_of_init_agree {E G : Nat → Int → Bool} (hE : IsR30Z E) (hG : IsR30Z G)
+    (h0 : ∀ x : Int, x ≤ -1 → G 0 x = E 0 x) (t : Nat) :
+    K G t = K E t := by
+  rw [← KFrom_neg_one_eq_K G t, ← KFrom_neg_one_eq_K E t]
+  exact KFrom_eq_of_init_agree hE hG h0 t
+
+/-- **Exact Characterization of Zero Recruitment (`KFrom_eq_anchor_iff_all_white`):** at any
+time `t : Nat`, `KFrom E a t = a` if and only if `∀ s < t, E s (a - s) = false`. -/
+theorem KFrom_eq_anchor_iff_all_white (E : Nat → Int → Bool) (a : Int) :
+    ∀ t : Nat, KFrom E a t = a ↔ (∀ s : Nat, s < t → E s (a - s) = false)
+  | 0 => by simp [KFrom]
+  | t + 1 => by
+    have ih := KFrom_eq_anchor_iff_all_white E a t
+    have hb := (KFrom_bounds E a t).1
+    have hstep : KFrom E a (t + 1) = (if E t (KFrom E a t - t) then KFrom E a t + 1 else KFrom E a t) := rfl
+    constructor
+    · intro hKt1
+      have hKt : KFrom E a t = a ∧ E t (a - t) = false := by
+        rw [hstep] at hKt1
+        cases hc : E t (KFrom E a t - t)
+        · rw [hc] at hKt1; simp at hKt1
+          refine ⟨hKt1, ?_⟩
+          rwa [hKt1] at hc
+        · rw [hc] at hKt1; simp at hKt1; omega
+      intro s hs
+      rcases Nat.lt_or_eq_of_le (Nat.lt_succ_iff.mp hs) with hlt | rfl
+      · exact (ih.mp hKt.1) s hlt
+      · exact hKt.2
+    · intro hall
+      have hKt : KFrom E a t = a := ih.mpr (fun s hs => hall s (by omega))
+      have hlast : E t (a - t) = false := hall t (Nat.lt_succ_self t)
+      rw [hstep, hKt, hlast]
+      rfl
+
+/-- **Exact Sharpness of the Healing Bound for Boundary Twins
+(`twin_flip_at_front_iff_KFrom_eq_anchor`):** if `E` and `G` are Rule 30 evolutions agreeing at
+`t = 0` on `x ≤ a` and flipping at `a + 1` (`G 0 (a + 1) = !E 0 (a + 1)`), then at any time
+`t : Nat`, `G t (a + 1 - t) = !E t (a + 1 - t)` if and only if `KFrom E a t = a`. -/
+theorem twin_flip_at_front_iff_KFrom_eq_anchor {E G : Nat → Int → Bool}
+    (hE : IsR30Z E) (hG : IsR30Z G) {a : Int}
+    (h0 : ∀ x : Int, x ≤ a → G 0 x = E 0 x)
+    (hflip : G 0 (a + 1) = !E 0 (a + 1)) (t : Nat) :
+    G t (a + 1 - (t : Int)) = !E t (a + 1 - (t : Int)) ↔ KFrom E a t = a := by
+  constructor
+  · intro hft
+    have hne : G t (a + 1 - (t : Int)) ≠ E t (a + 1 - (t : Int)) := by
+      rw [hft]; cases E t (a + 1 - (t : Int)) <;> decide
+    have hge := front_ge_from hE hG h0 t (a + 1 - (t : Int)) hne
+    have hlo := (KFrom_bounds E a t).1
+    omega
+  · revert t
+    intro t
+    induction t with
+    | zero =>
+      intro _
+      simpa using hflip
+    | succ t ih =>
+      intro hKt1
+      have hall := (KFrom_eq_anchor_iff_all_white E a (t + 1)).mp hKt1
+      have hKt : KFrom E a t = a :=
+        (KFrom_eq_anchor_iff_all_white E a t).mpr (fun s hs => hall s (by omega))
+      have hright := ih hKt
+      have hwhite : E t (a - (t : Int)) = false := hall t (Nat.lt_succ_self t)
+      have hleft_ag : G t (a - (t : Int) - 1) = E t (a - (t : Int) - 1) :=
+        healing_bound_from hE hG h0 t (a - (t : Int) - 1) (by omega)
+      have hcen_ag : G t (a - (t : Int)) = E t (a - (t : Int)) :=
+        healing_bound_from hE hG h0 t (a - (t : Int)) (by omega)
+      have hpos : a + 1 - ((t + 1 : Nat) : Int) = a - (t : Int) := by omega
+      have hpos_r : a - (t : Int) + 1 = a + 1 - (t : Int) := by omega
+      rw [hpos, hG t (a - (t : Int)), hE t (a - (t : Int)), hleft_ag, hcen_ag, hwhite, hpos_r, hright]
+      cases E t (a - (t : Int) - 1) <;> cases E t (a + 1 - (t : Int)) <;> rfl
+
 end Ruliology.CellularAutomata.Rule30HealingBound
