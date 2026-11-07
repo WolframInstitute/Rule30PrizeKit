@@ -262,4 +262,285 @@ theorem seed_shift_trace_eq_iff_eq_of_le {T₁ T₂ : Nat} {c : Int}
   · rintro rfl _
     rfl
 
+/-! ### Depth-5 Left-Space Arrival Laws, Three-Column Inward Non-Periodicity, White-Gate Transmission, and Bounded-Horizon `{0, 1}` Divergence -/
+
+/-- **Exact Arrival Triple at Column `-s` (`cell_neg_arrival_triple`):** for every `s : Nat`,
+at column `-(s : Int)`, `cell s (-(s : Int)) = true` (`D 0`), `cell (s + 1) (-(s : Int)) = true` (`D 1`),
+and `cell (s + 2) (-(s : Int)) = false` (`D 2`). -/
+theorem cell_neg_arrival_triple (s : Nat) :
+    cell s (-(s : Int)) = true ∧
+      cell (s + 1) (-(s : Int)) = true ∧
+      cell (s + 2) (-(s : Int)) = false := by
+  have h0 : cell s (-(s : Int)) = true := cell_left_edge s
+  have h1 : cell (s + 1) (-(s : Int)) = Rule30Diagonals.D 1 (s + 1) := by
+    unfold Rule30Diagonals.D
+    exact Rule30Diagonals.cell_congr (by omega)
+  have h1_true : cell (s + 1) (-(s : Int)) = true := by
+    rw [h1]
+    exact Rule30Diagonals.D_one s
+  have h2 : cell (s + 2) (-(s : Int)) = Rule30Diagonals.D 2 (s + 2) := by
+    unfold Rule30Diagonals.D
+    exact Rule30Diagonals.cell_congr (by omega)
+  have h2_false : cell (s + 2) (-(s : Int)) = false := by
+    rw [h2]
+    have hstep := Rule30Diagonals.D_step 0 (s + 1)
+    rw [show s + 1 + 1 = s + 2 by omega, Rule30Diagonals.D_zero, Rule30Diagonals.D_one s, Bool.true_or] at hstep
+    exact hstep
+  exact ⟨h0, h1_true, h2_false⟩
+
+/-- **Phase-Locking of the Fifth and Third Left Diagonals (`D_five_eq_D_three`):** for every
+`s : Nat`, `D 5 (s + 5) = D 3 (s + 3)`. -/
+theorem D_five_eq_D_three (s : Nat) :
+    Rule30Diagonals.D 5 (s + 5) = Rule30Diagonals.D 3 (s + 3) := by
+  have h2 : ∀ k : Nat, Rule30Diagonals.D 2 (k + 2) = false := fun k => by
+    have hs := Rule30Diagonals.D_step 0 (k + 1)
+    rw [show k + 1 + 1 = k + 2 by omega, Rule30Diagonals.D_zero, Rule30Diagonals.D_one k, Bool.true_or] at hs
+    exact hs
+  have h4_all : ∀ k : Nat, Rule30Diagonals.D 4 (k + 4) = true := by
+    intro k
+    induction k with
+    | zero => decide
+    | succ k ih =>
+      have hs := Rule30Diagonals.D_step 2 (k + 4)
+      rw [show k + 4 + 1 = k + 1 + 4 by omega,
+          show Rule30Diagonals.D 2 (k + 4) = false from h2 (k + 2),
+          ih, Bool.or_true] at hs
+      exact hs
+  have h3 : Rule30Diagonals.D 3 (s + 4) = !Rule30Diagonals.D 3 (s + 3) := by
+    have hs := Rule30Diagonals.D_step 1 (s + 3)
+    rw [show s + 3 + 1 = s + 4 by omega,
+        show Rule30Diagonals.D 1 (s + 3) = true from Rule30Diagonals.D_one (s + 2),
+        show Rule30Diagonals.D 2 (s + 3) = false from h2 (s + 1), Bool.false_or] at hs
+    simpa using hs
+  have hstep := Rule30Diagonals.D_step 3 (s + 4)
+  rw [show s + 4 + 1 = s + 5 by omega, h4_all s, Bool.true_or, h3] at hstep
+  revert hstep
+  cases Rule30Diagonals.D 3 (s + 3) <;> cases Rule30Diagonals.D 5 (s + 5) <;> decide
+
+/-- **Five-Tick Arrival Profile at Column `-s` (`cell_neg_arrival_five`):** for every `s : Nat`,
+at column `-(s : Int)`, `cell s (-s) = true`, `cell (s + 1) (-s) = true`, `cell (s + 2) (-s) = false`,
+`cell (s + 4) (-s) = true`, and `cell (s + 5) (-s) = cell (s + 3) (-s)`. -/
+theorem cell_neg_arrival_five (s : Nat) :
+    cell s (-(s : Int)) = true ∧
+      cell (s + 1) (-(s : Int)) = true ∧
+      cell (s + 2) (-(s : Int)) = false ∧
+      cell (s + 4) (-(s : Int)) = true ∧
+      cell (s + 5) (-(s : Int)) = cell (s + 3) (-(s : Int)) := by
+  obtain ⟨h0, h1, h2⟩ := cell_neg_arrival_triple s
+  have h2_diag : ∀ k : Nat, Rule30Diagonals.D 2 (k + 2) = false := fun k => by
+    have hs := Rule30Diagonals.D_step 0 (k + 1)
+    rw [show k + 1 + 1 = k + 2 by omega, Rule30Diagonals.D_zero, Rule30Diagonals.D_one k, Bool.true_or] at hs
+    exact hs
+  have h4_all : ∀ k : Nat, Rule30Diagonals.D 4 (k + 4) = true := by
+    intro k
+    induction k with
+    | zero => decide
+    | succ k ih =>
+      have hs := Rule30Diagonals.D_step 2 (k + 4)
+      rw [show k + 4 + 1 = k + 1 + 4 by omega,
+          show Rule30Diagonals.D 2 (k + 4) = false from h2_diag (k + 2),
+          ih, Bool.or_true] at hs
+      exact hs
+  have h4 : cell (s + 4) (-(s : Int)) = Rule30Diagonals.D 4 (s + 4) := by
+    unfold Rule30Diagonals.D
+    exact Rule30Diagonals.cell_congr (by omega)
+  have h4_true : cell (s + 4) (-(s : Int)) = true := by
+    rw [h4, h4_all s]
+  have h5 : cell (s + 5) (-(s : Int)) = Rule30Diagonals.D 5 (s + 5) := by
+    unfold Rule30Diagonals.D
+    exact Rule30Diagonals.cell_congr (by omega)
+  have h3 : cell (s + 3) (-(s : Int)) = Rule30Diagonals.D 3 (s + 3) := by
+    unfold Rule30Diagonals.D
+    exact Rule30Diagonals.cell_congr (by omega)
+  have h53 : cell (s + 5) (-(s : Int)) = cell (s + 3) (-(s : Int)) := by
+    rw [h5, h3, D_five_eq_D_three s]
+  exact ⟨h0, h1, h2, h4_true, h53⟩
+
+/-- **Unconditional Non-Periodicity on `c ≤ -(T + P) + 1`
+(`not_cell_periodic_at_col_le_neg_add_add_one`):** -/
+theorem not_cell_periodic_at_col_le_neg_add_add_one (T : Nat) {P : Nat} (hP : 0 < P)
+    {c : Int} (hc : c ≤ -((T + P : Nat) : Int) + 1) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  by_cases hle : c ≤ -((T + P : Nat) : Int)
+  · exact not_cell_periodic_at_col_le_neg_add T hP hle hper
+  · let s : Nat := T + P - 1
+    have hc_s : c = -(s : Int) := by omega
+    by_cases hP1 : P = 1
+    · subst hP1
+      have hsT : s = T := by omega
+      have h := hper (T + 1) (by omega)
+      rw [hc_s, hsT, show T + 1 + 1 = T + 2 by omega,
+          (cell_neg_arrival_triple T).2.1, (cell_neg_arrival_triple T).2.2] at h
+      cases h
+    · have h := hper T (Nat.le_refl T)
+      have hTP : T + P = s + 1 := by omega
+      rw [hc_s, hTP, (cell_neg_arrival_triple s).2.1,
+          cell_eq_false_of_lt T (-(s : Int)) (by omega)] at h
+      cases h
+
+/-- **Unconditional Non-Periodicity Three Columns Inside the Light Cone
+(`not_cell_periodic_at_col_le_neg_add_add_three`):** for every `T P : Nat` with `0 < P` and every
+column `c ≤ 0` with `c ≤ -((T + P : Nat) : Int) + 3`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_at_col_le_neg_add_add_three (T : Nat) {P : Nat} (hP : 0 < P)
+    {c : Int} (hc0 : c ≤ 0) (hc : c ≤ -((T + P : Nat) : Int) + 3) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  obtain ⟨h0, h1, h2, h4, h53⟩ := cell_neg_arrival_five s
+  by_cases hP1 : P = 1
+  · subst hP1
+    have h_a := hper (s + 2) (by omega)
+    have h_b := hper (s + 3) (by omega)
+    rw [hc_eq, show s + 2 + 1 = s + 3 by omega, h2] at h_a
+    rw [hc_eq, show s + 3 + 1 = s + 4 by omega, h4, h_a] at h_b
+    cases h_b
+  · by_cases hP2 : P = 2
+    · subst hP2
+      have h := hper (s + 2) (by omega)
+      rw [hc_eq, show s + 2 + 2 = s + 4 by omega, h4, h2] at h
+      cases h
+    · by_cases hP3 : P = 3
+      · subst hP3
+        have h_a := hper s (by omega)
+        have h_b := hper (s + 2) (by omega)
+        rw [hc_eq, h0] at h_a
+        rw [hc_eq, show s + 2 + 3 = s + 5 by omega, h53, h_a, h2] at h_b
+        cases h_b
+      · by_cases hP4 : P = 4
+        · subst hP4
+          cases h3_val : cell (s + 3) (-(s : Int))
+          · have h5_false : cell (s + 5) (-(s : Int)) = false := by rw [h53, h3_val]
+            have h := hper (s + 1) (by omega)
+            rw [hc_eq, show s + 1 + 4 = s + 5 by omega, h5_false, h1] at h
+            cases h
+          · have h := hper (s - 1) (by omega)
+            rw [hc_eq, show s - 1 + 4 = s + 3 by omega, h3_val,
+                cell_eq_false_of_lt (s - 1) (-(s : Int)) (by omega)] at h
+            cases h
+        · have h := hper (s + 4 - P) (by omega)
+          rw [hc_eq, show s + 4 - P + P = s + 4 by omega, h4,
+              cell_eq_false_of_lt (s + 4 - P) (-(s : Int)) (by omega)] at h
+          cases h
+
+/-- **Unconditional Two-Step Inward Period-2 Exclusion on `c ≤ -T`
+(`not_cell_periodic_two_at_col_le_neg`):** -/
+theorem not_cell_periodic_two_at_col_le_neg (T : Nat) {c : Int} (hc : c ≤ -(T : Int)) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 2) c = cell t c) :=
+  not_cell_periodic_at_col_le_neg_add_add_three T (by decide : 0 < 2) (by omega) (by omega)
+
+/-- **Unconditional Two-Step Inward Period-1 Exclusion on `c ≤ -T + 1` for `1 ≤ T`
+(`not_cell_periodic_one_at_col_le_neg_add_one`):** -/
+theorem not_cell_periodic_one_at_col_le_neg_add_one {T : Nat} (hT : 1 ≤ T)
+    {c : Int} (hc : c ≤ -(T : Int) + 1) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + 1) c = cell t c) :=
+  not_cell_periodic_at_col_le_neg_add_add_three T (by decide : 0 < 1) (by omega) (by omega)
+
+/-- **Center-Column (`c = 0`) Period-1, Period-2, and Period-3 Exclusion from `T = 0`
+(`not_center_periodic_one_two_or_three_from_zero`):** -/
+theorem not_center_periodic_one_two_or_three_from_zero :
+    ¬ (∀ t : Nat, 0 ≤ t → cell (t + 1) 0 = cell t 0) ∧
+      ¬ (∀ t : Nat, 0 ≤ t → cell (t + 2) 0 = cell t 0) ∧
+      ¬ (∀ t : Nat, 0 ≤ t → cell (t + 3) 0 = cell t 0) :=
+  ⟨not_cell_periodic_at_col_le_neg_add_add_three 0 (by decide : 0 < 1) (by decide) (by decide),
+   not_cell_periodic_at_col_le_neg_add_add_three 0 (by decide : 0 < 2) (by decide) (by decide),
+   not_cell_periodic_at_col_le_neg_add_add_three 0 (by decide : 0 < 3) (by decide) (by decide)⟩
+
+/-- **Black-Shield Left-Neighbor Locking (`black_shield_locks_left_col`):** -/
+theorem black_shield_locks_left_col {t P : Nat} {c : Int}
+    (hc0 : cell t c = true) (hcP : cell (t + P) c = true)
+    (hc1 : cell (t + 1 + P) c = cell (t + 1) c) :
+    cell (t + P) (c - 1) = cell t (c - 1) := by
+  rw [cell_left (t + P) c, cell_left t c, show t + P + 1 = t + 1 + P by omega,
+      hc1, hc0, hcP, Bool.true_or, Bool.true_or]
+
+/-- **White-Gate Transmission Under Local Column Agreement (`periodic_col_forces_white_gate_and_right_ne`):** -/
+theorem periodic_col_forces_white_gate_and_right_ne {t P : Nat} {c : Int}
+    (hc0 : cell (t + P) c = cell t c) (hc1 : cell (t + 1 + P) c = cell (t + 1) c)
+    (hne : cell (t + P) (c - 1) ≠ cell t (c - 1)) :
+    cell t c = false ∧ cell (t + P) c = false ∧ cell (t + P) (c + 1) ≠ cell t (c + 1) := by
+  have hfalse : cell t c = false := by
+    cases h : cell t c
+    · rfl
+    · have hP : cell (t + P) c = true := by rw [hc0, h]
+      exact False.elim (hne (black_shield_locks_left_col h hP hc1))
+  have hPfalse : cell (t + P) c = false := by rw [hc0, hfalse]
+  refine ⟨hfalse, hPfalse, fun heq1 => hne ?_⟩
+  rw [cell_left (t + P) c, cell_left t c, show t + P + 1 = t + 1 + P by omega,
+      hc1, hfalse, hPfalse, heq1]
+
+/-- **One-Step Rightward Disagreement Transfer (`cell_ne_right_step`):** -/
+theorem cell_ne_right_step {t P : Nat} {c : Int}
+    (hne : cell (t + P) (c - 1) ≠ cell t (c - 1)) :
+    cell (t + 1 + P) c ≠ cell (t + 1) c ∨
+      cell (t + P) c ≠ cell t c ∨
+      cell (t + P) (c + 1) ≠ cell t (c + 1) := by
+  refine Classical.byContradiction fun hnor => ?_
+  have h1 : cell (t + 1 + P) c = cell (t + 1) c :=
+    Classical.byContradiction fun h => hnor (Or.inl h)
+  have h2 : cell (t + P) c = cell t c :=
+    Classical.byContradiction fun h => hnor (Or.inr (Or.inl h))
+  have h3 : cell (t + P) (c + 1) = cell t (c + 1) :=
+    Classical.byContradiction fun h => hnor (Or.inr (Or.inr h))
+  have eqL := cell_left (t + P) c
+  have eqR := cell_left t c
+  rw [show t + P + 1 = t + 1 + P by omega, h1, h2, h3, ← eqR] at eqL
+  exact hne eqL
+
+/-- **Adjacent Pair Disagreement Step (`pair_disagreement_step`):** -/
+theorem pair_disagreement_step {T P B : Nat} {c : Int}
+    (h : ∃ t : Nat, T ≤ t ∧ t ≤ T + B ∧
+      (cell (t + P) c ≠ cell t c ∨ cell (t + P) (c + 1) ≠ cell t (c + 1))) :
+    ∃ t : Nat, T ≤ t ∧ t ≤ T + (B + 1) ∧
+      (cell (t + P) (c + 1) ≠ cell t (c + 1) ∨ cell (t + P) (c + 2) ≠ cell t (c + 2)) := by
+  obtain ⟨t, ht1, ht2, hc | hc1⟩ := h
+  · have hstep := cell_ne_right_step (c := c + 1) (by simpa [Int.add_sub_cancel] using hc)
+    rcases hstep with hnext | hcurr | hnextcol
+    · exact ⟨t + 1, by omega, by omega, Or.inl hnext⟩
+    · exact ⟨t, ht1, by omega, Or.inl hcurr⟩
+    · exact ⟨t, ht1, by omega, Or.inr (by simpa [Int.add_assoc] using hnextcol)⟩
+  · exact ⟨t, ht1, by omega, Or.inl hc1⟩
+
+/-- **Multi-Column Rightward Pair Transport (`pair_disagreement_shift`):** -/
+theorem pair_disagreement_shift {T P B : Nat} {c : Int} (d : Nat)
+    (h : ∃ t : Nat, T ≤ t ∧ t ≤ T + B ∧
+      (cell (t + P) c ≠ cell t c ∨ cell (t + P) (c + 1) ≠ cell t (c + 1))) :
+    ∃ t : Nat, T ≤ t ∧ t ≤ T + (B + d) ∧
+      (cell (t + P) (c + d) ≠ cell t (c + d) ∨
+       cell (t + P) (c + d + 1) ≠ cell t (c + d + 1)) := by
+  induction d with
+  | zero => simpa using h
+  | succ d ih =>
+    have hstep := pair_disagreement_step ih
+    obtain ⟨t, ht1, ht2, hdisj⟩ := hstep
+    refine ⟨t, ht1, by omega, ?_⟩
+    simpa [Int.natCast_add, Int.add_assoc] using hdisj
+
+/-- **Quantitative Bounded-Horizon Two-Column Disagreement (`exists_center_or_col_one_ne_within_horizon`):** -/
+theorem exists_center_or_col_one_ne_within_horizon (T : Nat) {P : Nat} (hP : 0 < P) :
+    ∃ t : Nat, T ≤ t ∧ t ≤ 2 * T + P ∧
+      (Rule30Prize.center (t + P) ≠ Rule30Prize.center t ∨ cell (t + P) 1 ≠ cell t 1) := by
+  have hedge : cell (T + P) (-((T + P : Nat) : Int)) ≠ cell T (-((T + P : Nat) : Int)) := by
+    rw [cell_left_edge (T + P), cell_eq_false_of_lt T (-((T + P : Nat) : Int)) (by omega)]
+    decide
+  have h0 : ∃ t : Nat, T ≤ t ∧ t ≤ T + 0 ∧
+      (cell (t + P) (-((T + P : Nat) : Int)) ≠ cell t (-((T + P : Nat) : Int)) ∨
+       cell (t + P) (-((T + P : Nat) : Int) + 1) ≠ cell t (-((T + P : Nat) : Int) + 1)) :=
+    ⟨T, Nat.le_refl T, by omega, Or.inl hedge⟩
+  obtain ⟨t, ht1, ht2, hdisj⟩ := pair_disagreement_shift (T + P) h0
+  refine ⟨t, ht1, by omega, ?_⟩
+  have hcol0 : -((T + P : Nat) : Int) + ((T + P : Nat) : Int) = 0 := by omega
+  rw [hcol0] at hdisj
+  exact hdisj
+
+/-- **Forced Column-`1` Divergence Within `2 * T + P` Under a Periodic Center Tail
+(`periodic_center_forces_col_one_ne_within_horizon`):** -/
+theorem periodic_center_forces_col_one_ne_within_horizon {T P : Nat} (hP : 0 < P)
+    (hper : ∀ t : Nat, T ≤ t → Rule30Prize.center (t + P) = Rule30Prize.center t) :
+    ∃ t : Nat, T ≤ t ∧ t ≤ 2 * T + P ∧ cell (t + P) 1 ≠ cell t 1 := by
+  obtain ⟨t, ht1, ht2, hc0 | hc1⟩ := exists_center_or_col_one_ne_within_horizon T hP
+  · exact False.elim (hc0 (hper t ht1))
+  · exact ⟨t, ht1, ht2, hc1⟩
+
 end Ruliology.CellularAutomata.Rule30TraceEdge
