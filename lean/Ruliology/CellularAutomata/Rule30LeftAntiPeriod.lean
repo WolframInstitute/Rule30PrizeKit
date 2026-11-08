@@ -7130,7 +7130,505 @@ theorem osc4State_half_cycle_and_period_sixteen (t : Nat) (ht : 2985 ≤ t) :
         D_four_hundred_antiperiodic_eight (t + 8) (by omega), D_four_hundred_antiperiodic_eight t ht,
         Bool.not_not]
 
+open Rule30WhiteSpacing
 
+/-! ### 19. Post-`D 400` 16-State Oscillator Cascade (`Gate16`), Fourth All-Black Shield `D 401`, Even/Odd White-Diagonal Dichotomy, and Zero-Gap All-Period 384-Column Inward Non-Periodicity -/
+
+/-- **Fourth Universal All-Black Shield Diagonal (`D_four_hundred_one_eq_true`):**
+immediately after the fourth all-white diagonal `D 399` and the period-16 bit `D 400`,
+diagonal `D 401` is identically `true` for all `t ≥ 2994`. -/
+theorem D_four_hundred_one_eq_true (t : Nat) (ht : 2994 ≤ t) :
+    D 401 t = true := by
+  have hanti : D 400 ((t - 9) + 8) = !D 400 (t - 9) :=
+    D_four_hundred_antiperiodic_eight (t - 9) (by omega)
+  have h_or : (D 400 (t - 9) = true) ∨ (D 400 (t - 1) = true) := by
+    rw [show t - 9 + 8 = t - 1 by omega] at hanti
+    revert hanti
+    cases D 400 (t - 9) <;> cases D 400 (t - 1) <;> decide
+  have step_mono : ∀ s : Nat, 2985 ≤ s → D 401 s = true → D 401 (s + 1) = true := by
+    intro s hs h401
+    have hst := D_step 399 s
+    rw [D_three_hundred_ninety_nine_eq_false s hs, h401, Bool.or_true, Bool.false_xor] at hst
+    exact hst
+  have step_hit : ∀ s : Nat, 2985 ≤ s → D 400 s = true → D 401 (s + 1) = true := by
+    intro s hs h400
+    have hst := D_step 399 s
+    rw [D_three_hundred_ninety_nine_eq_false s hs, h400, Bool.true_or, Bool.false_xor] at hst
+    exact hst
+  rcases h_or with h9 | h1
+  · have h_t8 := step_hit (t - 9) (by omega) h9
+    have h_t7 := step_mono (t - 8) (by omega) (by rw [show t - 8 = (t - 9) + 1 by omega]; exact h_t8)
+    have h_t6 := step_mono (t - 7) (by omega) (by rw [show t - 7 = (t - 8) + 1 by omega]; exact h_t7)
+    have h_t5 := step_mono (t - 6) (by omega) (by rw [show t - 6 = (t - 7) + 1 by omega]; exact h_t6)
+    have h_t4 := step_mono (t - 5) (by omega) (by rw [show t - 5 = (t - 6) + 1 by omega]; exact h_t5)
+    have h_t3 := step_mono (t - 4) (by omega) (by rw [show t - 4 = (t - 5) + 1 by omega]; exact h_t4)
+    have h_t2 := step_mono (t - 3) (by omega) (by rw [show t - 3 = (t - 4) + 1 by omega]; exact h_t3)
+    have h_t1 := step_mono (t - 2) (by omega) (by rw [show t - 2 = (t - 3) + 1 by omega]; exact h_t2)
+    have h_t0 := step_mono (t - 1) (by omega) (by rw [show t - 1 = (t - 2) + 1 by omega]; exact h_t1)
+    rw [show t = (t - 1) + 1 by omega]
+    exact h_t0
+  · have h_t0 := step_hit (t - 1) (by omega) h1
+    rw [show t = (t - 1) + 1 by omega]
+    exact h_t0
+
+/-- **Eventual All-Blackness of the 401st Left Diagonal (`evBlack_D_four_hundred_one`):**
+`EvBlack (D 401)` holds with onset `2994`. -/
+theorem evBlack_D_four_hundred_one : Rule30WhiteSpacing.EvBlack (D 401) :=
+  ⟨2994, D_four_hundred_one_eq_true⟩
+
+/-- **Shifted Complement Law Across the Fourth All-Black Shield (`D_four_hundred_two_succ_eq_not_D_four_hundred`):**
+for every `t ≥ 2994`, `D 402 (t + 1) = !D 400 t`. -/
+theorem D_four_hundred_two_succ_eq_not_D_four_hundred (t : Nat) (ht : 2994 ≤ t) :
+    D 402 (t + 1) = !D 400 t := by
+  have hst := D_step 400 t
+  rw [D_four_hundred_one_eq_true t ht, Bool.true_or, Bool.xor_true] at hst
+  exact hst
+
+/-- **Eight-Anti-Periodicity of the 402nd Left Diagonal (`D_four_hundred_two_antiperiodic_eight`):**
+for every `t ≥ 2995`, `D 402 (t + 8) = !D 402 t`. -/
+theorem D_four_hundred_two_antiperiodic_eight (t : Nat) (ht : 2995 ≤ t) :
+    D 402 (t + 8) = !D 402 t := by
+  have h1 := D_four_hundred_two_succ_eq_not_D_four_hundred (t - 1) (by omega)
+  have h2 := D_four_hundred_two_succ_eq_not_D_four_hundred (t + 7) (by omega)
+  have hanti := D_four_hundred_antiperiodic_eight (t - 1) (by omega)
+  rw [show t - 1 + 1 = t by omega] at h1
+  rw [show t + 7 + 1 = t + 8 by omega, show t + 7 = (t - 1) + 8 by omega, hanti] at h2
+  rw [h2, h1, Bool.not_not]
+
+theorem evAntiPer_D_four_hundred_two : EvAntiPer (D 402) 8 :=
+  ⟨2995, D_four_hundred_two_antiperiodic_eight⟩
+
+/-- **Problem 3 for the 402nd Left Diagonal (`halfDensity_D_four_hundred_two`):**
+`D 402` has exact asymptotic density `1/2` (`HalfDensity (D 402)`). -/
+theorem halfDensity_D_four_hundred_two : HalfDensity (D 402) :=
+  halfDensity_of_antiperiodic (by decide) evAntiPer_D_four_hundred_two
+
+/-- Explicit 8-bit literal for `(cascadeState8 369).g0` (`D 398 = topWindow355.g14`), avoiding
+re-evaluating the 369-step cascade inside 16-state kernel reductions. -/
+def gate8_D398 : Gate8 := ⟨false, true, true, false, false, false, true, false⟩
+
+theorem cascadeState8_369_g0_eq_gate8_D398 :
+    (cascadeState8 369).g0 = gate8_D398 := by decide
+
+/-- Fast 1-step transition on the 16-state oscillator using the literal gate `gate8_D398`. -/
+def osc4StepFast (s : ((Bool × Bool) × Bool) × Bool) : ((Bool × Bool) × Bool) × Bool :=
+  (osc3Step s.1, xor (gate8_D398.eval s.1) s.2)
+
+theorem osc4Step_eq_osc4StepFast (s : ((Bool × Bool) × Bool) × Bool) :
+    osc4Step s = osc4StepFast s := by
+  unfold osc4Step osc4StepFast
+  rw [cascadeState8_369_g0_eq_gate8_D398]
+
+theorem osc4State_succ_fast (t : Nat) (ht : 2985 ≤ t) :
+    osc4State (t + 1) = osc4StepFast (osc4State t) := by
+  rw [osc4State_succ t ht, osc4Step_eq_osc4StepFast]
+
+/-- Truth table of a 4-bit Boolean gate on the 16 states of `osc4State t = (osc3State t, D 400 t)`,
+represented as a pair of 8-state truth tables `(lo, hi)` for `D 400 t = false` and `D 400 t = true`. -/
+structure Gate16 where
+  lo : Gate8
+  hi : Gate8
+  deriving DecidableEq
+
+/-- Evaluate a `Gate16` truth table on a 4-bit oscillator state `(s3, b400)`. -/
+def Gate16.eval (g : Gate16) (s : ((Bool × Bool) × Bool) × Bool) : Bool :=
+  match s.2 with
+  | false => g.lo.eval s.1
+  | true  => g.hi.eval s.1
+
+/-- A `Gate16` is non-white if either its `lo` or `hi` 8-state slice is non-white. -/
+def Gate16.isNonWhite (g : Gate16) : Bool :=
+  g.lo.isNonWhite || g.hi.isNonWhite
+
+/-- 16-step XOR parity of a `Gate16` across the full 16-state cycle of `osc4State`. -/
+def Gate16.xorParity16 (g : Gate16) : Bool :=
+  xor g.lo.xorParity g.hi.xorParity
+
+/-- Unroll the Rule 30 diagonal recurrence `b' = xor (g0 s) (g1 s || b)` for `n` steps of `osc4StepFast`. -/
+def unroll16From (g0 g1 : Gate16) : Nat → (((Bool × Bool) × Bool) × Bool) → Bool → Bool
+  | 0, _, b => b
+  | n + 1, s, b => unroll16From g0 g1 n (osc4StepFast s) (xor (g0.eval s) (g1.eval s || b))
+
+/-- Build a `Gate16` from its values on all 16 states of `((Bool × Bool) × Bool) × Bool`. -/
+def mkGate16 (f : (((Bool × Bool) × Bool) × Bool) → Bool) : Gate16 :=
+  { lo := { b000 := f (((false, false), false), false)
+            b001 := f (((false, false), true),  false)
+            b010 := f (((false, true),  false), false)
+            b011 := f (((false, true),  true),  false)
+            b100 := f (((true,  false), false), false)
+            b101 := f (((true,  false), true),  false)
+            b110 := f (((true,  true),  false), false)
+            b111 := f (((true,  true),  true),  false) }
+    hi := { b000 := f (((false, false), false), true)
+            b001 := f (((false, false), true),  true)
+            b010 := f (((false, true),  false), true)
+            b011 := f (((false, true),  true),  true)
+            b100 := f (((true,  false), false), true)
+            b101 := f (((true,  false), true),  true)
+            b110 := f (((true,  true),  false), true)
+            b111 := f (((true,  true),  true),  true) } }
+
+theorem mkGate16_eval (f : (((Bool × Bool) × Bool) × Bool) → Bool)
+    (s : ((Bool × Bool) × Bool) × Bool) :
+    (mkGate16 f).eval s = f s := by
+  rcases s with ⟨⟨⟨b8, b10⟩, b29⟩, b400⟩
+  cases b8 <;> cases b10 <;> cases b29 <;> cases b400 <;> rfl
+
+/-- Deterministic 16-state truth-table transfer operator mapping `(g0, g1)` for `(D j, D (j+1))`
+to the truth table of `D (j+2)` on `osc4State`. -/
+def nextGate16 (g0 g1 : Gate16) : Gate16 :=
+  mkGate16 (fun s => unroll16From g0 g1 16 s false)
+
+/-- Check whether `g1.eval` hits `true` within `n` steps of `osc4StepFast` starting from `s`. -/
+def orbit16HasTrue (g1 : Gate16) : Nat → (((Bool × Bool) × Bool) × Bool) → Bool
+  | 0, _ => false
+  | n + 1, s => g1.eval s || orbit16HasTrue g1 n (osc4StepFast s)
+
+theorem unroll16From_erase_of_orbit16HasTrue (g0 g1 : Gate16) :
+    ∀ (n : Nat) (s : ((Bool × Bool) × Bool) × Bool) (b : Bool),
+      orbit16HasTrue g1 n s = true →
+      unroll16From g0 g1 n s b = unroll16From g0 g1 n s false
+  | 0, _, _, h => by cases h
+  | n + 1, s, b, h => by
+    unfold orbit16HasTrue at h
+    unfold unroll16From
+    cases hg1 : g1.eval s
+    · rw [hg1, Bool.false_or] at h
+      simp only [Bool.false_or]
+      have ih1 := unroll16From_erase_of_orbit16HasTrue g0 g1 n (osc4StepFast s) (xor (g0.eval s) b) h
+      have ih2 := unroll16From_erase_of_orbit16HasTrue g0 g1 n (osc4StepFast s) (xor (g0.eval s) false) h
+      exact ih1.trans ih2.symm
+    · simp
+
+def osc4StepFastIter : Nat → (((Bool × Bool) × Bool) × Bool) → (((Bool × Bool) × Bool) × Bool)
+  | 0, s => s
+  | n + 1, s => osc4StepFastIter n (osc4StepFast s)
+
+theorem osc4StepFastIter_eight (s : ((Bool × Bool) × Bool) × Bool) :
+    osc4StepFastIter 8 s = (s.1, !s.2) := by
+  rcases s with ⟨⟨⟨b8, b10⟩, b29⟩, b400⟩
+  revert b8 b10 b29 b400
+  decide
+
+theorem osc4StepFast_flip (s : ((Bool × Bool) × Bool) × Bool) :
+    osc4StepFast (s.1, !s.2) = ((osc4StepFast s).1, !(osc4StepFast s).2) := by
+  rcases s with ⟨⟨⟨b8, b10⟩, b29⟩, b400⟩
+  revert b8 b10 b29 b400
+  decide
+
+theorem orbit16HasTrue_add (g1 : Gate16) :
+    ∀ (m n : Nat) (s : ((Bool × Bool) × Bool) × Bool),
+      orbit16HasTrue g1 (m + n) s =
+        (orbit16HasTrue g1 m s || orbit16HasTrue g1 n (osc4StepFastIter m s))
+  | 0, _, _ => by simp [orbit16HasTrue, osc4StepFastIter]
+  | m + 1, n, s => by
+    have h1 : orbit16HasTrue g1 (m + 1 + n) s =
+        (g1.eval s || orbit16HasTrue g1 (m + n) (osc4StepFast s)) := by
+      rw [show m + 1 + n = (m + n) + 1 by omega]
+      rfl
+    have h2 : orbit16HasTrue g1 (m + 1) s =
+        (g1.eval s || orbit16HasTrue g1 m (osc4StepFast s)) := rfl
+    have h3 : osc4StepFastIter (m + 1) s = osc4StepFastIter m (osc4StepFast s) := rfl
+    rw [h1, h2, h3, orbit16HasTrue_add g1 m n (osc4StepFast s), Bool.or_assoc]
+
+def orbit8HasTrue (g : Gate8) : Nat → ((Bool × Bool) × Bool) → Bool
+  | 0, _ => false
+  | n + 1, s3 => g.eval s3 || orbit8HasTrue g n (osc3Step s3)
+
+theorem orbit8HasTrue_8_eq_isNonWhite (g : Gate8) (s3 : (Bool × Bool) × Bool) :
+    orbit8HasTrue g 8 s3 = g.isNonWhite := by
+  rcases s3 with ⟨⟨b8, b10⟩, b29⟩
+  rcases g with ⟨c0,c1,c2,c3,c4,c5,c6,c7⟩
+  revert b8 b10 b29 c0 c1 c2 c3 c4 c5 c6 c7
+  decide
+
+theorem or_four_rearrange (a b c d : Bool) :
+    ((a || c) || (b || d)) = ((a || b) || (c || d)) := by
+  cases a <;> cases b <;> cases c <;> cases d <;> rfl
+
+theorem eval16_or_flip (g1 : Gate16) (s : ((Bool × Bool) × Bool) × Bool) :
+    (g1.eval s || g1.eval (s.1, !s.2)) = (g1.lo.eval s.1 || g1.hi.eval s.1) := by
+  rcases s with ⟨s3, b400⟩
+  unfold Gate16.eval
+  dsimp only
+  cases b400 <;> cases g1.lo.eval s3 <;> cases g1.hi.eval s3 <;> rfl
+
+theorem orbit16HasTrue_or_flip (g1 : Gate16) :
+    ∀ (n : Nat) (s : ((Bool × Bool) × Bool) × Bool),
+      (orbit16HasTrue g1 n s || orbit16HasTrue g1 n (s.1, !s.2)) =
+        (orbit8HasTrue g1.lo n s.1 || orbit8HasTrue g1.hi n s.1)
+  | 0, _ => rfl
+  | n + 1, s => by
+    unfold orbit16HasTrue orbit8HasTrue
+    rw [osc4StepFast_flip s, or_four_rearrange, eval16_or_flip g1 s,
+        orbit16HasTrue_or_flip g1 n (osc4StepFast s)]
+    exact or_four_rearrange (g1.lo.eval s.1) (orbit8HasTrue g1.lo n (osc3Step s.1))
+      (g1.hi.eval s.1) (orbit8HasTrue g1.hi n (osc3Step s.1))
+
+theorem orbit16HasTrue_16_eq_isNonWhite (g1 : Gate16) (s : ((Bool × Bool) × Bool) × Bool) :
+    orbit16HasTrue g1 16 s = g1.isNonWhite := by
+  rw [show (16 : Nat) = 8 + 8 by rfl, orbit16HasTrue_add g1 8 8 s,
+      osc4StepFastIter_eight s, orbit16HasTrue_or_flip g1 8 s,
+      orbit8HasTrue_8_eq_isNonWhite g1.lo s.1,
+      orbit8HasTrue_8_eq_isNonWhite g1.hi s.1]
+  rfl
+
+/-- **Sixteen-State Memory-Erasure Lemma (`unroll16From_eq_nextGate16_eval`):**
+whenever `g1 : Gate16` is not identically white (`g1.isNonWhite = true`), iterating the diagonal
+step recurrence for 16 steps from ANY initial bit `b : Bool` erases `b` and evaluates `nextGate16 g0 g1` at `s`. -/
+theorem unroll16From_eq_nextGate16_eval (g0 g1 : Gate16) (h1 : g1.isNonWhite = true)
+    (s : ((Bool × Bool) × Bool) × Bool) (b : Bool) :
+    unroll16From g0 g1 16 s b = (nextGate16 g0 g1).eval s := by
+  have horb : orbit16HasTrue g1 16 s = true := by
+    rw [orbit16HasTrue_16_eq_isNonWhite, h1]
+  rw [unroll16From_erase_of_orbit16HasTrue g0 g1 16 s b horb]
+  unfold nextGate16
+  rw [mkGate16_eval]
+
+/-- Linking `n` steps of `D_step j` to `unroll16From` along `osc4State`. -/
+theorem D_add_eq_unroll16From (j t0 : Nat) (ht0 : 2985 ≤ t0) (g0 g1 : Gate16)
+    (hg0 : ∀ t : Nat, t0 ≤ t → D j t = g0.eval (osc4State t))
+    (hg1 : ∀ t : Nat, t0 ≤ t → D (j + 1) t = g1.eval (osc4State t)) :
+    ∀ (n t : Nat), t0 ≤ t →
+      D (j + 2) (t + n) = unroll16From g0 g1 n (osc4State t) (D (j + 2) t)
+  | 0, t, _ => by simp [unroll16From]
+  | n + 1, t, ht => by
+    have hstep := D_step j t
+    rw [hg0 t ht, hg1 t ht] at hstep
+    have ih := D_add_eq_unroll16From j t0 ht0 g0 g1 hg0 hg1 n (t + 1) (by omega)
+    rw [show t + 1 + n = t + (n + 1) by omega, hstep, osc4State_succ_fast t (by omega)] at ih
+    exact ih
+
+/-- **General Sixteen-State Cascade Closure Theorem (`D_stays_in_sixteen_state_system_of_nonwhite`):**
+if `D j` and `D (j + 1)` are governed by 16-state gates `g0, g1 : Gate16` on `osc4State` for all `t ≥ t0`
+(`t0 ≥ 2985`) and `g1.isNonWhite = true`, then `D (j + 2)` locks into `(nextGate16 g0 g1).eval (osc4State t)`
+for all `t ≥ t0 + 16`. -/
+theorem D_stays_in_sixteen_state_system_of_nonwhite (j t0 : Nat) (ht0 : 2985 ≤ t0)
+    (g0 g1 : Gate16)
+    (hg0 : ∀ t : Nat, t0 ≤ t → D j t = g0.eval (osc4State t))
+    (hg1 : ∀ t : Nat, t0 ≤ t → D (j + 1) t = g1.eval (osc4State t))
+    (h1 : g1.isNonWhite = true) (t : Nat) (ht : t0 + 16 ≤ t) :
+    D (j + 2) t = (nextGate16 g0 g1).eval (osc4State t) := by
+  have hunroll := D_add_eq_unroll16From j t0 ht0 g0 g1 hg0 hg1 16 (t - 16) (by omega)
+  rw [show t - 16 + 16 = t by omega,
+      unroll16From_eq_nextGate16_eval g0 g1 h1 (osc4State (t - 16)) (D (j + 2) (t - 16))] at hunroll
+  have hper16 := (osc4State_half_cycle_and_period_sixteen (t - 16) (by omega)).2
+  rw [show t - 16 + 16 = t by omega] at hper16
+  rw [hunroll, ← hper16]
+
+/-- Accumulate `xor` of `g.eval` across `n` steps of `osc4StepFast`. -/
+def orbit16Xor (g : Gate16) : Nat → (((Bool × Bool) × Bool) × Bool) → Bool
+  | 0, _ => false
+  | n + 1, s => xor (g.eval s) (orbit16Xor g n (osc4StepFast s))
+
+theorem unroll16From_white_eq_orbit16Xor (g : Gate16) :
+    ∀ (n : Nat) (s : ((Bool × Bool) × Bool) × Bool) (b : Bool),
+      unroll16From g (mkGate16 (fun _ => false)) n s b = xor (orbit16Xor g n s) b
+  | 0, _, b => by simp [unroll16From, orbit16Xor]
+  | n + 1, s, b => by
+    unfold unroll16From orbit16Xor
+    rw [mkGate16_eval, Bool.false_or,
+        unroll16From_white_eq_orbit16Xor g n (osc4StepFast s) (xor (g.eval s) b)]
+    cases g.eval s <;> cases orbit16Xor g n (osc4StepFast s) <;> cases b <;> rfl
+
+theorem orbit16Xor_add (g : Gate16) :
+    ∀ (m n : Nat) (s : ((Bool × Bool) × Bool) × Bool),
+      orbit16Xor g (m + n) s =
+        xor (orbit16Xor g m s) (orbit16Xor g n (osc4StepFastIter m s))
+  | 0, _, _ => by simp [orbit16Xor, osc4StepFastIter]
+  | m + 1, n, s => by
+    have h1 : orbit16Xor g (m + 1 + n) s =
+        xor (g.eval s) (orbit16Xor g (m + n) (osc4StepFast s)) := by
+      rw [show m + 1 + n = (m + n) + 1 by omega]
+      rfl
+    have h2 : orbit16Xor g (m + 1) s =
+        xor (g.eval s) (orbit16Xor g m (osc4StepFast s)) := rfl
+    have h3 : osc4StepFastIter (m + 1) s = osc4StepFastIter m (osc4StepFast s) := rfl
+    rw [h1, h2, h3, orbit16Xor_add g m n (osc4StepFast s), Bool.xor_assoc]
+
+def orbit8Xor (g : Gate8) : Nat → ((Bool × Bool) × Bool) → Bool
+  | 0, _ => false
+  | n + 1, s3 => xor (g.eval s3) (orbit8Xor g n (osc3Step s3))
+
+theorem orbit8Xor_8_eq_xorParity (g : Gate8) (s3 : (Bool × Bool) × Bool) :
+    orbit8Xor g 8 s3 = g.xorParity := by
+  rcases s3 with ⟨⟨b8, b10⟩, b29⟩
+  rcases g with ⟨a0,a1,a2,a3,a4,a5,a6,a7⟩
+  revert b8 b10 b29 a0 a1 a2 a3 a4 a5 a6 a7
+  decide
+
+theorem xor_four_rearrange (a b c d : Bool) :
+    xor (xor a c) (xor b d) = xor (xor a b) (xor c d) := by
+  cases a <;> cases b <;> cases c <;> cases d <;> rfl
+
+theorem eval16_xor_flip (g : Gate16) (s : ((Bool × Bool) × Bool) × Bool) :
+    xor (g.eval s) (g.eval (s.1, !s.2)) = xor (g.lo.eval s.1) (g.hi.eval s.1) := by
+  rcases s with ⟨s3, b400⟩
+  unfold Gate16.eval
+  dsimp only
+  cases b400 <;> cases g.lo.eval s3 <;> cases g.hi.eval s3 <;> rfl
+
+theorem orbit16Xor_xor_flip (g : Gate16) :
+    ∀ (n : Nat) (s : ((Bool × Bool) × Bool) × Bool),
+      xor (orbit16Xor g n s) (orbit16Xor g n (s.1, !s.2)) =
+        xor (orbit8Xor g.lo n s.1) (orbit8Xor g.hi n s.1)
+  | 0, _ => rfl
+  | n + 1, s => by
+    unfold orbit16Xor orbit8Xor
+    rw [osc4StepFast_flip s, xor_four_rearrange, eval16_xor_flip g s,
+        orbit16Xor_xor_flip g n (osc4StepFast s)]
+    exact xor_four_rearrange (g.lo.eval s.1) (orbit8Xor g.lo n (osc3Step s.1))
+      (g.hi.eval s.1) (orbit8Xor g.hi n (osc3Step s.1))
+
+theorem orbit16Xor_16_eq_xorParity16 (g : Gate16) (s : ((Bool × Bool) × Bool) × Bool) :
+    orbit16Xor g 16 s = g.xorParity16 := by
+  rw [show (16 : Nat) = 8 + 8 by rfl, orbit16Xor_add g 8 8 s,
+      osc4StepFastIter_eight s, orbit16Xor_xor_flip g 8 s,
+      orbit8Xor_8_eq_xorParity g.lo s.1,
+      orbit8Xor_8_eq_xorParity g.hi s.1]
+  rfl
+
+/-- **Even-Parity White-Diagonal Period-16 Preservation Law (`D_periodic_sixteen_of_white_and_even_gate`):**
+whenever `D (j + 1)` is eventually white (`false`) and `D j` is governed by a 16-state gate `g : Gate16`
+with even 16-step XOR parity (`g.xorParity16 = false`, computed to occur at the 5th white diagonal `D 53207`; not yet proved in the kit),
+`D (j + 2)` satisfies `D (j + 2) (t + 16) = D (j + 2) t` (preserving period 16 without doubling to period 32). -/
+theorem D_periodic_sixteen_of_white_and_even_gate (j t0 : Nat) (ht0 : 2985 ≤ t0)
+    (g : Gate16)
+    (hg : ∀ t : Nat, t0 ≤ t → D j t = g.eval (osc4State t))
+    (hpar : g.xorParity16 = false)
+    (hw : ∀ t : Nat, t0 ≤ t → D (j + 1) t = false)
+    (t : Nat) (ht : t0 ≤ t) :
+    D (j + 2) (t + 16) = D (j + 2) t := by
+  have hw_gate : ∀ s : Nat, t0 ≤ s → D (j + 1) s = (mkGate16 (fun _ => false)).eval (osc4State s) := by
+    intro s hs
+    rw [hw s hs, mkGate16_eval]
+  have hunroll := D_add_eq_unroll16From j t0 ht0 g (mkGate16 (fun _ => false)) hg hw_gate 16 t ht
+  rw [hunroll, unroll16From_white_eq_orbit16Xor, orbit16Xor_16_eq_xorParity16, hpar, Bool.false_xor]
+
+/-! ### 20. Extending the 8-State Cascade to `D 0 .. D 398` and Zero-Gap All-Period 384-Column Inward Non-Periodicity -/
+
+def gate8_D8 : Gate8 := ⟨false, false, false, false, true, true, true, true⟩
+def gate8_D9 : Gate8 := ⟨true, true, true, true, true, true, true, true⟩
+
+/-- Iterated 8-state cascade `cascadeState8From8 k` representing `(D (8 + k), D (9 + k), allNonWhiteUpTo k)`. -/
+def cascadeState8From8 : Nat → CascadeState8
+  | 0 => ⟨gate8_D8, gate8_D9, true⟩
+  | k + 1 => nextCascadeState8 (cascadeState8From8 k)
+
+theorem cascadeState8From8_succ (k : Nat) :
+    cascadeState8From8 (k + 1) =
+      ⟨(cascadeState8From8 k).g1, nextGate8 (cascadeState8From8 k).g0 (cascadeState8From8 k).g1,
+       (cascadeState8From8 k).allNonWhite && (cascadeState8From8 k).g1.isNonWhite⟩ := by
+  change nextCascadeState8 (cascadeState8From8 k) = _
+  unfold nextCascadeState8
+  rw [withStrictGate8_eq, withStrictGate8_eq, withStrictBool_eq, withStrictGate8_eq]
+
+/-- **Exact 19-Step Non-White Cascade Prefix (`cascadeState8From8_19_allNonWhite`):**
+for all `k < 19` (covering `D 9` through `D 27`), `(cascadeState8From8 k).g1.isNonWhite = true`. -/
+theorem cascadeState8From8_19_allNonWhite :
+    (cascadeState8From8 19).allNonWhite = true := by decide
+
+theorem cascadeState8From8_allNonWhite_of_le {k n : Nat} (hkn : k ≤ n)
+    (hn : (cascadeState8From8 n).allNonWhite = true) :
+    (cascadeState8From8 k).allNonWhite = true := by
+  induction n with
+  | zero =>
+    have hk0 : k = 0 := by omega
+    subst hk0; exact hn
+  | succ m ih =>
+    rcases (by omega : k ≤ m ∨ k = m + 1) with hle | rfl
+    · rw [cascadeState8From8_succ] at hn
+      exact ih hle (Bool.and_eq_true_iff.mp hn).1
+    · exact hn
+
+/-- **Inductive 8-State Gate Law Across `D 8 .. D 28` (`D_eight_add_eq_cascadeState8From8`):**
+for every `k : Nat`, if `(cascadeState8From8 k).allNonWhite = true`, then for all `t ≥ 32 + 8 * k`,
+`D (8 + k) t = (cascadeState8From8 k).g0.eval (osc3State t)` and
+`D (9 + k) t = (cascadeState8From8 k).g1.eval (osc3State t)`. -/
+theorem D_eight_add_eq_cascadeState8From8 : ∀ k : Nat,
+    (cascadeState8From8 k).allNonWhite = true →
+    (∀ t : Nat, 32 + 8 * k ≤ t → D (8 + k) t = (cascadeState8From8 k).g0.eval (osc3State t)) ∧
+    (∀ t : Nat, 32 + 8 * k ≤ t → D (9 + k) t = (cascadeState8From8 k).g1.eval (osc3State t))
+  | 0, _ => by
+    refine ⟨?_, ?_⟩
+    · intro t _
+      unfold cascadeState8From8 gate8_D8 osc3State Gate8.eval
+      cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+    · intro t ht
+      rw [D_nine_eq_true t (by omega)]
+      unfold cascadeState8From8 gate8_D9 osc3State Gate8.eval
+      cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+  | k + 1, hall => by
+    rw [cascadeState8From8_succ] at hall ⊢
+    rcases Bool.and_eq_true_iff.mp hall with ⟨hk, hnw⟩
+    rcases D_eight_add_eq_cascadeState8From8 k hk with ⟨ih1, ih2⟩
+    refine ⟨?_, ?_⟩
+    · intro t ht
+      rw [show 8 + (k + 1) = 9 + k by omega]
+      exact ih2 t (by omega)
+    · intro t ht
+      rw [show 9 + (k + 1) = (8 + k) + 2 by omega]
+      exact D_stays_in_eight_state_system_of_nonwhite (8 + k) (32 + 8 * k) (by omega)
+        (cascadeState8From8 k).g0 (cascadeState8From8 k).g1 ih1
+        (fun s hs => by rw [show 8 + k + 1 = 9 + k by omega]; exact ih2 s hs)
+        hnw t (by omega)
+
+theorem D_three_eq_xor_D_eight_D_ten_base (t : Nat) (ht : 9 ≤ t) :
+    D 3 t = xor (D 8 t) (D 10 t) := by
+  have hstep := D_eight_step_eq_xor_D_three t (by omega)
+  rw [D_eight_succ_eq_D_ten t ht] at hstep
+  revert hstep
+  cases D 3 t <;> cases D 8 t <;> cases D 10 t <;> decide
+
+/-- Unified 8-state truth table `fullGate8 j` for every left diagonal `0 ≤ j ≤ 398`. -/
+def fullGate8 : Nat → Gate8
+  | 0 | 1 | 4 => ⟨true, true, true, true, true, true, true, true⟩
+  | 2 | 7 => ⟨false, false, false, false, false, false, false, false⟩
+  | 3 | 5 | 6 => ⟨false, false, true, true, true, true, false, false⟩
+  | 28 => (cascadeState8From8 19).g1
+  | j =>
+    if j ≤ 27 then (cascadeState8From8 (j - 8)).g0
+    else (cascadeState8 (j - 29)).g0
+
+/-- **Unified 8-State Gate Law Across All 399 Diagonals `D 0 .. D 398`
+(`D_zero_to_three_hundred_ninety_eight_eq_fullGate8`):**
+for every `j ≤ 398` and every `t ≥ 2985`, `D j t = (fullGate8 j).eval (osc3State t)`. -/
+theorem D_zero_to_three_hundred_ninety_eight_eq_fullGate8 (j : Nat) (hj : j ≤ 398)
+    (t : Nat) (ht : 2985 ≤ t) :
+    D j t = (fullGate8 j).eval (osc3State t) := by
+  by_cases hj7 : j ≤ 7
+  · rcases (by omega : j = 0 ∨ j = 1 ∨ j = 2 ∨ j = 3 ∨ j = 4 ∨ j = 5 ∨ j = 6 ∨ j = 7) with
+      rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    · rw [D_zero t]; unfold fullGate8 osc3State Gate8.eval; cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+    · have h1 := D_one (t - 1); rw [show t - 1 + 1 = t by omega] at h1; rw [h1]; unfold fullGate8 osc3State Gate8.eval; cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+    · rw [D_two_eq_false t (by omega)]; unfold fullGate8 osc3State Gate8.eval; cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+    · rw [D_three_eq_xor_D_eight_D_ten_base t (by omega)]; unfold fullGate8 osc3State Gate8.eval; cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+    · rw [D_four_eq_true t (by omega)]; unfold fullGate8 osc3State Gate8.eval; cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+    · rw [D_five_eq_D_three t (by omega), D_three_eq_xor_D_eight_D_ten_base t (by omega)]; unfold fullGate8 osc3State Gate8.eval; cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+    · rw [D_six_eq_D_three t (by omega), D_three_eq_xor_D_eight_D_ten_base t (by omega)]; unfold fullGate8 osc3State Gate8.eval; cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+    · rw [D_seven_eq_false t (by omega)]; unfold fullGate8 osc3State Gate8.eval; cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+  · by_cases hj27 : j ≤ 27
+    · have hall := cascadeState8From8_allNonWhite_of_le (show j - 8 ≤ 19 by omega) cascadeState8From8_19_allNonWhite
+      have h := (D_eight_add_eq_cascadeState8From8 (j - 8) hall).1 t (by omega)
+      rw [show 8 + (j - 8) = j by omega] at h
+      have hfg : fullGate8 j = (cascadeState8From8 (j - 8)).g0 := by
+        rcases (by omega : j = 8 ∨ j = 9 ∨ j = 10 ∨ j = 11 ∨ j = 12 ∨ j = 13 ∨ j = 14 ∨ j = 15 ∨ j = 16 ∨ j = 17 ∨
+                           j = 18 ∨ j = 19 ∨ j = 20 ∨ j = 21 ∨ j = 22 ∨ j = 23 ∨ j = 24 ∨ j = 25 ∨ j = 26 ∨ j = 27) with
+          rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+          rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+      rw [hfg]
+      exact h
+    · by_cases hj28 : j = 28
+      · subst hj28
+        exact (D_eight_add_eq_cascadeState8From8 19 cascadeState8From8_19_allNonWhite).2 t (by omega)
+      · have hall := cascadeState8_allNonWhite_of_le (show j - 29 ≤ 369 by omega) cascadeState8_369_allNonWhite
+        have h := (D_twenty_nine_add_eq_cascadeState8 (j - 29) hall).1 t (by omega)
+        rw [show 29 + (j - 29) = j by omega] at h
+        have hfg : fullGate8 j = (cascadeState8 (j - 29)).g0 := by
+          obtain ⟨m, rfl⟩ : ∃ m, j = m + 29 := ⟨j - 29, by omega⟩
+          simp [fullGate8]
+        rw [hfg]
+        exact h
 
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
