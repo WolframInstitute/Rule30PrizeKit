@@ -3625,4 +3625,621 @@ theorem not_cell_periodic_at_col_le_neg_add_add_thirty_nine (T : Nat) {P : Nat}
 
 end Inward18Closure
 
+section Inward353To392AllPeriods
+
+set_option maxRecDepth 200000
+set_option maxHeartbeats 800000
+
+open Rule30Diagonals Rule30LeftAntiPeriod
+
+/-! ### 18. Universal Arrival-Column Formula Across `D 29 .. D 398`, 392-Column Large-Period Exclusion, and All-Period 353-to-384-Column Inward Non-Periodicity -/
+
+theorem cell_outside_cone_aux : ∀ (t : Nat) (x : Int), x < -(t : Int) ∨ (t : Int) < x → cell t x = false
+  | 0, x, h => by
+    unfold cell
+    simp [show x ≠ 0 by omega]
+  | t + 1, x, h => by
+    unfold cell
+    rw [cell_outside_cone_aux t (x - 1) (by omega),
+        cell_outside_cone_aux t x (by omega),
+        cell_outside_cone_aux t (x + 1) (by omega)]
+    rfl
+
+theorem cell_eq_false_of_lt (t s : Nat) (h : t < s) :
+    cell t (-(s : Int)) = false :=
+  cell_outside_cone_aux t (-(s : Int)) (Or.inl (by omega))
+
+/-- Iterated application `osc3StepIter m s` of the 3-bit oscillator transition map `osc3Step`. -/
+def osc3StepIter : Nat → (Bool × Bool) × Bool → (Bool × Bool) × Bool
+  | 0, s => s
+  | m + 1, s => osc3Step (osc3StepIter m s)
+
+/-- **Exact Eight-Step Return Law of `osc3StepIter` (`osc3StepIter_eight_eq_self`):**
+for every state `s : (Bool × Bool) × Bool`, advancing `osc3Step` by 8 steps returns to `s`. -/
+theorem osc3StepIter_eight_eq_self (s : (Bool × Bool) × Bool) :
+    osc3StepIter 8 s = s := by
+  rcases s with ⟨⟨x, y⟩, z⟩
+  revert x y z
+  decide
+
+theorem osc3StepIter_add (a b : Nat) (s : (Bool × Bool) × Bool) :
+    osc3StepIter (a + b) s = osc3StepIter a (osc3StepIter b s) := by
+  induction a with
+  | zero => rw [Nat.zero_add]; rfl
+  | succ a ih =>
+    rw [show a + 1 + b = (a + b) + 1 by omega]
+    exact congrArg osc3Step ih
+
+theorem osc3StepIter_mul_eight (q : Nat) (s : (Bool × Bool) × Bool) :
+    osc3StepIter (8 * q) s = s := by
+  induction q with
+  | zero => rfl
+  | succ q ih =>
+    rw [show 8 * (q + 1) = 8 + 8 * q by omega, osc3StepIter_add, ih, osc3StepIter_eight_eq_self]
+
+/-- Phase-reduction identity `osc3StepIter m s = osc3StepIter (m % 8) s` for all `m : Nat`. -/
+theorem osc3StepIter_eq_mod_eight (m : Nat) (s : (Bool × Bool) × Bool) :
+    osc3StepIter m s = osc3StepIter (m % 8) s := by
+  have hm : m = 8 * (m / 8) + m % 8 := (Nat.div_add_mod m 8).symm
+  have h1 := congrArg (fun n => osc3StepIter n s) hm
+  rw [osc3StepIter_add, osc3StepIter_mul_eight] at h1
+  exact h1
+
+/-- **Multi-Step Autonomous Trajectory Formula for `osc3State` (`osc3State_add_eq_iter`):**
+for every `t ≥ 32` and every offset `m : Nat`, `osc3State (t + m) = osc3StepIter m (osc3State t)`. -/
+theorem osc3State_add_eq_iter (t : Nat) (ht : 32 ≤ t) : ∀ m : Nat,
+    osc3State (t + m) = osc3StepIter m (osc3State t)
+  | 0 => rfl
+  | m + 1 => by
+    rw [show t + (m + 1) = (t + m) + 1 by omega,
+        osc3State_succ (t + m) (by omega),
+        osc3State_add_eq_iter t ht m]
+    rfl
+
+/-- **Phase-Reduced Trajectory Formula for `osc3State` (`osc3State_add_eq_iter_mod_eight`):**
+for every `t ≥ 32` and every `m : Nat`, `osc3State (t + m) = osc3StepIter (m % 8) (osc3State t)`. -/
+theorem osc3State_add_eq_iter_mod_eight (t : Nat) (ht : 32 ≤ t) (m : Nat) :
+    osc3State (t + m) = osc3StepIter (m % 8) (osc3State t) := by
+  rw [osc3State_add_eq_iter t ht m, osc3StepIter_eq_mod_eight]
+
+/-- **Universal Arrival-Column Formula Across All 370 Diagonals `D 29 .. D 398` (`col_at_twenty_nine_add`):**
+for every offset `k` and sub-offset `d` with `k + d ≤ 369` and every column `s ≥ 2985`,
+`cell (s + 29 + k + d) (-(s : Int)) = (cascadeState8 (k + d)).g0.eval (osc3StepIter d (osc3StepIter (k % 8) (osc3State (s + 29))))`. -/
+theorem col_at_twenty_nine_add {k d : Nat} (hkd : k + d ≤ 369) (s : Nat) (hs : 2985 ≤ s) :
+    cell (s + 29 + k + d) (-(s : Int)) =
+      (cascadeState8 (k + d)).g0.eval (osc3StepIter d (osc3StepIter (k % 8) (osc3State (s + 29)))) := by
+  have hd : cell (s + 29 + k + d) (-(s : Int)) = D (29 + (k + d)) (s + 29 + k + d) := by
+    unfold D; exact cell_congr (by omega)
+  have hall := cascadeState8_allNonWhite_of_le hkd cascadeState8_369_allNonWhite
+  have h29 := (D_twenty_nine_add_eq_cascadeState8 (k + d) hall).1 (s + 29 + k + d) (by omega)
+  rw [hd, h29, show s + 29 + k + d = (s + 29 + k) + d by omega,
+      osc3State_add_eq_iter (s + 29 + k) (by omega) d,
+      show s + 29 + k = (s + 29) + k by omega,
+      osc3State_add_eq_iter_mod_eight (s + 29) (by omega) k]
+
+/-- Boolean check that three consecutive gates `g0, g1, g2` at phase `r = k % 8` cover all 8 states of `osc3State`. -/
+def tripleCoversAtState (g0 g1 g2 : Gate8) (r : Nat) (s : (Bool × Bool) × Bool) : Bool :=
+  let s0 := osc3StepIter 0 (osc3StepIter r s)
+  let s1 := osc3StepIter 1 (osc3StepIter r s)
+  let s2 := osc3StepIter 2 (osc3StepIter r s)
+  g0.eval s0 || g1.eval s1 || g2.eval s2
+
+def tripleCoversAllStates (g0 g1 g2 : Gate8) (r : Nat) : Bool :=
+  tripleCoversAtState g0 g1 g2 r ((false, false), false) &&
+  tripleCoversAtState g0 g1 g2 r ((false, false), true)  &&
+  tripleCoversAtState g0 g1 g2 r ((false, true),  false) &&
+  tripleCoversAtState g0 g1 g2 r ((false, true),  true)  &&
+  tripleCoversAtState g0 g1 g2 r ((true,  false), false) &&
+  tripleCoversAtState g0 g1 g2 r ((true,  false), true)  &&
+  tripleCoversAtState g0 g1 g2 r ((true,  true),  false) &&
+  tripleCoversAtState g0 g1 g2 r ((true,  true),  true)
+
+theorem tripleCoversAtState_of_all (g0 g1 g2 : Gate8) (r : Nat)
+    (hall : tripleCoversAllStates g0 g1 g2 r = true) (s : (Bool × Bool) × Bool) :
+    tripleCoversAtState g0 g1 g2 r s = true := by
+  rcases s with ⟨⟨x, y⟩, z⟩
+  unfold tripleCoversAllStates at hall
+  cases x <;> cases y <;> cases z <;> simp_all [Bool.and_eq_true]
+
+/-- **General Covering-Triple Large-Period Exclusion Principle (`not_cell_periodic_of_covering_triple`):**
+for any offset `k ≤ 367` and gates `g0, g1, g2` equal to `(cascadeState8 (k + d)).g0` (`d = 0, 1, 2`),
+if `tripleCoversAllStates g0 g1 g2 (k % 8) = true`, then for every period `P ≥ 32 + k`, every horizon `T`,
+and every column `c ≤ min(-2985, -((T + P : Nat) : Int) + (29 + k))`, column `c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_of_covering_triple (k : Nat) (hk : k ≤ 367)
+    (g0 g1 g2 : Gate8)
+    (hg0 : (cascadeState8 (k + 0)).g0 = g0)
+    (hg1 : (cascadeState8 (k + 1)).g0 = g1)
+    (hg2 : (cascadeState8 (k + 2)).g0 = g2)
+    (hcov : tripleCoversAllStates g0 g1 g2 (k % 8) = true)
+    (c : Int) (T P : Nat) (hP : 32 + k ≤ P)
+    (hc0 : c ≤ -2985) (hc : c ≤ -((T + P : Nat) : Int) + (29 + k : Nat)) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hs_eq : (-(s : Int)) = c := by omega
+  have hs2985 : 2985 ≤ s := by omega
+  have h0 : cell (s + 29 + k + 0) (-(s : Int)) = false := by
+    have hp := hper (s + 29 + k + 0 - P) (by omega)
+    rw [show s + 29 + k + 0 - P + P = s + 29 + k + 0 by omega, ← hs_eq,
+        cell_eq_false_of_lt (s + 29 + k + 0 - P) s (by omega)] at hp
+    exact hp
+  have h1 : cell (s + 29 + k + 1) (-(s : Int)) = false := by
+    have hp := hper (s + 29 + k + 1 - P) (by omega)
+    rw [show s + 29 + k + 1 - P + P = s + 29 + k + 1 by omega, ← hs_eq,
+        cell_eq_false_of_lt (s + 29 + k + 1 - P) s (by omega)] at hp
+    exact hp
+  have h2 : cell (s + 29 + k + 2) (-(s : Int)) = false := by
+    have hp := hper (s + 29 + k + 2 - P) (by omega)
+    rw [show s + 29 + k + 2 - P + P = s + 29 + k + 2 by omega, ← hs_eq,
+        cell_eq_false_of_lt (s + 29 + k + 2 - P) s (by omega)] at hp
+    exact hp
+  rw [col_at_twenty_nine_add (by omega) s hs2985, hg0] at h0
+  rw [col_at_twenty_nine_add (by omega) s hs2985, hg1] at h1
+  rw [col_at_twenty_nine_add (by omega) s hs2985, hg2] at h2
+  have htr := tripleCoversAtState_of_all g0 g1 g2 (k % 8) hcov (osc3State (s + 29))
+  unfold tripleCoversAtState at htr
+  dsimp only at htr
+  rw [h0, h1, h2] at htr
+  cases htr
+
+/-- 16-gate sliding window holding `(cascadeState8 (k + d)).g0` for `d = 0 .. 15`. -/
+structure Window16 where
+  g0  : Gate8
+  g1  : Gate8
+  g2  : Gate8
+  g3  : Gate8
+  g4  : Gate8
+  g5  : Gate8
+  g6  : Gate8
+  g7  : Gate8
+  g8  : Gate8
+  g9  : Gate8
+  g10 : Gate8
+  g11 : Gate8
+  g12 : Gate8
+  g13 : Gate8
+  g14 : Gate8
+  g15 : Gate8
+  deriving DecidableEq
+
+def initWindow16 : Window16 := {
+  g0 := ⟨false, true, false, true, false, true, false, true⟩
+  g1 := ⟨true, true, true, true, true, true, true, true⟩
+  g2 := ⟨false, true, false, true, true, false, false, true⟩
+  g3 := ⟨true, false, false, false, true, false, false, true⟩
+  g4 := ⟨false, false, true, true, false, false, false, true⟩
+  g5 := ⟨false, false, false, true, true, false, true, true⟩
+  g6 := ⟨false, true, true, false, true, false, false, false⟩
+  g7 := ⟨false, false, true, false, false, false, true, true⟩
+  g8 := ⟨true, false, true, true, true, true, true, false⟩
+  g9 := ⟨true, true, true, true, false, true, true, false⟩
+  g10 := ⟨false, true, true, false, false, false, false, false⟩
+  g11 := ⟨true, false, false, false, false, false, true, false⟩
+  g12 := ⟨true, true, false, true, true, true, true, true⟩
+  g13 := ⟨true, true, true, false, false, true, true, true⟩
+  g14 := ⟨false, true, false, false, false, false, true, true⟩
+  g15 := ⟨true, false, false, false, false, false, false, true⟩
+}
+
+def win324 : Window16 := {
+  g0 := ⟨true, true, true, false, true, true, false, true⟩
+  g1 := ⟨true, true, true, true, true, false, false, true⟩
+  g2 := ⟨true, false, false, false, true, false, true, false⟩
+  g3 := ⟨true, false, true, false, true, true, true, false⟩
+  g4 := ⟨true, false, false, false, false, true, false, true⟩
+  g5 := ⟨false, false, false, false, true, true, false, true⟩
+  g6 := ⟨false, true, true, true, true, false, true, true⟩
+  g7 := ⟨true, false, true, true, true, false, true, true⟩
+  g8 := ⟨false, false, true, true, false, false, false, false⟩
+  g9 := ⟨true, false, false, false, true, true, false, false⟩
+  g10 := ⟨true, true, true, true, false, false, false, false⟩
+  g11 := ⟨false, false, true, false, true, true, true, true⟩
+  g12 := ⟨true, true, false, false, true, true, true, false⟩
+  g13 := ⟨false, false, true, true, false, true, true, false⟩
+  g14 := ⟨false, true, false, true, false, true, true, true⟩
+  g15 := ⟨false, false, true, false, false, true, false, false⟩
+}
+
+def topWindow355 : Window16 := {
+  g0 := ⟨true, false, false, true, false, true, false, false⟩
+  g1 := ⟨false, true, false, false, true, true, false, true⟩
+  g2 := ⟨false, true, true, true, false, true, false, true⟩
+  g3 := ⟨false, false, false, false, true, false, true, true⟩
+  g4 := ⟨true, true, false, true, true, false, false, true⟩
+  g5 := ⟨false, false, true, true, false, false, true, true⟩
+  g6 := ⟨false, false, true, true, true, false, false, true⟩
+  g7 := ⟨false, true, true, false, true, false, false, false⟩
+  g8 := ⟨true, false, true, true, false, true, false, false⟩
+  g9 := ⟨true, false, true, true, true, false, true, false⟩
+  g10 := ⟨true, true, true, false, true, false, false, false⟩
+  g11 := ⟨false, false, true, false, false, false, true, false⟩
+  g12 := ⟨false, false, true, true, true, false, true, false⟩
+  g13 := ⟨false, true, true, false, false, false, true, false⟩
+  g14 := ⟨false, true, true, false, false, false, true, false⟩
+  g15 := ⟨false, false, false, false, false, false, false, false⟩
+}
+
+/-- Check whether at state `s`, the 15-cell window `w` at phase `r = k % 8` differs in at least one
+position `d = 0..14` from `topWindow355` at phase `355 % 8 = 3`. -/
+def window15DiffersAtState (w : Window16) (r : Nat) (s : (Bool × Bool) × Bool) : Bool :=
+  let sa0  := osc3StepIter r s
+  let sa1  := osc3Step sa0
+  let sa2  := osc3Step sa1
+  let sa3  := osc3Step sa2
+  let sa4  := osc3Step sa3
+  let sa5  := osc3Step sa4
+  let sa6  := osc3Step sa5
+  let sa7  := osc3Step sa6
+  let sa8  := osc3Step sa7
+  let sa9  := osc3Step sa8
+  let sa10 := osc3Step sa9
+  let sa11 := osc3Step sa10
+  let sa12 := osc3Step sa11
+  let sa13 := osc3Step sa12
+  let sa14 := osc3Step sa13
+  let sb0  := osc3StepIter 3 s
+  let sb1  := osc3Step sb0
+  let sb2  := osc3Step sb1
+  let sb3  := osc3Step sb2
+  let sb4  := osc3Step sb3
+  let sb5  := osc3Step sb4
+  let sb6  := osc3Step sb5
+  let sb7  := osc3Step sb6
+  let sb8  := osc3Step sb7
+  let sb9  := osc3Step sb8
+  let sb10 := osc3Step sb9
+  let sb11 := osc3Step sb10
+  let sb12 := osc3Step sb11
+  let sb13 := osc3Step sb12
+  let sb14 := osc3Step sb13
+  xor (w.g0.eval sa0)   (topWindow355.g0.eval sb0)   ||
+  xor (w.g1.eval sa1)   (topWindow355.g1.eval sb1)   ||
+  xor (w.g2.eval sa2)   (topWindow355.g2.eval sb2)   ||
+  xor (w.g3.eval sa3)   (topWindow355.g3.eval sb3)   ||
+  xor (w.g4.eval sa4)   (topWindow355.g4.eval sb4)   ||
+  xor (w.g5.eval sa5)   (topWindow355.g5.eval sb5)   ||
+  xor (w.g6.eval sa6)   (topWindow355.g6.eval sb6)   ||
+  xor (w.g7.eval sa7)   (topWindow355.g7.eval sb7)   ||
+  xor (w.g8.eval sa8)   (topWindow355.g8.eval sb8)   ||
+  xor (w.g9.eval sa9)   (topWindow355.g9.eval sb9)   ||
+  xor (w.g10.eval sa10) (topWindow355.g10.eval sb10) ||
+  xor (w.g11.eval sa11) (topWindow355.g11.eval sb11) ||
+  xor (w.g12.eval sa12) (topWindow355.g12.eval sb12) ||
+  xor (w.g13.eval sa13) (topWindow355.g13.eval sb13) ||
+  xor (w.g14.eval sa14) (topWindow355.g14.eval sb14)
+
+def window15DiffersAllStates (w : Window16) (r : Nat) : Bool :=
+  window15DiffersAtState w r ((false, false), false) &&
+  window15DiffersAtState w r ((false, false), true)  &&
+  window15DiffersAtState w r ((false, true),  false) &&
+  window15DiffersAtState w r ((false, true),  true)  &&
+  window15DiffersAtState w r ((true,  false), false) &&
+  window15DiffersAtState w r ((true,  false), true)  &&
+  window15DiffersAtState w r ((true,  true),  false) &&
+  window15DiffersAtState w r ((true,  true),  true)
+
+theorem window15DiffersAtState_of_all (w : Window16) (r : Nat)
+    (hall : window15DiffersAllStates w r = true) (s : (Bool × Bool) × Bool) :
+    window15DiffersAtState w r s = true := by
+  rcases s with ⟨⟨x, y⟩, z⟩
+  unfold window15DiffersAllStates at hall
+  cases x <;> cases y <;> cases z <;> simp_all [Bool.and_eq_true]
+
+structure WindowRunState where
+  win : Window16
+  allDiffer : Bool
+  deriving DecidableEq
+
+def nextWindowRunState (k : Nat) (st : WindowRunState) : WindowRunState :=
+  let w := st.win
+  withStrictBool (st.allDiffer && window15DiffersAllStates w (k % 8)) fun ok' =>
+  withStrictGate8 (nextGate8 w.g14 w.g15) fun g16 =>
+  ⟨⟨w.g1, w.g2, w.g3, w.g4, w.g5, w.g6, w.g7, w.g8,
+    w.g9, w.g10, w.g11, w.g12, w.g13, w.g14, w.g15, g16⟩, ok'⟩
+
+def windowRunState : Nat → WindowRunState
+  | 0 => ⟨initWindow16, true⟩
+  | k + 1 => nextWindowRunState k (windowRunState k)
+
+theorem windowRunState_succ (k : Nat) :
+    windowRunState (k + 1) =
+      let w := (windowRunState k).win
+      ⟨⟨w.g1, w.g2, w.g3, w.g4, w.g5, w.g6, w.g7, w.g8,
+        w.g9, w.g10, w.g11, w.g12, w.g13, w.g14, w.g15, nextGate8 w.g14 w.g15⟩,
+       (windowRunState k).allDiffer && window15DiffersAllStates w (k % 8)⟩ := by
+  change nextWindowRunState k (windowRunState k) = _
+  unfold nextWindowRunState
+  rw [withStrictBool_eq, withStrictGate8_eq]
+
+/-- Helper stepping `WindowRunState` from offset `k` for `n` steps. -/
+def stepWindowRun : Nat → Nat → WindowRunState → WindowRunState
+  | _, 0, st => st
+  | k, n + 1, st => stepWindowRun (k + 1) n (nextWindowRunState k st)
+
+theorem stepWindowRun_eq_add (n : Nat) : ∀ k : Nat,
+    stepWindowRun k n (windowRunState k) = windowRunState (k + n) := by
+  induction n with
+  | zero => intro k; rfl
+  | succ n ih =>
+    intro k
+    change stepWindowRun (k + 1) n (windowRunState (k + 1)) = windowRunState (k + (n + 1))
+    rw [ih (k + 1), show k + 1 + n = k + (n + 1) by omega]
+
+/-- **Exact 324-Step Sliding-Window Checkpoint (`windowRunState_324_eq`):**
+at `k = 324` (`D 353 .. D 368`), `windowRunState 324 = ⟨win324, true⟩`. -/
+theorem windowRunState_324_eq : windowRunState 324 = ⟨win324, true⟩ := by decide
+
+/-- **Exact 355-Step Sliding-Window Closure (`windowRunState_355_eq`):**
+at `k = 355` (`D 384 .. D 399`), `windowRunState 355 = ⟨topWindow355, true⟩`. -/
+theorem windowRunState_355_eq : windowRunState 355 = ⟨topWindow355, true⟩ := by
+  have hstep : stepWindowRun 324 31 ⟨win324, true⟩ = ⟨topWindow355, true⟩ := by decide
+  have heq := stepWindowRun_eq_add 31 324
+  rw [windowRunState_324_eq, show (324 + 31 : Nat) = 355 by rfl] at heq
+  rw [← heq, hstep]
+
+theorem cascadeState8_g0_add_two (m : Nat) :
+    (cascadeState8 (m + 2)).g0 = nextGate8 (cascadeState8 m).g0 (cascadeState8 (m + 1)).g0 := by
+  have h1 : (cascadeState8 (m + 1)).g0 = (cascadeState8 m).g1 :=
+    congrArg CascadeState8.g0 (cascadeState8_succ m)
+  have h1' : (cascadeState8 (m + 1)).g1 = nextGate8 (cascadeState8 m).g0 (cascadeState8 m).g1 :=
+    congrArg CascadeState8.g1 (cascadeState8_succ m)
+  have h2 : (cascadeState8 (m + 2)).g0 = (cascadeState8 (m + 1)).g1 :=
+    congrArg CascadeState8.g0 (cascadeState8_succ (m + 1))
+  rw [h2, h1', ← h1]
+
+/-- **Inductive Equivalence Between `windowRunState` and `cascadeState8` (`windowRunState_eq_cascadeState8`):**
+for every `k : Nat`, `(windowRunState k).win` holds the 16 consecutive truth tables
+`(cascadeState8 (k + d)).g0` for `d = 0 .. 15`. -/
+theorem windowRunState_eq_cascadeState8 (k : Nat) :
+    (windowRunState k).win =
+      ⟨(cascadeState8 (k + 0)).g0,  (cascadeState8 (k + 1)).g0,
+       (cascadeState8 (k + 2)).g0,  (cascadeState8 (k + 3)).g0,
+       (cascadeState8 (k + 4)).g0,  (cascadeState8 (k + 5)).g0,
+       (cascadeState8 (k + 6)).g0,  (cascadeState8 (k + 7)).g0,
+       (cascadeState8 (k + 8)).g0,  (cascadeState8 (k + 9)).g0,
+       (cascadeState8 (k + 10)).g0, (cascadeState8 (k + 11)).g0,
+       (cascadeState8 (k + 12)).g0, (cascadeState8 (k + 13)).g0,
+       (cascadeState8 (k + 14)).g0, (cascadeState8 (k + 15)).g0⟩ := by
+  induction k with
+  | zero => decide
+  | succ k ih =>
+    rw [windowRunState_succ k, ih]
+    dsimp only
+    rw [show k + 1 + 0 = k + 1 by omega, show k + 1 + 1 = k + 2 by omega,
+        show k + 1 + 2 = k + 3 by omega, show k + 1 + 3 = k + 4 by omega,
+        show k + 1 + 4 = k + 5 by omega, show k + 1 + 5 = k + 6 by omega,
+        show k + 1 + 6 = k + 7 by omega, show k + 1 + 7 = k + 8 by omega,
+        show k + 1 + 8 = k + 9 by omega, show k + 1 + 9 = k + 10 by omega,
+        show k + 1 + 10 = k + 11 by omega, show k + 1 + 11 = k + 12 by omega,
+        show k + 1 + 12 = k + 13 by omega, show k + 1 + 13 = k + 14 by omega,
+        show k + 1 + 14 = k + 15 by omega, show k + 1 + 15 = (k + 14) + 2 by omega,
+        cascadeState8_g0_add_two (k + 14), show k + 14 + 1 = k + 15 by omega]
+
+theorem windowRunState_allDiffer_of_le {k n : Nat} (hkn : k ≤ n)
+    (hn : (windowRunState n).allDiffer = true) :
+    (windowRunState k).allDiffer = true := by
+  induction n with
+  | zero =>
+    have hk0 : k = 0 := by omega
+    subst hk0; exact hn
+  | succ m ih =>
+    rcases (by omega : k ≤ m ∨ k = m + 1) with hle | rfl
+    · rw [windowRunState_succ] at hn
+      exact ih hle (Bool.and_eq_true_iff.mp hn).1
+    · exact hn
+
+theorem window15DiffersAllStates_of_lt_355 {k : Nat} (hk : k < 355) :
+    window15DiffersAllStates (windowRunState k).win (k % 8) = true := by
+  have hle : k + 1 ≤ 355 := by omega
+  have hall : (windowRunState 355).allDiffer = true := by rw [windowRunState_355_eq]
+  have hk1 := windowRunState_allDiffer_of_le hle hall
+  rw [windowRunState_succ] at hk1
+  exact (Bool.and_eq_true_iff.mp hk1).2
+
+theorem win324_eq_cascade :
+    win324 =
+      ⟨(cascadeState8 (324 + 0)).g0,  (cascadeState8 (324 + 1)).g0,
+       (cascadeState8 (324 + 2)).g0,  (cascadeState8 (324 + 3)).g0,
+       (cascadeState8 (324 + 4)).g0,  (cascadeState8 (324 + 5)).g0,
+       (cascadeState8 (324 + 6)).g0,  (cascadeState8 (324 + 7)).g0,
+       (cascadeState8 (324 + 8)).g0,  (cascadeState8 (324 + 9)).g0,
+       (cascadeState8 (324 + 10)).g0, (cascadeState8 (324 + 11)).g0,
+       (cascadeState8 (324 + 12)).g0, (cascadeState8 (324 + 13)).g0,
+       (cascadeState8 (324 + 14)).g0, (cascadeState8 (324 + 15)).g0⟩ := by
+  have hw := windowRunState_eq_cascadeState8 324
+  rw [windowRunState_324_eq] at hw
+  exact hw
+
+theorem topWindow355_eq_cascade :
+    topWindow355 =
+      ⟨(cascadeState8 (355 + 0)).g0,  (cascadeState8 (355 + 1)).g0,
+       (cascadeState8 (355 + 2)).g0,  (cascadeState8 (355 + 3)).g0,
+       (cascadeState8 (355 + 4)).g0,  (cascadeState8 (355 + 5)).g0,
+       (cascadeState8 (355 + 6)).g0,  (cascadeState8 (355 + 7)).g0,
+       (cascadeState8 (355 + 8)).g0,  (cascadeState8 (355 + 9)).g0,
+       (cascadeState8 (355 + 10)).g0, (cascadeState8 (355 + 11)).g0,
+       (cascadeState8 (355 + 12)).g0, (cascadeState8 (355 + 13)).g0,
+       (cascadeState8 (355 + 14)).g0, (cascadeState8 (355 + 15)).g0⟩ := by
+  have hw := windowRunState_eq_cascadeState8 355
+  rw [windowRunState_355_eq] at hw
+  exact hw
+
+/-- **Unconditional 353-Column Inward Non-Periodicity for All Periods `P ≥ 356` (`not_cell_periodic_ge_three_hundred_fifty_six_at_col_le_neg_add_add_three_hundred_fifty_three`):**
+for every period `P ≥ 356`, every horizon `T`, and every column `c ≤ min(-2985, -((T + P : Nat) : Int) + 353)`,
+column `c` is not eventually `P`-periodic from `T` on. -/
+theorem not_cell_periodic_ge_three_hundred_fifty_six_at_col_le_neg_add_add_three_hundred_fifty_three
+    (c : Int) (T P : Nat) (hP : 356 ≤ P)
+    (hc0 : c ≤ -2985) (hc : c ≤ -((T + P : Nat) : Int) + 353) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) :=
+  not_cell_periodic_of_covering_triple 324 (by decide)
+    win324.g0 win324.g1 win324.g2
+    (congrArg Window16.g0 win324_eq_cascade).symm
+    (congrArg Window16.g1 win324_eq_cascade).symm
+    (congrArg Window16.g2 win324_eq_cascade).symm
+    (by decide) c T P (by omega) hc0 (by omega)
+
+/-- **Unconditional 365-Column Inward Non-Periodicity for All Periods `P ≥ 368` (`not_cell_periodic_ge_three_hundred_sixty_eight_at_col_le_neg_add_add_three_hundred_sixty_five`):**
+for every period `P ≥ 368`, every horizon `T`, and every column `c ≤ min(-2985, -((T + P : Nat) : Int) + 365)`,
+column `c` is not eventually `P`-periodic from `T` on. -/
+theorem not_cell_periodic_ge_three_hundred_sixty_eight_at_col_le_neg_add_add_three_hundred_sixty_five
+    (c : Int) (T P : Nat) (hP : 368 ≤ P)
+    (hc0 : c ≤ -2985) (hc : c ≤ -((T + P : Nat) : Int) + 365) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) :=
+  not_cell_periodic_of_covering_triple 336 (by decide)
+    win324.g12 win324.g13 win324.g14
+    (congrArg Window16.g12 win324_eq_cascade).symm
+    (congrArg Window16.g13 win324_eq_cascade).symm
+    (congrArg Window16.g14 win324_eq_cascade).symm
+    (by decide) c T P (by omega) hc0 (by omega)
+
+/-- **Unconditional 384-Column Inward Non-Periodicity for All Periods `P ≥ 387` (`not_cell_periodic_ge_three_hundred_eighty_seven_at_col_le_neg_add_add_three_hundred_eighty_four`):**
+for every period `P ≥ 387`, every horizon `T`, and every column `c ≤ min(-2985, -((T + P : Nat) : Int) + 384)`,
+column `c` is not eventually `P`-periodic from `T` on. -/
+theorem not_cell_periodic_ge_three_hundred_eighty_seven_at_col_le_neg_add_add_three_hundred_eighty_four
+    (c : Int) (T P : Nat) (hP : 387 ≤ P)
+    (hc0 : c ≤ -2985) (hc : c ≤ -((T + P : Nat) : Int) + 384) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) :=
+  not_cell_periodic_of_covering_triple 355 (by decide)
+    topWindow355.g0 topWindow355.g1 topWindow355.g2
+    (congrArg Window16.g0 topWindow355_eq_cascade).symm
+    (congrArg Window16.g1 topWindow355_eq_cascade).symm
+    (congrArg Window16.g2 topWindow355_eq_cascade).symm
+    (by decide) c T P (by omega) hc0 (by omega)
+
+/-- **Unconditional 392-Column Inward Non-Periodicity for All Periods `P ≥ 395` (`not_cell_periodic_ge_three_hundred_ninety_five_at_col_le_neg_add_add_three_hundred_ninety_two`):**
+for every period `P ≥ 395`, every horizon `T`, and every column `c ≤ min(-2985, -((T + P : Nat) : Int) + 392)`,
+column `c` is not eventually `P`-periodic from `T` on. -/
+theorem not_cell_periodic_ge_three_hundred_ninety_five_at_col_le_neg_add_add_three_hundred_ninety_two
+    (c : Int) (T P : Nat) (hP : 395 ≤ P)
+    (hc0 : c ≤ -2985) (hc : c ≤ -((T + P : Nat) : Int) + 392) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) :=
+  not_cell_periodic_of_covering_triple 363 (by decide)
+    topWindow355.g8 topWindow355.g9 topWindow355.g10
+    (congrArg Window16.g8  topWindow355_eq_cascade).symm
+    (congrArg Window16.g9  topWindow355_eq_cascade).symm
+    (congrArg Window16.g10 topWindow355_eq_cascade).symm
+    (by decide) c T P (by omega) hc0 (by omega)
+
+/-- **General 15-Cell Sliding-Window Mismatch Theorem (`not_window15_match_of_lt_355`):**
+for every `k < 355` and every column `s ≥ 2985`, the 15 consecutive column cells at `s + 29 + k + d`
+(`d = 0 .. 14`) cannot all equal the 15 consecutive column cells at `s + 29 + 355 + d` (`d = 0 .. 14`). -/
+theorem xor_eq_false_of_symm_eq (a b : Bool) (h : b = a) : xor a b = false := by subst h; simp
+theorem not_window15_match_of_lt_355 {k : Nat} (hk : k < 355) (s : Nat) (hs : 2985 ≤ s) :
+    ¬ (∀ d : Nat, d ≤ 14 → cell (s + 29 + 355 + d) (-(s : Int)) = cell (s + 29 + k + d) (-(s : Int))) := by
+  intro hmatch
+  have hdiff := window15DiffersAtState_of_all (windowRunState k).win (k % 8)
+    (window15DiffersAllStates_of_lt_355 hk) (osc3State (s + 29))
+  unfold window15DiffersAtState at hdiff
+  dsimp only at hdiff
+  have ht0 : (cascadeState8 (355 + 0)).g0 = topWindow355.g0 := (congrArg Window16.g0 topWindow355_eq_cascade).symm
+  have hk0 : (cascadeState8 (k + 0)).g0 = (windowRunState k).win.g0 := (congrArg Window16.g0 (windowRunState_eq_cascadeState8 k)).symm
+  have m0 := hmatch 0 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht0, hk0, show (355 % 8 : Nat) = 3 by rfl] at m0
+  have z0 : xor ((windowRunState k).win.g0.eval (osc3StepIter (k % 8) (osc3State (s + 29)))) (topWindow355.g0.eval (osc3StepIter 3 (osc3State (s + 29)))) = false := xor_eq_false_of_symm_eq _ _ m0
+  have ht1 : (cascadeState8 (355 + 1)).g0 = topWindow355.g1 := (congrArg Window16.g1 topWindow355_eq_cascade).symm
+  have hk1 : (cascadeState8 (k + 1)).g0 = (windowRunState k).win.g1 := (congrArg Window16.g1 (windowRunState_eq_cascadeState8 k)).symm
+  have m1 := hmatch 1 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht1, hk1, show (355 % 8 : Nat) = 3 by rfl] at m1
+  have z1 : xor ((windowRunState k).win.g1.eval (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29))))) (topWindow355.g1.eval (osc3Step (osc3StepIter 3 (osc3State (s + 29))))) = false := xor_eq_false_of_symm_eq _ _ m1
+  have ht2 : (cascadeState8 (355 + 2)).g0 = topWindow355.g2 := (congrArg Window16.g2 topWindow355_eq_cascade).symm
+  have hk2 : (cascadeState8 (k + 2)).g0 = (windowRunState k).win.g2 := (congrArg Window16.g2 (windowRunState_eq_cascadeState8 k)).symm
+  have m2 := hmatch 2 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht2, hk2, show (355 % 8 : Nat) = 3 by rfl] at m2
+  have z2 : xor ((windowRunState k).win.g2.eval (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29)))))) (topWindow355.g2.eval (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29)))))) = false := xor_eq_false_of_symm_eq _ _ m2
+  have ht3 : (cascadeState8 (355 + 3)).g0 = topWindow355.g3 := (congrArg Window16.g3 topWindow355_eq_cascade).symm
+  have hk3 : (cascadeState8 (k + 3)).g0 = (windowRunState k).win.g3 := (congrArg Window16.g3 (windowRunState_eq_cascadeState8 k)).symm
+  have m3 := hmatch 3 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht3, hk3, show (355 % 8 : Nat) = 3 by rfl] at m3
+  have z3 : xor ((windowRunState k).win.g3.eval (osc3Step (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29))))))) (topWindow355.g3.eval (osc3Step (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29))))))) = false := xor_eq_false_of_symm_eq _ _ m3
+  have ht4 : (cascadeState8 (355 + 4)).g0 = topWindow355.g4 := (congrArg Window16.g4 topWindow355_eq_cascade).symm
+  have hk4 : (cascadeState8 (k + 4)).g0 = (windowRunState k).win.g4 := (congrArg Window16.g4 (windowRunState_eq_cascadeState8 k)).symm
+  have m4 := hmatch 4 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht4, hk4, show (355 % 8 : Nat) = 3 by rfl] at m4
+  have z4 : xor ((windowRunState k).win.g4.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29)))))))) (topWindow355.g4.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29)))))))) = false := xor_eq_false_of_symm_eq _ _ m4
+  have ht5 : (cascadeState8 (355 + 5)).g0 = topWindow355.g5 := (congrArg Window16.g5 topWindow355_eq_cascade).symm
+  have hk5 : (cascadeState8 (k + 5)).g0 = (windowRunState k).win.g5 := (congrArg Window16.g5 (windowRunState_eq_cascadeState8 k)).symm
+  have m5 := hmatch 5 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht5, hk5, show (355 % 8 : Nat) = 3 by rfl] at m5
+  have z5 : xor ((windowRunState k).win.g5.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29))))))))) (topWindow355.g5.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29))))))))) = false := xor_eq_false_of_symm_eq _ _ m5
+  have ht6 : (cascadeState8 (355 + 6)).g0 = topWindow355.g6 := (congrArg Window16.g6 topWindow355_eq_cascade).symm
+  have hk6 : (cascadeState8 (k + 6)).g0 = (windowRunState k).win.g6 := (congrArg Window16.g6 (windowRunState_eq_cascadeState8 k)).symm
+  have m6 := hmatch 6 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht6, hk6, show (355 % 8 : Nat) = 3 by rfl] at m6
+  have z6 : xor ((windowRunState k).win.g6.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29)))))))))) (topWindow355.g6.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29)))))))))) = false := xor_eq_false_of_symm_eq _ _ m6
+  have ht7 : (cascadeState8 (355 + 7)).g0 = topWindow355.g7 := (congrArg Window16.g7 topWindow355_eq_cascade).symm
+  have hk7 : (cascadeState8 (k + 7)).g0 = (windowRunState k).win.g7 := (congrArg Window16.g7 (windowRunState_eq_cascadeState8 k)).symm
+  have m7 := hmatch 7 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht7, hk7, show (355 % 8 : Nat) = 3 by rfl] at m7
+  have z7 : xor ((windowRunState k).win.g7.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29))))))))))) (topWindow355.g7.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29))))))))))) = false := xor_eq_false_of_symm_eq _ _ m7
+  have ht8 : (cascadeState8 (355 + 8)).g0 = topWindow355.g8 := (congrArg Window16.g8 topWindow355_eq_cascade).symm
+  have hk8 : (cascadeState8 (k + 8)).g0 = (windowRunState k).win.g8 := (congrArg Window16.g8 (windowRunState_eq_cascadeState8 k)).symm
+  have m8 := hmatch 8 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht8, hk8, show (355 % 8 : Nat) = 3 by rfl] at m8
+  have z8 : xor ((windowRunState k).win.g8.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29)))))))))))) (topWindow355.g8.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29)))))))))))) = false := xor_eq_false_of_symm_eq _ _ m8
+  have ht9 : (cascadeState8 (355 + 9)).g0 = topWindow355.g9 := (congrArg Window16.g9 topWindow355_eq_cascade).symm
+  have hk9 : (cascadeState8 (k + 9)).g0 = (windowRunState k).win.g9 := (congrArg Window16.g9 (windowRunState_eq_cascadeState8 k)).symm
+  have m9 := hmatch 9 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht9, hk9, show (355 % 8 : Nat) = 3 by rfl] at m9
+  have z9 : xor ((windowRunState k).win.g9.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29))))))))))))) (topWindow355.g9.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29))))))))))))) = false := xor_eq_false_of_symm_eq _ _ m9
+  have ht10 : (cascadeState8 (355 + 10)).g0 = topWindow355.g10 := (congrArg Window16.g10 topWindow355_eq_cascade).symm
+  have hk10 : (cascadeState8 (k + 10)).g0 = (windowRunState k).win.g10 := (congrArg Window16.g10 (windowRunState_eq_cascadeState8 k)).symm
+  have m10 := hmatch 10 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht10, hk10, show (355 % 8 : Nat) = 3 by rfl] at m10
+  have z10 : xor ((windowRunState k).win.g10.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29)))))))))))))) (topWindow355.g10.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29)))))))))))))) = false := xor_eq_false_of_symm_eq _ _ m10
+  have ht11 : (cascadeState8 (355 + 11)).g0 = topWindow355.g11 := (congrArg Window16.g11 topWindow355_eq_cascade).symm
+  have hk11 : (cascadeState8 (k + 11)).g0 = (windowRunState k).win.g11 := (congrArg Window16.g11 (windowRunState_eq_cascadeState8 k)).symm
+  have m11 := hmatch 11 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht11, hk11, show (355 % 8 : Nat) = 3 by rfl] at m11
+  have z11 : xor ((windowRunState k).win.g11.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29))))))))))))))) (topWindow355.g11.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29))))))))))))))) = false := xor_eq_false_of_symm_eq _ _ m11
+  have ht12 : (cascadeState8 (355 + 12)).g0 = topWindow355.g12 := (congrArg Window16.g12 topWindow355_eq_cascade).symm
+  have hk12 : (cascadeState8 (k + 12)).g0 = (windowRunState k).win.g12 := (congrArg Window16.g12 (windowRunState_eq_cascadeState8 k)).symm
+  have m12 := hmatch 12 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht12, hk12, show (355 % 8 : Nat) = 3 by rfl] at m12
+  have z12 : xor ((windowRunState k).win.g12.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29)))))))))))))))) (topWindow355.g12.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29)))))))))))))))) = false := xor_eq_false_of_symm_eq _ _ m12
+  have ht13 : (cascadeState8 (355 + 13)).g0 = topWindow355.g13 := (congrArg Window16.g13 topWindow355_eq_cascade).symm
+  have hk13 : (cascadeState8 (k + 13)).g0 = (windowRunState k).win.g13 := (congrArg Window16.g13 (windowRunState_eq_cascadeState8 k)).symm
+  have m13 := hmatch 13 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht13, hk13, show (355 % 8 : Nat) = 3 by rfl] at m13
+  have z13 : xor ((windowRunState k).win.g13.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29))))))))))))))))) (topWindow355.g13.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29))))))))))))))))) = false := xor_eq_false_of_symm_eq _ _ m13
+  have ht14 : (cascadeState8 (355 + 14)).g0 = topWindow355.g14 := (congrArg Window16.g14 topWindow355_eq_cascade).symm
+  have hk14 : (cascadeState8 (k + 14)).g0 = (windowRunState k).win.g14 := (congrArg Window16.g14 (windowRunState_eq_cascadeState8 k)).symm
+  have m14 := hmatch 14 (by decide); rw [col_at_twenty_nine_add (by omega) s hs, col_at_twenty_nine_add (by omega) s hs, ht14, hk14, show (355 % 8 : Nat) = 3 by rfl] at m14
+  have z14 : xor ((windowRunState k).win.g14.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter (k % 8) (osc3State (s + 29)))))))))))))))))) (topWindow355.g14.eval (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3Step (osc3StepIter 3 (osc3State (s + 29)))))))))))))))))) = false := xor_eq_false_of_symm_eq _ _ m14
+  rw [z0, z1, z2, z3, z4, z5, z6, z7, z8, z9, z10, z11, z12, z13, z14] at hdiff
+  cases hdiff
+
+/-- **Unconditional 384-Column Inward Non-Periodicity for All Periods `1 ≤ P ≤ 355` (`not_cell_periodic_le_three_hundred_fifty_five_at_col_le_neg_add_add_three_hundred_eighty_four`):**
+for every period `1 ≤ P ≤ 355`, every horizon `T`, and every column `c ≤ min(-2985, -((T + P : Nat) : Int) + 384)`,
+column `c` is not eventually `P`-periodic from `T` on. -/
+theorem not_cell_periodic_le_three_hundred_fifty_five_at_col_le_neg_add_add_three_hundred_eighty_four
+    (c : Int) (T P : Nat) (hP0 : 0 < P) (hP : P ≤ 355)
+    (hc0 : c ≤ -2985) (hc : c ≤ -((T + P : Nat) : Int) + 384) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hs_eq : (-(s : Int)) = c := by omega
+  have hs2985 : 2985 ≤ s := by omega
+  let k : Nat := 355 - P
+  have hk : k < 355 := by omega
+  apply not_window15_match_of_lt_355 hk s hs2985
+  intro d hd
+  have hp := hper (s + 29 + k + d) (by omega)
+  rw [show s + 29 + k + d + P = s + 29 + 355 + d by omega] at hp
+  rw [hs_eq]
+  exact hp
+
+/-- **Unconditional 384-Column Inward Non-Periodicity for All Periods `1 ≤ P ≤ 355` and `P ≥ 387` (`not_cell_periodic_at_col_le_neg_add_add_three_hundred_eighty_four_of_outside_gap`):**
+for every period `P` with `1 ≤ P ≤ 355 ∨ 387 ≤ P`, every horizon `T`, and every column `c ≤ min(-2985, -((T + P : Nat) : Int) + 384)`,
+column `c` is not eventually `P`-periodic from `T` on. -/
+theorem not_cell_periodic_at_col_le_neg_add_add_three_hundred_eighty_four_of_outside_gap
+    (c : Int) (T P : Nat) (hP : (1 ≤ P ∧ P ≤ 355) ∨ 387 ≤ P)
+    (hc0 : c ≤ -2985) (hc : c ≤ -((T + P : Nat) : Int) + 384) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  rcases hP with ⟨h1, h355⟩ | h387
+  · exact not_cell_periodic_le_three_hundred_fifty_five_at_col_le_neg_add_add_three_hundred_eighty_four
+      c T P (by omega) h355 hc0 hc
+  · exact not_cell_periodic_ge_three_hundred_eighty_seven_at_col_le_neg_add_add_three_hundred_eighty_four
+      c T P h387 hc0 hc
+
+/-- **All-Period Unconditional 353-Column Inward Non-Periodicity Theorem (`not_cell_periodic_at_col_le_neg_add_add_three_hundred_fifty_three`):**
+for **every positive period `P > 0`**, every horizon `T : Nat`, and every column `c ≤ min(-2985, -((T + P : Nat) : Int) + 353)`,
+`¬ (∀ t ≥ T, cell (t + P) c = cell t c)`. -/
+theorem not_cell_periodic_at_col_le_neg_add_add_three_hundred_fifty_three
+    (c : Int) (T P : Nat) (hP : 0 < P)
+    (hc0 : c ≤ -2985) (hc : c ≤ -((T + P : Nat) : Int) + 353) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  rcases (by omega : P ≤ 355 ∨ 356 ≤ P) with h355 | h356
+  · exact not_cell_periodic_le_three_hundred_fifty_five_at_col_le_neg_add_add_three_hundred_eighty_four
+      c T P hP h355 hc0 (by omega)
+  · exact not_cell_periodic_ge_three_hundred_fifty_six_at_col_le_neg_add_add_three_hundred_fifty_three
+      c T P h356 hc0 hc
+
+end Inward353To392AllPeriods
+
 end Ruliology.CellularAutomata.Rule30TraceEdge
