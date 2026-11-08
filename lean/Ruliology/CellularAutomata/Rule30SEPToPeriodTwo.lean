@@ -23,16 +23,22 @@ or `BWH` is proved here, so no period is excluded.
 **Relation to `Rule30PeriodTwo.Q01` and to mortality.** Proved: `BWH` with `SmallRW` implies `RW`
 (`bwh_implies_rw`), `RW` implies `SEP` (`rw_implies_orbit_separator`), `SEP` and `ConstantTailSeparator`
 are equivalent (`Rule30SeparatorEquivalences.separator_equivalence`), and each of them gives
-`PeriodTwoExcluded`. In `Rule30AlternatingTraceBridge`, mortality of the auxiliary frontier implies
-`Q01` (`Q01_of_mortality`) and `PeriodTwoExcluded`, and `Q01` excludes an eventual period two of the
-official center column (`Rule30PeriodTwo.not_eventually_period_two_of_Q01`) and every left-finite
-row with center `1, 0, 1, 0, …` (`Rule30PeriodTwoSideways.Q01_no_leftfinite_alternating`). No
-implication in either direction is proved between `SEP`, `RW` or `BWH` on one side and `Q01` or mortality
-on the other. The chart here uses the right half of the row: `actual_endpoint_hardcore` gets the
-hard-core property of the endpoint stream from the rule at column `1` (`right_no11`), while `Q01` and
-the history of `Rule30AlternatingTraceBridge.immortalFromHistory` have no right half. So `SEP`, `RW` and
-`BWH` are reductions of period two that are separate from `Q01` and from mortality, with no known
-order of strength.
+`PeriodTwoExcluded`. Mortality of the auxiliary frontier is equivalent to `Q01`
+(`Rule30AlternatingTraceBridge.Q01_of_mortality`, `Rule30AlternatingTraceBridge.mortality_iff_survival`,
+`Rule30FrontierChart.mortality_iff_Q01`), and `Q01` excludes an eventual period two of the official
+center column (`Rule30PeriodTwo.not_eventually_period_two_of_Q01`) and every left-finite row with
+center `1, 0, 1, 0, …` (`Rule30PeriodTwoSideways.Q01_no_leftfinite_alternating`).
+`Rule30SeparatorQ01` places the hypotheses against `Q01` (stated there as `Rule30ZeroBoundary.Q01`,
+which is `Rule30PeriodTwo.Q01` by `Rule30ZeroBoundary.Q01_iff_staged`): `Q01` implies `SEP`
+(`Q01_sep`), and `SEP` is exactly `Q01` for the constrained starts whose free bits have no two adjacent
+white bits (`sep_iff_QN`); `BWH` is equivalent to exact-width death-time bounds and implies `Q01`
+(`bwh_iff_deathBounds`, `bwh_Q01`). So `BWH ⇒ RW ⇒ SEP` and `BWH ⇒ Q01 ⇒ SEP`, with `Q01` equivalent to
+mortality. Open: whether `SEP` or `RW` implies `Q01`, and whether `Q01` implies `RW` or `BWH`. By
+`Rule30SeparatorQ01.Q01_iff_sep_and`, under `SEP` a finitely supported constrained start could only
+have free bits that meet two adjacent white bits infinitely often. The chart here uses the right half
+of the row: `actual_endpoint_hardcore` gets the hard-core property of the endpoint stream from the rule
+at column `1` (`right_no11`). The zero-boundary chart of `Rule30SeparatorQ01` uses no right half; there
+the hard-core property is that condition on the free bits.
 -/
 
 @[expose] public section
