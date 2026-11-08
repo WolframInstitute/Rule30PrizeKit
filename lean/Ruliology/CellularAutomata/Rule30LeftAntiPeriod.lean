@@ -6660,6 +6660,476 @@ theorem evAntiPer_D_fifty_two : EvAntiPer (D 52) 4 :=
 theorem halfDensity_D_fifty_two : HalfDensity (D 52) :=
   halfDensity_of_antiperiodic (by omega) evAntiPer_D_fifty_two
 
+/-! ### 17. Eight-State Cascade Closure Criterion, Exact 370-Step Horizon to `D 399`, and Four-Bit Period-16 Oscillator Extension at `D 400` -/
+
+set_option maxRecDepth 200000
+set_option maxHeartbeats 800000
+
+/-- State of the 3-bit period-8 oscillator `(D 8 t, D 10 t, D 29 t)` at time `t`. -/
+def osc3State (t : Nat) : (Bool × Bool) × Bool :=
+  ((D 8 t, D 10 t), D 29 t)
+
+/-- Closed deterministic transition map `(x, y, z) ↦ (y, !x, xor (!(x && y)) z)` on the 8-state system. -/
+def osc3Step (s : (Bool × Bool) × Bool) : (Bool × Bool) × Bool :=
+  ((s.1.2, !s.1.1), xor (!(s.1.1 && s.1.2)) s.2)
+
+/-- **One-Step Autonomous Evolution of `osc3State` (`osc3State_succ`):**
+for every `t ≥ 32`, `osc3State (t + 1) = osc3Step (osc3State t)`. -/
+theorem osc3State_succ (t : Nat) (ht : 32 ≤ t) :
+    osc3State (t + 1) = osc3Step (osc3State t) := by
+  unfold osc3State osc3Step
+  rw [D_eight_succ_eq_D_ten t (by omega), D_ten_succ_eq_not_D_eight t (by omega),
+      D_twenty_nine_step_closed t (by omega)]
+
+/-- **Eight-Step Periodicity of `osc3State` (`osc3State_periodic_eight`):**
+for every `t ≥ 32`, `osc3State (t + 8) = osc3State t`. -/
+theorem osc3State_periodic_eight (t : Nat) (ht : 32 ≤ t) :
+    osc3State (t + 8) = osc3State t := by
+  unfold osc3State
+  rw [show t + 8 = (t + 4) + 4 by omega,
+      D_eight_periodic_four (t + 4) (by omega), D_eight_periodic_four t (by omega),
+      D_ten_periodic_four (t + 4) (by omega), D_ten_periodic_four t (by omega),
+      D_twenty_nine_antiperiodic_four (t + 4) (by omega), D_twenty_nine_antiperiodic_four t (by omega),
+      Bool.not_not]
+
+/-- Compact 8-bit truth table on the 8 states of `(D 8 t, D 10 t, D 29 t)`. -/
+structure Gate8 where
+  b000 : Bool
+  b001 : Bool
+  b010 : Bool
+  b011 : Bool
+  b100 : Bool
+  b101 : Bool
+  b110 : Bool
+  b111 : Bool
+  deriving DecidableEq
+
+/-- Evaluation of a compact 8-bit truth table `g : Gate8` on a state `s : (Bool × Bool) × Bool`. -/
+def Gate8.eval (g : Gate8) (s : (Bool × Bool) × Bool) : Bool :=
+  match s.1.1, s.1.2, s.2 with
+  | false, false, false => g.b000
+  | false, false, true  => g.b001
+  | false, true,  false => g.b010
+  | false, true,  true  => g.b011
+  | true,  false, false => g.b100
+  | true,  false, true  => g.b101
+  | true,  true,  false => g.b110
+  | true,  true,  true  => g.b111
+
+/-- One-step 8-cycle unrolling helper starting from state `s` and initial bit `b`. -/
+def unroll8From (g0 g1 : Gate8) (s : (Bool × Bool) × Bool) (b : Bool) : Bool :=
+  let s1 := osc3Step s
+  let s2 := osc3Step s1
+  let s3 := osc3Step s2
+  let s4 := osc3Step s3
+  let s5 := osc3Step s4
+  let s6 := osc3Step s5
+  let s7 := osc3Step s6
+  let b1 := xor (g0.eval s) (g1.eval s || b)
+  let b2 := xor (g0.eval s1) (g1.eval s1 || b1)
+  let b3 := xor (g0.eval s2) (g1.eval s2 || b2)
+  let b4 := xor (g0.eval s3) (g1.eval s3 || b3)
+  let b5 := xor (g0.eval s4) (g1.eval s4 || b4)
+  let b6 := xor (g0.eval s5) (g1.eval s5 || b5)
+  let b7 := xor (g0.eval s6) (g1.eval s6 || b6)
+  xor (g0.eval s7) (g1.eval s7 || b7)
+
+/-- Deterministic truth-table transfer operator `nextGate8 g0 g1` on `Gate8`. -/
+def nextGate8 (g0 g1 : Gate8) : Gate8 :=
+  { b000 := unroll8From g0 g1 ((false, false), false) false
+    b001 := unroll8From g0 g1 ((false, false), true)  false
+    b010 := unroll8From g0 g1 ((false, true),  false) false
+    b011 := unroll8From g0 g1 ((false, true),  true)  false
+    b100 := unroll8From g0 g1 ((true,  false), false) false
+    b101 := unroll8From g0 g1 ((true,  false), true)  false
+    b110 := unroll8From g0 g1 ((true,  true),  false) false
+    b111 := unroll8From g0 g1 ((true,  true),  true)  false }
+
+/-- Boolean test whether `g : Gate8` is non-white (has at least one `true` entry). -/
+def Gate8.isNonWhite (g : Gate8) : Bool :=
+  g.b000 || g.b001 || g.b010 || g.b011 || g.b100 || g.b101 || g.b110 || g.b111
+
+/-- Eight-state XOR parity of `g : Gate8`. -/
+def Gate8.xorParity (g : Gate8) : Bool :=
+  xor (xor (xor g.b000 g.b001) (xor g.b010 g.b011))
+      (xor (xor g.b100 g.b101) (xor g.b110 g.b111))
+
+/-- **Eight-Step Memory-Erasure Law on `Gate8` (`unroll8From_eq_nextGate8_eval`):**
+whenever `g1.isNonWhite = true`, unrolling 8 steps of the Rule 30 diagonal recurrence from any
+state `s` and any initial bit `b : Bool` yields `(nextGate8 g0 g1).eval s` independent of `b`. -/
+theorem unroll8From_eq_nextGate8_eval (g0 g1 : Gate8)
+    (h1 : g1.isNonWhite = true) (s : (Bool × Bool) × Bool) (b : Bool) :
+    unroll8From g0 g1 s b = (nextGate8 g0 g1).eval s := by
+  rcases s with ⟨⟨x, y⟩, z⟩
+  cases b
+  · cases x <;> cases y <;> cases z <;> rfl
+  · rcases g1 with ⟨c0, c1, c2, c3, c4, c5, c6, c7⟩
+    unfold Gate8.isNonWhite at h1
+    revert h1
+    cases c0
+    · cases c1
+      · cases c2
+        · cases c3
+          · cases c4
+            · cases c5
+              · cases c6
+                · cases c7
+                  · intro h1; cases h1
+                  · intro _; cases x <;> cases y <;> cases z <;> rfl
+                · intro _; cases x <;> cases y <;> cases z <;> rfl
+              · intro _; cases x <;> cases y <;> cases z <;> rfl
+            · intro _; cases x <;> cases y <;> cases z <;> rfl
+          · intro _; cases x <;> cases y <;> cases z <;> rfl
+        · intro _; cases x <;> cases y <;> cases z <;> rfl
+      · intro _; cases x <;> cases y <;> cases z <;> rfl
+    · intro _; cases x <;> cases y <;> cases z <;> rfl
+
+/-- **General Eight-State Cascade Closure Theorem (`D_stays_in_eight_state_system_of_nonwhite`):**
+for any diagonal index `j` and horizon `t0 ≥ 32`, if `D j t = g0.eval (osc3State t)` and
+`D (j + 1) t = g1.eval (osc3State t)` for all `t ≥ t0`, and `g1.isNonWhite = true`, then
+for every `t ≥ t0 + 8`, `D (j + 2) t = (nextGate8 g0 g1).eval (osc3State t)`. -/
+theorem D_stays_in_eight_state_system_of_nonwhite (j t0 : Nat) (ht0 : 32 ≤ t0)
+    (g0 g1 : Gate8)
+    (hg0 : ∀ t : Nat, t0 ≤ t → D j t = g0.eval (osc3State t))
+    (hg1 : ∀ t : Nat, t0 ≤ t → D (j + 1) t = g1.eval (osc3State t))
+    (h1 : g1.isNonWhite = true) :
+    ∀ t : Nat, t0 + 8 ≤ t → D (j + 2) t = (nextGate8 g0 g1).eval (osc3State t) := by
+  intro t ht
+  have hu : t0 ≤ t - 8 := by omega
+  have ht_eq : t = (t - 8) + 8 := by omega
+  generalize h_u : t - 8 = u at hu ht_eq
+  have st0 := D_step j u
+  have st1 := D_step j (u + 1)
+  have st2 := D_step j (u + 2)
+  have st3 := D_step j (u + 3)
+  have st4 := D_step j (u + 4)
+  have st5 := D_step j (u + 5)
+  have st6 := D_step j (u + 6)
+  have st7 := D_step j (u + 7)
+  have o1 := osc3State_succ u (by omega)
+  have o2 := osc3State_succ (u + 1) (by omega)
+  have o3 := osc3State_succ (u + 2) (by omega)
+  have o4 := osc3State_succ (u + 3) (by omega)
+  have o5 := osc3State_succ (u + 4) (by omega)
+  have o6 := osc3State_succ (u + 5) (by omega)
+  have o7 := osc3State_succ (u + 6) (by omega)
+  rw [show u + 1 + 1 = u + 2 by omega] at o2 st1
+  rw [show u + 2 + 1 = u + 3 by omega] at o3 st2
+  rw [show u + 3 + 1 = u + 4 by omega] at o4 st3
+  rw [show u + 4 + 1 = u + 5 by omega] at o5 st4
+  rw [show u + 5 + 1 = u + 6 by omega] at o6 st5
+  rw [show u + 6 + 1 = u + 7 by omega] at o7 st6
+  rw [show u + 7 + 1 = u + 8 by omega] at st7
+  rw [hg0 u hu, hg1 u hu] at st0
+  rw [hg0 (u + 1) (by omega), hg1 (u + 1) (by omega), o1] at st1
+  rw [hg0 (u + 2) (by omega), hg1 (u + 2) (by omega), o2, o1] at st2
+  rw [hg0 (u + 3) (by omega), hg1 (u + 3) (by omega), o3, o2, o1] at st3
+  rw [hg0 (u + 4) (by omega), hg1 (u + 4) (by omega), o4, o3, o2, o1] at st4
+  rw [hg0 (u + 5) (by omega), hg1 (u + 5) (by omega), o5, o4, o3, o2, o1] at st5
+  rw [hg0 (u + 6) (by omega), hg1 (u + 6) (by omega), o6, o5, o4, o3, o2, o1] at st6
+  rw [hg0 (u + 7) (by omega), hg1 (u + 7) (by omega), o7, o6, o5, o4, o3, o2, o1] at st7
+  have h_era := unroll8From_eq_nextGate8_eval g0 g1 h1 (osc3State u) (D (j + 2) u)
+  unfold unroll8From at h_era
+  dsimp only at h_era
+  rw [← st0, ← st1, ← st2, ← st3, ← st4, ← st5, ← st6, ← st7] at h_era
+  rw [ht_eq, osc3State_periodic_eight u (by omega), h_era]
+
+/-- Strict normalizer forcing a `Bool` to a literal `true` or `false` before continuing. -/
+def withStrictBool {α : Type} (b : Bool) (k : Bool → α) : α :=
+  match b with
+  | true => k true
+  | false => k false
+
+theorem withStrictBool_eq {α : Type} (b : Bool) (k : Bool → α) :
+    withStrictBool b k = k b := by
+  cases b <;> rfl
+
+/-- Strict normalizer forcing all 8 fields of `g : Gate8` to literal `true`/`false` before continuing. -/
+def withStrictGate8 {α : Type} (g : Gate8) (k : Gate8 → α) : α :=
+  withStrictBool g.b000 fun v0 =>
+  withStrictBool g.b001 fun v1 =>
+  withStrictBool g.b010 fun v2 =>
+  withStrictBool g.b011 fun v3 =>
+  withStrictBool g.b100 fun v4 =>
+  withStrictBool g.b101 fun v5 =>
+  withStrictBool g.b110 fun v6 =>
+  withStrictBool g.b111 fun v7 =>
+  k ⟨v0, v1, v2, v3, v4, v5, v6, v7⟩
+
+theorem withStrictGate8_eq {α : Type} (g : Gate8) (k : Gate8 → α) :
+    withStrictGate8 g k = k g := by
+  rcases g with ⟨v0, v1, v2, v3, v4, v5, v6, v7⟩
+  unfold withStrictGate8
+  rw [withStrictBool_eq, withStrictBool_eq, withStrictBool_eq, withStrictBool_eq,
+      withStrictBool_eq, withStrictBool_eq, withStrictBool_eq, withStrictBool_eq]
+
+/-- Initial 8-bit truth table for `D 29` (`s.2`). -/
+def gate8_D29 : Gate8 := ⟨false, true, false, true, false, true, false, true⟩
+
+/-- Initial 8-bit truth table for `D 30` (`true`). -/
+def gate8_D30 : Gate8 := ⟨true, true, true, true, true, true, true, true⟩
+
+/-- Combined state `(g0, g1, allNonWhite)` for linear `O(k)` kernel evaluation of the 8-state cascade. -/
+structure CascadeState8 where
+  g0 : Gate8
+  g1 : Gate8
+  allNonWhite : Bool
+  deriving DecidableEq
+
+/-- One-step strict transition on `CascadeState8` that forces `ok'` and `g2` to literals before constructing the state. -/
+def nextCascadeState8 (st : CascadeState8) : CascadeState8 :=
+  withStrictGate8 st.g0 fun g0 =>
+  withStrictGate8 st.g1 fun g1 =>
+  withStrictBool (st.allNonWhite && g1.isNonWhite) fun ok' =>
+  withStrictGate8 (nextGate8 g0 g1) fun g2 =>
+  ⟨g1, g2, ok'⟩
+
+/-- Iterated 8-state cascade `cascadeState8 k` representing `(D (29 + k), D (30 + k), allNonWhiteUpTo k)`. -/
+def cascadeState8 : Nat → CascadeState8
+  | 0 => ⟨gate8_D29, gate8_D30, true⟩
+  | k + 1 => nextCascadeState8 (cascadeState8 k)
+
+theorem cascadeState8_succ (k : Nat) :
+    cascadeState8 (k + 1) =
+      ⟨(cascadeState8 k).g1, nextGate8 (cascadeState8 k).g0 (cascadeState8 k).g1,
+       (cascadeState8 k).allNonWhite && (cascadeState8 k).g1.isNonWhite⟩ := by
+  change nextCascadeState8 (cascadeState8 k) = _
+  unfold nextCascadeState8
+  rw [withStrictGate8_eq, withStrictGate8_eq, withStrictBool_eq, withStrictGate8_eq]
+
+/-- **Exact 369-Step Non-White Cascade Prefix (`cascadeState8_369_allNonWhite`):**
+for all `m < 369` (covering `D 30` through `D 398`), `(cascadeState8 m).g1.isNonWhite = true`. -/
+theorem cascadeState8_369_allNonWhite : (cascadeState8 369).allNonWhite = true := by decide
+
+theorem cascadeState8_369_g1_eq_white :
+    (cascadeState8 369).g1 = ⟨false, false, false, false, false, false, false, false⟩ := by decide
+
+theorem cascadeState8_369_g0_odd_parity : (cascadeState8 369).g0.xorParity = true := by decide
+
+/-- **Inductive `N`-Step Gate-Cascade Theorem on the 8-State System (`D_twenty_nine_add_eq_cascadeState8`):**
+for every `k : Nat`, if `(cascadeState8 k).allNonWhite = true`, then for all `t ≥ 33 + 8 * k`,
+`D (29 + k) t = (cascadeState8 k).g0.eval (osc3State t)` and
+`D (30 + k) t = (cascadeState8 k).g1.eval (osc3State t)`. -/
+theorem D_twenty_nine_add_eq_cascadeState8 : ∀ k : Nat,
+    (cascadeState8 k).allNonWhite = true →
+    (∀ t : Nat, 33 + 8 * k ≤ t → D (29 + k) t = (cascadeState8 k).g0.eval (osc3State t)) ∧
+    (∀ t : Nat, 33 + 8 * k ≤ t → D (30 + k) t = (cascadeState8 k).g1.eval (osc3State t))
+  | 0, _ => by
+    refine ⟨?_, ?_⟩
+    · intro t _
+      unfold cascadeState8 gate8_D29 osc3State Gate8.eval
+      cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+    · intro t ht
+      rw [D_thirty_eq_true t (Nat.le_trans (by decide) ht)]
+      unfold cascadeState8 gate8_D30 osc3State Gate8.eval
+      cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+  | k + 1, hall => by
+    rw [cascadeState8_succ] at hall ⊢
+    rcases Bool.and_eq_true_iff.mp hall with ⟨hk, hnw⟩
+    rcases D_twenty_nine_add_eq_cascadeState8 k hk with ⟨ih1, ih2⟩
+    refine ⟨?_, ?_⟩
+    · intro t ht
+      rw [show 29 + (k + 1) = 30 + k by omega]
+      exact ih2 t (by omega)
+    · intro t ht
+      rw [show 30 + (k + 1) = (29 + k) + 2 by omega]
+      exact D_stays_in_eight_state_system_of_nonwhite (29 + k) (33 + 8 * k) (by omega)
+        (cascadeState8 k).g0 (cascadeState8 k).g1 ih1
+        (fun s hs => by rw [show 29 + k + 1 = 30 + k by omega]; exact ih2 s hs)
+        hnw t (by omega)
+
+/-- Monotonicity of `allNonWhite`: if `(cascadeState8 n).allNonWhite = true` and `k ≤ n`,
+then `(cascadeState8 k).allNonWhite = true`. -/
+theorem cascadeState8_allNonWhite_of_le {k n : Nat} (hkn : k ≤ n)
+    (hn : (cascadeState8 n).allNonWhite = true) :
+    (cascadeState8 k).allNonWhite = true := by
+  induction n with
+  | zero =>
+    have hk0 : k = 0 := by omega
+    subst hk0; exact hn
+  | succ m ih =>
+    rcases (by omega : k ≤ m ∨ k = m + 1) with hle | rfl
+    · rw [cascadeState8_succ] at hn
+      exact ih hle (Bool.and_eq_true_iff.mp hn).1
+    · exact hn
+
+/-- **Uniform Period-8 Closure Across All 371 Diagonals `D 29 .. D 399` (`D_twenty_nine_add_periodic_eight`):**
+for every offset `k ≤ 369` and every `t ≥ 33 + 8 * k`, both `D (29 + k)` and `D (30 + k)` are
+8-periodic from `33 + 8 * k` on (`D (29 + k) (t + 8) = D (29 + k) t` and `D (30 + k) (t + 8) = D (30 + k) t`),
+covering every diagonal `D 29` through `D 399`. -/
+theorem D_twenty_nine_add_periodic_eight {k : Nat} (hk : k ≤ 369) (t : Nat) (ht : 33 + 8 * k ≤ t) :
+    D (29 + k) (t + 8) = D (29 + k) t ∧ D (30 + k) (t + 8) = D (30 + k) t := by
+  have hall := cascadeState8_allNonWhite_of_le hk cascadeState8_369_allNonWhite
+  rcases D_twenty_nine_add_eq_cascadeState8 k hall with ⟨h29, h30⟩
+  refine ⟨?_, ?_⟩
+  · rw [h29 (t + 8) (by omega), h29 t ht, osc3State_periodic_eight t (by omega)]
+  · rw [h30 (t + 8) (by omega), h30 t ht, osc3State_periodic_eight t (by omega)]
+
+/-- **Exact Eight-State Gate Law for `D 398` (`D_three_hundred_ninety_eight_eq_gate`):**
+for every `t ≥ 2985` (`33 + 8 * 369`), `D 398 t = (cascadeState8 369).g0.eval (osc3State t)`. -/
+theorem D_three_hundred_ninety_eight_eq_gate (t : Nat) (ht : 2985 ≤ t) :
+    D 398 t = (cascadeState8 369).g0.eval (osc3State t) := by
+  have h := (D_twenty_nine_add_eq_cascadeState8 369 cascadeState8_369_allNonWhite).1 t (by omega)
+  rw [show (29 + 369 : Nat) = 398 by rfl] at h
+  exact h
+
+/-- **Fourth All-White Left Diagonal at `D 399` (`D_three_hundred_ninety_nine_eq_false`):**
+for every `t ≥ 2985` (`33 + 8 * 369`), `D 399 t = false`. -/
+theorem D_three_hundred_ninety_nine_eq_false (t : Nat) (ht : 2985 ≤ t) :
+    D 399 t = false := by
+  have h := (D_twenty_nine_add_eq_cascadeState8 369 cascadeState8_369_allNonWhite).2 t (by omega)
+  rw [show (30 + 369 : Nat) = 399 by rfl, cascadeState8_369_g1_eq_white] at h
+  rw [h]
+  unfold osc3State Gate8.eval
+  cases D 8 t <;> cases D 10 t <;> cases D 29 t <;> rfl
+
+theorem D_step_eq_xor_of_white (j t : Nat) (hw : D (j + 1) t = false) :
+    D (j + 2) (t + 1) = xor (D j t) (D (j + 2) t) := by
+  have h := D_step j t
+  rw [hw, Bool.false_or] at h
+  exact h
+
+/-- **Orbit XOR-Parity Invariance Law on `Gate8` (`osc3_orbit_xor_eq_xorParity`):**
+for any `g : Gate8` and any `t ≥ 32`, the 8-step XOR sum of `g.eval (osc3State (t + k))`
+for `k = 0 .. 7` equals `g.xorParity`. -/
+theorem osc3_orbit_xor_eq_xorParity (g : Gate8) (t : Nat) (ht : 32 ≤ t) :
+    xor (xor (xor (g.eval (osc3State t)) (g.eval (osc3State (t + 1))))
+             (xor (g.eval (osc3State (t + 2))) (g.eval (osc3State (t + 3)))))
+        (xor (xor (g.eval (osc3State (t + 4))) (g.eval (osc3State (t + 5))))
+             (xor (g.eval (osc3State (t + 6))) (g.eval (osc3State (t + 7))))) = g.xorParity := by
+  have o1 := osc3State_succ t ht
+  have o2 := osc3State_succ (t + 1) (by omega)
+  have o3 := osc3State_succ (t + 2) (by omega)
+  have o4 := osc3State_succ (t + 3) (by omega)
+  have o5 := osc3State_succ (t + 4) (by omega)
+  have o6 := osc3State_succ (t + 5) (by omega)
+  have o7 := osc3State_succ (t + 6) (by omega)
+  rw [show t + 1 + 1 = t + 2 by omega] at o2
+  rw [show t + 2 + 1 = t + 3 by omega] at o3
+  rw [show t + 3 + 1 = t + 4 by omega] at o4
+  rw [show t + 4 + 1 = t + 5 by omega] at o5
+  rw [show t + 5 + 1 = t + 6 by omega] at o6
+  rw [show t + 6 + 1 = t + 7 by omega] at o7
+  rw [o7, o6, o5, o4, o3, o2, o1]
+  rcases g with ⟨b0, b1, b2, b3, b4, b5, b6, b7⟩
+  generalize osc3State t = s
+  rcases s with ⟨⟨x, y⟩, z⟩
+  revert b0 b1 b2 b3 b4 b5 b6 b7 x y z
+  decide
+
+/-- **Exact Odd Eight-Step XOR Parity of `D 398` (`D_three_hundred_ninety_eight_eight_step_xor_eq_true`):**
+for every `t ≥ 2985`, the 8-step XOR sum of `D 398 (t + k)` across `k = 0 .. 7` equals `true`. -/
+theorem D_three_hundred_ninety_eight_eight_step_xor_eq_true (t : Nat) (ht : 2985 ≤ t) :
+    xor (xor (xor (D 398 t) (D 398 (t + 1))) (xor (D 398 (t + 2)) (D 398 (t + 3))))
+        (xor (xor (D 398 (t + 4)) (D 398 (t + 5))) (xor (D 398 (t + 6)) (D 398 (t + 7)))) = true := by
+  rw [D_three_hundred_ninety_eight_eq_gate t ht,
+      D_three_hundred_ninety_eight_eq_gate (t + 1) (by omega),
+      D_three_hundred_ninety_eight_eq_gate (t + 2) (by omega),
+      D_three_hundred_ninety_eight_eq_gate (t + 3) (by omega),
+      D_three_hundred_ninety_eight_eq_gate (t + 4) (by omega),
+      D_three_hundred_ninety_eight_eq_gate (t + 5) (by omega),
+      D_three_hundred_ninety_eight_eq_gate (t + 6) (by omega),
+      D_three_hundred_ninety_eight_eq_gate (t + 7) (by omega),
+      osc3_orbit_xor_eq_xorParity (cascadeState8 369).g0 t (by omega),
+      cascadeState8_369_g0_odd_parity]
+
+/-- **General Bit-Addition / Eight-Anti-Periodicity Theorem Across a White Diagonal (`D_antiperiodic_eight_of_white_and_odd_gate`):**
+if `D j t = g.eval (osc3State t)` (`t ≥ t0 ≥ 32`) with `g.xorParity = true` and
+`D (j + 1) t = false` (`t ≥ t0`), then `D (j + 2) (t + 8) = !D (j + 2) t` for all `t ≥ t0`. -/
+theorem D_antiperiodic_eight_of_white_and_odd_gate (j t0 : Nat) (ht0 : 32 ≤ t0)
+    (g : Gate8)
+    (hg : ∀ t : Nat, t0 ≤ t → D j t = g.eval (osc3State t))
+    (hpar : g.xorParity = true)
+    (hw : ∀ t : Nat, t0 ≤ t → D (j + 1) t = false) :
+    ∀ t : Nat, t0 ≤ t → D (j + 2) (t + 8) = !D (j + 2) t := by
+  intro t ht
+  have s0 := D_step_eq_xor_of_white j t (hw t ht)
+  have s1 := D_step_eq_xor_of_white j (t + 1) (hw (t + 1) (by omega))
+  have s2 := D_step_eq_xor_of_white j (t + 2) (hw (t + 2) (by omega))
+  have s3 := D_step_eq_xor_of_white j (t + 3) (hw (t + 3) (by omega))
+  have s4 := D_step_eq_xor_of_white j (t + 4) (hw (t + 4) (by omega))
+  have s5 := D_step_eq_xor_of_white j (t + 5) (hw (t + 5) (by omega))
+  have s6 := D_step_eq_xor_of_white j (t + 6) (hw (t + 6) (by omega))
+  have s7 := D_step_eq_xor_of_white j (t + 7) (hw (t + 7) (by omega))
+  rw [show t + 1 + 1 = t + 2 by omega] at s1
+  rw [show t + 2 + 1 = t + 3 by omega] at s2
+  rw [show t + 3 + 1 = t + 4 by omega] at s3
+  rw [show t + 4 + 1 = t + 5 by omega] at s4
+  rw [show t + 5 + 1 = t + 6 by omega] at s5
+  rw [show t + 6 + 1 = t + 7 by omega] at s6
+  rw [show t + 7 + 1 = t + 8 by omega] at s7
+  have ho : xor (xor (xor (D j t) (D j (t + 1))) (xor (D j (t + 2)) (D j (t + 3))))
+                (xor (xor (D j (t + 4)) (D j (t + 5))) (xor (D j (t + 6)) (D j (t + 7)))) = true := by
+    rw [hg t ht, hg (t + 1) (by omega), hg (t + 2) (by omega), hg (t + 3) (by omega),
+        hg (t + 4) (by omega), hg (t + 5) (by omega), hg (t + 6) (by omega), hg (t + 7) (by omega),
+        osc3_orbit_xor_eq_xorParity g t (by omega), hpar]
+  rw [s7, s6, s5, s4, s3, s2, s1, s0]
+  revert ho
+  cases D j t <;> cases D j (t + 1) <;> cases D j (t + 2) <;> cases D j (t + 3) <;>
+    cases D j (t + 4) <;> cases D j (t + 5) <;> cases D j (t + 6) <;> cases D j (t + 7) <;>
+    cases D (j + 2) t <;> decide
+
+/-- **Eight-Anti-Periodicity of the Four-Hundredth Left Diagonal (`D_four_hundred_antiperiodic_eight`):**
+for every `t ≥ 2985`, `D 400 (t + 8) = !D 400 t` (spawning the 4th oscillator bit of period 16). -/
+theorem D_four_hundred_antiperiodic_eight (t : Nat) (ht : 2985 ≤ t) :
+    D 400 (t + 8) = !D 400 t :=
+  D_antiperiodic_eight_of_white_and_odd_gate 398 2985 (by decide)
+    (cascadeState8 369).g0 D_three_hundred_ninety_eight_eq_gate
+    cascadeState8_369_g0_odd_parity D_three_hundred_ninety_nine_eq_false t ht
+
+theorem evAntiPer_D_four_hundred : EvAntiPer (D 400) 8 :=
+  ⟨2985, D_four_hundred_antiperiodic_eight⟩
+
+/-- **Problem 3 for the Four-Hundredth Left Diagonal (`halfDensity_D_four_hundred`):**
+`D 400` has exact asymptotic density `1/2` (`HalfDensity (D 400)`). -/
+theorem halfDensity_D_four_hundred : HalfDensity (D 400) :=
+  halfDensity_of_antiperiodic (by omega) evAntiPer_D_four_hundred
+
+/-- **Impossibility of Representing `D 400` Inside the Eight-State System (`not_D_four_hundred_in_eight_state_system`):**
+for every truth table `g : Gate8` on the 3-bit oscillator `(D 8, D 10, D 29)` and every horizon `T : Nat`,
+`D 400` cannot equal `g.eval (osc3State t)` for all `t ≥ T`, proving that `D 399` strictly adds a 4th bit. -/
+theorem not_D_four_hundred_in_eight_state_system (g : Gate8) (T : Nat) :
+    ¬ (∀ t : Nat, T ≤ t → D 400 t = g.eval (osc3State t)) := by
+  intro hg
+  let t0 : Nat := max T 2985
+  have hanti := D_four_hundred_antiperiodic_eight t0 (by omega)
+  have h1 := hg t0 (by omega)
+  have h2 := hg (t0 + 8) (by omega)
+  rw [osc3State_periodic_eight t0 (by omega), ← h1, hanti] at h2
+  revert h2
+  cases D 400 t0 <;> decide
+
+/-- State of the extended 4-bit period-16 oscillator `((D 8 t, D 10 t, D 29 t), D 400 t)` at time `t`. -/
+def osc4State (t : Nat) : ((Bool × Bool) × Bool) × Bool :=
+  (osc3State t, D 400 t)
+
+/-- Closed deterministic transition map on the 16-state system incorporating the 4th bit `D 400`. -/
+def osc4Step (s : ((Bool × Bool) × Bool) × Bool) : ((Bool × Bool) × Bool) × Bool :=
+  (osc3Step s.1, xor ((cascadeState8 369).g0.eval s.1) s.2)
+
+/-- **Closed Autonomous Evolution of the 4-Bit Period-16 Oscillator (`osc4State_succ`):**
+for every `t ≥ 2985`, `osc4State (t + 1) = osc4Step (osc4State t)`. -/
+theorem osc4State_succ (t : Nat) (ht : 2985 ≤ t) :
+    osc4State (t + 1) = osc4Step (osc4State t) := by
+  unfold osc4State osc4Step
+  rw [osc3State_succ t (by omega),
+      D_step_eq_xor_of_white 398 t (D_three_hundred_ninety_nine_eq_false t ht),
+      D_three_hundred_ninety_eight_eq_gate t ht]
+
+/-- **Half-Cycle Negation and Period-16 Law of the 4-Bit Oscillator (`osc4State_half_cycle_and_period_sixteen`):**
+for every `t ≥ 2985`, advancing `osc4State` by 8 steps preserves `osc3State t` while negating the 4th bit
+(`osc4State (t + 8) = (osc3State t, !D 400 t)`), and advancing by 16 steps returns to `osc4State t`. -/
+theorem osc4State_half_cycle_and_period_sixteen (t : Nat) (ht : 2985 ≤ t) :
+    osc4State (t + 8) = (osc3State t, !D 400 t) ∧ osc4State (t + 16) = osc4State t := by
+  refine ⟨?_, ?_⟩
+  · unfold osc4State
+    rw [osc3State_periodic_eight t (by omega), D_four_hundred_antiperiodic_eight t ht]
+  · unfold osc4State
+    rw [show t + 16 = (t + 8) + 8 by omega,
+        osc3State_periodic_eight (t + 8) (by omega), osc3State_periodic_eight t (by omega),
+        D_four_hundred_antiperiodic_eight (t + 8) (by omega), D_four_hundred_antiperiodic_eight t ht,
+        Bool.not_not]
+
 
 
 end Rule30LeftAntiPeriod
