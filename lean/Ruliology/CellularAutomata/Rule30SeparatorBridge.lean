@@ -17,8 +17,9 @@ hypothesis `RW` alone and with no finite census:
   over `{0, 1, 2}` (`OrbitSeparator`), where `lift` and `unphi` invert the pair step on one symbol.
 
 For how `RW` and the separators relate to `Rule30PeriodTwo.Q01` and to mortality of the auxiliary frontier
-(`Rule30AlternatingTraceBridge.Mortality`), see `Rule30SEPToPeriodTwo`: no implication is proved in
-either direction.
+(`Rule30AlternatingTraceBridge.Mortality`), which is equivalent to `Q01`, see `Rule30SEPToPeriodTwo` and
+`Rule30SeparatorQ01`: `Q01` implies the separators (`Rule30SeparatorQ01.Q01_sep`); whether `RW` or the
+separators imply `Q01`, and whether `Q01` implies `RW`, is open.
 
 Control `no_pull_without_hard_core_control`: the hard-core condition is needed. Nothing here proves `RW`.
 -/

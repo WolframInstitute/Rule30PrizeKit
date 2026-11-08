@@ -30,8 +30,10 @@ hypotheses supplied by finite certificates, not proved here. `rw_truncates_to_bw
 hard-core guard cannot be dropped.
 
 For how `BWH` and `RW` relate to `Rule30PeriodTwo.Q01` and to mortality of the auxiliary frontier
-(`Rule30AlternatingTraceBridge.Mortality`), see `Rule30SEPToPeriodTwo`: no implication is proved in
-either direction.
+(`Rule30AlternatingTraceBridge.Mortality`), which is equivalent to `Q01`, see `Rule30SEPToPeriodTwo` and
+`Rule30SeparatorQ01`: `BWH` is equivalent to exact-width death-time bounds and implies `Q01`
+(`Rule30SeparatorQ01.bwh_iff_deathBounds`, `Rule30SeparatorQ01.bwh_Q01`); whether `RW` implies `Q01`,
+and whether `Q01` implies `RW` or `BWH`, is open.
 
 Nothing here proves `BWH` or `RW`, and nothing here bounds the center column of Rule 30; Problems 1 to 3
 stay open.

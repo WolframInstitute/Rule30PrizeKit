@@ -10,9 +10,11 @@ in the label word (`normalizeSym`, `lift_normalize_label`) and factoring a stack
 (`stack_factorization`). Consequences: `separator_excludes_zero_cut` and
 `separator_excludes_finite_peel_rank` exclude a zero cut and a finite peel rank for hard-core streams
 from `ConstantTailSeparator`. The full reversed dependency frontier is retained in the label word.
-Neither separator is proved here. For how the separators relate to `Rule30PeriodTwo.Q01` and to mortality of the auxiliary frontier
-(`Rule30AlternatingTraceBridge.Mortality`), see `Rule30SEPToPeriodTwo`: no implication is proved in
-either direction.
+Neither separator is proved here. For how the separators relate to `Rule30PeriodTwo.Q01` and to
+mortality of the auxiliary frontier (`Rule30AlternatingTraceBridge.Mortality`), which is equivalent to
+`Q01`, see `Rule30SEPToPeriodTwo` and `Rule30SeparatorQ01`: `Q01` implies them
+(`Rule30SeparatorQ01.Q01_sep`), they are `Q01` for the constrained starts whose free bits have no two
+adjacent white bits (`Rule30SeparatorQ01.sep_iff_QN`), and whether they imply `Q01` is open.
 -/
 
 @[expose] public section
