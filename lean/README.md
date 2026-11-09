@@ -93,10 +93,8 @@ for m in Rule30Predecessors Rule30PredecessorCounts BusyBeaverLifetimes Rule30Bl
     Rule30Certificates.White17 Rule30White17Runs Rule30Certificates.Grammar \
     Rule30GrammarRuns Rule30ParametricStripCertificates Rule30PaddedWords Rule30CoupledEmptyRight \
     Rule30Certificates.ResetMixtures Rule30ResetMixtures Rule30CenterCylinders \
-    Rule30Certificates.ResetMixtures Rule30ResetMixtures Rule30BlackTimeGrowth \
-    Rule30Certificates.ResetMixtures Rule30ResetMixtures Rule30ConeCube \
-    Rule30Certificates.ResetMixtures Rule30ResetMixtures Rule30SourceEnergy \
-    Rule30Certificates.ResetMixtures Rule30ResetMixtures Rule30BlackPhaseEscape Rule30Certificates.PeriodTwoMass Rule30PeriodTwoMass; do
+    Rule30BlackTimeGrowth Rule30ConeCube Rule30SourceEnergy Rule30BlackPhaseEscape \
+    Rule30Certificates.PeriodTwoMass Rule30PeriodTwoMass; do
   lake build Ruliology.CellularAutomata.$m || break
 done
 lake build
