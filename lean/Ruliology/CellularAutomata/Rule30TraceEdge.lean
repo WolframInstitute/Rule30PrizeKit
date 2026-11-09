@@ -4534,4 +4534,94 @@ theorem not_cell_periodic_of_cascade_depth
     rw [← hd1, htrue, hfalse] at heq
     exact Bool.noConfusion heq
 
+/-! ### Unconditional 53,209-Column, 58,288/72,577-Column Sixth Black-Shield, and 87,868-Column Seventh Black-Shield Inward Non-Periodicity -/
+
+/-- General all-black-shield inward non-periodicity transfer: if diagonal `D J` is identically black (`true`)
+for all `t ≥ T_J`, then for every `T P : Nat` with `P > J` and every column `c ≤ -(T_J : Int)` with
+`c ≤ -((T + P : Nat) : Int) + (J : Int)`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_of_all_black_diagonal (J T_J : Nat)
+    (hblack : ∀ t : Nat, T_J ≤ t → Rule30Diagonals.D J t = true)
+    (T : Nat) {P : Nat} (hP : J < P) {c : Int}
+    (hc_onset : c ≤ -(T_J : Int))
+    (hc : c ≤ -((T + P : Nat) : Int) + (J : Int)) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  have hs_nonneg : 0 ≤ -c := by omega
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have hs_ge_TJ : T_J ≤ s := by omega
+  have hT_le : T ≤ s + J - P := by omega
+  have heq := hper (s + J - P) hT_le
+  rw [show (s + J - P) + P = s + J by omega, hc_eq] at heq
+  have hd : Rule30Diagonals.D J (s + J) = cell (s + J) (-(s : Int)) := by
+    unfold Rule30Diagonals.D; exact congrArg (cell (s + J)) (by omega)
+  have htrue : cell (s + J) (-(s : Int)) = true := hd.symm.trans (hblack (s + J) (by omega))
+  have hfalse : cell (s + J - P) (-(s : Int)) = false :=
+    Rule30Jen.cell_eq_false_of_lt (s + J - P) (-(s : Int)) (by omega)
+  rw [htrue, hfalse] at heq
+  exact Bool.noConfusion heq
+
+/-- **Unconditional 53,209-Column Inward Non-Periodicity for `P > 53209`
+(`not_cell_periodic_gt_fifty_three_thousand_two_hundred_nine`):**
+using the fifth all-black shield diagonal `D 53209 t = true` (`t ≥ 847906`), for every `T P : Nat`
+with `P > 53209` and every column `c ≤ -847906` with `c ≤ -((T + P : Nat) : Int) + 53209`,
+`cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_gt_fifty_three_thousand_two_hundred_nine (T : Nat) {P : Nat}
+    (hP : 53209 < P) {c : Int} (hc_onset : c ≤ -847906)
+    (hc : c ≤ -((T + P : Nat) : Int) + 53209) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) :=
+  not_cell_periodic_of_all_black_diagonal 53209 847906
+    Rule30LeftAntiPeriod.D_fifty_three_thousand_two_hundred_nine_eq_true
+    T hP hc_onset hc
+
+/-- **Sixth All-Black Shield Inward Non-Periodicity Dichotomy (`58,288` vs `72,577` Columns Inside the Light Cone,
+`not_cell_periodic_gt_sixth_black_shield_dichotomy`):**
+unconditionally across both phase branches of `D 53208`, either:
+1. *(Positive branch, `D 58288` all-black from `929156`):* for every `T P : Nat` with `P > 58288` and every
+   column `c ≤ -929156` with `c ≤ -((T + P : Nat) : Int) + 58288`, `cell · c` is not `P`-periodic from `T` on; or
+2. *(Negative branch, `D 72577` all-black from `1157780`):* for every `T P : Nat` with `P > 72577` and every
+   column `c ≤ -1157780` with `c ≤ -((T + P : Nat) : Int) + 72577`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_gt_sixth_black_shield_dichotomy :
+    (∀ (T : Nat) {P : Nat}, 58288 < P → ∀ {c : Int}, c ≤ -929156 →
+      c ≤ -((T + P : Nat) : Int) + 58288 →
+      ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c)) ∨
+    (∀ (T : Nat) {P : Nat}, 72577 < P → ∀ {c : Int}, c ≤ -1157780 →
+      c ≤ -((T + P : Nat) : Int) + 72577 →
+      ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c)) := by
+  rcases Rule30LeftAntiPeriod.sixth_white_diagonal_and_period16_preservation_dichotomy with
+    ⟨_, _, _, h58288, _⟩ | ⟨_, _, _, h72577, _⟩
+  · left
+    intro T P hP c hc_onset hc
+    exact not_cell_periodic_of_all_black_diagonal 58288 929156 h58288 T hP hc_onset hc
+  · right
+    intro T P hP c hc_onset hc
+    exact not_cell_periodic_of_all_black_diagonal 72577 1157780 h72577 T hP hc_onset hc
+
+/-- **Unconditional 58,288-Column Inward Non-Periodicity for All `P > 72577`
+(`not_cell_periodic_gt_seventy_two_thousand_five_hundred_seventy_seven_at_col_le_neg_add_fifty_eight_thousand_two_hundred_eighty_eight`):**
+unconditionally across both phase branches of `D 53208`, for every `T P : Nat` with `P > 72577` and every
+column `c ≤ -1157780` with `c ≤ -((T + P : Nat) : Int) + 58288`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_gt_seventy_two_thousand_five_hundred_seventy_seven_at_col_le_neg_add_fifty_eight_thousand_two_hundred_eighty_eight
+    (T : Nat) {P : Nat} (hP : 72577 < P) {c : Int} (hc_onset : c ≤ -1157780)
+    (hc : c ≤ -((T + P : Nat) : Int) + 58288) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  rcases not_cell_periodic_gt_sixth_black_shield_dichotomy with hpos | hneg
+  · exact hpos T (by omega) (by omega) hc
+  · exact hneg T hP hc_onset (by omega)
+
+/-- **Seventh All-Black Shield 87,868-Column Inward Non-Periodicity in the `+-` Sub-Branch
+(`not_cell_periodic_gt_eighty_seven_thousand_eight_hundred_sixty_eight_of_pos_neg`):**
+under the `+-` sub-branch (`D 58287 = gate16_D58287_neg` and `D 58288 = true` from `929156`),
+for every `T P : Nat` with `P > 87868` and every column `c ≤ -1402422` with `c ≤ -((T + P : Nat) : Int) + 87868`,
+`cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_gt_eighty_seven_thousand_eight_hundred_sixty_eight_of_pos_neg
+    (h58287 : ∀ t : Nat, 929138 ≤ t → Rule30Diagonals.D 58287 t = Rule30LeftAntiPeriod.gate16_D58287_neg.eval (Rule30LeftAntiPeriod.osc4State t))
+    (h58288 : ∀ t : Nat, 929156 ≤ t → Rule30Diagonals.D 58288 t = true)
+    (T : Nat) {P : Nat} (hP : 87868 < P) {c : Int} (hc_onset : c ≤ -1402422)
+    (hc : c ≤ -((T + P : Nat) : Int) + 87868) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) :=
+  not_cell_periodic_of_all_black_diagonal 87868 1402422
+    (Rule30LeftAntiPeriod.seventh_white_diagonal_and_period32_doubling_of_pos_neg h58287 h58288).2.2.2.2.2.2.1
+    T hP hc_onset hc
+
 end Ruliology.CellularAutomata.Rule30TraceEdge
