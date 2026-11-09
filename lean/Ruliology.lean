@@ -190,6 +190,7 @@ public import Ruliology.CellularAutomata.Rule30FourLeftSides
 public import Ruliology.CellularAutomata.Rule30FourFrontsBase
 public import Ruliology.CellularAutomata.Rule30FourFronts
 public import Ruliology.CellularAutomata.Rule30TwoBlockCounts
+public import Ruliology.CellularAutomata.Rule30SourceEnergy
 
 /-!
 # Rule 30 Prize: Lean snapshot
