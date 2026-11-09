@@ -4683,4 +4683,32 @@ theorem not_cell_periodic_gt_two_hundred_twenty_nine_thousand_three_hundred_thir
   · exact not_cell_periodic_of_all_black_diagonal 229339 3665958 hpp.2.2.1 T hP hc_top (by omega)
   · exact not_cell_periodic_of_all_black_diagonal 87868 1402422 hpn.2.2.1 T (by omega) (by omega) hc_bot
 
+
+/-- **291,258-Column Inward Non-Periodicity in the `-+` Sub-Branch (`not_cell_periodic_gt_two_hundred_ninety_one_thousand_two_hundred_fifty_eight_of_neg_pos`):**
+in the `-+` sub-branch (`D 72576 = gate16_D72576_pos`, `D 72577 = true`), for every `T P : Nat` with `P > 291258`
+and every column `c ≤ -4656662` with `c ≤ -((T + P : Nat) : Int) + 291258`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_gt_two_hundred_ninety_one_thousand_two_hundred_fifty_eight_of_neg_pos
+    (h72576 : ∀ t : Nat, 1157762 ≤ t → Rule30Diagonals.D 72576 t = Rule30LeftAntiPeriod.gate16_D72576_pos.eval (Rule30LeftAntiPeriod.osc4State t))
+    (h72577 : ∀ t : Nat, 1157780 ≤ t → Rule30Diagonals.D 72577 t = true)
+    (T : Nat) {P : Nat} (hP : 291258 < P) {c : Int} (hc_top : c ≤ -4656662)
+    (hc_bot : c ≤ -((T + P : Nat) : Int) + 291258) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) :=
+  not_cell_periodic_of_all_black_diagonal 291258 4656662
+    (Rule30LeftAntiPeriod.seventh_white_diagonal_and_period32_doubling_of_neg_pos h72576 h72577).2.2.1
+    T hP hc_top hc_bot
+
+/-- **Unconditional 87,868-Column Inward Non-Periodicity for All `P > 291258` Across All Four Sub-Branches (`not_cell_periodic_gt_two_hundred_ninety_one_thousand_two_hundred_fifty_eight_at_col_le_neg_add_eighty_seven_thousand_eight_hundred_sixty_eight`):**
+unconditionally across all four sub-branches (`++`, `+-`, `-+`, `--`), for every `T P : Nat` with `P > 291258`
+and every column `c ≤ -4656662` with `c ≤ -((T + P : Nat) : Int) + 87868`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_gt_two_hundred_ninety_one_thousand_two_hundred_fifty_eight_at_col_le_neg_add_eighty_seven_thousand_eight_hundred_sixty_eight
+    (T : Nat) {P : Nat} (hP : 291258 < P) {c : Int} (hc_top : c ≤ -4656662)
+    (hc_bot : c ≤ -((T + P : Nat) : Int) + 87868) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  rcases Rule30LeftAntiPeriod.seventh_white_diagonal_four_way_classification with
+    hpp | hpn | hnp | hnn
+  · exact not_cell_periodic_of_all_black_diagonal 229339 3665958 hpp.2.2.1 T (by omega) (by omega) (by omega)
+  · exact not_cell_periodic_of_all_black_diagonal 87868 1402422 hpn.2.2.1 T (by omega) (by omega) hc_bot
+  · exact not_cell_periodic_of_all_black_diagonal 291258 4656662 hnp.2.2.1 T hP hc_top (by omega)
+  · exact not_cell_periodic_of_all_black_diagonal 165750 2648534 hnn.2.2.1 T (by omega) (by omega) (by omega)
+
 end Ruliology.CellularAutomata.Rule30TraceEdge
