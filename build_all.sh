@@ -78,7 +78,8 @@ for m in Rule30Predecessors Rule30PredecessorCounts BusyBeaverLifetimes Rule30Bl
     Rule30StripeMeeting \
     Rule30ParametricStripCertificates \
     Rule30PaddedWords \
-    Rule30CoupledEmptyRight; do
+    Rule30CoupledEmptyRight \
+    Rule30CenterCylinders; do
   build "$m" "Ruliology.CellularAutomata.$m"
 done
 build Ruliology Ruliology
