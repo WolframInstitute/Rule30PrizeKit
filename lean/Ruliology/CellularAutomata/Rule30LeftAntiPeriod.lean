@@ -9697,5 +9697,241 @@ theorem eighth_white_diagonal_and_period32_dichotomy_of_neg_neg
       exact h
     exact ⟨hw, hper16, h174451, ⟨2787718, hw⟩, ⟨2787718, hper16⟩, ⟨2787736, h174451⟩⟩
 
+
+
+/-! ### 25. The 171,049-Step `++` Sub-Branch Cascade to the Seventh White Diagonal `D 229337`, Odd-Parity Period-32 Doubling at `D 229338`, Seventh Black Shield `D 229339`, and Complete Positive-`D 53208` Classification -/
+
+def st16PP_42378 : CascadeState16 :=
+  ⟨⟨⟨false, false, true, false, false, false, false, true⟩, ⟨false, false, false, true, false, true, false, true⟩⟩, ⟨⟨true, false, false, true, true, true, false, false⟩, ⟨true, true, true, true, false, false, false, false⟩⟩, true⟩
+
+def st16PP_55178 : CascadeState16 :=
+  ⟨⟨⟨false, true, false, true, true, false, true, false⟩, ⟨true, false, false, true, false, true, true, false⟩⟩, ⟨⟨false, false, true, false, false, false, true, true⟩, ⟨true, false, false, true, false, false, false, true⟩⟩, true⟩
+
+def st16PP_67978 : CascadeState16 :=
+  ⟨⟨⟨true, false, true, true, false, false, true, false⟩, ⟨true, false, false, true, false, true, true, false⟩⟩, ⟨⟨true, false, false, true, true, true, false, false⟩, ⟨true, false, false, true, false, false, false, false⟩⟩, true⟩
+
+def st16PP_80778 : CascadeState16 :=
+  ⟨⟨⟨true, false, true, false, true, true, true, true⟩, ⟨false, false, true, false, false, true, true, false⟩⟩, ⟨⟨false, true, true, true, false, true, true, true⟩, ⟨false, false, false, true, true, false, false, true⟩⟩, true⟩
+
+def st16PP_93578 : CascadeState16 :=
+  ⟨⟨⟨false, false, false, true, true, false, false, false⟩, ⟨true, false, true, false, false, true, true, false⟩⟩, ⟨⟨false, true, false, true, true, true, false, false⟩, ⟨true, false, false, false, false, false, false, false⟩⟩, true⟩
+
+def st16PP_106378 : CascadeState16 :=
+  ⟨⟨⟨false, true, false, true, true, false, true, true⟩, ⟨false, true, false, false, false, false, true, false⟩⟩, ⟨⟨true, true, true, false, false, false, false, true⟩, ⟨true, false, false, true, false, false, false, false⟩⟩, true⟩
+
+def st16PP_119178 : CascadeState16 :=
+  ⟨⟨⟨true, true, false, true, false, true, false, true⟩, ⟨true, true, false, false, true, false, true, true⟩⟩, ⟨⟨false, false, false, true, true, false, true, true⟩, ⟨false, false, false, false, true, true, false, true⟩⟩, true⟩
+
+def st16PP_131978 : CascadeState16 :=
+  ⟨⟨⟨false, true, true, true, false, true, false, false⟩, ⟨true, true, true, false, true, false, true, true⟩⟩, ⟨⟨true, false, false, true, false, false, false, true⟩, ⟨true, true, false, true, false, true, true, true⟩⟩, true⟩
+
+def st16PP_144778 : CascadeState16 :=
+  ⟨⟨⟨true, false, true, true, false, true, false, true⟩, ⟨true, false, true, true, true, true, false, true⟩⟩, ⟨⟨true, true, true, true, true, true, true, false⟩, ⟨false, true, false, false, false, false, false, false⟩⟩, true⟩
+
+def st16PP_157578 : CascadeState16 :=
+  ⟨⟨⟨true, true, false, true, true, true, true, true⟩, ⟨true, false, true, true, false, false, true, false⟩⟩, ⟨⟨true, true, false, true, true, true, false, false⟩, ⟨false, true, false, true, false, true, false, false⟩⟩, true⟩
+
+def st16PP_170378 : CascadeState16 :=
+  ⟨⟨⟨false, true, false, true, true, true, true, true⟩, ⟨false, true, false, false, true, true, true, true⟩⟩, ⟨⟨false, true, false, false, true, true, true, false⟩, ⟨true, false, false, true, true, false, true, true⟩⟩, true⟩
+
+def st16PP_171018 : CascadeState16 :=
+  ⟨⟨⟨false, true, true, false, false, false, false, true⟩, ⟨false, false, false, true, true, true, false, true⟩⟩, ⟨⟨true, true, false, false, false, true, true, false⟩, ⟨true, true, true, true, false, false, false, false⟩⟩, true⟩
+
+def st16PP_171049 : CascadeState16 :=
+  ⟨⟨⟨true, true, false, true, false, true, false, false⟩, ⟨false, true, false, false, false, false, true, true⟩⟩, ⟨⟨false, false, false, false, false, false, false, false⟩, ⟨false, false, false, false, false, false, false, false⟩⟩, true⟩
+
+theorem step16PP_29578_to_42378 : stepCascade16Blocks 128 100 st16PP_29578 = st16PP_42378 := by decide +kernel
+theorem step16PP_42378_to_55178 : stepCascade16Blocks 128 100 st16PP_42378 = st16PP_55178 := by decide +kernel
+theorem step16PP_55178_to_67978 : stepCascade16Blocks 128 100 st16PP_55178 = st16PP_67978 := by decide +kernel
+theorem step16PP_67978_to_80778 : stepCascade16Blocks 128 100 st16PP_67978 = st16PP_80778 := by decide +kernel
+theorem step16PP_80778_to_93578 : stepCascade16Blocks 128 100 st16PP_80778 = st16PP_93578 := by decide +kernel
+theorem step16PP_93578_to_106378 : stepCascade16Blocks 128 100 st16PP_93578 = st16PP_106378 := by decide +kernel
+theorem step16PP_106378_to_119178 : stepCascade16Blocks 128 100 st16PP_106378 = st16PP_119178 := by decide +kernel
+theorem step16PP_119178_to_131978 : stepCascade16Blocks 128 100 st16PP_119178 = st16PP_131978 := by decide +kernel
+theorem step16PP_131978_to_144778 : stepCascade16Blocks 128 100 st16PP_131978 = st16PP_144778 := by decide +kernel
+theorem step16PP_144778_to_157578 : stepCascade16Blocks 128 100 st16PP_144778 = st16PP_157578 := by decide +kernel
+theorem step16PP_157578_to_170378 : stepCascade16Blocks 128 100 st16PP_157578 = st16PP_170378 := by decide +kernel
+theorem step16PP_170378_to_171018 : stepCascade16Blocks 128 5 st16PP_170378 = st16PP_171018 := by decide +kernel
+theorem step16PP_171018_to_171049 : stepCascade16Fast 31 st16PP_171018 = st16PP_171049 := by decide +kernel
+
+theorem cascadeState16PP_171049_eq : cascadeState16From st16PP_0 171049 = st16PP_171049 := by
+  have h_29578 : cascadeState16From st16PP_0 29578 = st16PP_29578 := cascadeState16PP_29578_eq
+  have hs_42378 := stepCascade16Blocks_eq_add_from st16PP_0 128 100 29578
+  rw [h_29578, show (29578 + 128 * 100 : Nat) = 42378 by rfl] at hs_42378
+  have h_42378 : cascadeState16From st16PP_0 42378 = st16PP_42378 := hs_42378.symm.trans step16PP_29578_to_42378
+  have hs_55178 := stepCascade16Blocks_eq_add_from st16PP_0 128 100 42378
+  rw [h_42378, show (42378 + 128 * 100 : Nat) = 55178 by rfl] at hs_55178
+  have h_55178 : cascadeState16From st16PP_0 55178 = st16PP_55178 := hs_55178.symm.trans step16PP_42378_to_55178
+  have hs_67978 := stepCascade16Blocks_eq_add_from st16PP_0 128 100 55178
+  rw [h_55178, show (55178 + 128 * 100 : Nat) = 67978 by rfl] at hs_67978
+  have h_67978 : cascadeState16From st16PP_0 67978 = st16PP_67978 := hs_67978.symm.trans step16PP_55178_to_67978
+  have hs_80778 := stepCascade16Blocks_eq_add_from st16PP_0 128 100 67978
+  rw [h_67978, show (67978 + 128 * 100 : Nat) = 80778 by rfl] at hs_80778
+  have h_80778 : cascadeState16From st16PP_0 80778 = st16PP_80778 := hs_80778.symm.trans step16PP_67978_to_80778
+  have hs_93578 := stepCascade16Blocks_eq_add_from st16PP_0 128 100 80778
+  rw [h_80778, show (80778 + 128 * 100 : Nat) = 93578 by rfl] at hs_93578
+  have h_93578 : cascadeState16From st16PP_0 93578 = st16PP_93578 := hs_93578.symm.trans step16PP_80778_to_93578
+  have hs_106378 := stepCascade16Blocks_eq_add_from st16PP_0 128 100 93578
+  rw [h_93578, show (93578 + 128 * 100 : Nat) = 106378 by rfl] at hs_106378
+  have h_106378 : cascadeState16From st16PP_0 106378 = st16PP_106378 := hs_106378.symm.trans step16PP_93578_to_106378
+  have hs_119178 := stepCascade16Blocks_eq_add_from st16PP_0 128 100 106378
+  rw [h_106378, show (106378 + 128 * 100 : Nat) = 119178 by rfl] at hs_119178
+  have h_119178 : cascadeState16From st16PP_0 119178 = st16PP_119178 := hs_119178.symm.trans step16PP_106378_to_119178
+  have hs_131978 := stepCascade16Blocks_eq_add_from st16PP_0 128 100 119178
+  rw [h_119178, show (119178 + 128 * 100 : Nat) = 131978 by rfl] at hs_131978
+  have h_131978 : cascadeState16From st16PP_0 131978 = st16PP_131978 := hs_131978.symm.trans step16PP_119178_to_131978
+  have hs_144778 := stepCascade16Blocks_eq_add_from st16PP_0 128 100 131978
+  rw [h_131978, show (131978 + 128 * 100 : Nat) = 144778 by rfl] at hs_144778
+  have h_144778 : cascadeState16From st16PP_0 144778 = st16PP_144778 := hs_144778.symm.trans step16PP_131978_to_144778
+  have hs_157578 := stepCascade16Blocks_eq_add_from st16PP_0 128 100 144778
+  rw [h_144778, show (144778 + 128 * 100 : Nat) = 157578 by rfl] at hs_157578
+  have h_157578 : cascadeState16From st16PP_0 157578 = st16PP_157578 := hs_157578.symm.trans step16PP_144778_to_157578
+  have hs_170378 := stepCascade16Blocks_eq_add_from st16PP_0 128 100 157578
+  rw [h_157578, show (157578 + 128 * 100 : Nat) = 170378 by rfl] at hs_170378
+  have h_170378 : cascadeState16From st16PP_0 170378 = st16PP_170378 := hs_170378.symm.trans step16PP_157578_to_170378
+  have hs_171018 := stepCascade16Blocks_eq_add_from st16PP_0 128 5 170378
+  rw [h_170378, show (170378 + 128 * 5 : Nat) = 171018 by rfl] at hs_171018
+  have h_171018 : cascadeState16From st16PP_0 171018 = st16PP_171018 := hs_171018.symm.trans step16PP_170378_to_171018
+  have hs_171049 := stepCascade16Fast_eq_add_from st16PP_0 31 171018
+  rw [h_171018, show (171018 + 31 : Nat) = 171049 by rfl] at hs_171049
+  exact hs_171049.symm.trans step16PP_171018_to_171049
+
+theorem cascadeState16PP_171049_allNonWhite :
+    (cascadeState16From st16PP_0 171049).allNonWhite = true := by
+  rw [cascadeState16PP_171049_eq]; rfl
+
+theorem cascadeState16PP_171049_g1_eq_white :
+    (cascadeState16From st16PP_0 171049).g1 = st16_52806.g1 := by
+  rw [cascadeState16PP_171049_eq]; rfl
+
+theorem cascadeState16PP_171049_g0_odd_parity :
+    (cascadeState16From st16PP_0 171049).g0.xorParity16 = true := by
+  rw [cascadeState16PP_171049_eq]; decide
+
+/-- **The Seventh All-White Diagonal `D 229337`, Odd-Parity Period-32 Doubling at `D 229338`, Asymptotic Density `1/2`, 16-State Impossibility, and Seventh All-Black Shield `D 229339` in the `++` Sub-Branch (`seventh_white_diagonal_and_period32_doubling_of_pos_pos`):**
+in the `++` sub-branch (`D 58287 = gate16_D58287_pos`, `D 58288 = true`), after `171,049` non-white steps:
+1. `D 229337 t = false` for all `t ≥ 3665940` (`EvWhite (D 229337)`),
+2. `D 229338 (t + 16) = !D 229338 t` for all `t ≥ 3665940` (`EvAntiPer (D 229338) 16`, `EvPer (D 229338) 32`),
+3. `HalfDensity (D 229338)` and `D 229338` cannot be represented in the 16-state system `(D 8, D 10, D 29, D 400)`, and
+4. `D 229339 t = true` for all `t ≥ 3665958` (`EvBlack (D 229339)`). -/
+theorem seventh_white_diagonal_and_period32_doubling_of_pos_pos
+    (h58287 : ∀ t : Nat, 929138 ≤ t → D 58287 t = gate16_D58287_pos.eval (osc4State t))
+    (h58288 : ∀ t : Nat, 929156 ≤ t → D 58288 t = true) :
+    (∀ t : Nat, 3665940 ≤ t → D 229337 t = false) ∧
+    (∀ t : Nat, 3665940 ≤ t → D 229338 (t + 16) = !D 229338 t) ∧
+    (∀ t : Nat, 3665958 ≤ t → D 229339 t = true) ∧
+    EvWhite (D 229337) ∧ EvAntiPer (D 229338) 16 ∧ EvPer (D 229338) 32 ∧
+    HalfDensity (D 229338) ∧
+    (∀ g : Gate16, ∀ T : Nat, ¬ (∀ t : Nat, T ≤ t → D 229338 t = g.eval (osc4State t))) ∧
+    EvBlack (D 229339) := by
+  have h0 : ∀ s : Nat, 929156 ≤ s → D 58287 s = st16PP_0.g0.eval (osc4State s) :=
+    fun s hs => h58287 s (by omega)
+  have h1 : ∀ s : Nat, 929156 ≤ s → D 58288 s = st16PP_0.g1.eval (osc4State s) := by
+    intro s hs; rw [h58288 s hs]
+    rcases osc4State s with ⟨⟨⟨b8, b10⟩, b29⟩, b400⟩
+    cases b8 <;> cases b10 <;> cases b29 <;> cases b400 <;> rfl
+  rcases D_add_eq_cascadeState16From 58287 929156 (by decide) st16PP_0 h0 h1 171049
+    cascadeState16PP_171049_allNonWhite with ⟨hpair0, hpair1⟩
+  have hg0 : ∀ t : Nat, 3665940 ≤ t → D 229336 t = (cascadeState16From st16PP_0 171049).g0.eval (osc4State t) := by
+    intro t ht; have h := hpair0 t (by omega)
+    rw [show 58287 + 171049 = 229336 by rfl] at h; exact h
+  have hw : ∀ t : Nat, 3665940 ≤ t → D 229337 t = false := by
+    intro t ht; have h := hpair1 t (by omega)
+    rw [show 58287 + 1 + 171049 = 229337 by rfl, cascadeState16PP_171049_g1_eq_white] at h
+    rw [h]
+    rcases osc4State t with ⟨⟨⟨b8, b10⟩, b29⟩, b400⟩
+    cases b8 <;> cases b10 <;> cases b29 <;> cases b400 <;> rfl
+  have hanti : ∀ t : Nat, 3665940 ≤ t → D 229338 (t + 16) = !D 229338 t :=
+    D_antiperiodic_sixteen_of_white_and_odd_gate 229336 3665940 (by decide)
+      (cascadeState16From st16PP_0 171049).g0 hg0 cascadeState16PP_171049_g0_odd_parity hw
+  have hevAnti : EvAntiPer (D 229338) 16 := ⟨3665940, hanti⟩
+  have hevPer32 : EvPer (D 229338) 32 := ⟨3665940, fun t ht => by
+    rw [show t + 32 = (t + 16) + 16 by omega, hanti (t + 16) (by omega), hanti t ht, Bool.not_not]⟩
+  have hσ : ∀ t : Nat, 2985 ≤ t → osc4State (t + 1) = osc4StepFast (osc4State t) :=
+    osc4State_succ_fast
+  have hnw : ∀ t : Nat, 3665940 ≤ t →
+      orbitHasTrue osc4StepFast (cascadeState16From st16PP_0 171049).g0.eval 16 (osc4State t) = true := by
+    intro t _
+    rw [cascadeState16PP_171049_eq]
+    rcases osc4State t with ⟨⟨⟨b8, b10⟩, b29⟩, b400⟩
+    revert b8 b10 b29 b400
+    decide
+  have hsh := D_black_shield_after_white_of_nonwhite_gate osc4StepFast osc4State 16 229336 3665940
+    (cascadeState16From st16PP_0 171049).g0.eval (fun t ht => hσ t (by omega)) hg0 hw hnw
+  have h229339 : ∀ t : Nat, 3665958 ≤ t → D 229339 t = true := by
+    intro t ht
+    have h := hsh.1 t (by omega)
+    rw [show 229336 + 3 = 229339 by rfl] at h
+    exact h
+  exact ⟨hw, hanti, h229339, ⟨3665940, hw⟩, hevAnti, hevPer32,
+    halfDensity_of_antiperiodic (by decide : 0 < 16) hevAnti,
+    not_D_in_sixteen_state_system_of_antiperiodic_sixteen 229338 hevAnti, ⟨3665958, h229339⟩⟩
+
+/-- **Complete Positive-`D 53208` Seventh White Diagonal and Odd-Parity Period-32 Doubling Dichotomy (`seventh_white_diagonal_and_period32_doubling_of_pos_D53208`):**
+under the positive-`D 53208` branch (`D 53208 = gate16_D53208_pos`), both sub-branches (`++` and `+-`) hit an odd-parity 7th white diagonal and double from period 16 to period 32:
+1. (`++` sub-branch): `EvWhite (D 229337)`, `EvAntiPer (D 229338) 16`, `EvPer (D 229338) 32`, `HalfDensity (D 229338)`, 16-state impossibility at `D 229338`, and `EvBlack (D 229339)` (`t ≥ 3665958`), OR
+2. (`+-` sub-branch): `EvWhite (D 87866)`, `EvAntiPer (D 87867) 16`, `EvPer (D 87867) 32`, `HalfDensity (D 87867)`, 16-state impossibility at `D 87867`, and `EvBlack (D 87868)` (`t ≥ 1402422`). -/
+theorem seventh_white_diagonal_and_period32_doubling_of_pos_D53208
+    (hpos : ∀ t : Nat, 847890 ≤ t → D 53208 t = gate16_D53208_pos.eval (osc4State t)) :
+    ((∀ t : Nat, 3665940 ≤ t → D 229337 t = false) ∧
+     (∀ t : Nat, 3665940 ≤ t → D 229338 (t + 16) = !D 229338 t) ∧
+     (∀ t : Nat, 3665958 ≤ t → D 229339 t = true) ∧
+     EvWhite (D 229337) ∧ EvAntiPer (D 229338) 16 ∧ EvPer (D 229338) 32 ∧
+     HalfDensity (D 229338) ∧
+     (∀ g : Gate16, ∀ T : Nat, ¬ (∀ t : Nat, T ≤ t → D 229338 t = g.eval (osc4State t))) ∧
+     EvBlack (D 229339)) ∨
+    ((∀ t : Nat, 1402404 ≤ t → D 87866 t = false) ∧
+     (∀ t : Nat, 1402404 ≤ t → D 87867 (t + 16) = !D 87867 t) ∧
+     (∀ t : Nat, 1402422 ≤ t → D 87868 t = true) ∧
+     EvWhite (D 87866) ∧ EvAntiPer (D 87867) 16 ∧ EvPer (D 87867) 32 ∧
+     HalfDensity (D 87867) ∧
+     (∀ g : Gate16, ∀ T : Nat, ¬ (∀ t : Nat, T ≤ t → D 87867 t = g.eval (osc4State t))) ∧
+     EvBlack (D 87868)) := by
+  have h53209_gate : ∀ s : Nat, 847906 ≤ s → D 53209 s = gate16_D401.eval (osc4State s) := by
+    intro s hs
+    rw [D_fifty_three_thousand_two_hundred_nine_eq_true s hs]
+    rcases osc4State s with ⟨⟨⟨b8, b10⟩, b29⟩, b400⟩
+    cases b8 <;> cases b10 <;> cases b29 <;> cases b400 <;> rfl
+  have hσ : ∀ t : Nat, 2985 ≤ t → osc4State (t + 1) = osc4StepFast (osc4State t) :=
+    osc4State_succ_fast
+  rcases D_add_eq_cascadeState16From 53208 847906 (by decide) st16Pos_0
+    (fun s hs => hpos s (by omega)) h53209_gate 5077 cascadeState16Pos_5077_allNonWhite with ⟨h0, h1⟩
+  have hw : ∀ t : Nat, 929138 ≤ t → D 58286 t = false := by
+    intro t ht
+    have ht' := h1 t (by omega)
+    rw [show 53208 + 1 + 5077 = 58286 by rfl, cascadeState16Pos_5077_g1_eq_white] at ht'
+    rw [ht']
+    rcases osc4State t with ⟨⟨⟨b8, b10⟩, b29⟩, b400⟩
+    cases b8 <;> cases b10 <;> cases b29 <;> cases b400 <;> rfl
+  have hg0 : ∀ t : Nat, 929138 ≤ t → D 58285 t = (cascadeState16From st16Pos_0 5077).g0.eval (osc4State t) := by
+    intro t ht
+    have ht' := h0 t (by omega)
+    rw [show 53208 + 5077 = 58285 by rfl] at ht'
+    exact ht'
+  have hnw : ∀ t : Nat, 929138 ≤ t →
+      orbitHasTrue osc4StepFast (cascadeState16From st16Pos_0 5077).g0.eval 16 (osc4State t) = true := by
+    intro t _
+    rw [cascadeState16Pos_5077_eq]
+    rcases osc4State t with ⟨⟨⟨b8, b10⟩, b29⟩, b400⟩
+    revert b8 b10 b29 b400
+    decide
+  have hsh := D_black_shield_after_white_of_nonwhite_gate osc4StepFast osc4State 16 58285 929138
+    (cascadeState16From st16Pos_0 5077).g0.eval (fun t ht => hσ t (by omega)) hg0 hw hnw
+  have h58288 : ∀ t : Nat, 929156 ≤ t → D 58288 t = true := by
+    intro t ht
+    have h := hsh.1 t (by omega)
+    rw [show 58285 + 3 = 58288 by rfl] at h
+    exact h
+  rcases D_post_white_eq_pos_or_neg_gate16 58285 929138 (by decide)
+    (cascadeState16From st16Pos_0 5077).g0 gate16_D58287_pos gate16_D58287_neg
+    hg0 hw gate16_D58287_pos_step gate16_D58287_neg_eq_not with h58287_pp | h58287_pn
+  · left
+    exact seventh_white_diagonal_and_period32_doubling_of_pos_pos h58287_pp h58288
+  · right
+    have h7 := seventh_white_diagonal_and_period32_doubling_of_pos_neg h58287_pn h58288
+    exact ⟨h7.1, h7.2.2.1, h7.2.2.2.2.2.2.1, h7.2.1, h7.2.2.2.1, h7.2.2.2.2.1, h7.2.2.2.2.2.1,
+      not_D_eighty_seven_thousand_eight_hundred_sixty_seven_in_sixteen_state_system_of_pos_neg h58287_pn h58288,
+      h7.2.2.2.2.2.2.2⟩
+
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
