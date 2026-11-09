@@ -162,6 +162,7 @@ public import Ruliology.CellularAutomata.Rule30DefectClockBudget
 public import Ruliology.CellularAutomata.Rule30GateTrap
 public import Ruliology.CellularAutomata.Rule30SidewaysLocks
 public import Ruliology.CellularAutomata.Rule30PeriodThreeLanguage
+public import Ruliology.CellularAutomata.Rule30GateTrapWords
 public import Ruliology.CellularAutomata.Rule30EtherGrounding
 public import Ruliology.CellularAutomata.Rule30Problem3Bounds
 public import Ruliology.CellularAutomata.Rule30EtherWallWitness
