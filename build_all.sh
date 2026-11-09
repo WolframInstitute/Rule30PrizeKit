@@ -85,7 +85,8 @@ for m in Rule30Predecessors Rule30PredecessorCounts BusyBeaverLifetimes Rule30Bl
     Rule30SourceEnergy \
     Rule30BlackPhaseEscape \
     Rule30Certificates.PeriodTwoMass \
-    Rule30PeriodTwoMass; do
+    Rule30PeriodTwoMass \
+    Rule30PeriodTwoNoFloor; do
   build "$m" "Ruliology.CellularAutomata.$m"
 done
 build Ruliology Ruliology
