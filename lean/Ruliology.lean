@@ -193,6 +193,7 @@ public import Ruliology.CellularAutomata.Rule30FourFronts
 public import Ruliology.CellularAutomata.Rule30TwoBlockCounts
 public import Ruliology.CellularAutomata.Rule30CenterCylinders
 public import Ruliology.CellularAutomata.Rule30BlackTimeGrowth
+public import Ruliology.CellularAutomata.Rule30ConeCube
 
 /-!
 # Rule 30 Prize: Lean snapshot
