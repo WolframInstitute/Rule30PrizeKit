@@ -4624,4 +4624,37 @@ theorem not_cell_periodic_gt_eighty_seven_thousand_eight_hundred_sixty_eight_of_
     (Rule30LeftAntiPeriod.seventh_white_diagonal_and_period32_doubling_of_pos_neg h58287 h58288).2.2.2.2.2.2.1
     T hP hc_onset hc
 
+
+/-- **165,750-Column Inward Non-Periodicity in the `--` Sub-Branch (`not_cell_periodic_gt_one_hundred_sixty_five_thousand_seven_hundred_fifty_of_neg_neg`):**
+in the `--` sub-branch (`D 72576 = gate16_D72576_neg`, `D 72577 = true`), for every `T P : Nat` with `P > 165750`
+and every column `c ≤ -2648534` with `c ≤ -((T + P : Nat) : Int) + 165750`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_gt_one_hundred_sixty_five_thousand_seven_hundred_fifty_of_neg_neg
+    (h72576 : ∀ t : Nat, 1157762 ≤ t → Rule30Diagonals.D 72576 t = Rule30LeftAntiPeriod.gate16_D72576_neg.eval (Rule30LeftAntiPeriod.osc4State t))
+    (h72577 : ∀ t : Nat, 1157780 ≤ t → Rule30Diagonals.D 72577 t = true)
+    (T : Nat) {P : Nat} (hP : 165750 < P) {c : Int} (hc_top : c ≤ -2648534)
+    (hc_bot : c ≤ -((T + P : Nat) : Int) + 165750) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) :=
+  not_cell_periodic_of_all_black_diagonal 165750 2648534
+    (Rule30LeftAntiPeriod.seventh_white_diagonal_and_period16_preservation_of_neg_neg h72576 h72577).2.2.1
+    T hP hc_top hc_bot
+
+/-- **Eighth All-Black Shield Inward Non-Periodicity Dichotomy (`183,185` vs `174,451` Columns) in the `--` Sub-Branch (`not_cell_periodic_gt_eighth_black_shield_dichotomy_of_neg_neg`):**
+in the `--` sub-branch (`D 72576 = gate16_D72576_neg`, `D 72577 = true`), either:
+1. (`--+` branch): for all `T P : Nat` with `P > 183185` and `c ≤ -2927480` with `c ≤ -((T + P : Nat) : Int) + 183185`, `cell · c` is not `P`-periodic from `T` on, OR
+2. (`---` branch): for all `T P : Nat` with `P > 174451` and `c ≤ -2787736` with `c ≤ -((T + P : Nat) : Int) + 174451`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_gt_eighth_black_shield_dichotomy_of_neg_neg
+    (h72576 : ∀ t : Nat, 1157762 ≤ t → Rule30Diagonals.D 72576 t = Rule30LeftAntiPeriod.gate16_D72576_neg.eval (Rule30LeftAntiPeriod.osc4State t))
+    (h72577 : ∀ t : Nat, 1157780 ≤ t → Rule30Diagonals.D 72577 t = true) :
+    (∀ T P : Nat, 183185 < P → ∀ c : Int, c ≤ -2927480 → c ≤ -((T + P : Nat) : Int) + 183185 →
+      ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c)) ∨
+    (∀ T P : Nat, 174451 < P → ∀ c : Int, c ≤ -2787736 → c ≤ -((T + P : Nat) : Int) + 174451 →
+      ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c)) := by
+  rcases Rule30LeftAntiPeriod.eighth_white_diagonal_and_period32_dichotomy_of_neg_neg h72576 h72577 with h1 | h2
+  · left
+    intro T P hP c hc_top hc_bot
+    exact not_cell_periodic_of_all_black_diagonal 183185 2927480 h1.2.2.1 T hP hc_top hc_bot
+  · right
+    intro T P hP c hc_top hc_bot
+    exact not_cell_periodic_of_all_black_diagonal 174451 2787736 h2.2.2.1 T hP hc_top hc_bot
+
 end Ruliology.CellularAutomata.Rule30TraceEdge
