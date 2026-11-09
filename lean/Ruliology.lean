@@ -196,6 +196,7 @@ public import Ruliology.CellularAutomata.Rule30BlackTimeGrowth
 public import Ruliology.CellularAutomata.Rule30ConeCube
 public import Ruliology.CellularAutomata.Rule30SourceEnergy
 public import Ruliology.CellularAutomata.Rule30BlackPhaseEscape
+public import Ruliology.CellularAutomata.Rule30PeriodTwoMass
 
 /-!
 # Rule 30 Prize: Lean snapshot
