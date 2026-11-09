@@ -198,6 +198,7 @@ public import Ruliology.CellularAutomata.Rule30SourceEnergy
 public import Ruliology.CellularAutomata.Rule30BlackPhaseEscape
 public import Ruliology.CellularAutomata.Rule30PeriodTwoMass
 public import Ruliology.CellularAutomata.Rule30PeriodTwoNoFloor
+public import Ruliology.CellularAutomata.Rule30PeriodTwoLadder
 
 /-!
 # Rule 30 Prize: Lean snapshot
