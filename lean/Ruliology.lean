@@ -149,6 +149,7 @@ public import Ruliology.CellularAutomata.Rule30PairedColumnRuns
 public import Ruliology.CellularAutomata.Rule30RightProfiles
 public import Ruliology.CellularAutomata.Rule30UniversalStart
 public import Ruliology.CellularAutomata.Rule30RingOrbits
+public import Ruliology.CellularAutomata.Rule30MovingWaves
 public import Ruliology.CellularAutomata.Rule30GateClocks
 public import Ruliology.CellularAutomata.Rule30ResetMixtures
 
