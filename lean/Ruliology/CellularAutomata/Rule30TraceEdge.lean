@@ -1,6 +1,7 @@
 module
 
 public import Ruliology.CellularAutomata.Rule30LeftAntiPeriod
+public import Ruliology.CellularAutomata.Rule30LeftUnbounded
 
 public import Ruliology.CellularAutomata.Rule30WhiteSpacing
 
@@ -4450,5 +4451,87 @@ theorem not_cell_periodic_at_col_le_neg_add_add_three_hundred_eighty_four
           c T P (by omega) hc0 hc
       · exact not_cell_periodic_ge_three_hundred_eighty_seven_at_col_le_neg_add_add_three_hundred_eighty_four
           c T P (by omega) hc0 hc
+
+open Rule30LeftReset Rule30LeftUnbounded
+
+/-! ### 3. Universal All-Depth Black-Shield & Cascade-Depth Inward Non-Periodicity (`Rule30TraceEdge`) -/
+
+/-- **Universal Black-Diagonal Inward Non-Periodicity (`not_cell_periodic_gt_of_black_diagonal`):**
+for EVERY depth `J : Nat` and onset `T_J : Nat` such that `∀ t ≥ T_J, D J t = true`,
+and EVERY period `P > J`, no column `c ≤ -(T_J : Int)` with `c ≤ -((T + P : Nat) : Int) + (J : Int)`
+(`J` columns inside the left light cone) is `P`-periodic from `T` on. -/
+theorem not_cell_periodic_gt_of_black_diagonal
+    (J T_J : Nat) (hblack : ∀ t : Nat, T_J ≤ t → D J t = true)
+    (c : Int) (T P : Nat) (hPJ : J < P)
+    (hc0 : c ≤ -((T_J : Nat) : Int)) (hc : c ≤ -((T + P : Nat) : Int) + (J : Int)) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have ht0_ge : T ≤ s + J - P := by omega
+  have heq := hper (s + J - P) ht0_ge
+  have h1 : (s + J - P) + P = s + J := by omega
+  rw [h1, hc_eq] at heq
+  have htrue : cell (s + J) (-(s : Int)) = true := by
+    have hd : D J (s + J) = cell (s + J) (-(s : Int)) := by
+      unfold D
+      exact congrArg (cell (s + J)) (by omega)
+    rw [← hd]
+    exact hblack (s + J) (by omega)
+  have hfalse : cell (s + J - P) (-(s : Int)) = false :=
+    Rule30Jen.cell_eq_false_of_lt (s + J - P) (-(s : Int)) (by omega)
+  rw [htrue, hfalse] at heq
+  exact Bool.noConfusion heq
+
+/-- **Unbounded All-Depth Black-Shield Inward Non-Periodicity (`exists_black_depth_inward_non_periodic`):**
+for every target depth `N : Nat`, there exists a depth `J` with
+`N < J ∧ J ≤ 2 ^ (2 * 2 ^ whiteCount N) + 2` and an onset `T_J : Nat` such that for every `T : Nat`
+and every period `P > J`, no column `c ≤ -(T_J : Int)` with `c ≤ -((T + P : Nat) : Int) + (J : Int)`
+is `P`-periodic from `T` on. -/
+theorem exists_black_depth_inward_non_periodic (N : Nat) :
+    ∃ J T_J : Nat, N < J ∧ J ≤ 2 ^ (2 * 2 ^ whiteCount N) + 2 ∧
+      ∀ (c : Int) (T P : Nat), J < P →
+        c ≤ -((T_J : Nat) : Int) → c ≤ -((T + P : Nat) : Int) + (J : Int) →
+        ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  obtain ⟨J, hNJ, hJ_le, T_J, hblack⟩ := D_next_black_explicit_bound N
+  exact ⟨J, T_J, hNJ, hJ_le, fun c T P hPJ hc0 hc =>
+    not_cell_periodic_gt_of_black_diagonal J T_J hblack c T P hPJ hc0 hc⟩
+
+/-- **Universal Cascade-Depth Inward Non-Periodicity Theorem (`not_cell_periodic_of_cascade_depth`):**
+if at depth `J : Nat` and onset `T_J : Nat`:
+(1) for every column `s ≥ T_J` and `P > J`, some diagonal `j` with `J ≤ j < P` is black at arrival `s + j`, and
+(2) for every column `s ≥ T_J` and `1 ≤ P ≤ J`, some diagonal `j` with `J ≤ j + P` satisfies `D (j + P) (s + j + P) ≠ D j (s + j)`,
+then for EVERY `T : Nat` and EVERY positive period `P > 0`, no column `c ≤ -(T_J : Int)` with
+`c ≤ -((T + P : Nat) : Int) + (J : Int)` (`J` columns inside the left light cone) is `P`-periodic from `T` on. -/
+theorem not_cell_periodic_of_cascade_depth
+    (J T_J : Nat)
+    (hcov : ∀ (s P : Nat), T_J ≤ s → J < P → ∃ j : Nat, J ≤ j ∧ j < P ∧ D j (s + j) = true)
+    (hmis : ∀ (s P : Nat), T_J ≤ s → 0 < P → P ≤ J → ∃ j : Nat, J ≤ j + P ∧ D (j + P) (s + j + P) ≠ D j (s + j))
+    (c : Int) (T P : Nat) (hP : 0 < P)
+    (hc0 : c ≤ -((T_J : Nat) : Int)) (hc : c ≤ -((T + P : Nat) : Int) + (J : Int)) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  intro hper
+  let s : Nat := (-c).toNat
+  have hc_eq : c = -(s : Int) := by omega
+  have hs : T_J ≤ s := by omega
+  by_cases hPJ : P ≤ J
+  · obtain ⟨j, hjJ, hne⟩ := hmis s P hs hP hPJ
+    have heq := hper (s + j) (by omega)
+    rw [show (s + j) + P = s + j + P by omega, hc_eq] at heq
+    have hd1 : D (j + P) (s + j + P) = cell (s + j + P) (-(s : Int)) := by
+      unfold D; exact congrArg (cell (s + j + P)) (by omega)
+    have hd0 : D j (s + j) = cell (s + j) (-(s : Int)) := by
+      unfold D; exact congrArg (cell (s + j)) (by omega)
+    rw [← hd1, ← hd0] at heq
+    exact hne heq
+  · obtain ⟨j, hjJ, hjP, htrue⟩ := hcov s P hs (by omega)
+    have heq := hper (s + j - P) (by omega)
+    rw [show (s + j - P) + P = s + j by omega, hc_eq] at heq
+    have hd1 : D j (s + j) = cell (s + j) (-(s : Int)) := by
+      unfold D; exact congrArg (cell (s + j)) (by omega)
+    have hfalse : cell (s + j - P) (-(s : Int)) = false :=
+      Rule30Jen.cell_eq_false_of_lt (s + j - P) (-(s : Int)) (by omega)
+    rw [← hd1, htrue, hfalse] at heq
+    exact Bool.noConfusion heq
 
 end Ruliology.CellularAutomata.Rule30TraceEdge
