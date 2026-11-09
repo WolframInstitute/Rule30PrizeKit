@@ -4657,4 +4657,30 @@ theorem not_cell_periodic_gt_eighth_black_shield_dichotomy_of_neg_neg
     intro T P hP c hc_top hc_bot
     exact not_cell_periodic_of_all_black_diagonal 174451 2787736 h2.2.2.1 T hP hc_top hc_bot
 
+
+/-- **229,339-Column Inward Non-Periodicity in the `++` Sub-Branch (`not_cell_periodic_gt_two_hundred_twenty_nine_thousand_three_hundred_thirty_nine_of_pos_pos`):**
+in the `++` sub-branch (`D 58287 = gate16_D58287_pos`, `D 58288 = true`), for every `T P : Nat` with `P > 229339`
+and every column `c ≤ -3665958` with `c ≤ -((T + P : Nat) : Int) + 229339`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_gt_two_hundred_twenty_nine_thousand_three_hundred_thirty_nine_of_pos_pos
+    (h58287 : ∀ t : Nat, 929138 ≤ t → Rule30Diagonals.D 58287 t = Rule30LeftAntiPeriod.gate16_D58287_pos.eval (Rule30LeftAntiPeriod.osc4State t))
+    (h58288 : ∀ t : Nat, 929156 ≤ t → Rule30Diagonals.D 58288 t = true)
+    (T : Nat) {P : Nat} (hP : 229339 < P) {c : Int} (hc_top : c ≤ -3665958)
+    (hc_bot : c ≤ -((T + P : Nat) : Int) + 229339) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) :=
+  not_cell_periodic_of_all_black_diagonal 229339 3665958
+    (Rule30LeftAntiPeriod.seventh_white_diagonal_and_period32_doubling_of_pos_pos h58287 h58288).2.2.1
+    T hP hc_top hc_bot
+
+/-- **Complete Positive-`D 53208` Seventh All-Black Shield Inward Non-Periodicity Dichotomy (`229,339` vs `87,868` Columns) and Unconditional `87,868`-Column Bound on Positive-`D 53208` (`not_cell_periodic_gt_two_hundred_twenty_nine_thousand_three_hundred_thirty_nine_at_col_le_neg_add_eighty_seven_thousand_eight_hundred_sixty_eight_of_pos_D53208`):**
+under the positive-`D 53208` branch (`D 53208 = gate16_D53208_pos`), for every `T P : Nat` with `P > 229339`
+and every column `c ≤ -3665958` with `c ≤ -((T + P : Nat) : Int) + 87868`, `cell · c` is not `P`-periodic from `T` on. -/
+theorem not_cell_periodic_gt_two_hundred_twenty_nine_thousand_three_hundred_thirty_nine_at_col_le_neg_add_eighty_seven_thousand_eight_hundred_sixty_eight_of_pos_D53208
+    (hpos : ∀ t : Nat, 847890 ≤ t → Rule30Diagonals.D 53208 t = Rule30LeftAntiPeriod.gate16_D53208_pos.eval (Rule30LeftAntiPeriod.osc4State t))
+    (T : Nat) {P : Nat} (hP : 229339 < P) {c : Int} (hc_top : c ≤ -3665958)
+    (hc_bot : c ≤ -((T + P : Nat) : Int) + 87868) :
+    ¬ (∀ t : Nat, T ≤ t → cell (t + P) c = cell t c) := by
+  rcases Rule30LeftAntiPeriod.seventh_white_diagonal_and_period32_doubling_of_pos_D53208 hpos with hpp | hpn
+  · exact not_cell_periodic_of_all_black_diagonal 229339 3665958 hpp.2.2.1 T hP hc_top (by omega)
+  · exact not_cell_periodic_of_all_black_diagonal 87868 1402422 hpn.2.2.1 T (by omega) (by omega) hc_bot
+
 end Ruliology.CellularAutomata.Rule30TraceEdge
