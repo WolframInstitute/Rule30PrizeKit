@@ -7630,5 +7630,459 @@ theorem D_zero_to_three_hundred_ninety_eight_eq_fullGate8 (j : Nat) (hj : j ≤ 
         rw [hfg]
         exact h
 
+/-! ### 1. Universal N-Bit / L-Cycle Oscillator & Gate Transfer Operator for Arbitrary Depth -/
+
+/-- Iterate an arbitrary state transition map `step : α → α` for `n` steps. -/
+def stepIter {α : Type} (step : α → α) : Nat → α → α
+  | 0, s => s
+  | n + 1, s => stepIter step n (step s)
+
+/-- Semigroup law for `stepIter`: iterating `m + n` steps equals iterating `m` steps then `n` steps. -/
+theorem stepIter_add {α : Type} (step : α → α) (m n : Nat) (s : α) :
+    stepIter step (m + n) s = stepIter step n (stepIter step m s) := by
+  induction m generalizing s with
+  | zero => rw [Nat.zero_add]; rfl
+  | succ m ih =>
+    rw [show m + 1 + n = (m + n) + 1 by omega]
+    exact ih (step s)
+
+/-- Right-step commutation for `stepIter`. -/
+theorem stepIter_succ_right {α : Type} (step : α → α) (n : Nat) (s : α) :
+    stepIter step (n + 1) s = step (stepIter step n s) := by
+  rw [stepIter_add step n 1 s]
+  rfl
+
+/-- Unroll the Rule 30 diagonal recurrence `b' = xor (g0 s) (g1 s || b)` for `n` steps along `step`. -/
+def unrollGenFrom {α : Type} (step : α → α) (g0 g1 : α → Bool) : Nat → α → Bool → Bool
+  | 0, _, b => b
+  | n + 1, s, b => unrollGenFrom step g0 g1 n (step s) (xor (g0 s) (g1 s || b))
+
+/-- Composition law for `unrollGenFrom` across `m + n` steps. -/
+theorem unrollGenFrom_add {α : Type} (step : α → α) (g0 g1 : α → Bool) (m n : Nat) (s : α) (b : Bool) :
+    unrollGenFrom step g0 g1 (m + n) s b =
+      unrollGenFrom step g0 g1 n (stepIter step m s) (unrollGenFrom step g0 g1 m s b) := by
+  induction m generalizing s b with
+  | zero => rw [Nat.zero_add]; rfl
+  | succ m ih =>
+    rw [show m + 1 + n = (m + n) + 1 by omega]
+    exact ih (step s) (xor (g0 s) (g1 s || b))
+
+/-- Universal transfer operator `nextGateGen step L g0 g1` for an `L`-cycle oscillator `(α, step)`. -/
+def nextGateGen {α : Type} (step : α → α) (L : Nat) (g0 g1 : α → Bool) (s : α) : Bool :=
+  unrollGenFrom step g0 g1 L s false
+
+/-- Boolean predicate testing whether `g` is `true` at least once in `n` steps along `step` from `s`. -/
+def orbitHasTrue {α : Type} (step : α → α) (g : α → Bool) : Nat → α → Bool
+  | 0, _ => false
+  | n + 1, s => g s || orbitHasTrue step g n (step s)
+
+/-- Monotonicity of `orbitHasTrue` in the horizon `k`. -/
+theorem orbitHasTrue_mono_succ {α : Type} (step : α → α) (g : α → Bool) :
+    ∀ (k : Nat) (x : α), orbitHasTrue step g k x = true → orbitHasTrue step g (k + 1) x = true
+  | 0, _, hk => by cases hk
+  | k + 1, x, hk => by
+    unfold orbitHasTrue at hk ⊢
+    cases hgx : g x
+    · rw [hgx, Bool.false_or] at hk
+      rw [Bool.false_or]
+      exact orbitHasTrue_mono_succ step g k (step x) hk
+    · rw [Bool.true_or]
+
+/-- Witness injection for `orbitHasTrue`: if `g (stepIter step k x) = true`, then `orbitHasTrue step g (k + 1) x = true`. -/
+theorem orbitHasTrue_of_stepIter_true {α : Type} (step : α → α) (g : α → Bool) :
+    ∀ (k : Nat) (x : α), g (stepIter step k x) = true → orbitHasTrue step g (k + 1) x = true
+  | 0, x, hk => by
+    unfold orbitHasTrue
+    change g x = true at hk
+    rw [hk, Bool.true_or]
+  | k + 1, x, hk => by
+    unfold orbitHasTrue
+    cases hgx : g x
+    · rw [Bool.false_or]
+      exact orbitHasTrue_of_stepIter_true step g k (step x) hk
+    · rw [Bool.true_or]
+
+/-- Universal memory-erasure lemma: if `orbitHasTrue step g1 n s = true`, then `unrollGenFrom step g0 g1 n s b`
+is independent of the initial bit `b`. -/
+theorem unrollGenFrom_eq_of_orbitHasTrue {α : Type} (step : α → α) (g0 g1 : α → Bool) :
+    ∀ (n : Nat) (s : α), orbitHasTrue step g1 n s = true →
+      ∀ b : Bool, unrollGenFrom step g0 g1 n s b = unrollGenFrom step g0 g1 n s false
+  | 0, _, h, _ => by cases h
+  | n + 1, s, h, b => by
+    unfold orbitHasTrue at h
+    unfold unrollGenFrom
+    cases hg1 : g1 s
+    · rw [hg1, Bool.false_or] at h
+      exact (unrollGenFrom_eq_of_orbitHasTrue step g0 g1 n (step s) h _).trans
+        (unrollGenFrom_eq_of_orbitHasTrue step g0 g1 n (step s) h _).symm
+    · rw [Bool.true_or, Bool.true_or]
+
+/-- One-step cycle evaluation law for `nextGateGen`: if `stepIter step L s = s` and `orbitHasTrue step g1 L s = true`,
+then `nextGateGen` satisfies the exact Rule 30 diagonal recurrence across `s → step s`. -/
+theorem nextGateGen_step_of_cycle {α : Type} (step : α → α) (L : Nat) (g0 g1 : α → Bool) (s : α)
+    (hcyc : stepIter step L s = s) (hnonwhite : orbitHasTrue step g1 L s = true) :
+    nextGateGen step L g0 g1 (step s) =
+      xor (g0 s) (g1 s || nextGateGen step L g0 g1 s) := by
+  have h1 : unrollGenFrom step g0 g1 (L + 1) s false =
+      unrollGenFrom step g0 g1 L (step s) (xor (g0 s) (g1 s || false)) := rfl
+  have h2 : unrollGenFrom step g0 g1 (L + 1) s false =
+      unrollGenFrom step g0 g1 1 (stepIter step L s) (unrollGenFrom step g0 g1 L s false) :=
+    unrollGenFrom_add step g0 g1 L 1 s false
+  rw [hcyc] at h2
+  have hmem : unrollGenFrom step g0 g1 L (step s) (xor (g0 s) (g1 s || false)) =
+      nextGateGen step L g0 g1 (step s) := by
+    have hrot : orbitHasTrue step g1 L (step s) = true := by
+      cases L with
+      | zero => cases hnonwhite
+      | succ m =>
+        unfold orbitHasTrue at hnonwhite
+        cases hg1 : g1 s
+        · rw [hg1, Bool.false_or] at hnonwhite
+          exact orbitHasTrue_mono_succ step g1 m (step s) hnonwhite
+        · have hlast : g1 (stepIter step m (step s)) = true := by
+            have hcyc' : stepIter step m (step s) = s := hcyc
+            rw [hcyc', hg1]
+          exact orbitHasTrue_of_stepIter_true step g1 m (step s) hlast
+    exact unrollGenFrom_eq_of_orbitHasTrue step g0 g1 L (step s) hrot _
+  rw [← hmem, ← h1, h2]
+  rfl
+
+/-- Linking `D (j + 2) (t + n)` to `unrollGenFrom` whenever `D j` and `D (j + 1)` follow `g0` and `g1` on `σ`. -/
+theorem D_add_eq_unrollGenFrom {α : Type} (step : α → α) (σ : Nat → α)
+    (j T : Nat) (g0 g1 : α → Bool)
+    (hσ : ∀ t : Nat, T ≤ t → σ (t + 1) = step (σ t))
+    (hj0 : ∀ t : Nat, T ≤ t → D j t = g0 (σ t))
+    (hj1 : ∀ t : Nat, T ≤ t → D (j + 1) t = g1 (σ t)) :
+    ∀ (n t : Nat), T ≤ t →
+      D (j + 2) (t + n) = unrollGenFrom step g0 g1 n (σ t) (D (j + 2) t)
+  | 0, _, _ => rfl
+  | n + 1, t, ht => by
+    have hstep := D_step j t
+    rw [hj0 t ht, hj1 t ht] at hstep
+    have ih := D_add_eq_unrollGenFrom step σ j T g0 g1 hσ hj0 hj1 n (t + 1) (by omega)
+    rw [show t + (n + 1) = (t + 1) + n by omega, ih, hσ t ht, hstep]
+    rfl
+
+/-- **Universal Oscillator Closure Law (`D_stays_in_general_oscillator_of_nonwhite`):**
+for any autonomous oscillator `σ : Nat → α` of period `L` from `T` on (`σ (t + 1) = step (σ t)` and
+`stepIter step L (σ t) = σ t`), if `D j t = g0 (σ t)` and `D (j + 1) t = g1 (σ t)` with
+`orbitHasTrue step g1 L (σ t) = true`, then for all `t ≥ T + L`,
+`D (j + 2) t = nextGateGen step L g0 g1 (σ t)` and `D (j + 2) (t + L) = D (j + 2) t`. -/
+theorem D_stays_in_general_oscillator_of_nonwhite {α : Type} (step : α → α) (σ : Nat → α)
+    (L j T : Nat) (g0 g1 : α → Bool)
+    (hσ : ∀ t : Nat, T ≤ t → σ (t + 1) = step (σ t))
+    (hcyc : ∀ t : Nat, T ≤ t → stepIter step L (σ t) = σ t)
+    (hj0 : ∀ t : Nat, T ≤ t → D j t = g0 (σ t))
+    (hj1 : ∀ t : Nat, T ≤ t → D (j + 1) t = g1 (σ t))
+    (hnonwhite : ∀ t : Nat, T ≤ t → orbitHasTrue step g1 L (σ t) = true) :
+    (∀ t : Nat, T + L ≤ t → D (j + 2) t = nextGateGen step L g0 g1 (σ t)) ∧
+    (∀ t : Nat, T + L ≤ t → D (j + 2) (t + L) = D (j + 2) t) := by
+  have hσ_iter : ∀ (n t : Nat), T ≤ t → σ (t + n) = stepIter step n (σ t) := by
+    intro n
+    induction n with
+    | zero => intro t _; rfl
+    | succ n ih =>
+      intro t ht
+      rw [show t + (n + 1) = (t + 1) + n by omega, ih (t + 1) (by omega), hσ t ht]
+      rfl
+  have hgate : ∀ t : Nat, T + L ≤ t → D (j + 2) t = nextGateGen step L g0 g1 (σ t) := by
+    intro t ht
+    have hunroll := D_add_eq_unrollGenFrom step σ j T g0 g1 hσ hj0 hj1 L (t - L) (by omega)
+    rw [show t - L + L = t by omega] at hunroll
+    have hmem := unrollGenFrom_eq_of_orbitHasTrue step g0 g1 L (σ (t - L))
+      (hnonwhite (t - L) (by omega)) (D (j + 2) (t - L))
+    have hσL : σ t = σ (t - L) := by
+      have h1 := hσ_iter L (t - L) (by omega)
+      rw [show t - L + L = t by omega, hcyc (t - L) (by omega)] at h1
+      exact h1
+    rw [hunroll, hmem, hσL]
+    rfl
+  refine ⟨hgate, fun t ht => ?_⟩
+  rw [hgate (t + L) (by omega), hgate t ht, hσ_iter L t (by omega), hcyc t (by omega)]
+
+/-! ### 2. Universal White-Diagonal Parity Dichotomy & Oscillator Bit-Addition -/
+
+/-- Cumulative XOR parity `orbitXor step g n s` of `g` across `n` steps of `step` from `s`. -/
+def orbitXor {α : Type} (step : α → α) (g : α → Bool) : Nat → α → Bool
+  | 0, _ => false
+  | n + 1, s => xor (g s) (orbitXor step g n (step s))
+
+/-- When `g1` is identically `false`, `unrollGenFrom step g0 (fun _ => false) n s b` equals `xor (orbitXor step g0 n s) b`. -/
+theorem unrollGenFrom_white_eq_xor_orbitXor {α : Type} (step : α → α) (g0 : α → Bool) :
+    ∀ (n : Nat) (s : α) (b : Bool),
+      unrollGenFrom step g0 (fun _ => false) n s b = xor (orbitXor step g0 n s) b
+  | 0, _, b => by cases b <;> rfl
+  | n + 1, s, b => by
+    unfold unrollGenFrom orbitXor
+    rw [Bool.false_or, unrollGenFrom_white_eq_xor_orbitXor step g0 n (step s) (xor (g0 s) b)]
+    cases g0 s <;> cases orbitXor step g0 n (step s) <;> cases b <;> rfl
+
+/-- **Universal White-Diagonal Parity Dichotomy (`D_white_diagonal_parity_dichotomy`):**
+when `D (j + 1) t = false` for `t ≥ T` and `D j t = g0 (σ t)`:
+`D (j + 2) (t + L) = xor (orbitXor step g0 L (σ t)) (D (j + 2) t)`. -/
+theorem D_white_diagonal_parity_dichotomy {α : Type} (step : α → α) (σ : Nat → α)
+    (L j T : Nat) (g0 : α → Bool)
+    (hσ : ∀ t : Nat, T ≤ t → σ (t + 1) = step (σ t))
+    (hj0 : ∀ t : Nat, T ≤ t → D j t = g0 (σ t))
+    (hwhite : ∀ t : Nat, T ≤ t → D (j + 1) t = false) (t : Nat) (ht : T ≤ t) :
+    D (j + 2) (t + L) = xor (orbitXor step g0 L (σ t)) (D (j + 2) t) := by
+  have hunroll := D_add_eq_unrollGenFrom step σ j T g0 (fun _ => false) hσ hj0 hwhite L t ht
+  rw [hunroll, unrollGenFrom_white_eq_xor_orbitXor]
+
+/-- **Universal Odd-Parity White-Diagonal Bit-Addition (`D_antiperiodic_and_halfDensity_of_white_and_odd_orbitXor`):**
+whenever `D (j + 1)` is white from `T` on and `orbitXor step g0 L (σ t) = true` (`L > 0`),
+`D (j + 2)` is `L`-anti-periodic, satisfies `HalfDensity (D (j + 2))`,
+and cannot be represented by any gate `g : α → Bool` on the `L`-periodic oscillator `σ`. -/
+theorem D_antiperiodic_and_halfDensity_of_white_and_odd_orbitXor {α : Type} (step : α → α) (σ : Nat → α)
+    (L j T : Nat) (hL : 0 < L) (g0 : α → Bool)
+    (hσ : ∀ t : Nat, T ≤ t → σ (t + 1) = step (σ t))
+    (hcyc : ∀ t : Nat, T ≤ t → σ (t + L) = σ t)
+    (hj0 : ∀ t : Nat, T ≤ t → D j t = g0 (σ t))
+    (hwhite : ∀ t : Nat, T ≤ t → D (j + 1) t = false)
+    (hodd : ∀ t : Nat, T ≤ t → orbitXor step g0 L (σ t) = true) :
+    (∀ t : Nat, T ≤ t → D (j + 2) (t + L) = !D (j + 2) t) ∧
+    HalfDensity (D (j + 2)) ∧
+    ¬ (∃ (T' : Nat) (g : α → Bool), ∀ t : Nat, T' ≤ t → D (j + 2) t = g (σ t)) := by
+  have hanti : ∀ t : Nat, T ≤ t → D (j + 2) (t + L) = !D (j + 2) t := by
+    intro t ht
+    have hd := D_white_diagonal_parity_dichotomy step σ L j T g0 hσ hj0 hwhite t ht
+    rw [hodd t ht] at hd
+    rw [hd]
+    cases D (j + 2) t <;> rfl
+  refine ⟨hanti, halfDensity_of_antiperiodic hL ⟨T, hanti⟩, ?_⟩
+  rintro ⟨T', g, hg⟩
+  let t0 := max T T'
+  have h1 := hanti t0 (Nat.le_max_left T T')
+  rw [hg (t0 + L) (by omega), hg t0 (Nat.le_max_right T T'), hcyc t0 (Nat.le_max_left T T')] at h1
+  revert h1
+  cases g (σ t0) <;> decide
+
+/-- **Universal Post-White Black Shield & Shifted-Complement Law (`D_black_shield_and_complement_of_antiperiodic_after_white`):**
+whenever `D (j + 1) t = false` (`t ≥ T`) and `D (j + 2) (t + L) = !D (j + 2) t` (`L > 0`, `t ≥ T`),
+`D (j + 3) t = true` for all `t ≥ T + 2 * L` (`EvBlack (D (j + 3))`) and
+`D (j + 4) (t + 1) = !D (j + 2) t` for all `t ≥ T + 2 * L` (`HalfDensity (D (j + 4))`). -/
+theorem D_black_shield_and_complement_of_antiperiodic_after_white
+    (L j T : Nat) (hL : 0 < L)
+    (hwhite : ∀ t : Nat, T ≤ t → D (j + 1) t = false)
+    (hanti : ∀ t : Nat, T ≤ t → D (j + 2) (t + L) = !D (j + 2) t) :
+    (∀ t : Nat, T + 2 * L ≤ t → D (j + 3) t = true) ∧
+    EvBlack (D (j + 3)) ∧
+    (∀ t : Nat, T + 2 * L ≤ t → D (j + 4) (t + 1) = !D (j + 2) t) ∧
+    HalfDensity (D (j + 4)) := by
+  have hstay_true : ∀ (k t : Nat), T ≤ t → D (j + 3) t = true → D (j + 3) (t + k) = true := by
+    intro k
+    induction k with
+    | zero => intro t _ h; exact h
+    | succ k ih =>
+      intro t ht h
+      have hstep := D_step (j + 1) t
+      rw [show j + 1 + 1 = j + 2 by omega, show j + 1 + 2 = j + 3 by omega,
+          hwhite t ht, h, Bool.or_true, Bool.false_xor] at hstep
+      rw [show t + (k + 1) = (t + 1) + k by omega]
+      exact ih (t + 1) (by omega) hstep
+  have hblack : ∀ t : Nat, T + 2 * L ≤ t → D (j + 3) t = true := by
+    intro t ht
+    let t0 := t - 2 * L
+    cases hb : D (j + 2) t0
+    · have hbL : D (j + 2) (t0 + L) = true := by
+        have h := hanti t0 (by omega)
+        rw [hb] at h; exact h
+      have hstep := D_step (j + 1) (t0 + L)
+      rw [show j + 1 + 1 = j + 2 by omega, show j + 1 + 2 = j + 3 by omega,
+          hwhite (t0 + L) (by omega), hbL, Bool.true_or, Bool.false_xor] at hstep
+      have hstay := hstay_true (t - (t0 + L + 1)) (t0 + L + 1) (by omega) hstep
+      rw [show t0 + L + 1 + (t - (t0 + L + 1)) = t by omega] at hstay
+      exact hstay
+    · have hstep := D_step (j + 1) t0
+      rw [show j + 1 + 1 = j + 2 by omega, show j + 1 + 2 = j + 3 by omega,
+          hwhite t0 (by omega), hb, Bool.true_or, Bool.false_xor] at hstep
+      have hstay := hstay_true (t - (t0 + 1)) (t0 + 1) (by omega) hstep
+      rw [show t0 + 1 + (t - (t0 + 1)) = t by omega] at hstay
+      exact hstay
+  have hcomp : ∀ t : Nat, T + 2 * L ≤ t → D (j + 4) (t + 1) = !D (j + 2) t := by
+    intro t ht
+    have hstep := D_step (j + 2) t
+    rw [show j + 2 + 1 = j + 3 by omega, show j + 2 + 2 = j + 4 by omega,
+        hblack t ht, Bool.true_or] at hstep
+    rw [hstep]
+    cases D (j + 2) t <;> rfl
+  have hanti4 : ∀ t : Nat, T + 2 * L + 1 ≤ t → D (j + 4) (t + L) = !D (j + 4) t := by
+    intro t ht
+    have h1 := hcomp (t + L - 1) (by omega)
+    have h2 := hcomp (t - 1) (by omega)
+    rw [show t + L - 1 + 1 = t + L by omega] at h1
+    rw [show t - 1 + 1 = t by omega] at h2
+    have h3 := hanti (t - 1) (by omega)
+    rw [show t - 1 + L = t + L - 1 by omega] at h3
+    rw [h1, h3, h2]
+  refine ⟨hblack, ⟨T + 2 * L, hblack⟩, hcomp, halfDensity_of_antiperiodic hL ⟨T + 2 * L + 1, hanti4⟩⟩
+
+/-! ### 3. Universal L -> 2L Product-Oscillator Extension Functor (`extStep`) & All-Parity Black Shield -/
+
+/-- Product-oscillator transition map `extStep step g0` on `α × Bool`, adjoining a new XOR-accumulated bit driven by `g0`. -/
+def extStep {α : Type} (step : α → α) (g0 : α → Bool) (p : α × Bool) : α × Bool :=
+  (step p.1, xor (g0 p.1) p.2)
+
+/-- Exact `n`-step iteration formula for the product oscillator `extStep step g0`. -/
+theorem stepIter_extStep {α : Type} (step : α → α) (g0 : α → Bool) :
+    ∀ (n : Nat) (s : α) (b : Bool),
+      stepIter (extStep step g0) n (s, b) = (stepIter step n s, xor (orbitXor step g0 n s) b)
+  | 0, _, b => by cases b <;> rfl
+  | n + 1, s, b => by
+    unfold stepIter orbitXor
+    change stepIter (extStep step g0) n (step s, xor (g0 s) b) = _
+    rw [stepIter_extStep step g0 n (step s) (xor (g0 s) b)]
+    congr 1
+    cases g0 s <;> cases orbitXor step g0 n (step s) <;> cases b <;> rfl
+
+/-- **Universal `L → 2L` Product-Oscillator Period Doubling (`extStep_half_and_double_cycle`):**
+whenever `stepIter step L s = s` and `orbitXor step g0 L s = true`, iterating `extStep step g0`
+for `L` steps flips the adjoined bit (`(s, !b)`) and iterating for `2 * L` steps returns to `(s, b)`. -/
+theorem extStep_half_and_double_cycle {α : Type} (step : α → α) (g0 : α → Bool) (L : Nat) (s : α) (b : Bool)
+    (hcyc : stepIter step L s = s) (hodd : orbitXor step g0 L s = true) :
+    stepIter (extStep step g0) L (s, b) = (s, !b) ∧
+    stepIter (extStep step g0) (2 * L) (s, b) = (s, b) := by
+  have hhalf : stepIter (extStep step g0) L (s, b) = (s, !b) := by
+    rw [stepIter_extStep, hcyc, hodd]
+    cases b <;> rfl
+  refine ⟨hhalf, ?_⟩
+  rw [show 2 * L = L + L by omega, stepIter_add, hhalf, stepIter_extStep, hcyc, hodd]
+  cases b <;> rfl
+
+/-- **Universal Even-Parity Product-Oscillator Period Preservation (`extStep_even_cycle`):**
+whenever `stepIter step L s = s` and `orbitXor step g0 L s = false`, iterating `extStep step g0`
+for `L` steps returns directly to `(s, b)` without doubling the period. -/
+theorem extStep_even_cycle {α : Type} (step : α → α) (g0 : α → Bool) (L : Nat) (s : α) (b : Bool)
+    (hcyc : stepIter step L s = s) (heven : orbitXor step g0 L s = false) :
+    stepIter (extStep step g0) L (s, b) = (s, b) := by
+  rw [stepIter_extStep, hcyc, heven]
+  cases b <;> rfl
+
+/-- **Universal Diagonal Product-Oscillator Closure (`D_extOsc_succ_and_double_cycle`):**
+across any white diagonal `D (j + 1) t = false` (`t ≥ T`) where `D j t = g0 (σ t)` has odd `L`-cycle parity,
+the coupled state `σ' t = (σ t, D (j + 2) t)` steps by `extStep step g0`, flips its second bit every `L` steps,
+and forms a closed `2 * L`-periodic oscillator. -/
+theorem D_extOsc_succ_and_double_cycle {α : Type} (step : α → α) (σ : Nat → α)
+    (L j T : Nat) (g0 : α → Bool)
+    (hσ : ∀ t : Nat, T ≤ t → σ (t + 1) = step (σ t))
+    (hcyc : ∀ t : Nat, T ≤ t → σ (t + L) = σ t)
+    (hj0 : ∀ t : Nat, T ≤ t → D j t = g0 (σ t))
+    (hwhite : ∀ t : Nat, T ≤ t → D (j + 1) t = false)
+    (hodd : ∀ t : Nat, T ≤ t → orbitXor step g0 L (σ t) = true) (t : Nat) (ht : T ≤ t) :
+    (σ (t + 1), D (j + 2) (t + 1)) = extStep step g0 (σ t, D (j + 2) t) ∧
+    (σ (t + L), D (j + 2) (t + L)) = (σ t, !D (j + 2) t) ∧
+    (σ (t + 2 * L), D (j + 2) (t + 2 * L)) = (σ t, D (j + 2) t) := by
+  have hstep1 : (σ (t + 1), D (j + 2) (t + 1)) = extStep step g0 (σ t, D (j + 2) t) := by
+    unfold extStep
+    have hd := D_step j t
+    rw [hj0 t ht, hwhite t ht, Bool.false_or] at hd
+    rw [hσ t ht, hd]
+  have hanti : ∀ t' : Nat, T ≤ t' → D (j + 2) (t' + L) = !D (j + 2) t' := by
+    intro t' ht'
+    have hd := D_white_diagonal_parity_dichotomy step σ L j T g0 hσ hj0 hwhite t' ht'
+    rw [hodd t' ht'] at hd
+    rw [hd]
+    cases D (j + 2) t' <;> rfl
+  have hhalf : (σ (t + L), D (j + 2) (t + L)) = (σ t, !D (j + 2) t) := by
+    rw [hcyc t ht, hanti t ht]
+  refine ⟨hstep1, hhalf, ?_⟩
+  rw [show t + 2 * L = (t + L) + L by omega, hcyc (t + L) (by omega), hcyc t ht,
+      hanti (t + L) (by omega), hanti t ht, Bool.not_not]
+
+/-- **Universal Non-White Post-White Black Shield (`D_black_shield_after_white_of_nonwhite_gate`):**
+across ANY white diagonal `D (j + 1) t = false` (`t ≥ T`) whose preceding diagonal `D j t = g0 (σ t)` is
+non-white on the `k`-horizon (`orbitHasTrue step g0 k (σ t) = true`)—regardless of whether `g0` has
+odd or even parity!—`D (j + 3) t = true` for all `t ≥ T + k + 2` (`EvBlack (D (j + 3))`) and
+`D (j + 4) (t + 1) = !D (j + 2) t` for all `t ≥ T + k + 2`. -/
+theorem D_black_shield_after_white_of_nonwhite_gate {α : Type} (step : α → α) (σ : Nat → α)
+    (k j T : Nat) (g0 : α → Bool)
+    (hσ : ∀ t : Nat, T ≤ t → σ (t + 1) = step (σ t))
+    (hj0 : ∀ t : Nat, T ≤ t → D j t = g0 (σ t))
+    (hwhite : ∀ t : Nat, T ≤ t → D (j + 1) t = false)
+    (hnonwhite : ∀ t : Nat, T ≤ t → orbitHasTrue step g0 k (σ t) = true) :
+    (∀ t : Nat, T + k + 2 ≤ t → D (j + 3) t = true) ∧
+    EvBlack (D (j + 3)) ∧
+    (∀ t : Nat, T + k + 2 ≤ t → D (j + 4) (t + 1) = !D (j + 2) t) := by
+  have hstay_true : ∀ (m t : Nat), T ≤ t → D (j + 3) t = true → D (j + 3) (t + m) = true := by
+    intro m
+    induction m with
+    | zero => intro t _ h; exact h
+    | succ m ih =>
+      intro t ht h
+      have hstep := D_step (j + 1) t
+      rw [show j + 1 + 1 = j + 2 by omega, show j + 1 + 2 = j + 3 by omega,
+          hwhite t ht, h, Bool.or_true, Bool.false_xor] at hstep
+      rw [show t + (m + 1) = (t + 1) + m by omega]
+      exact ih (t + 1) (by omega) hstep
+  have htrigger : ∀ (m t : Nat), T ≤ t → orbitHasTrue step g0 m (σ t) = true → D (j + 3) (t + m + 2) = true := by
+    intro m
+    induction m with
+    | zero => intro _ _ h; cases h
+    | succ m ih =>
+      intro t ht h
+      unfold orbitHasTrue at h
+      cases hg0 : g0 (σ t)
+      · rw [hg0, Bool.false_or] at h
+        rw [← hσ t ht] at h
+        have ihm := ih (t + 1) (by omega) h
+        rw [show t + (m + 1) + 2 = (t + 1) + m + 2 by omega]
+        exact ihm
+      · cases hb : D (j + 2) t
+        · have hstep2 := D_step j t
+          rw [hj0 t ht, hg0, hwhite t ht, hb] at hstep2
+          have hstep3 := D_step (j + 1) (t + 1)
+          rw [show j + 1 + 1 = j + 2 by omega, show j + 1 + 2 = j + 3 by omega,
+              hwhite (t + 1) (by omega), hstep2] at hstep3
+          have hstay := hstay_true (m + 1) (t + 2) (by omega) hstep3
+          rw [show t + 2 + (m + 1) = t + (m + 1) + 2 by omega] at hstay
+          exact hstay
+        · have hstep3 := D_step (j + 1) t
+          rw [show j + 1 + 1 = j + 2 by omega, show j + 1 + 2 = j + 3 by omega,
+              hwhite t ht, hb, Bool.true_or, Bool.false_xor] at hstep3
+          have hstay := hstay_true (m + 2) (t + 1) (by omega) hstep3
+          rw [show t + 1 + (m + 2) = t + (m + 1) + 2 by omega] at hstay
+          exact hstay
+  have hblack : ∀ t : Nat, T + k + 2 ≤ t → D (j + 3) t = true := by
+    intro t ht
+    let t0 := t - (k + 2)
+    have htr := htrigger k t0 (by omega) (hnonwhite t0 (by omega))
+    have hstay := hstay_true (t - (t0 + k + 2)) (t0 + k + 2) (by omega) htr
+    rw [show t0 + k + 2 + (t - (t0 + k + 2)) = t by omega] at hstay
+    exact hstay
+  refine ⟨hblack, ⟨T + k + 2, hblack⟩, fun t ht => ?_⟩
+  have hstep := D_step (j + 2) t
+  rw [show j + 2 + 1 = j + 3 by omega, show j + 2 + 2 = j + 4 by omega,
+      hblack t ht, Bool.true_or] at hstep
+  rw [hstep]
+  cases D (j + 2) t <;> rfl
+
+/-- **Universal Even-Parity Post-White Period Preservation & Black Shield (`D_even_parity_post_white_periodic_and_black_shield`):**
+when `D (j + 1) t = false` (`t ≥ T`), `orbitXor step g0 L (σ t) = false`, and `orbitHasTrue step g0 L (σ t) = true`,
+`D (j + 2)` preserves period `L`, `D (j + 3)` locks to `true` (`t ≥ T + L + 2`), and `D (j + 4)` is also `L`-periodic (`t ≥ T + L + 3`). -/
+theorem D_even_parity_post_white_periodic_and_black_shield {α : Type} (step : α → α) (σ : Nat → α)
+    (L j T : Nat) (g0 : α → Bool)
+    (hσ : ∀ t : Nat, T ≤ t → σ (t + 1) = step (σ t))
+    (hj0 : ∀ t : Nat, T ≤ t → D j t = g0 (σ t))
+    (hwhite : ∀ t : Nat, T ≤ t → D (j + 1) t = false)
+    (heven : ∀ t : Nat, T ≤ t → orbitXor step g0 L (σ t) = false)
+    (hnonwhite : ∀ t : Nat, T ≤ t → orbitHasTrue step g0 L (σ t) = true) :
+    (∀ t : Nat, T ≤ t → D (j + 2) (t + L) = D (j + 2) t) ∧
+    (∀ t : Nat, T + L + 2 ≤ t → D (j + 3) t = true) ∧
+    (∀ t : Nat, T + L + 3 ≤ t → D (j + 4) (t + L) = D (j + 4) t) := by
+  have hper2 : ∀ t : Nat, T ≤ t → D (j + 2) (t + L) = D (j + 2) t := by
+    intro t ht
+    have hd := D_white_diagonal_parity_dichotomy step σ L j T g0 hσ hj0 hwhite t ht
+    rw [heven t ht, Bool.false_xor] at hd
+    exact hd
+  have hsh := D_black_shield_after_white_of_nonwhite_gate step σ L j T g0 hσ hj0 hwhite hnonwhite
+  refine ⟨hper2, hsh.1, fun t ht => ?_⟩
+  have h1 := hsh.2.2 (t + L - 1) (by omega)
+  have h2 := hsh.2.2 (t - 1) (by omega)
+  rw [show t + L - 1 + 1 = t + L by omega] at h1
+  rw [show t - 1 + 1 = t by omega] at h2
+  have h3 := hper2 (t - 1) (by omega)
+  rw [show t - 1 + L = t + L - 1 by omega] at h3
+  rw [h1, h3, h2]
+
 end Rule30LeftAntiPeriod
 end Ruliology.CellularAutomata
