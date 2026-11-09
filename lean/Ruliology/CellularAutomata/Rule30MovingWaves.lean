@@ -51,8 +51,6 @@ lattice without any boundary defect:
 Combining the linear obstruction for `1 ≤ P ≤ 11` with the exponential construction at `P = 12`,
 12 is the least positive integer `P` whose spatial language grows exponentially.
 
-Contributed by Emerson Villafuerte; Codex (OpenAI), Antigravity (Google DeepMind)
-as Rule 30 Prize submission `R30-20261108-9933fc`.
 -/
 
 @[expose] public section
