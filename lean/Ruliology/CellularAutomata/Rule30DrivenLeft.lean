@@ -924,5 +924,30 @@ theorem L_eq_all_of_left_bounded_free_phase_prefix_eq (c : Nat → Bool) (s₁ s
     simpa [hdiv] using hfree (k / P) (by omega)
   · exact hfixed k hk hmod
 
+/-! ### 4. Global Left-Half-Plane Periodicity Exclusion (`Rule30DrivenLeft` ↔ `Rule30Jen.cell`) -/
+
+/-- **Global Left-Half-Plane Non-Periodicity Under Periodic Center (`not_neg_col_eventuallyPeriodic_of_center`):**
+if the center column `fun t => cell t 0` is eventually periodic, then NO negative column `q < 0`
+of `cell` (`fun t => cell t q`) is eventually periodic. -/
+theorem not_neg_col_eventuallyPeriodic_of_center
+    (hc : EventuallyPeriodic (fun t => cell t 0)) {q : Int} (hq : q < 0) :
+    ¬ EventuallyPeriodic (fun t => cell t q) := by
+  intro hcol
+  obtain ⟨T_c, P_c, hP_c, hper_c⟩ := hc
+  have hc_shift : EventuallyPeriodic (fun k => cell (1 + k) 0) :=
+    ⟨T_c, P_c, hP_c, fun k hk => by
+      dsimp only
+      rw [show 1 + (k + P_c) = (1 + k) + P_c by omega]
+      exact hper_c (1 + k) (by omega)⟩
+  obtain ⟨T_q, P_q, hP_q, hper_q⟩ := hcol
+  have hcol_L : EventuallyPeriodic (fun k => L (fun r => cell (1 + r) 0) (fun p => cell 1 p) k q) :=
+    ⟨T_q, P_q, hP_q, fun k hk => by
+      dsimp only
+      rw [cell_eq_L 1 (k + P_q) q (by omega), cell_eq_L 1 k q (by omega),
+          show 1 + (k + P_q) = (1 + k) + P_q by omega]
+      exact hper_q (1 + k) (by omega)⟩
+  have hedge := real_edge 1
+  exact no_periodic_column hedge.1 hedge.2 (by decide) hc_shift hq hcol_L
+
 end Rule30DrivenLeft
 end Ruliology.CellularAutomata
