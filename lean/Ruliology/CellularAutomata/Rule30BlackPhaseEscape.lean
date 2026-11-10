@@ -229,5 +229,183 @@ theorem Q01_of_UBE (hUBE : UBE) : Rule30PeriodTwo.Q01 := by
   rw [show 2 * (t / 2) = t by omega] at hb
   rw [hb]; rfl
 
+/-! ## Period-indexed black-phase escape `UBEAt p`, unconditional `UBEAt 1`, and the equivalence `UBEAt 2 ↔ Q01` -/
+
+/-- **Black-phase escape at a fixed period `p` (`UBEAt p`):**
+for every finite nonzero left start `s` (leftmost black at `-m`) and every `p`-periodic word `w`
+with a black phase, `L w s` violates `L w s t (-1) = !(w (t + 1))` at some black phase `t`. -/
+def UBEAt (p : Nat) : Prop :=
+  ∀ (m : Nat) (s : Int → Bool) (w : Nat → Bool),
+    0 < m →
+    (∀ i : Int, i < -(m : Int) → s i = false) →
+    s (-(m : Int)) = true →
+    (∀ t, w (t + p) = w t) → (∃ j, w j = true) →
+    ∃ t, w t = true ∧ L w s t (-1) ≠ !(w (t + 1))
+
+/-- **`UBE` is equivalent to `UBEAt p` for all `p > 0` (`UBE_iff_forall_UBEAt`).** -/
+theorem UBE_iff_forall_UBEAt : UBE ↔ ∀ p : Nat, 0 < p → UBEAt p := by
+  constructor
+  · intro h p hp m s w hm hs0 hs1 hper hblack
+    exact h m s p w hm hs0 hs1 hp hper hblack
+  · intro h m s p w hm hs0 hs1 hp hper hblack
+    exact h p hp m s w hm hs0 hs1 hper hblack
+
+/-- Every `1`-periodic word `w` is constant (`periodic_one_const`). -/
+theorem periodic_one_const {w : Nat → Bool} (hper : ∀ t, w (t + 1) = w t) :
+    ∀ t : Nat, w t = w 0
+  | 0 => rfl
+  | t + 1 => by rw [← periodic_one_const hper t, ← hper t]
+
+/-- **Unconditional Period-1 Black-Phase Escape (`UBEAt_one`):**
+every `1`-periodic word with a black phase is identically `true`, so `UBEAt 1` holds unconditionally
+by `allBlack_escape`. -/
+theorem UBEAt_one : UBEAt 1 := by
+  intro m s w hm hs0 hs1 hper ⟨j, hj⟩
+  have hw0 : w 0 = true := by rw [← periodic_one_const hper j]; exact hj
+  have hwall : w = (fun _ => true) := funext (fun t => by rw [periodic_one_const hper t, hw0])
+  subst hwall
+  obtain ⟨t, _, hbad⟩ := allBlack_escape hm hs0 hs1
+  exact ⟨t, rfl, hbad⟩
+
+/-- **Converse of `driven_eq_zeroDriven` (`zeroDriven_of_evenWord_admissible`):**
+if `L evenWord s` satisfies `L evenWord s (2 * k) (-1) = true` at every even step `2 * k`, then
+`L evenWord s` coincides with the zero-driven left half `L (fun _ => false) s` at all times `t`
+and negative positions `p < 0`. -/
+theorem zeroDriven_of_evenWord_admissible {s : Int → Bool}
+    (hadm : ∀ k, L evenWord s (2 * k) (-1) = true) :
+    ∀ t : Nat, ∀ p : Int, p < 0 → L evenWord s t p = L (fun _ => false) s t p := by
+  intro t
+  induction t with
+  | zero => intro p hp; rw [L_zero hp, L_zero hp]
+  | succ t ih =>
+    intro p hp
+    rw [L_succ hp, L_succ hp, ih (p - 1) (by omega), ih p hp]
+    by_cases hq : p + 1 < 0
+    · rw [ih (p + 1) hq]
+    · have hp1 : p = -1 := by omega
+      subst hp1
+      rw [show (-1 : Int) + 1 = 0 by rfl, L_col0, L_col0]
+      by_cases he : t % 2 = 0
+      · have hb : L (fun _ => false) s t (-1) = true := by
+          rw [← ih (-1) (by decide), show t = 2 * (t / 2) by omega]
+          exact hadm (t / 2)
+        rw [hb]
+        cases L (fun _ => false) s t (-1 - 1) <;> cases evenWord t <;> rfl
+      · have hw : evenWord t = false := by simp [evenWord, he]
+        rw [hw]
+
+/-- **One-Step Left-Edge Shift (`L_one_step_edge`):**
+if `s` has its leftmost black cell at `-m` (`0 < m`), then after one step under any boundary word `w`,
+`L w s 1` has its leftmost black cell at `-(m + 1)`. -/
+theorem L_one_step_edge (w : Nat → Bool) {s : Int → Bool} {m : Nat} (hm : 0 < m)
+    (hs0 : ∀ i : Int, i < -(m : Int) → s i = false)
+    (hs1 : s (-(m : Int)) = true) :
+    (∀ i : Int, i < -((m + 1 : Nat) : Int) → L w s 1 i = false) ∧
+      L w s 1 (-((m + 1 : Nat) : Int)) = true := by
+  refine ⟨fun i hi => ?_, ?_⟩
+  · have hi0 : i < 0 := by omega
+    rw [L_succ hi0, L_zero (by omega), L_zero hi0, L_zero (by omega),
+        hs0 (i - 1) (by omega), hs0 i (by omega), hs0 (i + 1) (by omega)]
+    rfl
+  · have hm0 : -((m + 1 : Nat) : Int) < 0 := by omega
+    rw [L_succ hm0, L_zero (by omega), L_zero hm0, L_zero (by omega),
+        hs0 (-((m + 1 : Nat) : Int) - 1) (by omega),
+        hs0 (-((m + 1 : Nat) : Int)) (by omega),
+        show -((m + 1 : Nat) : Int) + 1 = -(m : Int) by omega, hs1]
+    rfl
+
+/-- The word white at even times and black at odd times (`oddWord t = decide (t % 2 = 1)`). -/
+def oddWord (t : Nat) : Bool := decide (t % 2 = 1)
+
+theorem oddWord_succ_eq_evenWord (t : Nat) : oddWord (1 + t) = evenWord t := by
+  rcases Nat.mod_two_eq_zero_or_one t with h | h <;> simp [oddWord, evenWord, h] <;> omega
+
+/-- Every `2`-periodic word `w` is determined by `w 0` and `w 1` (`periodic_two_eq`). -/
+theorem periodic_two_eq {w : Nat → Bool} (hper : ∀ t, w (t + 2) = w t) :
+    ∀ t : Nat, w t = if t % 2 = 0 then w 0 else w 1 := by
+  intro t
+  have hdiv : ∀ k : Nat, w (2 * k) = w 0 ∧ w (2 * k + 1) = w 1 := by
+    intro k
+    induction k with
+    | zero => exact ⟨rfl, rfl⟩
+    | succ k ih =>
+      refine ⟨?_, ?_⟩
+      · rw [show 2 * (k + 1) = 2 * k + 2 by omega, hper]; exact ih.1
+      · rw [show 2 * (k + 1) + 1 = (2 * k + 1) + 2 by omega, hper]; exact ih.2
+  rcases Nat.mod_two_eq_zero_or_one t with he | ho
+  · rw [ite_eq_left he, show t = 2 * (t / 2) by omega, (hdiv (t / 2)).1]
+  · rw [ite_eq_right (by omega), show t = 2 * (t / 2) + 1 by omega, (hdiv (t / 2)).2]
+
+/-- **`Q01` implies `evenWord` escape (`evenWord_escape_of_Q01`).** -/
+theorem evenWord_escape_of_Q01 (hQ : Rule30PeriodTwo.Q01) {m : Nat} {s : Int → Bool}
+    (hm : 0 < m) (hs0 : ∀ i : Int, i < -(m : Int) → s i = false) (hs1 : s (-(m : Int)) = true) :
+    ∃ t, evenWord t = true ∧ L evenWord s t (-1) ≠ !(evenWord (t + 1)) := by
+  apply Classical.byContradiction
+  intro hno
+  have hadm : ∀ k, L evenWord s (2 * k) (-1) = true := by
+    intro k
+    have hev : evenWord (2 * k) = true := by simp [evenWord]
+    have hnx : evenWord (2 * k + 1) = false := by simp [evenWord]
+    cases hb : L evenWord s (2 * k) (-1)
+    · exfalso
+      apply hno
+      refine ⟨2 * k, hev, ?_⟩
+      rw [hb, hnx]; decide
+    · rfl
+  have hzero : ∀ k, L (fun _ => false) s (2 * k) (-1) = true := by
+    intro k
+    rw [← zeroDriven_of_evenWord_admissible hadm (2 * k) (-1) (by decide)]
+    exact hadm k
+  exact hQ m s hm hs0 hs1 hzero
+
+/-- **`Q01` implies `oddWord` escape (`oddWord_escape_of_Q01`).** -/
+theorem oddWord_escape_of_Q01 (hQ : Rule30PeriodTwo.Q01) {m : Nat} {s : Int → Bool}
+    (hm : 0 < m) (hs0 : ∀ i : Int, i < -(m : Int) → s i = false) (hs1 : s (-(m : Int)) = true) :
+    ∃ t, oddWord t = true ∧ L oddWord s t (-1) ≠ !(oddWord (t + 1)) := by
+  rcases L_one_step_edge oddWord hm hs0 hs1 with ⟨hs0', hs1'⟩
+  obtain ⟨t, ht, hbad⟩ := evenWord_escape_of_Q01 hQ (m := m + 1) (s := L oddWord s 1)
+    (by omega) hs0' hs1'
+  refine ⟨1 + t, ?_, ?_⟩
+  · rw [oddWord_succ_eq_evenWord]; exact ht
+  · have hshift : (fun k => oddWord (1 + k)) = evenWord := funext oddWord_succ_eq_evenWord
+    have hL := L_add oddWord s 1 t (-1) (by decide)
+    rw [hshift] at hL
+    rw [hL, show 1 + t + 1 = 1 + (t + 1) by omega, oddWord_succ_eq_evenWord]
+    exact hbad
+
+/-- **Exact Equivalence of Period-2 Black-Phase Escape and `Q01` (`UBEAt_two_iff_Q01`):**
+`UBEAt 2` holds if and only if `Rule30PeriodTwo.Q01` holds. -/
+theorem UBEAt_two_iff_Q01 : UBEAt 2 ↔ Rule30PeriodTwo.Q01 := by
+  constructor
+  · intro h2 m s hm hs0 hs1 hall
+    obtain ⟨t, ht, hbad⟩ := h2 m s evenWord hm hs0 hs1
+      (fun t => by simp [evenWord, Nat.add_mod_right]) ⟨0, rfl⟩
+    have he : t % 2 = 0 := by simpa [evenWord] using ht
+    have hn : evenWord (t + 1) = false := by simp [evenWord]; omega
+    apply hbad
+    rw [driven_eq_zeroDriven hall t (-1) (by decide), hn]
+    have hb := hall (t / 2)
+    rw [show 2 * (t / 2) = t by omega] at hb
+    rw [hb]; rfl
+  · intro hQ m s w hm hs0 hs1 hper ⟨j, hj⟩
+    have hw_eq := periodic_two_eq hper
+    cases hw0 : w 0 <;> cases hw1 : w 1
+    · have hfalse := hw_eq j
+      rw [hw0, hw1] at hfalse
+      split at hfalse <;> (rw [hfalse] at hj; exact Bool.noConfusion hj)
+    · have hodd : w = oddWord := funext (fun t => by
+        rw [hw_eq t, hw0, hw1]; unfold oddWord; rcases Nat.mod_two_eq_zero_or_one t with h | h <;> simp [h])
+      subst hodd
+      exact oddWord_escape_of_Q01 hQ hm hs0 hs1
+    · have heven : w = evenWord := funext (fun t => by
+        rw [hw_eq t, hw0, hw1]; unfold evenWord; rcases Nat.mod_two_eq_zero_or_one t with h | h <;> simp [h])
+      subst heven
+      exact evenWord_escape_of_Q01 hQ hm hs0 hs1
+    · have hall1 : w = (fun _ => true) := funext (fun t => by
+        rw [hw_eq t, hw0, hw1]; split <;> rfl)
+      subst hall1
+      obtain ⟨t, _, hbad⟩ := allBlack_escape hm hs0 hs1
+      exact ⟨t, rfl, hbad⟩
+
 end Rule30BlackPhaseEscape
 end Ruliology.CellularAutomata
