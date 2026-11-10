@@ -87,6 +87,7 @@ public import Ruliology.CellularAutomata.Rule30ZeroPredecessor
 public import Ruliology.CellularAutomata.Rule30BackwardTube
 public import Ruliology.CellularAutomata.Rule30WhitePaddingVacuumCriterion
 public import Ruliology.CellularAutomata.Rule30SparsePreimage
+public import Ruliology.CellularAutomata.Rule30HybridWall
 public import Ruliology.CellularAutomata.Rule30RestrictedBackwardTube
 public import Ruliology.CellularAutomata.Rule30UniformWhitePadding
 public import Ruliology.CellularAutomata.Rule30WordRotation
