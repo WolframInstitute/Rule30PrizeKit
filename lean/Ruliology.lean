@@ -7,6 +7,7 @@ public import Ruliology.CellularAutomata.Rule30Jen
 public import Ruliology.CellularAutomata.Rule30Prize
 public import Ruliology.CellularAutomata.Rule30CommonGauge
 public import Ruliology.CellularAutomata.Rule30LocalConservation
+public import Ruliology.CellularAutomata.Rule30SourceObservables
 public import Ruliology.CellularAutomata.Rule30ProductParity
 public import Ruliology.CellularAutomata.Rule30Window
 public import Ruliology.CellularAutomata.Rule30MaskedJen
