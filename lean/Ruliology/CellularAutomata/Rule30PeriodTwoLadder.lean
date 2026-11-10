@@ -988,5 +988,189 @@ theorem not_eventually_period_two_of_geometric_ladder_bound (C θ : Rat) (hθ0 :
 
 end LadderBound
 
+/-! ## Two-step matrix commutation (`I_2 * F_2 = F_2 * I_2 = F_2`), all-phase Fibonacci coin counts, and the coin-ladder reduction -/
+
+section CoinMatrix
+open Rule30RecordCharge
+
+/-- **Two-Tick Transfer Matrix Commutation (`trans_two_step_comm`):**
+because `trans` at odd ticks is the `2 × 2` identity matrix `I_2` and at even ticks is the
+Fibonacci matrix `F_2 = ((1, 1), (1, 0))`, the 2-step matrix product across any two consecutive
+ticks `(H, H + 1)` equals `F_2 = trans 0`, regardless of the parity of `H`. -/
+theorem trans_two_step_comm (H : Nat) (k0 k' : Bool) :
+    trans H k0 false * trans (H + 1) false k' + trans H k0 true * trans (H + 1) true k' =
+      trans 0 k0 k' := by
+  rcases Nat.mod_two_eq_zero_or_one H with he | ho
+  · have ho1 : (H + 1) % 2 = 1 := by omega
+    cases k0 <;> cases k' <;> simp [trans, he, ho1]
+  · have he1 : (H + 1) % 2 = 0 := by omega
+    cases k0 <;> cases k' <;> simp [trans, ho, he1]
+
+/-- **Two-Step Recurrence for `coin` (`coin_add_two`):**
+advancing `coin n k0` by `2` ticks from `ℓ` to `ℓ + 2` applies the parity-independent Fibonacci
+transfer matrix `trans 0`. -/
+theorem coin_add_two (n : Nat) (k0 : Bool) (ℓ : Nat) (k' : Bool) :
+    coin n k0 (ℓ + 2) k' =
+      coin n k0 ℓ false * trans 0 false k' + coin n k0 ℓ true * trans 0 true k' := by
+  rw [show ℓ + 2 = (ℓ + 1) + 1 by omega]
+  simp only [coin]
+  have h0 := trans_two_step_comm (n + ℓ) false k'
+  have h1 := trans_two_step_comm (n + ℓ) true k'
+  rw [show n + (ℓ + 1) = n + ℓ + 1 by omega, ← h0, ← h1]
+  simp only [Nat.add_mul, Nat.mul_add, Nat.mul_assoc]
+  omega
+
+/-- **Universal Starting-Tick Invariance of Even-Length Coin Counts (`coin_two_mul_eq_coin_zero`):**
+for every starting tick `n : Nat`, initial flag `k0 : Bool`, half-length `j : Nat`, and final flag
+`k' : Bool`, `coin n k0 (2 * j) k' = coin 0 k0 (2 * j) k'`. -/
+theorem coin_two_mul_eq_coin_zero (n : Nat) (k0 : Bool) :
+    ∀ (j : Nat) (k' : Bool), coin n k0 (2 * j) k' = coin 0 k0 (2 * j) k'
+  | 0, k' => rfl
+  | j + 1, k' => by
+    rw [show 2 * (j + 1) = 2 * j + 2 by omega,
+        coin_add_two n k0 (2 * j) k',
+        coin_add_two 0 k0 (2 * j) k',
+        coin_two_mul_eq_coin_zero n k0 j false,
+        coin_two_mul_eq_coin_zero n k0 j true]
+
+/-- **Exact Fibonacci Evaluation of `coin n true (2 * j)` (`coin_true_two_mul`):**
+starting from flag `k0 = true` at any tick `n`, for every `j : Nat`,
+`coin n true (2 * (j + 1)) false = fib (j + 1)` and `coin n true (2 * (j + 1)) true = fib j`. -/
+theorem coin_true_two_mul (n : Nat) :
+    ∀ j : Nat,
+      coin n true (2 * (j + 1)) false = fib (j + 1) ∧
+      coin n true (2 * (j + 1)) true = fib j
+  | 0 => by
+    rw [coin_two_mul_eq_coin_zero n true 1 false, coin_two_mul_eq_coin_zero n true 1 true]
+    decide
+  | j + 1 => by
+    rcases coin_true_two_mul n j with ⟨hf, ht⟩
+    have hstep_f := coin_add_two n true (2 * (j + 1)) false
+    have hstep_t := coin_add_two n true (2 * (j + 1)) true
+    rw [show 2 * (j + 1) + 2 = 2 * (j + 1 + 1) by omega] at hstep_f hstep_t
+    rw [hstep_f, hstep_t, hf, ht]
+    change (fib (j + 1) * 1 + fib j * 1 = fib (j + 2)) ∧ (fib (j + 1) * 1 + fib j * 0 = fib (j + 1))
+    rw [fib_add_two j]
+    omega
+
+/-- **Exact Fibonacci Row Sums of `coin n k0 (2 * j)` (`coin_two_mul_sum_false`, `coin_two_mul_sum_true`):**
+for every starting tick `n : Nat` and `j : Nat`, the row sum from `k0 = false` is `fib (j + 2)` and
+from `k0 = true` is `fib (j + 1)`. -/
+theorem coin_two_mul_sum_false (n j : Nat) :
+    coin n false (2 * j) false + coin n false (2 * j) true = fib (j + 2) := by
+  rw [coin_two_mul_eq_coin_zero n false j false,
+      coin_two_mul_eq_coin_zero n false j true,
+      (coin0 j).1, (coin0 j).2.1, fib_add_two j]
+  omega
+
+theorem coin_two_mul_sum_true (n : Nat) :
+    ∀ j : Nat, coin n true (2 * j) false + coin n true (2 * j) true = fib (j + 1)
+  | 0 => rfl
+  | j + 1 => by
+    rcases coin_true_two_mul n j with ⟨hf, ht⟩
+    rw [hf, ht]
+    change fib (j + 1) + fib j = fib (j + 2)
+    rw [fib_add_two j]
+    omega
+
+theorem fib_mono_succ : ∀ k : Nat, fib k ≤ fib (k + 1)
+  | 0 => by decide
+  | 1 => by decide
+  | k + 2 => Nat.le_add_left (fib (k + 2)) (fib (k + 1))
+
+/-- **Universal Fibonacci Sandwich for All-Phase Even-Length Coin Sums (`coin_two_mul_sum_bounds`):**
+for every `n : Nat`, `k0 : Bool`, and `j : Nat`,
+`fib (j + 1) ≤ coin n k0 (2 * j) false + coin n k0 (2 * j) true ≤ fib (j + 2)`. -/
+theorem coin_two_mul_sum_bounds (n : Nat) (k0 : Bool) (j : Nat) :
+    fib (j + 1) ≤ coin n k0 (2 * j) false + coin n k0 (2 * j) true ∧
+      coin n k0 (2 * j) false + coin n k0 (2 * j) true ≤ fib (j + 2) := by
+  cases k0
+  · rw [coin_two_mul_sum_false]
+    exact ⟨fib_mono_succ (j + 1), Nat.le_refl _⟩
+  · rw [coin_two_mul_sum_true]
+    exact ⟨Nat.le_refl _, fib_mono_succ (j + 1)⟩
+
+/-- **Exact Fibonacci-to-Power-of-Two Upper Bound (`fib_add_two_le_two_pow`):**
+for every `j : Nat`, `fib (j + 2) ≤ 2 ^ j`. -/
+theorem fib_add_two_le_two_pow : ∀ j : Nat, fib (j + 2) ≤ 2 ^ j
+  | 0 => by decide
+  | 1 => by decide
+  | j + 2 => by
+    have ih0 := fib_add_two_le_two_pow j
+    have ih1 := fib_add_two_le_two_pow (j + 1)
+    have hpow : 2 ^ j ≤ 2 ^ (j + 1) := Nat.pow_le_pow_right (by decide) (by omega)
+    change fib ((j + 2) + 2) ≤ 2 ^ ((j + 1) + 1)
+    rw [fib_add_two (j + 2), Nat.pow_succ]
+    change fib (j + 2) + fib ((j + 1) + 2) ≤ 2 ^ (j + 1) * 2
+    omega
+
+theorem sumBelow_le_sumBelow {f g : Nat → Nat} :
+    ∀ N : Nat, (∀ k < N, f k ≤ g k) → sumBelow f N ≤ sumBelow g N
+  | 0, _ => Nat.le_refl 0
+  | N + 1, h => by
+    simp only [sumBelow]
+    have ih := sumBelow_le_sumBelow N (fun k hk => h k (by omega))
+    have hN := h N (by omega)
+    omega
+
+theorem V_eq_sumBelow (n : Nat) :
+    V n = sumBelow (fun X => if 2 ^ (n - 1) ≤ X ∧ GValid p01 X n then 1 else 0) (2 ^ n) := by
+  unfold V S
+  rw [Nat.add_zero, countBelow_eq_sumBelow]
+
+/-- **Exact Fibonacci Sandwich on the Coin Ladder `Scoin n (2 * j)` (`Scoin_two_mul_bounds`):**
+for every bitlength `n : Nat` and half-horizon `j : Nat`,
+`V n * fib (j + 1) ≤ Scoin n (2 * j) ∧ Scoin n (2 * j) ≤ V n * fib (j + 2)`. -/
+theorem Scoin_two_mul_bounds (n j : Nat) :
+    V n * fib (j + 1) ≤ Scoin n (2 * j) ∧ Scoin n (2 * j) ≤ V n * fib (j + 2) := by
+  unfold Scoin
+  rw [V_eq_sumBelow n, ← sumBelow_mul_right, ← sumBelow_mul_right]
+  refine ⟨sumBelow_le_sumBelow (2 ^ n) (fun X _ => ?_),
+          sumBelow_le_sumBelow (2 ^ n) (fun X _ => ?_)⟩
+  · by_cases hv : 2 ^ (n - 1) ≤ X ∧ GValid p01 X n
+    · simp only [hv, and_self, ite_true, Nat.one_mul]
+      exact (coin_two_mul_sum_bounds n (kf X n) j).1
+    · simp only [hv, ite_false, Nat.zero_mul, Nat.le_refl]
+  · by_cases hv : 2 ^ (n - 1) ≤ X ∧ GValid p01 X n
+    · simp only [hv, and_self, ite_true, Nat.one_mul]
+      exact (coin_two_mul_sum_bounds n (kf X n) j).2
+    · simp only [hv, ite_false, Nat.zero_mul, Nat.le_refl]
+
+/-- **Unconditional `V n * 2 ^ j` Upper Bound on the Coin Ladder (`Scoin_two_mul_le_V_mul_two_pow`):**
+for every `n, j : Nat`, `Scoin n (2 * j) ≤ V n * 2 ^ j`. -/
+theorem Scoin_two_mul_le_V_mul_two_pow (n j : Nat) :
+    Scoin n (2 * j) ≤ V n * 2 ^ j :=
+  Nat.le_trans (Scoin_two_mul_bounds n j).2 (Nat.mul_le_mul_left (V n) (fib_add_two_le_two_pow j))
+
+/-- **The Coin-Ladder Bound Implies `NoSeed p01` (`noSeed_of_coin_ladder_bound`):**
+if the zero block `S n (2 * j)` is at most `C` times the average block `Scoin n (2 * j) / 2 ^ (2 * j)`
+(`∀ n j, S n (2 * j) * 2 ^ (2 * j) ≤ C * Scoin n (2 * j)`), then `NoSeed p01` holds. -/
+theorem noSeed_of_coin_ladder_bound (C : Nat)
+    (h : ∀ n j, S n (2 * j) * 2 ^ (2 * j) ≤ C * Scoin n (2 * j)) :
+    NoSeed p01 := by
+  apply noSeed_of_half_ladder_bound C
+  intro n j
+  have h1 := h n j
+  have h2 : C * Scoin n (2 * j) ≤ C * (V n * 2 ^ j) :=
+    Nat.mul_le_mul_left C (Scoin_two_mul_le_V_mul_two_pow n j)
+  have h3 : S n (2 * j) * 2 ^ j * 2 ^ j ≤ C * V n * 2 ^ j := by
+    calc S n (2 * j) * 2 ^ j * 2 ^ j
+      _ = S n (2 * j) * (2 ^ j * 2 ^ j) := Nat.mul_assoc _ _ _
+      _ = S n (2 * j) * 2 ^ (2 * j) := by rw [← Nat.pow_add, show j + j = 2 * j by omega]
+      _ ≤ C * Scoin n (2 * j) := h1
+      _ ≤ C * (V n * 2 ^ j) := h2
+      _ = C * V n * 2 ^ j := (Nat.mul_assoc C (V n) (2 ^ j)).symm
+  exact Nat.le_of_mul_le_mul_right h3 (Nat.two_pow_pos j)
+
+/-- **The Coin-Ladder Bound Excludes Eventual Period 2 (`not_eventually_period_two_of_coin_ladder_bound`):**
+if `S n (2 * j) * 2 ^ (2 * j) ≤ C * Scoin n (2 * j)` for all `n, j : Nat`, the official center column
+is not eventually 2-periodic. -/
+theorem not_eventually_period_two_of_coin_ladder_bound (C : Nat)
+    (h : ∀ n j, S n (2 * j) * 2 ^ (2 * j) ≤ C * Scoin n (2 * j)) :
+    ¬ ∃ T0, ∀ t, T0 ≤ t → Rule30Prize.center (t + 2) = Rule30Prize.center t :=
+  not_eventually_period_two_of_noSeed01 (noSeed_of_coin_ladder_bound C h)
+
+end CoinMatrix
+
 end Rule30PeriodTwoLadder
 end Ruliology.CellularAutomata
