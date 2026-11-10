@@ -18,8 +18,9 @@ the center column `1` is a fixed function `u` of the label.
 * `t001_check` (kernel), `trap_001`: the trap for `001`.
 * `AbsorptionT`, `absorptionT_excludes`, `not_eventually_001_of_absorption`: if every finite right
   half driven by `w^∞` enters the trap, the center column is not eventually `w^∞`. Whether this
-  holds for `001` is open; in the period-3 study all `18,258` tested right halves entered `t001`,
-  with delays up to about `2 · 10^5` steps (computation, not a proof).
+  holds for `001` is refuted in `Rule30EtherThreeNotAbsorption`. In the original period-3 study,
+  all `18,258` tested right halves entered `t001`, with delays up to about `2 · 10^5` steps
+  (computation, not a proof).
 -/
 
 @[expose] public section

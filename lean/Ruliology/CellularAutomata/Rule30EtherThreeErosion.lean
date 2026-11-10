@@ -17,8 +17,9 @@ The ether value of column `p` at time `t` is `ether3 (j0 + p) (t + s)`.
   `WallOK a b W` is empty. This extends the kernel certificate `no_wall_le_12`
   (`Rule30EtherThreeNoWall`) from widths `≤ 12` to all widths. So the period-3 ether-and-wall
   family of `Rule30EtherThree` is empty, and `absorption3_excludes` is vacuous for every wall:
-  the ether-and-wall route to least period 3 is closed. The open statements for least period 3
-  (`AbsorptionT t001`, `Q001`, `C3s001`, `C3w(011)`) do not involve walls and remain open.
+  the ether-and-wall route to least period 3 is closed. The remaining open statements for least
+  period 3 (`Q001`, `C3s001`, `C3w(011)`) do not involve walls. `AbsorptionT t001` is false
+  (`Rule30EtherThreeNotAbsorption`).
 
 **The argument.** Let the *front* `D` be the leftmost column that differs from the ether
 (`Front`). Its *state* is the class of column `D`, `(j0 + D + 4 (t + s)) mod 12` (`cls`), together
