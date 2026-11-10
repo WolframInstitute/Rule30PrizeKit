@@ -54,6 +54,7 @@ public import Ruliology.CellularAutomata.Rule30WhiteRunEight
 public import Ruliology.CellularAutomata.Rule30PeriodTwoSideways
 public import Ruliology.CellularAutomata.Rule30LightCone
 public import Ruliology.CellularAutomata.Rule30FiniteConfigs
+public import Ruliology.CellularAutomata.Rule30RadiusTwoClock
 public import Ruliology.CellularAutomata.Rule30DividedDifference
 public import Ruliology.CellularAutomata.Rule30FiniteMaskedJen
 public import Ruliology.CellularAutomata.Rule30Coupled
