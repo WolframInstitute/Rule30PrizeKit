@@ -255,5 +255,110 @@ theorem cube_count (m A : Nat) : cubeBlack m A = m * 2 ^ (m - 1) := by
       rw [each k (by omega), Nat.succ_mul]
   exact this m (Nat.le_refl _)
 
+/-! ## Doubling-depth bounds, injectivity of `d`, higher-dyadic invariance, and unique cube coordinates -/
+
+/-- **Doubling-Depth Upper and Lower Bounds (`d_bounds`):**
+for every `j : Nat`, `1 ≤ d j ∧ d j ≤ 2 ^ (j + 1)`. -/
+theorem d_bounds (j : Nat) : 1 ≤ d j ∧ d j ≤ 2 ^ (j + 1) := by
+  obtain ⟨i, hi, hb⟩ := exists_black_depth j
+  obtain ⟨_, hle, _, _⟩ := firstFrom_spec (fun i => f (i + 1) (2 ^ j)) (2 ^ (j + 1)) 0 i
+    (Nat.zero_le _) (by omega) hb
+  unfold d
+  omega
+
+/-- **Higher-Dyadic Invariance of Diagonal `d j₁` (`f_d_add_two_pow_of_lt`):**
+for `j₁ < j₂` and every `z : Nat`, `f (d j₁) (z + 2 ^ j₂) = f (d j₁) z`. -/
+theorem f_d_add_two_pow_of_lt {j₁ j₂ : Nat} (hj : j₁ < j₂) (z : Nat) :
+    f (d j₁) (z + 2 ^ j₂) = f (d j₁) z := by
+  have hmul : ∀ q u : Nat, f (d j₁) (u + 2 ^ (j₁ + 1) * q) = f (d j₁) u := by
+    intro q
+    induction q with
+    | zero => intro u; rfl
+    | succ q ih =>
+      intro u
+      rw [Nat.mul_succ, ← Nat.add_assoc, period_d j₁, ih]
+  have hpow : 2 ^ j₂ = 2 ^ (j₁ + 1) * 2 ^ (j₂ - (j₁ + 1)) := by
+    rw [← Nat.pow_add]; congr 1; omega
+  rw [hpow, hmul]
+
+/-- **Higher-Dyadic Invariance of Transversal Read `Y j₁` (`Y_add_two_pow_of_lt`):**
+for `j₁ < j₂` and every `u : Nat`, `Y j₁ (u + 2 ^ j₂) = Y j₁ u`. -/
+theorem Y_add_two_pow_of_lt {j₁ j₂ : Nat} (hj : j₁ < j₂) (u : Nat) :
+    Y j₁ (u + 2 ^ j₂) = Y j₁ u := by
+  have hpow : 2 ^ j₂ = 2 ^ (j₁ + 1) * 2 ^ (j₂ - (j₁ + 1)) := by
+    rw [← Nat.pow_add]; congr 1; omega
+  rw [hpow, Y_period]
+
+/-- **Distinctness of Doubling Depths (`d_ne_of_lt`):**
+if `j₁ < j₂`, then `d j₁ ≠ d j₂` (since `f (d j₁)` is invariant under `+ 2 ^ j₂` while
+`f (d j₂)` is complemented by `+ 2 ^ j₂`). -/
+theorem d_ne_of_lt {j₁ j₂ : Nat} (hj : j₁ < j₂) : d j₁ ≠ d j₂ := by
+  intro heq
+  have hinv := f_d_add_two_pow_of_lt hj 0
+  have hflip := fresh_digit j₂ 0
+  rw [heq] at hinv
+  rw [hinv] at hflip
+  cases f (d j₂) 0 <;> exact Bool.noConfusion hflip
+
+/-- **Injectivity of the Doubling-Depth Sequence `d` (`d_injective`):**
+for all `j₁, j₂ : Nat`, `d j₁ = d j₂ ↔ j₁ = j₂`. -/
+theorem d_injective (j₁ j₂ : Nat) : d j₁ = d j₂ ↔ j₁ = j₂ := by
+  constructor
+  · intro heq
+    rcases Nat.lt_trichotomy j₁ j₂ with h | h | h
+    · exact absurd heq (d_ne_of_lt h)
+    · exact h
+    · exact absurd heq.symm (d_ne_of_lt h)
+  · intro h; subst h; rfl
+
+/-- **Non-Periodicity of Transversal Read `Y j` at All Dyadic Scales `2 ^ k` with `k ≤ j`
+(`not_evPer_two_pow_Y`):** for `k ≤ j`, `Y j` is never eventually `2 ^ k`-periodic. -/
+theorem not_evPer_two_pow_Y {k j : Nat} (hk : k ≤ j) :
+    ¬ ∃ T₀ : Nat, ∀ u : Nat, T₀ ≤ u → Y j (u + 2 ^ k) = Y j u := by
+  rintro ⟨T₀, hper⟩
+  have hmul : ∀ q u : Nat, T₀ ≤ u → Y j (u + 2 ^ k * q) = Y j u := by
+    intro q
+    induction q with
+    | zero => intro u _; rfl
+    | succ q ih =>
+      intro u hu
+      rw [Nat.mul_succ, ← Nat.add_assoc, hper _ (by omega), ih u hu]
+  have hpow : 2 ^ j = 2 ^ k * 2 ^ (j - k) := by
+    rw [← Nat.pow_add]; congr 1; omega
+  have hev : Y j (T₀ + 2 ^ j) = Y j T₀ := by
+    rw [hpow]
+    exact hmul (2 ^ (j - k)) T₀ (Nat.le_refl T₀)
+  have hfl := Y_flip j T₀
+  rw [hev] at hfl
+  revert hfl; cases Y j T₀ <;> decide
+
+/-- **Non-Periodicity of Diagonal `f (d j)` at All Dyadic Scales `2 ^ k` with `k ≤ j`
+(`not_evPer_two_pow_f_d`):** for `k ≤ j`, `f (d j)` is never eventually `2 ^ k`-periodic. -/
+theorem not_evPer_two_pow_f_d {k j : Nat} (hk : k ≤ j) :
+    ¬ ∃ T₀ : Nat, ∀ z : Nat, T₀ ≤ z → f (d j) (z + 2 ^ k) = f (d j) z := by
+  rintro ⟨T₀, hper⟩
+  apply not_evPer_two_pow_Y hk
+  refine ⟨T₀, fun u hu => ?_⟩
+  rw [Y_eq, Y_eq, show u + 2 ^ k + d j = (u + d j) + 2 ^ k by omega]
+  exact hper (u + d j) (by omega)
+
+/-- **Levelwise Half-Density on Every Dyadic Window (`cnt_Y_level`):**
+for every `j < m` and every starting column `A : Nat`, `cnt (Y j) A (2 ^ m) = 2 ^ (m - 1)`. -/
+theorem cnt_Y_level {m j : Nat} (hj : j < m) (A : Nat) :
+    cnt (Y j) A (2 ^ m) = 2 ^ (m - 1) := by
+  have e : 2 ^ m = 2 ^ (j + 1) * 2 ^ (m - (j + 1)) := by
+    rw [← Nat.pow_add]; congr 1; omega
+  rw [e, cnt_Y, ← Nat.pow_add]; congr 1; omega
+
+/-- **Unique Cube Coordinates (`cube_unique`):**
+for every `m, A : Nat` and word `w : Fin m → Bool`, there exists a unique column `u` in
+`[A, A + 2 ^ m)` whose transversal read `(fun j : Fin m => cell (u + d j) u)` equals `w`. -/
+theorem cube_unique (m A : Nat) (w : Fin m → Bool) :
+    ∃ u : Nat, (A ≤ u ∧ u < A + 2 ^ m ∧ (fun j : Fin m => cell (u + d j) u) = w) ∧
+      ∀ v : Nat, A ≤ v ∧ v < A + 2 ^ m → (fun j : Fin m => cell (v + d j) v) = w → v = u := by
+  obtain ⟨u, hu1, hu2, huw⟩ := cube_surjective m A w
+  refine ⟨u, ⟨hu1, hu2, huw⟩, fun v hv hvw => ?_⟩
+  exact cube_injective m A v u hv ⟨hu1, hu2⟩ (by rw [hvw, huw])
+
 end Rule30ConeCube
 end Ruliology.CellularAutomata
