@@ -778,5 +778,192 @@ theorem eight_bit_odd_trichotomy_exhaustive (u : Fin 64) :
     ((bstep1 12 w < 64 ∧ 16 ≤ B_shift 12 w) ↔ w ∈ [197, 199, 201, 203, 211, 213, 215, 217, 225, 239, 251, 253]) := by
   revert u; decide
 
+/-! ## 7. 2-Adic Projective Commutation of Backward Operators, Iterated `B_shiftIter` Clone-Ray Recovery, and `3m`-Period NOR-Wave Resonance -/
+
+/-- `bstep1 K W` depends only on the lowest `K` bits of `W` (`bstep1_congr_low`). -/
+theorem bstep1_congr_low {K W W' : Nat} (h : LowEq K W W') :
+    bstep1 K W = bstep1 K W' := by
+  apply Nat.eq_of_testBit_eq
+  intro i
+  induction i using Nat.strongRecOn with
+  | ind i ih =>
+    by_cases hi : i < K
+    · rw [bstep1_testBit_lt hi, bstep1_testBit_lt hi, h i hi]
+      rcases (show i = 0 ∨ i = 1 ∨ 2 ≤ i by omega) with rfl | rfl | hi2
+      · rfl
+      · simp only [show (1 : Nat) ≠ 0 by decide, ↓reduceIte, ih 0 (by decide)]
+      · simp only [show i ≠ 0 by omega, show i ≠ 1 by omega, ↓reduceIte,
+          ih (i - 1) (by omega), ih (i - 2) (by omega)]
+    · rw [bstep1_testBit_ge (by omega), bstep1_testBit_ge (by omega)]
+
+/-- `bstep0 K U` depends only on the lowest `K` bits of `U` (`bstep0_congr_low`). -/
+theorem bstep0_congr_low {K U U' : Nat} (h : LowEq K U U') :
+    bstep0 K U = bstep0 K U' := by
+  apply Nat.eq_of_testBit_eq
+  intro i
+  induction i using Nat.strongRecOn with
+  | ind i ih =>
+    by_cases hi : i < K
+    · rw [bstep0_testBit_lt hi, bstep0_testBit_lt hi, h i hi]
+      rcases (show i = 0 ∨ i = 1 ∨ 2 ≤ i by omega) with rfl | rfl | hi2
+      · rfl
+      · rfl
+      · simp only [show i ≠ 0 by omega, show i ≠ 1 by omega, ↓reduceIte,
+          ih (i - 1) (by omega), ih (i - 2) (by omega)]
+    · rw [bstep0_testBit_ge (by omega), bstep0_testBit_ge (by omega)]
+
+/-- **2-Adic Projective Reduction of `bstep1` (`bstep1_mod_pow`):**
+for all `K ≤ K'` and `W : Nat`, `bstep1 K' W % 2 ^ K = bstep1 K (W % 2 ^ K)`. -/
+theorem bstep1_mod_pow {K K' : Nat} (hKK' : K ≤ K') (W : Nat) :
+    bstep1 K' W % 2 ^ K = bstep1 K (W % 2 ^ K) := by
+  have hcongr : bstep1 K (W % 2 ^ K) = bstep1 K W :=
+    bstep1_congr_low (lowEq_mod_pow K W)
+  rw [hcongr]
+  apply Nat.eq_of_testBit_eq
+  intro i
+  by_cases hi : i < K
+  · rw [Nat.testBit_mod_two_pow, decide_eq_true hi, Bool.true_and]
+    exact bstep1_low hKK' i hi
+  · rw [Nat.testBit_mod_two_pow, decide_eq_false hi, Bool.false_and,
+      bstep1_testBit_ge (by omega)]
+
+/-- **2-Adic Projective Reduction of `bstep0` (`bstep0_mod_pow`):**
+for all `K ≤ K'` and `U : Nat`, `bstep0 K' U % 2 ^ K = bstep0 K (U % 2 ^ K)`. -/
+theorem bstep0_mod_pow {K K' : Nat} (hKK' : K ≤ K') (U : Nat) :
+    bstep0 K' U % 2 ^ K = bstep0 K (U % 2 ^ K) := by
+  have hcongr : bstep0 K (U % 2 ^ K) = bstep0 K U :=
+    bstep0_congr_low (lowEq_mod_pow K U)
+  rw [hcongr]
+  apply Nat.eq_of_testBit_eq
+  intro i
+  by_cases hi : i < K
+  · rw [Nat.testBit_mod_two_pow, decide_eq_true hi, Bool.true_and]
+    exact bstep0_low hKK' i hi
+  · rw [Nat.testBit_mod_two_pow, decide_eq_false hi, Bool.false_and,
+      bstep0_testBit_ge (by omega)]
+
+/-- **2-Adic Projective Reduction of `B_shift` (`B_shift_mod_pow`):**
+for all `K ≤ K'` and `W : Nat`, `B_shift K' W % 2 ^ K = B_shift K (W % 2 ^ K)`. -/
+theorem B_shift_mod_pow {K K' : Nat} (hKK' : K ≤ K') (W : Nat) :
+    B_shift K' W % 2 ^ K = B_shift K (W % 2 ^ K) := by
+  unfold B_shift
+  rw [bstep0_mod_pow hKK' (bstep1 K' W), bstep1_mod_pow hKK' W]
+
+/-- Iterated `j`-step backward operator `B_shiftIter K j W`: applies `B_shift K` `j` times. -/
+def B_shiftIter (K : Nat) : Nat → Nat → Nat
+  | 0, W => W
+  | j + 1, W => B_shift K (B_shiftIter K j W)
+
+theorem B_shiftIter_lt {K : Nat} : ∀ (j : Nat) {W : Nat}, W < 2 ^ K → B_shiftIter K j W < 2 ^ K
+  | 0, _, hW => hW
+  | j + 1, _, _ => B_shift_lt K (B_shiftIter K j _)
+
+/-- **2-Adic Projective Reduction of `B_shiftIter` (`B_shiftIter_mod_pow`):**
+for all `K ≤ K'`, `j : Nat`, and `W : Nat`,
+`B_shiftIter K' j W % 2 ^ K = B_shiftIter K j (W % 2 ^ K)`. -/
+theorem B_shiftIter_mod_pow {K K' : Nat} (hKK' : K ≤ K') :
+    ∀ (j : Nat) (W : Nat), B_shiftIter K' j W % 2 ^ K = B_shiftIter K j (W % 2 ^ K)
+  | 0, _ => rfl
+  | j + 1, W => by
+    simp only [B_shiftIter]
+    rw [B_shift_mod_pow hKK' (B_shiftIter K' j W), B_shiftIter_mod_pow hKK' j W]
+
+/-- **`B_shiftIter K j` Is the Right-Inverse of `orb K (2 * j)` on Even Phase (`orb_mul_two_B_shiftIter`):**
+for every `W < 2 ^ K` and `j : Nat`, `orb K (2 * j) (B_shiftIter K j W, 0) = (W, 0)`. -/
+theorem orb_mul_two_B_shiftIter (K : Nat) :
+    ∀ (j : Nat) {W : Nat}, W < 2 ^ K → orb K (2 * j) (B_shiftIter K j W, 0) = (W, 0)
+  | 0, _, _ => rfl
+  | j + 1, W, hW => by
+    have ih := orb_mul_two_B_shiftIter K j hW
+    have hstep := orb_two_B_shift K (B_shiftIter K j W) (B_shiftIter_lt j hW)
+    rw [show 2 * (j + 1) = 2 + 2 * j by omega, orb_add K 2 (2 * j)]
+    simp only [B_shiftIter]
+    rw [hstep, ih]
+
+/-- **`B_shiftIter K j` Is the Left-Inverse of `orb K (2 * j)` on Even Phase (`B_shiftIter_orb_mul_two`):**
+for every `V < 2 ^ K` and `j : Nat`, `B_shiftIter K j (orb K (2 * j) (V, 0)).1 = V`. -/
+theorem B_shiftIter_orb_mul_two (K : Nat) :
+    ∀ (j : Nat) {V : Nat}, V < 2 ^ K → B_shiftIter K j (orb K (2 * j) (V, 0)).1 = V
+  | 0, _, _ => rfl
+  | j + 1, V, hV => by
+    have horb_add : orb K (2 * (j + 1)) (V, 0) = orb K (2 * j) (orb K 2 (V, 0)) := by
+      rw [show 2 * (j + 1) = 2 + 2 * j by omega, orb_add K 2 (2 * j)]
+    have hphase : (orb K 2 (V, 0)).2 = 0 :=
+      orb_even_phase K V 0 2 (by decide) (by decide)
+    have hpair : orb K 2 (V, 0) = ((orb K 2 (V, 0)).1, 0) :=
+      Prod.ext rfl hphase
+    have hbound : (orb K 2 (V, 0)).1 < 2 ^ K := orbit_bound hV 2
+    simp only [B_shiftIter]
+    rw [horb_add, hpair, B_shiftIter_orb_mul_two K j hbound, B_shift_orb_two K V hV]
+
+/-- **Exact Primitive-Root Recovery Along Any Clone Ray (`B_shiftIter_F_shiftIter`):**
+for any `k`-bit window `V < 2 ^ k` (`1 ≤ k`), clone depth `j : Nat`, and width `K` with `k + 4 * j ≤ K`,
+`B_shiftIter K j (F_shiftIter j V) = V`. -/
+theorem B_shiftIter_F_shiftIter {k K V : Nat} (hk : 1 ≤ k) (hV : V < 2 ^ k)
+    (j : Nat) (hK : k + 4 * j ≤ K) :
+    B_shiftIter K j (F_shiftIter j V) = V := by
+  have hVK : V < 2 ^ K :=
+    Nat.lt_of_lt_of_le hV (Nat.pow_le_pow_right (by decide) (by omega))
+  have horb := orb_mul_two_eq_F_shiftIter hk hV (K := K) (j := j) hK
+  have h1 : F_shiftIter j V = (orb K (2 * j) (V, 0)).1 := by rw [horb]
+  rw [h1]
+  exact B_shiftIter_orb_mul_two K j hVK
+
+/-- **Multi-Period `3 * m` Invariance of the Type II `(100)^∞` NOR Wave (`backward_nor_period_three_mul`):**
+whenever `bstep1 K W` is `true` across `[i, i + 3 * m]` (`2 ≤ i`, `i + 3 * m < K`),
+the 2-step preimage `B_shift K W` satisfies `(B_shift K W).testBit (i + 3 * m) = (B_shift K W).testBit i`. -/
+theorem backward_nor_period_three_mul {K W i : Nat} (hi2 : 2 ≤ i) :
+    ∀ m : Nat, i + 3 * m < K →
+      (∀ s, i ≤ s → s ≤ i + 3 * m → (bstep1 K W).testBit s = true) →
+      (B_shift K W).testBit (i + 3 * m) = (B_shift K W).testBit i
+  | 0, _, _ => by simp
+  | m + 1, hiK, hU => by
+    have ih := backward_nor_period_three_mul hi2 m (by omega) (fun s hs1 hs2 => hU s hs1 (by omega))
+    have hstep := (backward_nor_period_three (K := K) (W := W) (i := i + 3 * m) (by omega)
+      (by omega)
+      (hU (i + 3 * m) (by omega) (by omega))
+      (hU (i + 3 * m + 1) (by omega) (by omega))
+      (hU (i + 3 * m + 2) (by omega) (by omega))
+      (hU (i + 3 * m + 3) (by omega) (by omega))).1
+    rw [show i + 3 * (m + 1) = i + 3 * m + 3 by omega, hstep, ih]
+
+/-- For every `i ≥ 4` with `i < K`, `(bstep1 K 13).testBit i = true`. -/
+theorem bstep1_13_ge_four_true {K i : Nat} (hi4 : 4 ≤ i) (hiK : i < K) :
+    (bstep1 K 13).testBit i = true := by
+  have htri := primitive_or_clone_trichotomy (k := 4) (K := K) (W := 13) (by decide) (by omega) (by decide)
+  rcases htri with ⟨hU_lt, _⟩ | ⟨hU_lt, _⟩ | ⟨hU_ones, _⟩
+  · exfalso
+    have h2 : (bstep1 K 13).testBit 2 = true := by
+      have hlow := bstep1_low (n := 4) (K := K) (W := 13) (by omega) 2 (by decide)
+      rw [hlow]; decide
+    have h2f : (bstep1 K 13).testBit 2 = false :=
+      Rule30ZeroBoundarySmall.testBit_ge_of_lt hU_lt (by decide)
+    rw [h2] at h2f; exact Bool.noConfusion h2f
+  · exfalso
+    have h2 : (bstep1 K 13).testBit 2 = true := by
+      have hlow := bstep1_low (n := 4) (K := K) (W := 13) (by omega) 2 (by decide)
+      rw [hlow]; decide
+    have h2f : (bstep1 K 13).testBit 2 = false :=
+      Rule30ZeroBoundarySmall.testBit_ge_of_lt hU_lt (by decide)
+    rw [h2] at h2f; exact Bool.noConfusion h2f
+  · exact hU_ones i hi4 hiK
+
+/-- **Exact Upper NOR-Wave Phase Synchronization of the Infinite Resonance Subfamily `win3pow (3 * m + 2)`
+with `13` (`B_shift_win3pow_three_mul_add_two_phase_13`):**
+every member of the infinite family `win3pow (3 * m + 2) = 3 · 2^(3 * m + 2) + 1` (`13, 97, 769, 6145, …`)
+has the exact same unshifted Type II `(100)^∞` NOR-wave value as `B_shift K 13` at every upper bit index
+`3 * m + d` (`4 ≤ d`, `3 * m + d < K`). -/
+theorem B_shift_win3pow_three_mul_add_two_phase_13 {K m d : Nat}
+    (hd4 : 4 ≤ d) (hdK : 3 * m + d < K) :
+    (B_shift K (win3pow (3 * m + 2))).testBit (3 * m + d) =
+      (B_shift K 13).testBit (3 * m + d) := by
+  have hshift := B_shift_win3pow_shift_13 (K := K) (n := 3 * m + 2) (d := d) (by omega)
+    (by omega)
+  rw [show 3 * m + 2 - 2 + d = 3 * m + d by omega] at hshift
+  have hper := backward_nor_period_three_mul (K := K) (W := 13) (i := d) (by omega) m
+    (by omega) (fun s hs1 hs2 => bstep1_13_ge_four_true (by omega) (by omega))
+  rw [Nat.add_comm d (3 * m)] at hper
+  rw [hshift, hper]
+
 end Rule30ZeroBoundaryStripePrimitiveRoots
 end Ruliology.CellularAutomata
