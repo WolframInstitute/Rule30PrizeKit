@@ -503,4 +503,107 @@ theorem late_twin_off_orbit {y : Nat} (hy : ∀ s, iter G s y % 2 = 1) {t : Nat}
   apply hne
   rw [hj, iter_G_eq_iter_F_two_mul, show 2 * j = t - 2 by omega]
 
+/-! ### Exact period-4 laws of `C13` and `C20`, 7-bit projection `C20 → C13`, and bit-1 / tick-1 wall-bit negation for twin pairs -/
+
+/-- **`C13` is closed under `R` (`C13_closed`).** -/
+theorem C13_closed (v : Nat) (h : inC13 v = true) : inC13 (R v) = true := by
+  simp only [inC13, Bool.or_eq_true, beq_iff_eq] at h
+  rcases h with ((rfl | rfl) | rfl) | rfl <;> decide
+
+/-- **Exact Minimal Period `4` of `C13` Under `R` (`C13_exact_period_four`):**
+every `v` with `inC13 v = true` (`6411, 6428, 7117, 7129`) satisfies `R v ≠ v`,
+`iterR 2 v ≠ v`, `iterR 3 v ≠ v`, and `iterR 4 v = v`. -/
+theorem C13_exact_period_four (v : Nat) (h : inC13 v = true) :
+    R v ≠ v ∧ iterR 2 v ≠ v ∧ iterR 3 v ≠ v ∧ iterR 4 v = v := by
+  simp only [inC13, Bool.or_eq_true, beq_iff_eq] at h
+  rcases h with ((rfl | rfl) | rfl) | rfl <;> decide
+
+/-- **Exact Minimal Period `4` of `C20` Under `R` (`C20_exact_period_four`):**
+every `v` with `inC20 v = true` (`820683, 822904, 911005, 912610`) satisfies `R v ≠ v`,
+`iterR 2 v ≠ v`, `iterR 3 v ≠ v`, and `iterR 4 v = v`. -/
+theorem C20_exact_period_four (v : Nat) (h : inC20 v = true) :
+    R v ≠ v ∧ iterR 2 v ≠ v ∧ iterR 3 v ≠ v ∧ iterR 4 v = v := by
+  simp only [inC20, Bool.or_eq_true, beq_iff_eq] at h
+  rcases h with ((rfl | rfl) | rfl) | rfl <;> decide
+
+/-- **Equivariant `7`-Bit Projection From `C20` Onto `C13` (`C20_projects_to_C13`):**
+for every `v` with `inC20 v = true`, `inC13 (v >>> 7) = true` and `R v >>> 7 = R (v >>> 7)`. -/
+theorem C20_projects_to_C13 (v : Nat) (h : inC20 v = true) :
+    inC13 (v >>> 7) = true ∧ R v >>> 7 = R (v >>> 7) := by
+  refine ⟨?_, R_shiftRight v 7⟩
+  simp only [inC20, Bool.or_eq_true, beq_iff_eq] at h
+  rcases h with ((rfl | rfl) | rfl) | rfl <;> decide
+
+/-- **Exact Wall-Bit Step Formula (`testBit_zero_F`):**
+for every `x : Nat`, `(F x).testBit 0 = xor (x.testBit 1) (x.testBit 0)`. -/
+theorem testBit_zero_F (x : Nat) :
+    (F x).testBit 0 = xor (x.testBit 1) (x.testBit 0) := by
+  simp only [F, Nat.testBit_shiftRight, Nat.testBit_xor, Nat.testBit_or, Nat.testBit_shiftLeft]
+  simp
+
+/-- **Equivalence of Tick-`1` Wall-Bit Negation and Depth-`2` (`bit 1`) Negation
+(`F_testBit_zero_neg_iff_testBit_one_neg`):** for any `x, x' : Nat` with
+`x'.testBit 0 = x.testBit 0`, `(F x').testBit 0 = !(F x).testBit 0` holds if and only if
+`x'.testBit 1 = !x.testBit 1`. -/
+theorem F_testBit_zero_neg_iff_testBit_one_neg {x x' : Nat}
+    (hb0 : x'.testBit 0 = x.testBit 0) :
+    (F x').testBit 0 = !(F x).testBit 0 ↔ x'.testBit 1 = !x.testBit 1 := by
+  rw [testBit_zero_F x', testBit_zero_F x, hb0]
+  cases x.testBit 0 <;> cases x.testBit 1 <;> cases x'.testBit 1 <;> decide
+
+/-- **Refined Twin Theorem From Two Reset Factors With Opposite Tick-`1` and Depth-`2` Bits
+(`twin_of_factors_with_flips`):** under the hypotheses of `twin_of_factors`, there exists `x' ≠ x`
+with `x'.testBit 0 = x.testBit 0`, `x'.testBit 1 = !x.testBit 1`,
+`(F x').testBit 0 = !(F x).testBit 0`, and `F (F x') = F (F x)`. -/
+theorem twin_of_factors_with_flips {x q1 k1 q2 k2 : Nat}
+    (h2 : Fac (F (F x)) q2 k2) (h1 : Fac (F x) q1 k1) (hq : q2 + 3 * k2 + 4 ≤ q1 + 1) :
+    ∃ x', x' ≠ x ∧ x'.testBit 0 = x.testBit 0 ∧ x'.testBit 1 = !x.testBit 1 ∧
+      (F x').testBit 0 = !(F x).testBit 0 ∧ F (F x') = F (F x) := by
+  have hx1 := rowOfNat_eq_back (F x)
+  have hx0 := rowOfNat_eq_back x
+  have s1 : ∀ n, q2 + 3 * k2 + 4 ≤ n →
+      back (!(rowOfNat (F x) 1)) (rowOfNat (F (F x))) n = rowOfNat (F x) n := by
+    intro n hn
+    rw [hx1 n]
+    exact sync (X := F (F x)) (fun _ => rfl) (fun _ _ => rfl) h2 n hn
+  have s2 : ∀ n, q1 + 3 * k1 + 4 ≤ n →
+      back (rowOfNat x 1) (back (!(rowOfNat (F x) 1)) (rowOfNat (F (F x)))) n = rowOfNat x n := by
+    intro n hn
+    rw [hx0 n]
+    exact sync (X := F x) (fun _ => rfl) (fun j hj => s1 j (by omega)) h1 n hn
+  let z0 := back (rowOfNat x 1) (back (!(rowOfNat (F x) 1)) (rowOfNat (F (F x))))
+  let N := q1 + 3 * k1 + 4 + x.log2 + 2
+  have hW : ∀ k, N < k → z0 k = false := by
+    intro k hk
+    show back (rowOfNat x 1) (back (!(rowOfNat (F x) 1)) (rowOfNat (F (F x)))) k = false
+    rw [s2 k (by omega)]
+    obtain ⟨j, rfl⟩ : ∃ j, k = j + 1 := ⟨k - 1, by omega⟩
+    exact Nat.testBit_lt_two_pow
+      (Nat.lt_of_lt_of_le Nat.lt_log2_self (Nat.pow_le_pow_right (by omega) (by omega)))
+  have hrow : ∀ k, rowOfNat (natOfRow z0 N) k = z0 k := by
+    intro k
+    rcases Nat.eq_zero_or_pos k with rfl | hk
+    · rfl
+    · exact rowOfNat_natOfRow hW k hk
+  have hF1 : ∀ k, rowOfNat (F (natOfRow z0 N)) k =
+      back (!(rowOfNat (F x) 1)) (rowOfNat (F (F x))) k := by
+    intro k
+    rw [rowOfNat_F_of_row hrow k]
+    rcases Nat.eq_zero_or_pos k with rfl | hk
+    · rfl
+    · exact zrow_back _ _ k hk
+  have hb0 : (natOfRow z0 N).testBit 0 = x.testBit 0 := hrow 1
+  have hFb0 : (F (natOfRow z0 N)).testBit 0 = !(F x).testBit 0 := hF1 1
+  have hb1 : (natOfRow z0 N).testBit 1 = !x.testBit 1 :=
+    (F_testBit_zero_neg_iff_testBit_one_neg hb0).1 hFb0
+  refine ⟨natOfRow z0 N, ?_, hb0, hb1, hFb0, ?_⟩
+  · intro he
+    rw [he] at hFb0
+    have key : ∀ b : Bool, b ≠ !b := by decide
+    exact key _ hFb0
+  · apply rowOfNat_ext
+    intro k
+    rw [rowOfNat_F_of_row hF1 (k + 1)]
+    exact zrow_back _ _ (k + 1) (by omega)
+
 end Rule30LateTwins
