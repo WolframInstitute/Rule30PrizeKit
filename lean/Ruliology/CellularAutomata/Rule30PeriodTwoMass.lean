@@ -859,5 +859,136 @@ theorem mass_two_thirds (hy : Run z y) (hy' : Run z y') (ha : Apart y y') (q : N
 
 end Runs
 
+/-! ### Exact cycle trichotomy on `S40`, zero-wall preimage runs, all-length `2/3` mass bounds, and `1/3` single-run weight dichotomy -/
+
+section MassExtensions
+
+/-- **Exact Cycle-Length `1`, `2`, or `3` Trichotomy on `S40` (`cyc_one_two_or_three`):**
+for every composite map `f ∈ S40` and initial state `s : Fin 4`, the eventual cycle state
+`q = itr (ap f) 4 s` has period `1`, `2`, or `3` (`ap f q = q ∨ itr (ap f) 2 q = q ∨ itr (ap f) 3 q = q`). -/
+theorem cyc_one_two_or_three :
+    ∀ f ∈ S40, ∀ s : Fin 4,
+      ap f (itr (ap f) 4 s) = itr (ap f) 4 s ∨
+      itr (ap f) 2 (itr (ap f) 4 s) = itr (ap f) 4 s ∨
+      itr (ap f) 3 (itr (ap f) 4 s) = itr (ap f) 4 s := by
+  decide
+
+/-- **No Composite Map Has a Nontrivial 5-Cycle (`no_five_cycle`):**
+if `itr (ap (comp w)) 5 s = s` for a nonempty word `w`, then `s` is a fixed point (`ap (comp w) s = s`). -/
+theorem no_five_cycle (w : List Bool) (hw : w ≠ []) (s : Fin 4)
+    (h5 : itr (ap (comp w)) 5 s = s) : ap (comp w) s = s := by
+  have h10 : itr (ap (comp w)) 10 s = s := by
+    have e : itr (ap (comp w)) (5 + 5) s = itr (ap (comp w)) 5 (itr (ap (comp w)) 5 s) :=
+      itr_add (ap (comp w)) 5 5 s
+    rw [show 5 + 5 = 10 by rfl, h5, h5] at e
+    exact e
+  have h4_6 : itr (ap (comp w)) 10 s = itr (ap (comp w)) 6 (itr (ap (comp w)) 4 s) :=
+    itr_add (ap (comp w)) 4 6 s
+  rw [cyc_div6 _ (comp_mem w hw) s] at h4_6
+  have h4 : itr (ap (comp w)) 4 s = s := by rw [← h4_6, h10]
+  have h5_split : itr (ap (comp w)) (4 + 1) s = itr (ap (comp w)) 1 (itr (ap (comp w)) 4 s) :=
+    itr_add (ap (comp w)) 4 1 s
+  rw [show 4 + 1 = 5 by rfl, h5, h4] at h5_split
+  exact h5_split.symm
+
+/-- **Every Seed `Y` Is a Preimage Run of `F Y` (`run_testBit_F`):**
+for every `Y : Nat`, `Y.testBit` is a preimage run of `(F Y).testBit` (`Run (F Y).testBit Y.testBit`). -/
+theorem run_testBit_F (Y : Nat) : Run (F Y).testBit Y.testBit := by
+  intro i
+  rw [testBit_F_succ]
+  cases Y.testBit (i + 2) <;> cases Y.testBit (i + 1) <;> cases Y.testBit i <;> rfl
+
+/-- **Every Step of the Zero-Wall Orbit `iter F t Y` Is a Preimage Run (`run_testBit_iter_F`):**
+for every `Y, t : Nat`, `Run (iter F (t + 1) Y).testBit (iter F t Y).testBit`. -/
+theorem run_testBit_iter_F (Y t : Nat) :
+    Run (iter F (t + 1) Y).testBit (iter F t Y).testBit := by
+  rw [iter_succ]
+  exact run_testBit_F (iter F t Y)
+
+section RunBounds
+variable {z y y' : Nat → Bool}
+
+/-- **Pointwise Upper Bound on `pm` for `Apart` Runs (`pm_le_one`):**
+for two `Apart` runs `y, y'` of the same word `z`, `pm y y' (i + 1) ≤ 1` at every position `i + 1`
+(they never both equal `true` at `i + 1`). -/
+theorem pm_le_one (hy : Run z y) (hy' : Run z y') (ha : Apart y y') (i : Nat) :
+    pm y y' (i + 1) ≤ 1 := by
+  rw [pos_mass hy hy' ha i]
+  split <;> omega
+
+/-- **Adjacent-Pair Disagreement Floor (`pair_mass_pos`):**
+any two consecutive positions `p + 1, p + 2` of two `Apart` runs carry at least `1` one between them. -/
+theorem pair_mass_pos (hy : Run z y) (hy' : Run z y') (ha : Apart y y') (p : Nat) :
+    1 ≤ pm y y' (p + 1) + pm y y' (p + 2) := by
+  rw [pos_mass hy hy' ha p, pos_mass hy hy' ha (p + 1)]
+  by_cases a1 : y (p + 1) = y' (p + 1)
+  · have h2 := (agree_next hy hy' ha p a1).1
+    simp [a1, h2]
+  · simp [a1]
+
+/-- **Upper Bound on `mass` (`mass_le_len`):**
+for two `Apart` runs `y, y'`, `mass y y' q L ≤ L` for every starting offset `q` and length `L`. -/
+theorem mass_le_len (hy : Run z y) (hy' : Run z y') (ha : Apart y y') (q : Nat) :
+    ∀ L : Nat, mass y y' q L ≤ L
+  | 0 => Nat.le_refl 0
+  | L + 1 => by
+    simp only [mass]
+    have ih := mass_le_len hy hy' ha q L
+    have hpm := pm_le_one hy hy' ha (q + L)
+    rw [show q + L + 1 = q + 1 + L by omega] at hpm
+    omega
+
+/-- **All-Length `2/3` Mass Lower Bound (`two_mul_len_le_three_mul_mass_add_two`):**
+for any two `Apart` preimage runs `y, y'` of `z`, any offset `q : Nat`, and any window length `L : Nat`,
+`2 * L ≤ 3 * mass y y' q L + 2`. -/
+theorem two_mul_len_le_three_mul_mass_add_two (hy : Run z y) (hy' : Run z y') (ha : Apart y y')
+    (q L : Nat) :
+    2 * L ≤ 3 * mass y y' q L + 2 := by
+  have hdiv : L = 3 * (L / 3) + L % 3 := (Nat.div_add_mod L 3).symm
+  have hmod : L % 3 = 0 ∨ L % 3 = 1 ∨ L % 3 = 2 := by omega
+  have hbase := mass_two_thirds hy hy' ha q (L / 3)
+  rcases hmod with h0 | h1 | h2
+  · have hL : L = 3 * (L / 3) := by omega
+    rw [hL]
+    omega
+  · have hL : L = 3 * (L / 3) + 1 := by omega
+    rw [hL]
+    simp only [mass]
+    omega
+  · have hL : L = 3 * (L / 3) + 1 + 1 := by omega
+    have hpair := pair_mass_pos hy hy' ha (q + 3 * (L / 3))
+    rw [show q + 3 * (L / 3) + 1 = q + 1 + 3 * (L / 3) by omega,
+        show q + 3 * (L / 3) + 2 = q + 1 + (3 * (L / 3) + 1) by omega] at hpair
+    rw [hL]
+    simp only [mass]
+    omega
+
+/-- Window weight of a single run `y` on the `L` positions `q + 1, …, q + L`. -/
+def runWt (y : Nat → Bool) (q L : Nat) : Nat :=
+  cnt (fun k => y (q + 1 + k)) L
+
+/-- **Exact Decomposition of `mass` into Single-Run Window Weights (`mass_eq_runWt_add_runWt`):**
+`mass y y' q L = runWt y q L + runWt y' q L`. -/
+theorem mass_eq_runWt_add_runWt (y y' : Nat → Bool) (q : Nat) :
+    ∀ L : Nat, mass y y' q L = runWt y q L + runWt y' q L
+  | 0 => rfl
+  | L + 1 => by
+    simp only [mass]
+    rw [mass_eq_runWt_add_runWt y y' q L]
+    simp only [runWt, cnt, pm]
+    omega
+
+/-- **Single-Run `1/3` Weight Dichotomy (`one_third_runWt_dichotomy`):**
+for any two `Apart` preimage runs `y, y'` of `z`, on every window of length `3 * n` starting at `q + 1`,
+at least one of `y` or `y'` carries at least `n` ones (`n ≤ runWt y q (3 * n) ∨ n ≤ runWt y' q (3 * n)`). -/
+theorem one_third_runWt_dichotomy (hy : Run z y) (hy' : Run z y') (ha : Apart y y') (q n : Nat) :
+    n ≤ runWt y q (3 * n) ∨ n ≤ runWt y' q (3 * n) := by
+  have hsum := mass_two_thirds hy hy' ha q n
+  rw [mass_eq_runWt_add_runWt] at hsum
+  omega
+
+end RunBounds
+end MassExtensions
+
 end Rule30PeriodTwoMass
 end Ruliology.CellularAutomata
