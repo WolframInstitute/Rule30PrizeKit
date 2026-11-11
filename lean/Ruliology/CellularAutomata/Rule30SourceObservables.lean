@@ -207,4 +207,137 @@ theorem recover
 
 
 end Band
+/-! ### Shifted-window density bounds, one-third ceiling under source vanishing, run-end source lower bounds from black-cell excess, and arbitrary-interval state recovery -/
+
+/-- **Zero-One Bounds on `bit` (`bit_bounds`):**
+for every `b : Bool`, `0 ≤ bit b ∧ bit b ≤ 1`. -/
+theorem bit_bounds (b : Bool) : 0 ≤ bit b ∧ bit b ≤ 1 := by
+  cases b <;> decide
+
+/-- **Zero Count When a Predicate Never Fires (`count_eq_zero_of_forall_false`):**
+if `∀ t < T, f t = false`, then `count f T = 0`. -/
+theorem count_eq_zero_of_forall_false (f : Nat → Bool) :
+    ∀ (T : Nat), (∀ t, t < T → f t = false) → count f T = 0
+  | 0, _ => rfl
+  | T + 1, hf => by
+    have ih := count_eq_zero_of_forall_false f T (fun t ht => hf t (by omega))
+    have hT : f T = false := hf T (Nat.lt_succ_self T)
+    simp [count, ih, hT, bit]
+
+/-- **Additivity of `count` Over Concatenated Time Horizons (`count_add`):**
+for any stream `f : Nat → Bool` and horizons `T₀, T : Nat`,
+`count f (T₀ + T) = count f T₀ + count (fun t => f (T₀ + t)) T`. -/
+theorem count_add (f : Nat → Bool) (T₀ : Nat) :
+    ∀ (T : Nat), count f (T₀ + T) = count f T₀ + count (fun t => f (T₀ + t)) T
+  | 0 => by simp [count]
+  | T + 1 => by
+    rw [show T₀ + (T + 1) = (T₀ + T) + 1 by omega]
+    simp only [count, count_add f T₀ T]
+    omega
+
+/-- **Shifted-Window Run-End Density Bound (`density_bound_window`):**
+for any four neighboring Rule 30 columns `(c, r, s, u)`, any start time `T₀`, and any window
+length `T`, the run-end density inequality holds over `[T₀, T₀ + T)`. -/
+theorem density_bound_window (c r s u : Nat → Bool)
+    (hr : ∀ t, r (t + 1) = rule (c t) (r t) (s t))
+    (hs : ∀ t, s (t + 1) = rule (r t) (s t) (u t)) (T₀ T : Nat) :
+    3 * count (fun t => c (T₀ + t)) T ≤
+      (T : Int) + 5 * count (fun t => source (c (T₀ + t)) (r (T₀ + t))) T + 3 := by
+  have hr' : ∀ t, r (T₀ + (t + 1)) = rule (c (T₀ + t)) (r (T₀ + t)) (s (T₀ + t)) := by
+    intro t
+    rw [show T₀ + (t + 1) = (T₀ + t) + 1 by omega]
+    exact hr (T₀ + t)
+  have hs' : ∀ t, s (T₀ + (t + 1)) = rule (r (T₀ + t)) (s (T₀ + t)) (u (T₀ + t)) := by
+    intro t
+    rw [show T₀ + (t + 1) = (T₀ + t) + 1 by omega]
+    exact hs (T₀ + t)
+  exact density_bound (fun t => c (T₀ + t)) (fun t => r (T₀ + t))
+    (fun t => s (T₀ + t)) (fun t => u (T₀ + t)) hr' hs' T
+
+/-- **One-Third Black-Cell Ceiling When No Run-End Source Fires (`count_le_of_source_false`):**
+if `source (c t) (r t) = false` for all `t < T`, then `3 * count c T ≤ (T : Int) + 3`. -/
+theorem count_le_of_source_false (c r s u : Nat → Bool)
+    (hr : ∀ t, r (t + 1) = rule (c t) (r t) (s t))
+    (hs : ∀ t, s (t + 1) = rule (r t) (s t) (u t))
+    {T : Nat} (hzero : ∀ t, t < T → source (c t) (r t) = false) :
+    3 * count c T ≤ (T : Int) + 3 := by
+  have hd := density_bound c r s u hr hs T
+  have hc0 := count_eq_zero_of_forall_false (fun t => source (c t) (r t)) T hzero
+  rw [hc0] at hd
+  omega
+
+/-- **Quantitative Run-End Source Lower Bound From Black-Cell Count (`source_count_lower_bound`):**
+for any four neighboring Rule 30 columns `(c, r, s, u)` and horizon `T`,
+`3 * count c T - (T : Int) - 3 ≤ 5 * count (fun t => source (c t) (r t)) T`. -/
+theorem source_count_lower_bound (c r s u : Nat → Bool)
+    (hr : ∀ t, r (t + 1) = rule (c t) (r t) (s t))
+    (hs : ∀ t, s (t + 1) = rule (r t) (s t) (u t)) (T : Nat) :
+    3 * count c T - (T : Int) - 3 ≤ 5 * count (fun t => source (c t) (r t)) T := by
+  have hd := density_bound c r s u hr hs T
+  omega
+
+/-- **Guaranteed Run-End Source Firing Under Black-Cell Excess (`exists_source_true_of_three_count_gt`):**
+if `(T : Int) + 3 < 3 * count c T`, then there exists a tick `t < T` at which the run-end source
+fires (`source (c t) (r t) = true`, i.e., `c t = true ∧ r t = false`). -/
+theorem exists_source_true_of_three_count_gt (c r s u : Nat → Bool)
+    (hr : ∀ t, r (t + 1) = rule (c t) (r t) (s t))
+    (hs : ∀ t, s (t + 1) = rule (r t) (s t) (u t))
+    {T : Nat} (hexcess : (T : Int) + 3 < 3 * count c T) :
+    ∃ t, t < T ∧ source (c t) (r t) = true := by
+  classical
+  apply Classical.byContradiction
+  intro hno
+  have hzero : ∀ t, t < T → source (c t) (r t) = false := by
+    intro t ht
+    cases hs_val : source (c t) (r t)
+    · rfl
+    · exact False.elim (hno ⟨t, ht, hs_val⟩)
+  have hle := count_le_of_source_false c r s u hr hs hzero
+  omega
+
+namespace Band
+
+/-- **Arbitrary-Onset 8-Tick State Recovery (`Band.recover_at`):**
+if two 4-cell band trajectories `x, y` satisfy the band evolution equations and have matching
+3-source observations `obs (x (t₀ + t)) = obs (y (t₀ + t))` for the 8 ticks `t ≤ 7` starting at
+`t₀`, then `x (t₀ + 1) = y (t₀ + 1)`. -/
+theorem recover_at
+    (x y : Nat → State) (cx cy vx vy wx wy : Nat → Bool)
+    (hx : ∀ t, x (t + 1) = step (x t) (cx t) (vx t))
+    (hy : ∀ t, y (t + 1) = step (y t) (cy t) (vy t))
+    (hvx : ∀ t, vx (t + 1) = rule (bit (x t) 1) (vx t) (wx t))
+    (hvy : ∀ t, vy (t + 1) = rule (bit (y t) 1) (vy t) (wy t))
+    (t₀ : Nat)
+    (ho : ∀ t, t ≤ 7 → obs (x (t₀ + t)) = obs (y (t₀ + t))) :
+    x (t₀ + 1) = y (t₀ + 1) := by
+  refine recover (fun t => x (t₀ + t)) (fun t => y (t₀ + t))
+    (fun t => cx (t₀ + t)) (fun t => cy (t₀ + t))
+    (fun t => vx (t₀ + t)) (fun t => vy (t₀ + t))
+    (fun t => wx (t₀ + t)) (fun t => wy (t₀ + t))
+    (fun t => ?_) (fun t => ?_) (fun t => ?_) (fun t => ?_) ho
+  · rw [show t₀ + (t + 1) = (t₀ + t) + 1 by omega]; exact hx (t₀ + t)
+  · rw [show t₀ + (t + 1) = (t₀ + t) + 1 by omega]; exact hy (t₀ + t)
+  · rw [show t₀ + (t + 1) = (t₀ + t) + 1 by omega]; exact hvx (t₀ + t)
+  · rw [show t₀ + (t + 1) = (t₀ + t) + 1 by omega]; exact hvy (t₀ + t)
+
+/-- **Multi-Tick Sliding-Window State Recovery (`Band.recover_interval`):**
+if `obs (x (t₀ + t)) = obs (y (t₀ + t))` holds across `t ≤ N + 7`, then `x (t₀ + 1 + k) = y (t₀ + 1 + k)`
+for every `k ≤ N`. -/
+theorem recover_interval
+    (x y : Nat → State) (cx cy vx vy wx wy : Nat → Bool)
+    (hx : ∀ t, x (t + 1) = step (x t) (cx t) (vx t))
+    (hy : ∀ t, y (t + 1) = step (y t) (cy t) (vy t))
+    (hvx : ∀ t, vx (t + 1) = rule (bit (x t) 1) (vx t) (wx t))
+    (hvy : ∀ t, vy (t + 1) = rule (bit (y t) 1) (vy t) (wy t))
+    {t₀ N : Nat}
+    (ho : ∀ t, t ≤ N + 7 → obs (x (t₀ + t)) = obs (y (t₀ + t))) :
+    ∀ k, k ≤ N → x (t₀ + 1 + k) = y (t₀ + 1 + k) := by
+  intro k hk
+  have hrec := recover_at x y cx cy vx vy wx wy hx hy hvx hvy (t₀ + k) (fun t ht => by
+    rw [show t₀ + k + t = t₀ + (k + t) by omega]
+    exact ho (k + t) (by omega))
+  rwa [show t₀ + k + 1 = t₀ + 1 + k by omega] at hrec
+
+end Band
+
 end Ruliology.CellularAutomata.Rule30SourceObservables
