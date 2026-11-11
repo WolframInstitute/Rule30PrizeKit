@@ -191,6 +191,7 @@ public import Ruliology.CellularAutomata.Rule30WedgeBridge
 public import Ruliology.CellularAutomata.Rule30SeparatorBridge
 public import Ruliology.CellularAutomata.Rule30SeparatorEquivalences
 public import Ruliology.CellularAutomata.Rule30SEPToPeriodTwo
+public import Ruliology.CellularAutomata.Rule30PeriodTwoOnset
 public import Ruliology.CellularAutomata.Rule30SeparatorQ01
 public import Ruliology.CellularAutomata.Rule30Rule180LoneSeed
 public import Ruliology.CellularAutomata.Rule30TopCoefficient
