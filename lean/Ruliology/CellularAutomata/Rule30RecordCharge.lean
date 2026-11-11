@@ -284,5 +284,110 @@ theorem B_lt_two_thirds {j : Nat} (hj : 18 ≤ j) : B j < (2 * j + 1) / 3 := by
 theorem exponent_le_Q (p : Path 0) (d : Nat) : p.exponent d ≤ d + Q 0 d :=
   exponent_bound_before_threshold p d (Q 0 d) (Q_spec 0 d)
 
+/-! ### Exact threshold inversion, monotonicity, and 1-Lipschitz bounds for `Q` and `B` -/
+
+/-- **Monotonicity of `threshold` in the shift parameter `nu` (`threshold_mono_nu`):**
+for all `nu1 ≤ nu2` and `q : Nat`, `threshold nu1 q ≤ threshold nu2 q`. -/
+theorem threshold_mono_nu {nu1 nu2 : Nat} (hnu : nu1 ≤ nu2) :
+    ∀ q : Nat, threshold nu1 q ≤ threshold nu2 q
+  | 0 => Nat.le_refl 1
+  | q + 1 => by
+    have ih := threshold_mono_nu hnu q
+    have hpow := Nat.pow_le_pow_right (n := 2) (by decide)
+      (show nu1 + threshold nu1 q + q ≤ nu2 + threshold nu2 q + q by omega)
+    simp only [threshold]
+    omega
+
+/-- **Monotonicity of `Q nu d` in `d` (`Q_mono`):**
+for all `d1 ≤ d2`, `Q nu d1 ≤ Q nu d2`. -/
+theorem Q_mono (nu : Nat) {d1 d2 : Nat} (hd : d1 ≤ d2) : Q nu d1 ≤ Q nu d2 :=
+  (Q_le_iff nu d1 (Q nu d2)).mpr (Nat.lt_of_le_of_lt hd (Q_spec nu d2))
+
+/-- **Anti-Monotonicity of `Q nu d` in `nu` (`Q_anti_nu`):**
+for all `nu1 ≤ nu2` and `d : Nat`, `Q nu2 d ≤ Q nu1 d`. -/
+theorem Q_anti_nu {nu1 nu2 : Nat} (hnu : nu1 ≤ nu2) (d : Nat) : Q nu2 d ≤ Q nu1 d :=
+  (Q_le_iff nu2 d (Q nu1 d)).mpr
+    (Nat.lt_of_lt_of_le (Q_spec nu1 d) (threshold_mono_nu hnu (Q nu1 d)))
+
+/-- **Exact Interval Characterization of `Q nu d = q + 1` (`Q_eq_succ_iff`):**
+`Q nu d = q + 1` if and only if `threshold nu q ≤ d` and `d < threshold nu (q + 1)`. -/
+theorem Q_eq_succ_iff (nu d q : Nat) :
+    Q nu d = q + 1 ↔ threshold nu q ≤ d ∧ d < threshold nu (q + 1) := by
+  constructor
+  · intro h
+    have hlt : q < Q nu d := by omega
+    have hle : Q nu d ≤ q + 1 := by omega
+    exact ⟨threshold_le_of_lt_Q hlt, (Q_le_iff nu d (q + 1)).mp hle⟩
+  · rintro ⟨hle, hlt⟩
+    have h1 : Q nu d ≤ q + 1 := (Q_le_iff nu d (q + 1)).mpr hlt
+    have h2 : ¬ Q nu d ≤ q := by
+      rw [Q_le_iff]
+      omega
+    omega
+
+/-- **Exact Evaluation of `Q nu` Just Below a Threshold (`Q_threshold_sub_one`):**
+for every `nu, q : Nat`, `Q nu (threshold nu q - 1) = q`. -/
+theorem Q_threshold_sub_one (nu : Nat) : ∀ q : Nat, Q nu (threshold nu q - 1) = q
+  | 0 => rfl
+  | q + 1 => by
+    rw [Q_eq_succ_iff]
+    have hst := threshold_strict nu q
+    have hge := threshold_ge nu (q + 1)
+    omega
+
+/-- **Exact Evaluation of `Q nu` at a Threshold (`Q_threshold`):**
+for every `nu, q : Nat`, `Q nu (threshold nu q) = q + 1`. -/
+theorem Q_threshold (nu q : Nat) : Q nu (threshold nu q) = q + 1 := by
+  rw [Q_eq_succ_iff]
+  exact ⟨Nat.le_refl _, threshold_strict nu q⟩
+
+/-- **1-Lipschitz Step Bound for `Q nu` (`Q_succ_le`):**
+advancing `d` by `1` increases `Q nu d` by at most `1`. -/
+theorem Q_succ_le (nu d : Nat) : Q nu (d + 1) ≤ Q nu d + 1 := by
+  rw [Q_le_iff]
+  have h1 := Q_spec nu d
+  have h2 := threshold_strict nu (Q nu d)
+  omega
+
+/-- **General-`nu` Exponent Bound (`exponent_le_Q_gen`):**
+along any path `p : Path nu` (`nu : Nat`), `p.exponent d ≤ d + Q nu d` for all `d : Nat`. -/
+theorem exponent_le_Q_gen {nu : Nat} (p : Path nu) (d : Nat) : p.exponent d ≤ d + Q nu d :=
+  exponent_bound_before_threshold p d (Q nu d) (Q_spec nu d)
+
+/-- **Exact Odd-Step Increment of `B` (`B_odd_eq_succ`):**
+for every `d : Nat`, `B (2 * d + 1) = B (2 * d) + 1`. -/
+theorem B_odd_eq_succ (d : Nat) : B (2 * d + 1) = B (2 * d) + 1 := by
+  unfold B
+  have h1 : (2 * d + 1 + 1) / 2 = d + 1 := by omega
+  have h2 : (2 * d + 1) / 2 = d := by omega
+  have h3 : (2 * d) / 2 = d := by omega
+  rw [h1, h2, h3]
+  omega
+
+/-- **1-Lipschitz Step Bounds for `B` (`B_step_bounds`):**
+for every `j : Nat`, `B j ≤ B (j + 1) ∧ B (j + 1) ≤ B j + 1`. -/
+theorem B_step_bounds (j : Nat) : B j ≤ B (j + 1) ∧ B (j + 1) ≤ B j + 1 := by
+  unfold B
+  rcases Nat.mod_two_eq_zero_or_one j with he | ho
+  · have h1 : (j + 1 + 1) / 2 = (j + 1) / 2 + 1 := by omega
+    have h2 : (j + 1) / 2 = j / 2 := by omega
+    rw [h1, h2]
+    omega
+  · have h1 : (j + 1 + 1) / 2 = (j + 1) / 2 := by omega
+    have h2 : (j + 1) / 2 = j / 2 + 1 := by omega
+    have hmono := Q_mono 0 (show j / 2 ≤ j / 2 + 1 by omega)
+    have hsucc := Q_succ_le 0 (j / 2)
+    rw [h1, h2]
+    omega
+
+/-- **Global Monotonicity of `B` (`B_mono`):**
+for all `i ≤ j`, `B i ≤ B j`. -/
+theorem B_mono {i j : Nat} (h : i ≤ j) : B i ≤ B j := by
+  obtain ⟨d, rfl⟩ := Nat.exists_eq_add_of_le h
+  induction d with
+  | zero => exact Nat.le_refl _
+  | succ d ih =>
+    exact Nat.le_trans (ih (by omega)) (B_step_bounds (i + d)).1
+
 end Rule30RecordCharge
 end Ruliology.CellularAutomata
