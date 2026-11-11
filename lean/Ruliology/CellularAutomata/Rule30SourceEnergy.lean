@@ -597,5 +597,138 @@ theorem problem2_of_source_energy
       rw [hD]; congr 1; omega
     omega
 
+/-! ## Trivial `2^n n²` energy bound, direct source-energy van der Corput inequality, and equivalence with total-energy `o(2^n n²)` -/
+
+/-- **Pointwise Bound on Shifted Sums (`Z_bounds`):**
+for all `N, n : Nat` with `1 ≤ n` and `u : Int`, `-(n : Int) ≤ Z N n u ∧ Z N n u ≤ (n : Int)`. -/
+theorem Z_bounds (N n : Nat) (hn : 1 ≤ n) (u : Int) :
+    -(n : Int) ≤ Z N n u ∧ Z N n u ≤ (n : Int) := by
+  rw [Z_eq]
+  have h0 := zext_bound N u
+  have hr := rsum_abs_le (n - 1) (f := fun j => zext N (u + ((2 ^ j : Nat) : Int)))
+    (fun j => zext_bound N _)
+  omega
+
+/-- **Pointwise Square Bound on Shifted Sums (`Z_sq_le_sq`):**
+for all `N, n : Nat` with `1 ≤ n` and `u : Int`, `Z N n u ^ 2 ≤ (n : Int) ^ 2`. -/
+theorem Z_sq_le_sq (N n : Nat) (hn : 1 ≤ n) (u : Int) :
+    Z N n u ^ 2 ≤ (n : Int) ^ 2 := by
+  have hb := Z_bounds N n hn u
+  generalize Z N n u = x at hb
+  have h1 : 0 ≤ (n : Int) - x := by omega
+  have h2 : 0 ≤ (n : Int) + x := by omega
+  have hprod := Int.mul_nonneg h1 h2
+  grind
+
+/-- **Nonnegativity of Source Energy (`Esrc_nonneg`):**
+for every `n : Nat`, `0 ≤ Esrc n`. -/
+theorem Esrc_nonneg (n : Nat) : 0 ≤ Esrc n :=
+  rsum_nonneg (2 ^ n) (fun _ _ => Int.sq_nonneg _)
+
+/-- **Nonnegativity of Total Energy (`Ttot_nonneg`):**
+for every `N, n : Nat`, `0 ≤ Ttot N n`. -/
+theorem Ttot_nonneg (N n : Nat) : 0 ≤ Ttot N n :=
+  rsum_nonneg (N + H n) (fun _ _ => Int.sq_nonneg _)
+
+/-- **Sharp Trivial Upper Bound on Source Energy (`Esrc_le_trivial`):**
+for every `n ≥ 1`, `Esrc n ≤ 2 ^ n * (n : Int) ^ 2`. -/
+theorem Esrc_le_trivial (n : Nat) (hn : 1 ≤ n) :
+    Esrc n ≤ 2 ^ n * (n : Int) ^ 2 := by
+  unfold Esrc
+  have hle := rsum_le_rsum (2 ^ n) (f := fun u => Z (2 ^ n) n u ^ 2)
+    (g := fun _ => (n : Int) ^ 2) (fun u _ => Z_sq_le_sq (2 ^ n) n hn u)
+  rw [rsum_const] at hle
+  exact hle
+
+/-- **Source Energy Is Bounded Above by Total Energy (`Esrc_le_Ttot`):**
+for every `n ≥ 2`, `Esrc n ≤ Ttot (2 ^ n) n`. -/
+theorem Esrc_le_Ttot (n : Nat) (hn : 2 ≤ n) : Esrc n ≤ Ttot (2 ^ n) n := by
+  have hf := (F_bound n hn).1
+  omega
+
+/-- **Exact Dyadic Support Length Identity (`four_mul_add_H`):**
+for every `n ≥ 2`, `4 * (2 ^ n + H n) = 5 * 2 ^ n`. -/
+theorem four_mul_add_H (n : Nat) (hn : 2 ≤ n) :
+    4 * (2 ^ n + H n) = 5 * 2 ^ n := by
+  have hH : 2 ^ n = 4 * 2 ^ (n - 2) := by
+    rw [show n = n - 2 + 2 by omega, Nat.pow_add]; simp; omega
+  unfold H
+  omega
+
+/-- **Direct Source-Energy van der Corput Discrepancy Bound (`vdc_source_energy`):**
+for every `n ≥ 2`, `8 * (n : Int) ^ 2 * D0 (2 ^ n) ^ 2 ≤ 5 * 2 ^ n * (2 * Esrc n + 3 * 2 ^ n)`. -/
+private theorem eight_mul_mul (A B : Int) : 8 * (A * B) = (4 * A) * (2 * B) := by grind
+
+theorem vdc_source_energy (n : Nat) (hn : 2 ≤ n) :
+    8 * (n : Int) ^ 2 * D0 (2 ^ n) ^ 2 ≤ 5 * 2 ^ n * (2 * Esrc n + 3 * 2 ^ n) := by
+  have hv := vdc n hn
+  have hf := (F_bound n hn).2
+  have h4 := four_mul_add_H n hn
+  have h4_int : (4 : Int) * ((2 ^ n + H n : Nat) : Int) = 5 * (2 : Int) ^ n := by
+    have : ((4 * (2 ^ n + H n) : Nat) : Int) = ((5 * 2 ^ n : Nat) : Int) := congrArg Int.ofNat h4
+    push_cast at this
+    exact this
+  have hpow_pos : (0 : Int) < (2 : Int) ^ n := Int.pow_pos (by decide : (0 : Int) < 2)
+  have hmul1 := Int.mul_le_mul_of_nonneg_left hv (show (0 : Int) ≤ 8 by decide)
+  rw [eight_mul_mul ((2 ^ n + H n : Nat) : Int) (Ttot (2 ^ n) n), h4_int, ← Int.mul_assoc 8 ((n : Int) ^ 2) (D0 (2 ^ n) ^ 2)] at hmul1
+  have h2T : 2 * Ttot (2 ^ n) n ≤ 2 * Esrc n + 3 * (2 : Int) ^ n := by omega
+  have hmul2 := Int.mul_le_mul_of_nonneg_left h2T (show (0 : Int) ≤ 5 * (2 : Int) ^ n by omega)
+  exact Int.le_trans hmul1 hmul2
+
+/-- The integer `o(2^n n²)` hypothesis on the source energy `Esrc n`. -/
+def SourceEnergySmallO : Prop :=
+  ∀ k : Nat, 0 < k → ∃ n0 : Nat, ∀ n : Nat, n0 ≤ n →
+    (k : Int) ^ 2 * Esrc n * 8 ≤ 2 ^ n * (n : Int) ^ 2
+
+/-- The integer `o(2^n n²)` hypothesis on the total energy `Ttot (2 ^ n) n`. -/
+def TotalEnergySmallO : Prop :=
+  ∀ k : Nat, 0 < k → ∃ n0 : Nat, ∀ n : Nat, n0 ≤ n →
+    (k : Int) ^ 2 * Ttot (2 ^ n) n * 8 ≤ 2 ^ n * (n : Int) ^ 2
+
+/-- **Equivalence of Source-Energy and Total-Energy Small-O Conditions (`source_energy_o_iff_total_energy_o`):**
+`SourceEnergySmallO ↔ TotalEnergySmallO`. -/
+theorem source_energy_o_iff_total_energy_o :
+    SourceEnergySmallO ↔ TotalEnergySmallO := by
+  constructor
+  · intro hS k hk
+    obtain ⟨n0, hn0⟩ := hS (2 * k) (by omega)
+    refine ⟨n0 + 5 * k + 2, fun n hn => ?_⟩
+    have hn2 : 2 ≤ n := by omega
+    have hE := hn0 n (by omega)
+    have hf := (F_bound n hn2).2
+    have hkn : (5 * k : Int) ≤ (n : Int) := by omega
+    have hk_pos : (0 : Int) ≤ k := by omega
+    have hsq : 25 * (k : Int) ^ 2 ≤ (n : Int) ^ 2 := by
+      have := Int.mul_le_mul hkn hkn (by omega) (by omega)
+      grind
+    have hpow_pos : (0 : Int) ≤ 2 ^ n := Int.le_of_lt (Int.pow_pos (by decide : (0 : Int) < 2))
+    have h1 : (k : Int) ^ 2 * (2 * Esrc n) * 8 ≤ 2 * (2 ^ n * (n : Int) ^ 2) := by
+      have := Int.mul_le_mul_of_nonneg_left hE (show (0 : Int) ≤ 1 by decide)
+      grind
+    have h2 : (k : Int) ^ 2 * (3 * 2 ^ n) * 8 ≤ 2 ^ n * (n : Int) ^ 2 := by
+      have := Int.mul_le_mul_of_nonneg_left hsq hpow_pos
+      grind
+    have h3 : (k : Int) ^ 2 * (2 * Ttot (2 ^ n) n) * 8 ≤
+        (k : Int) ^ 2 * (2 * Esrc n + 3 * 2 ^ n) * 8 := by
+      have : (0 : Int) ≤ (k : Int) ^ 2 * 8 := by
+        have := Int.sq_nonneg (k : Int); omega
+      have := Int.mul_le_mul_of_nonneg_left hf this
+      grind
+    grind
+  · intro hT k hk
+    obtain ⟨n0, hn0⟩ := hT k hk
+    refine ⟨n0 + 2, fun n hn => ?_⟩
+    have hle := Esrc_le_Ttot n (by omega)
+    have hTn := hn0 n (by omega)
+    have hk2 : (0 : Int) ≤ (k : Int) ^ 2 * 8 := by
+      have := Int.sq_nonneg (k : Int); omega
+    have := Int.mul_le_mul_of_nonneg_left hle hk2
+    grind
+
+/-- **Problem 2 from the Total-Energy Estimate (`problem2_of_total_energy`):**
+if `Ttot (2 ^ n) n = o(2^n n²)` (`TotalEnergySmallO`), then `Problem2` holds. -/
+theorem problem2_of_total_energy (hTE : TotalEnergySmallO) : Problem2 :=
+  problem2_of_source_energy (source_energy_o_iff_total_energy_o.mpr hTE)
+
 end Rule30SourceEnergy
 end Ruliology.CellularAutomata
