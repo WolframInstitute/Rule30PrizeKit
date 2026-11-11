@@ -648,4 +648,214 @@ theorem white_black_count (H : Nat) :
         rw [this]; simp
     rw [e]
 
+/-! ### Shifted cylinder law for white-center, white-right times and full white-center block decomposition -/
+
+/-- **White-Center, White-Right Cylinder Law (`cylinder_white_white_iff`):**
+for `1 ≤ g ≤ t` and `u = t - g`, the gap at time `t` is `g` and both `x t 0 = false` and
+`x t 1 = false` hold if and only if the `2g` cells `x u (-g), …, x u (g - 1)` are all black and
+`(x u g || x u (g + 1)) = true`. -/
+theorem cylinder_white_white_iff {x : Nat → Int → Bool} (hx : IsTraj x) (t g : Nat)
+    (h : 1 ≤ g ∧ g ≤ t) :
+    gapAt x t g ∧ x t 0 = false ∧ x t 1 = false ↔
+      solid x (t - g) (-(g : Int)) ((g : Int) - 1) ∧
+        (x (t - g) (g : Int) || x (t - g) ((g : Int) + 1)) = true := by
+  obtain ⟨h1, h2⟩ := h
+  have hwi := cylinder_white_iff hx t g ⟨h1, h2⟩
+  have hR : gapAt x t g → x t 0 = false →
+      x t 1 =
+        rule (x (t - g) ((g : Int) - 1)) (x (t - g) (g : Int)) (x (t - g) ((g : Int) + 1)) := by
+    intro hgap hc
+    obtain ⟨_, hz⟩ := (gapAt_iff x t g h1 h2).mp hgap
+    have et : t - g + (g - 1) + 1 = t := by omega
+    have hC : lam x ((t : Int) - 2 + 2) (t - g + (g - 1) + 1) = false := by
+      rw [et, lam_eq x _ _ 0 (by omega)]; exact hc
+    have := right_core hx ((t : Int) - 2) (t - g) (g - 1) hz hC
+    rw [et, lam_eq x _ _ 1 (by omega), lam_eq x _ _ ((g : Int) - 1) (by omega),
+      lam_eq x _ _ (g : Int) (by omega), lam_eq x _ _ ((g : Int) + 1) (by omega)] at this
+    exact this
+  have hsol_split : solid x (t - g) (-(g : Int)) ((g : Int) - 1) ↔
+      solid x (t - g) (-(g : Int)) ((g : Int) - 2) ∧ x (t - g) ((g : Int) - 1) = true := by
+    constructor
+    · intro hs
+      exact ⟨fun i a b => hs i a (by omega), hs ((g : Int) - 1) (by omega) (Int.le_refl _)⟩
+    · intro ⟨hs, hb⟩ i a b
+      by_cases hi : i ≤ (g : Int) - 2
+      · exact hs i a hi
+      · have heq : i = (g : Int) - 1 := by omega
+        subst heq; exact hb
+  rw [hsol_split]
+  constructor
+  · intro ⟨hgap, hc, hr⟩
+    obtain ⟨hs, hbc⟩ := hwi.mp ⟨hgap, hc⟩
+    have hrule := hR hgap hc
+    rw [hr] at hrule
+    have hbits : x (t - g) ((g : Int) - 1) = true ∧
+        (x (t - g) (g : Int) || x (t - g) ((g : Int) + 1)) = true := by
+      revert hbc hrule
+      cases x (t - g) ((g : Int) - 1) <;> cases x (t - g) (g : Int) <;>
+        cases x (t - g) ((g : Int) + 1) <;> simp [rule]
+    exact ⟨⟨hs, hbits.1⟩, hbits.2⟩
+  · intro ⟨⟨hs, hb1⟩, hcr⟩
+    have hbc : (x (t - g) ((g : Int) - 1) || x (t - g) (g : Int)) = true := by
+      rw [hb1, Bool.true_or]
+    obtain ⟨hgap, hc⟩ := hwi.mpr ⟨hs, hbc⟩
+    refine ⟨hgap, hc, ?_⟩
+    rw [hR hgap hc, hb1]
+    revert hcr
+    cases x (t - g) (g : Int) <;> cases x (t - g) ((g : Int) + 1) <;> simp [rule]
+
+/-- The full white-center cylinder indicator at time `t` and gap `g`:
+`cell (t - g) (-g), …, cell (t - g) (g - 2)` are black and
+`(cell (t - g) (g - 1) || cell (t - g) g) = true`. -/
+def cylWhite (t g : Nat) : Bool :=
+  (List.range (2 * g - 1)).all (fun k => cell (t - g) (-(g : Int) + k)) &&
+    (cell (t - g) ((g : Int) - 1) || cell (t - g) (g : Int))
+
+/-- The white-center, white-right cylinder indicator at time `t` and gap `g`:
+`cell (t - g) (-g), …, cell (t - g) (g - 1)` are black and
+`(cell (t - g) g || cell (t - g) (g + 1)) = true`. -/
+def cylWW (t g : Nat) : Bool :=
+  (List.range (2 * g - 1)).all (fun k => cell (t - g) (-(g : Int) + k)) &&
+    cell (t - g) ((g : Int) - 1) &&
+    (cell (t - g) (g : Int) || cell (t - g) ((g : Int) + 1))
+
+/-- **Disjoint Partition of `cylWhite` into `cyl` and `cylWW` (`cylWhite_decomp`):**
+for all `t, g : Nat`, `cylWhite t g = (cyl t g || cylWW t g)` and `(cyl t g && cylWW t g) = false`. -/
+theorem cylWhite_decomp (t g : Nat) :
+    cylWhite t g = (cyl t g || cylWW t g) ∧ (cyl t g && cylWW t g) = false := by
+  unfold cylWhite cyl cylWW
+  generalize (List.range (2 * g - 1)).all (fun k => cell (t - g) (-(g : Int) + k)) = S
+  generalize cell (t - g) ((g : Int) - 1) = b
+  generalize cell (t - g) (g : Int) = c
+  generalize cell (t - g) ((g : Int) + 1) = d
+  cases S <;> cases b <;> cases c <;> cases d <;> decide
+
+/-- **Characterization of `cylWhite` (`cylWhite_iff`):**
+for `1 ≤ g`, `cylWhite t g = true` iff `solid cell (t - g) (-g) (g - 2)` and
+`(cell (t - g) (g - 1) || cell (t - g) g) = true`. -/
+theorem cylWhite_iff (t g : Nat) (hg : 1 ≤ g) :
+    cylWhite t g = true ↔ solid cell (t - g) (-(g : Int)) ((g : Int) - 2) ∧
+      (cell (t - g) ((g : Int) - 1) || cell (t - g) (g : Int)) = true := by
+  unfold cylWhite
+  rw [Bool.and_eq_true, List.all_eq_true]
+  apply and_congr_left
+  intro _
+  constructor
+  · intro h i a b
+    have := h (i + g).toNat (List.mem_range.mpr (by omega))
+    have e : -(g : Int) + ((i + g).toNat : Nat) = i := by omega
+    rw [e] at this; exact this
+  · intro h k hk
+    rw [List.mem_range] at hk
+    exact h _ (by omega) (by omega)
+
+/-- **Characterization of `cylWW` (`cylWW_iff`):**
+for `1 ≤ g ≤ t`, `cylWW t g = true` iff `gapAt cell t g ∧ center t = false ∧ cell t 1 = false`. -/
+theorem cylWW_iff (t g : Nat) (h1 : 1 ≤ g) (h2 : g ≤ t) :
+    cylWW t g = true ↔ gapAt cell t g ∧ center t = false ∧ cell t 1 = false := by
+  have hcw : cylWhite t g = true ↔ gapAt cell t g ∧ center t = false := by
+    rw [cylWhite_iff t g h1, ← cylinder_white_iff cell_isTraj t g ⟨h1, h2⟩]
+    rfl
+  have hcb : cyl t g = true ↔ gapAt cell t g ∧ center t = false ∧ cell t 1 = true := by
+    rw [cyl_iff t g h1, ← cylinder_iff cell_isTraj t g ⟨h1, h2⟩]
+    rfl
+  rcases cylWhite_decomp t g with ⟨hor, hand⟩
+  constructor
+  · intro hww
+    have hwhite : cylWhite t g = true := by rw [hor, hww, Bool.or_true]
+    have hnotb : cyl t g = false := by
+      rw [hww, Bool.and_true] at hand; exact hand
+    obtain ⟨hgap, hc⟩ := hcw.mp hwhite
+    refine ⟨hgap, hc, ?_⟩
+    cases h1b : cell t 1
+    · rfl
+    · have : cyl t g = true := hcb.mpr ⟨hgap, hc, h1b⟩
+      rw [hnotb] at this; exact Bool.noConfusion this
+  · intro ⟨hgap, hc, hr⟩
+    have hwhite : cylWhite t g = true := hcw.mpr ⟨hgap, hc⟩
+    have hnotb : cyl t g = false := by
+      cases hb : cyl t g
+      · rfl
+      · obtain ⟨_, _, h1t⟩ := hcb.mp hb
+        rw [hr] at h1t; exact Bool.noConfusion h1t
+    rw [hor, hnotb, Bool.false_or] at hwhite
+    exact hwhite
+
+/-- **Full White-Center Indicator Identity (`indicator_white_eq_cylWhite_count`):**
+for `t ≥ 2`, the white-center indicator `if !center t then 1 else 0` equals the number of
+`g ∈ {1, …, t / 2}` with `cylWhite t g = true`. -/
+theorem indicator_white_eq_cylWhite_count (t : Nat) (ht : 2 ≤ t) :
+    (if !center t then 1 else 0) = countFrom (fun g => cylWhite t g) 1 (t / 2) := by
+  have hcw : ∀ g, 1 ≤ g → g ≤ t →
+      (cylWhite t g = true ↔ gapAt cell t g ∧ center t = false) := by
+    intro g a b
+    rw [cylWhite_iff t g a, ← cylinder_white_iff cell_isTraj t g ⟨a, b⟩]
+    rfl
+  cases hw : (!center t)
+  · symm
+    apply countFrom_eq_zero
+    intro i hi
+    cases hc : cylWhite t (1 + i)
+    · rfl
+    · obtain ⟨_, h1⟩ := (hcw (1 + i) (by omega) (by omega)).mp hc
+      rw [h1] at hw; exact Bool.noConfusion hw
+  · rw [Bool.not_eq_true'] at hw
+    obtain ⟨g0, h1, h2, hgap⟩ := gap_exists_of_white t ht hw
+    symm
+    apply countFrom_eq_one _ 1 (g0 - 1)
+    · omega
+    · have e : 1 + (g0 - 1) = g0 := by omega
+      show cylWhite t (1 + (g0 - 1)) = true
+      rw [e]; exact (hcw g0 h1 (by omega)).mpr ⟨hgap, hw⟩
+    · intro i hi hc
+      have := gap_unique cell t (1 + i) g0 (by omega) h1
+        ((hcw (1 + i) (by omega) (by omega)).mp hc).1 hgap
+      omega
+
+/-- **White-Center, White-Right Indicator Identity (`indicator_ww_eq_cylWW_count`):**
+for `t ≥ 2`, the white-center, white-right indicator `if (!center t && !cell t 1) then 1 else 0`
+equals the number of `g ∈ {1, …, t / 2}` with `cylWW t g = true`. -/
+theorem indicator_ww_eq_cylWW_count (t : Nat) (ht : 2 ≤ t) :
+    (if (!center t && !cell t 1) then 1 else 0) = countFrom (fun g => cylWW t g) 1 (t / 2) := by
+  cases hw : (!center t && !cell t 1)
+  · symm
+    apply countFrom_eq_zero
+    intro i hi
+    cases hc : cylWW t (1 + i)
+    · rfl
+    · obtain ⟨_, h1, h2⟩ := (cylWW_iff t (1 + i) (by omega) (by omega)).mp hc
+      rw [h1, h2] at hw; exact Bool.noConfusion hw
+  · rw [Bool.and_eq_true, Bool.not_eq_true', Bool.not_eq_true'] at hw
+    obtain ⟨g0, h1, h2, hgap⟩ := gap_exists_of_white t ht hw.1
+    symm
+    apply countFrom_eq_one _ 1 (g0 - 1)
+    · omega
+    · have e : 1 + (g0 - 1) = g0 := by omega
+      show cylWW t (1 + (g0 - 1)) = true
+      rw [e]; exact (cylWW_iff t g0 h1 (by omega)).mpr ⟨hgap, hw.1, hw.2⟩
+    · intro i hi hc
+      have := gap_unique cell t (1 + i) g0 (by omega) h1
+        ((cylWW_iff t (1 + i) (by omega) (by omega)).mp hc).1 hgap
+      omega
+
+/-- **Block Counting Law for White Center Cells and White-White Pairs (`white_and_ww_block_count`):**
+on `I_H = {H + 1, …, 2H}`, `blockCount (fun t => !center t) H` equals the sum of `cylWhite`
+counts and `blockCount (fun t => !center t && !cell t 1) H` equals the sum of `cylWW` counts. -/
+theorem white_and_ww_block_count (H : Nat) :
+    blockCount (fun t => !center t) H =
+      natSumFrom (fun t => countFrom (fun g => cylWhite t g) 1 (t / 2)) (H + 1) H ∧
+    blockCount (fun t => !center t && !cell t 1) H =
+      natSumFrom (fun t => countFrom (fun g => cylWW t g) 1 (t / 2)) (H + 1) H := by
+  constructor
+  · show countFrom _ (H + 1) H = _
+    rw [countFrom_eq_sum]
+    apply natSumFrom_congr
+    intro i hi
+    exact indicator_white_eq_cylWhite_count (H + 1 + i) (by omega)
+  · show countFrom _ (H + 1) H = _
+    rw [countFrom_eq_sum]
+    apply natSumFrom_congr
+    intro i hi
+    exact indicator_ww_eq_cylWW_count (H + 1 + i) (by omega)
+
 end Ruliology.CellularAutomata.Rule30CenterCylinders
