@@ -769,5 +769,107 @@ theorem no_joint_local_ranking_of_recognizable (w e : Nat)
   fun hR => no_joint_windowed_recognizable_ranking w e FinMonoid.unit (fun _ => ()) Nat.lt_wfRel.wf
     (fun lo hi c l r _ => R lo hi c l r) fun x lo hi h1 h2 h3 h4 h5 => hR x lo hi h1 h2 h3 h4 h5
 
+/-! ### Opposite-monoid involution, natural-number wall recognizable barrier, shifted width-bounded and wall-automaton barriers, and one-double-step coalescence of `1493` and `1507` -/
+
+/-- **Involutivity of the Opposite Finite Monoid (`FinMonoid.op_op`):**
+for every finite monoid `S : FinMonoid M`, `S.op.op = S`. -/
+theorem FinMonoid.op_op {M : Type} (S : FinMonoid M) : S.op.op = S := by
+  cases S; rfl
+
+/-- **Natural-Number Wall-Read Recognizable Barrier (`no_wall_recognizable_ranking_nat`):**
+for every finite monoid `S`, letter map `img`, and natural-number rank `R : Nat → M → Nat`,
+no certificate `WallRecCert S img (fun a b => a < b) R` exists. -/
+theorem no_wall_recognizable_ranking_nat {M : Type} (S : FinMonoid M) (img : Bool → M)
+    (R : Nat → M → Nat) : ¬ WallRecCert S img (fun a b => a < b) R :=
+  no_wall_recognizable_ranking S img Nat.lt_wfRel.wf R
+
+/-- **Shifted Width-Bounded Ranking Barrier With Slack `2` (`no_shifted_width_bounded_ranking`):**
+for every integer lower bound `b : Int`, no integer rank `ρ s W` satisfying
+`b ≤ ρ s W ∧ ρ s W ≤ (W : Int) + b + 2` on finitely supported rows of width `W` can strictly
+decrease at every surviving double step (since `1493` of width `11` survives `14` double steps,
+requiring a drop of at least `14` across an interval of length `13`). -/
+theorem no_shifted_width_bounded_ranking (b : Int) (ρ : (Nat → Bool) → Nat → Int)
+    (hbd : ∀ s W, 1 ≤ W → s W = true → (∀ k, W < k → s k = false) →
+      b ≤ ρ s W ∧ ρ s W ≤ (W : Int) + b + 2) :
+    ¬ ∀ s W, 1 ≤ W → s W = true → (∀ k, W < k → s k = false) → Survives s →
+      ρ (fun k => zrow s 2 k) (W + 2) < ρ s W := by
+  intro hR
+  have hwid := sharp_rows_width (Y := 1493) (Or.inl rfl)
+  have hedge := zrow_edge (L := rowOfNat 1493) (m := 11) (by omega) hwid.1 hwid.2
+  have hsurv := (sharp_rows_fourteen (Y := 1493) (Or.inl rfl)).1
+  have chain : ∀ j, j ≤ 14 →
+      ρ (iter (rowOfNat 1493) j) (11 + 2 * j) + j ≤ ρ (iter (rowOfNat 1493) 0) 11 := by
+    intro j
+    induction j with
+    | zero => intro _; simp
+    | succ j ih =>
+      intro hj
+      have h := hR (iter (rowOfNat 1493) j) (11 + 2 * j) (by omega) (hedge (2 * j)).1
+        (hedge (2 * j)).2 (hsurv j (by omega))
+      rw [show (fun k => zrow (iter (rowOfNat 1493) j) 2 k) = iter (rowOfNat 1493) (j + 1) from
+        (iter_dstep _ j).symm, show 11 + 2 * j + 2 = 11 + 2 * (j + 1) by omega] at h
+      have := ih (by omega)
+      push_cast
+      omega
+  have h14 := chain 14 (by omega)
+  have hb0 := hbd (iter (rowOfNat 1493) 0) 11 (by omega) (hedge 0).1 (hedge 0).2
+  have hb14 := hbd (iter (rowOfNat 1493) 14) (11 + 2 * 14) (by omega) (hedge (2 * 14)).1
+    (hedge (2 * 14)).2
+  omega
+
+/-- Certificate that a deterministic automaton `A` with start state `q0` ranks surviving double
+steps by the longest accepted prefix of the row read from the white wall (`wallWord s W`). -/
+def WallAutomatonCert (A : DFA) (q0 : Nat) : Prop :=
+  ∀ s W, 1 ≤ W → s W = true → (∀ k, W < k → s k = false) → Survives s →
+    maxAcc A q0 (wallWord (fun k => zrow s 2 k) (W + 2)) < maxAcc A q0 (wallWord s W)
+
+/-- **Unbounded-State Wall-Automaton Ranking Barrier (`no_wall_automaton_ranking`):**
+for every deterministic automaton `A : DFA` and start state `q0 : Nat` (with no bound on the
+number of states), the length of the longest accepted prefix of the row read from the white wall
+(`wallWord s W`) is not a ranking (`¬ WallAutomatonCert A q0`), removing the finite-state
+hypothesis of `Rule30ZeroBoundaryBarriers.no_wall_dfa_ranking`. -/
+theorem no_wall_automaton_ranking (A : DFA) (q0 : Nat) : ¬ WallAutomatonCert A q0 := by
+  intro hA
+  refine no_width_bounded_ranking (fun s W => maxAcc A q0 (wallWord s W)) ?_ hA
+  intro s W _ _ _
+  refine ⟨maxAcc_ge A q0 _, ?_⟩
+  have := maxAcc_le A q0 (wallWord s W)
+  simpa [wallWord] using this
+
+/-- **Initial Disagreement, Opposite Tick-`1` Free Bits, and One-Double-Step Collision at `6581`
+(`sharp_rows_initial_and_free_bit_diff`):** the width-`11` rows `rowOfNat 1493` and `rowOfNat 1507`
+disagree at depth `2` (`rowOfNat 1493 2 = false ≠ true = rowOfNat 1507 2`), produce opposite first
+free bits at tick `1` (`zrow (rowOfNat 1493) 1 1 = true` vs. `zrow (rowOfNat 1507) 1 1 = false`),
+and collide at the exact integer code `6581` after one double step (`G 1493 = 6581 ∧ G 1507 = 6581`). -/
+theorem sharp_rows_initial_and_free_bit_diff :
+    rowOfNat 1493 2 = false ∧ rowOfNat 1507 2 = true ∧
+    zrow (rowOfNat 1493) 1 1 = true ∧ zrow (rowOfNat 1507) 1 1 = false ∧
+    G 1493 = 6581 ∧ G 1507 = 6581 := by
+  decide +kernel
+
+/-- **Pointwise One-Double-Step Coalescence of `1493` and `1507` (`sharp_rows_zrow_two_eq`):**
+at every depth `k : Nat`, `zrow (rowOfNat 1493) 2 k = zrow (rowOfNat 1507) 2 k`. -/
+theorem sharp_rows_zrow_two_eq (k : Nat) :
+    zrow (rowOfNat 1493) 2 k = zrow (rowOfNat 1507) 2 k := by
+  by_cases hk : k ≤ 13
+  · rcases (show k = 0 ∨ k = 1 ∨ k = 2 ∨ k = 3 ∨ k = 4 ∨ k = 5 ∨ k = 6 ∨
+        k = 7 ∨ k = 8 ∨ k = 9 ∨ k = 10 ∨ k = 11 ∨ k = 12 ∨ k = 13 by omega) with
+      rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+      decide +kernel
+  · have h1493 := (zrow_edge (L := rowOfNat 1493) (m := 11) (by omega)
+      (sharp_rows_width (Or.inl rfl)).1 (sharp_rows_width (Or.inl rfl)).2 2).2 k (by omega)
+    have h1507 := (zrow_edge (L := rowOfNat 1507) (m := 11) (by omega)
+      (sharp_rows_width (Or.inr rfl)).1 (sharp_rows_width (Or.inr rfl)).2 2).2 k (by omega)
+    rw [h1493, h1507]
+
+/-- **Full Space-Time Coalescence of `1493` and `1507` From Tick `2` Onward
+(`sharp_rows_coalesce_of_ge_two`):** for every time `t ≥ 2` and every depth `k : Nat`,
+`zrow (rowOfNat 1493) t k = zrow (rowOfNat 1507) t k`. -/
+theorem sharp_rows_coalesce_of_ge_two {t : Nat} (ht : 2 ≤ t) (k : Nat) :
+    zrow (rowOfNat 1493) t k = zrow (rowOfNat 1507) t k := by
+  obtain ⟨d, rfl⟩ : ∃ d, t = 2 + d := ⟨t - 2, by omega⟩
+  rw [zrow_shift (rowOfNat 1493) 2 d, zrow_shift (rowOfNat 1507) 2 d,
+    show zrow (rowOfNat 1493) 2 = zrow (rowOfNat 1507) 2 from funext sharp_rows_zrow_two_eq]
+
 end Rule30RecognizableBarrier
 end Ruliology.CellularAutomata
