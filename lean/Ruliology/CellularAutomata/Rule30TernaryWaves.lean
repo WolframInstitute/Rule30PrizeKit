@@ -508,5 +508,68 @@ theorem ternary_wave_fifteen (code : Int → Fin 3) (i : Int) :
     Rule30Realization.evol (field tiles15 code 0) 15 (i + 15) = field tiles15 code 0 i :=
   wave tiles15 valid15 code i
 
+/-! ### Multi-period co-moving and physical wave return, and block-shift equivariance at moving periods 12 and 15 -/
+
+/-- **Multi-Period Phase Invariance of `field` (`field_mul_period`):**
+for any tile family `T : Tiles`, ternary code `code : Int → Fin 3`, phase `t : Nat`, and
+multiple `m : Nat`, `field T code (t + m * T.P) = field T code t`. -/
+theorem field_mul_period (T : Tiles) (code : Int → Fin 3) (t : Nat) :
+    ∀ m : Nat, field T code (t + m * T.P) = field T code t
+  | 0 => by simp
+  | m + 1 => by
+    rw [Nat.succ_mul, ← Nat.add_assoc, field_period, field_mul_period T code t m]
+
+/-- **Multi-Period Co-Moving Return (`orbit_field_mul_period`):**
+for any valid tile family `T : Tiles` (`hT : Valid T`), ternary code `code`, and `m : Nat`,
+`orbit (field T code 0) (m * T.P) = field T code 0`. -/
+theorem orbit_field_mul_period (T : Tiles) (hT : Valid T) (code : Int → Fin 3) (m : Nat) :
+    orbit (field T code 0) (m * T.P) = field T code 0 := by
+  have h := field_mul_period T code 0 m
+  rw [Nat.zero_add] at h
+  rw [orbit_field T hT code (m * T.P), h]
+
+/-- **Multi-Period Physical Travelling-Wave Return (`wave_mul`):**
+after `m * T.P` updates of Rule 30, the field of every ternary code returns moved `m * T.P`
+cells to the right. -/
+theorem wave_mul (T : Tiles) (hT : Valid T) (code : Int → Fin 3) (m : Nat) (i : Int) :
+    Rule30Realization.evol (field T code 0) (m * T.P) (i + ((m * T.P : Nat) : Int)) =
+      field T code 0 i :=
+  (orbit_eq_iff (field T code 0) (m * T.P)).mp (orbit_field_mul_period T hT code m) i
+
+/-- **Block-Shift Equivariance of the Ternary Field Map (`field_shift_block`):**
+for any tile family `T : Tiles` with `0 < T.L`, shifting the ternary code by `s : Int` blocks
+translates the spatial field by `T.L * s` cells at every phase `t : Nat`. -/
+theorem field_shift_block (T : Tiles) (hL : 0 < T.L) (code : Int → Fin 3) (t : Nat) (s i : Int) :
+    field T (fun q => code (q + s)) t i = field T code t (i + (T.L : Int) * s) := by
+  obtain ⟨hi, hm⟩ := site_decomp hL i
+  have hdecomp : i + (T.L : Int) * s =
+      (T.L : Int) * (i / (T.L : Int) + s) + (((i % (T.L : Int)).toNat : Nat) : Int) := by
+    rw [Int.mul_add]
+    omega
+  obtain ⟨hq, hr⟩ := site_split hL hm hdecomp
+  simp only [field, hq, hr]
+
+/-- **Multi-Period Travelling-Wave Return and Block-Shift Equivariance at Period 12 (`L = 34`)
+(`ternary_wave_twelve_mul_and_shift`):** for every ternary code `code : Int → Fin 3`, `m : Nat`,
+and `s, i : Int`, `evol (field tiles12 code 0) (12 * m) (i + 12 * m) = field tiles12 code 0 i`
+and `field tiles12 (fun q => code (q + s)) t i = field tiles12 code t (i + 34 * s)`. -/
+theorem ternary_wave_twelve_mul_and_shift (code : Int → Fin 3) (m t : Nat) (s i : Int) :
+    Rule30Realization.evol (field tiles12 code 0) (m * 12) (i + ((m * 12 : Nat) : Int)) =
+      field tiles12 code 0 i ∧
+    field tiles12 (fun q => code (q + s)) t i = field tiles12 code t (i + 34 * s) :=
+  ⟨wave_mul tiles12 valid12 code m i,
+    field_shift_block tiles12 (by decide) code t s i⟩
+
+/-- **Multi-Period Travelling-Wave Return and Block-Shift Equivariance at Period 15 (`L = 31`)
+(`ternary_wave_fifteen_mul_and_shift`):** for every ternary code `code : Int → Fin 3`, `m : Nat`,
+and `s, i : Int`, `evol (field tiles15 code 0) (15 * m) (i + 15 * m) = field tiles15 code 0 i`
+and `field tiles15 (fun q => code (q + s)) t i = field tiles15 code t (i + 31 * s)`. -/
+theorem ternary_wave_fifteen_mul_and_shift (code : Int → Fin 3) (m t : Nat) (s i : Int) :
+    Rule30Realization.evol (field tiles15 code 0) (m * 15) (i + ((m * 15 : Nat) : Int)) =
+      field tiles15 code 0 i ∧
+    field tiles15 (fun q => code (q + s)) t i = field tiles15 code t (i + 31 * s) :=
+  ⟨wave_mul tiles15 valid15 code m i,
+    field_shift_block tiles15 (by decide) code t s i⟩
+
 end Rule30TernaryWaves
 end Ruliology.CellularAutomata
