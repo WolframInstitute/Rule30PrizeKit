@@ -212,6 +212,8 @@ public import Ruliology.CellularAutomata.Rule30FourLeftSides
 public import Ruliology.CellularAutomata.Rule30FourFrontsBase
 public import Ruliology.CellularAutomata.Rule30RecognizableBarrier
 public import Ruliology.CellularAutomata.Rule30FourFronts
+public import Ruliology.CellularAutomata.Rule30SeedLeftSide
+public import Ruliology.CellularAutomata.Rule30AperiodicBand
 public import Ruliology.CellularAutomata.Rule30TwoBlockCounts
 public import Ruliology.CellularAutomata.Rule30CenterCylinders
 public import Ruliology.CellularAutomata.Rule30BlackTimeGrowth
