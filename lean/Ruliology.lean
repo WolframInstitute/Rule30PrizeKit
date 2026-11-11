@@ -90,6 +90,7 @@ public import Ruliology.CellularAutomata.Rule30FiveTail
 public import Ruliology.CellularAutomata.Rule30SuffixFamilies
 public import Ruliology.CellularAutomata.Rule30BackwardVacuum
 public import Ruliology.CellularAutomata.Rule30Problem3
+public import Ruliology.CellularAutomata.Rule30LinearCharts
 public import Ruliology.CellularAutomata.Rule30WhitePadding
 public import Ruliology.CellularAutomata.Rule30FiniteStrips
 public import Ruliology.CellularAutomata.Rule30WhitePulse
