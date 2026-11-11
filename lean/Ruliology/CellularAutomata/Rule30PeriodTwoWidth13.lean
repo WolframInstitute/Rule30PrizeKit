@@ -2,6 +2,7 @@ module
 
 public import Ruliology.CellularAutomata.Rule30PeriodTwo
 public import Ruliology.CellularAutomata.Rule30GateTrap
+public import Ruliology.CellularAutomata.Rule30GateTrapWords
 public import Ruliology.CellularAutomata.Rule30Certificates.PeriodTwoWidth13
 
 /-!
@@ -1399,5 +1400,160 @@ theorem no_eventual_period_two_of_RD_of_Q01Gap (hRD : RD) (hQ : Rule30GateTrap.Q
   Rule30PeriodTwoCoupled.no_eventual_period_two_of_CQ01 (CQ01_of_RD_of_Q01Gap hRD hQ)
 
 end CQSplit
+/-! ## Sideways retrodiction of internal columns `x X 1..5`, initial seed-bit pinning, and exact low-bit weight invariants (`wtH 4 X = 2`, `wtH 6 X = 3`) -/
+
+section Retrodiction
+
+/-- **Initial Seed Bit Readout (`x_zero_eq_testBit`):**
+at time `t = 0`, the retrodicted cell `x X j 0` at depth `j` is bit `j` of the seed `X`. -/
+theorem x_zero_eq_testBit (X j : Nat) : x X j 0 = X.testBit j := rfl
+
+/-- **Boundary Trace Readout (`x_zero_depth_eq_tr`):**
+at depth `j = 0`, `x X 0 t` is the boundary trace `tr X t`. -/
+theorem x_zero_depth_eq_tr (X t : Nat) : x X 0 t = tr X t := rfl
+
+/-- **Forced Black Cell at `t = 2` under `GValid` (`tr_two_eq_true_of_gvalid`):**
+if `GValid (tr X) m` holds with `2 ≤ m`, then `tr X 0 = false` and `(tr X 0 || tr X 2) = true`
+force `tr X 2 = true`. -/
+theorem tr_two_eq_true_of_gvalid {X m : Nat} (hm : 2 ≤ m) (hG : GValid (tr X) m) :
+    tr X 0 = false ∧ tr X 2 = true := by
+  have h0 : tr X 0 = false := hG.1 (by omega)
+  have h02 : (tr X 0 || tr X 2) = true := by
+    simpa using hG.2.2 0 (by omega)
+  rw [h0, Bool.false_or] at h02
+  exact ⟨h0, h02⟩
+
+/-- **Exact Retrodiction of Depth `j = 1` under `GValid` (`x_one_even_odd`):**
+if `GValid (tr X) m` holds, then for every `r` with `r + 1 < m`,
+`x X 1 (2 * r) = !tr X (2 * r)` and `x X 1 (2 * r + 1) = !tr X (2 * r + 2)`. -/
+theorem x_one_even_odd {X m r : Nat} (hr : r + 1 < m) (hG : GValid (tr X) m) :
+    x X 1 (2 * r) = !tr X (2 * r) ∧ x X 1 (2 * r + 1) = !tr X (2 * r + 2) := by
+  have hodd0 : x X 0 (2 * r + 1) = true := hG.2.1 r (by omega)
+  refine ⟨?_, ?_⟩
+  · rw [x_rec0, hodd0]
+    unfold x tr; cases (iter F (2 * r) X).testBit 0 <;> rfl
+  · rw [x_rec0, show 2 * r + 1 + 1 = 2 * r + 2 by omega, hodd0]
+    unfold x tr; cases (iter F (2 * r + 2) X).testBit 0 <;> rfl
+
+/-- **Exact Retrodiction & Even-Odd Synchronization of Depth `j = 2` under `GValid` (`x_two_even_odd`):**
+if `GValid (tr X) m` holds, then for every `r` with `r + 1 < m`, both the even-time cell `x X 2 (2 * r)`
+and the odd-time cell `x X 2 (2 * r + 1)` equal `tr X (2 * r + 2)`. -/
+theorem x_two_even_odd {X m r : Nat} (hr : r + 1 < m) (hG : GValid (tr X) m) :
+    x X 2 (2 * r) = tr X (2 * r + 2) ∧ x X 2 (2 * r + 1) = tr X (2 * r + 2) := by
+  rcases x_one_even_odd hr hG with ⟨h1e, h1o⟩
+  have hodd0 : x X 0 (2 * r + 1) = true := hG.2.1 r (by omega)
+  have h0e : x X 0 (2 * r) = tr X (2 * r) := rfl
+  have h0e2 : x X 1 (2 * r + 2) = !tr X (2 * r + 2) := by
+    have hodd1 : x X 0 (2 * (r + 1) + 1) = true := hG.2.1 (r + 1) hr
+    rw [x_rec0, show 2 * r + 2 + 1 = 2 * (r + 1) + 1 by omega, hodd1]
+    unfold x tr; cases (iter F (2 * r + 2) X).testBit 0 <;> rfl
+  refine ⟨?_, ?_⟩
+  · rw [x_rec X 0 (2 * r), h1o, h1e, h0e]
+    cases tr X (2 * r) <;> cases tr X (2 * r + 2) <;> rfl
+  · rw [x_rec X 0 (2 * r + 1), show 2 * r + 1 + 1 = 2 * r + 2 by omega, h0e2, h1o, hodd0]
+    cases tr X (2 * r + 2) <;> rfl
+
+/-- **Universal All-White Even-Time Column at Depth `j = 3` under `GValid` (`x_three_even_of_gvalid`):**
+if `GValid (tr X) m` holds, then for every `r` with `r + 1 < m`, `x X 3 (2 * r) = false`. -/
+theorem x_three_even_of_gvalid {X m r : Nat} (hr : r + 1 < m) (hG : GValid (tr X) m) :
+    x X 3 (2 * r) = false := by
+  rcases x_one_even_odd hr hG with ⟨h1e, _⟩
+  rcases x_two_even_odd hr hG with ⟨h2e, h2o⟩
+  have hgold : (tr X (2 * r) || tr X (2 * r + 2)) = true := hG.2.2 r hr
+  rw [x_rec X 1 (2 * r), h2o, h2e, h1e]
+  revert hgold
+  cases tr X (2 * r) <;> cases tr X (2 * r + 2) <;> decide
+
+/-- **Exact Retrodiction of Depth `j = 3` under `GValid` (`x_three_even_odd`):**
+if `GValid (tr X) m` holds, then for every `r` with `r + 2 < m`, the even-time cell `x X 3 (2 * r)`
+is identically `false` (an all-white even-time column) and `x X 3 (2 * r + 1) = !tr X (2 * r + 4)`. -/
+theorem x_three_even_odd {X m r : Nat} (hr : r + 2 < m) (hG : GValid (tr X) m) :
+    x X 3 (2 * r) = false ∧ x X 3 (2 * r + 1) = !tr X (2 * r + 4) := by
+  rcases x_one_even_odd (by omega : r + 1 < m) hG with ⟨_, h1o⟩
+  rcases x_two_even_odd (by omega : r + 1 < m) hG with ⟨_, h2o⟩
+  rcases x_two_even_odd (r := r + 1) hr hG with ⟨h2e_next, _⟩
+  refine ⟨x_three_even_of_gvalid (by omega) hG, ?_⟩
+  rw [x_rec X 1 (2 * r + 1), show 2 * r + 1 + 1 = 2 * (r + 1) by omega,
+      h2e_next, h2o, h1o, show 2 * (r + 1) + 2 = 2 * r + 4 by omega]
+  cases tr X (2 * r + 2) <;> cases tr X (2 * r + 4) <;> rfl
+
+/-- **Exact Retrodiction of Depths `j = 4` and `j = 5` at `t = 0` (`x_four_five_zero`):**
+if `GValid (tr X) m` holds with `3 ≤ m`, then `x X 4 0 = tr X 4`, `x X 4 1 = true`, and
+`x X 5 0 = !tr X 4`. -/
+theorem x_four_five_zero {X m : Nat} (hm : 3 ≤ m) (hG : GValid (tr X) m) :
+    x X 4 0 = tr X 4 ∧ x X 4 1 = true ∧ x X 5 0 = !tr X 4 := by
+  rcases tr_two_eq_true_of_gvalid (by omega) hG with ⟨h0, h2⟩
+  rcases x_two_even_odd (r := 0) (by omega) hG with ⟨h2_0, h2_1⟩
+  rcases x_two_even_odd (r := 1) (by omega) hG with ⟨h2_2, _⟩
+  rcases x_three_even_odd (r := 0) (by omega) hG with ⟨h3_0, h3_1⟩
+  have h3_2 : x X 3 (2 * 1) = false := x_three_even_of_gvalid (r := 1) (by omega) hG
+  simp only [Nat.mul_zero, Nat.zero_add] at h2_0 h2_1 h3_0 h3_1
+  have hx4_0 : x X 4 0 = tr X 4 := by
+    rw [x_rec X 2 0, h3_1, h3_0, h2_0, h2]
+    cases tr X 4 <;> rfl
+  have hx4_1 : x X 4 1 = true := by
+    rw [x_rec X 2 1, show (1 + 1 : Nat) = 2 * 1 by rfl, h3_2, h3_1, h2_1, h2]
+    cases tr X 4 <;> rfl
+  have hx5_0 : x X 5 0 = !tr X 4 := by
+    rw [x_rec X 3 0, hx4_1, hx4_0, h3_0]
+    cases tr X 4 <;> rfl
+  exact ⟨hx4_0, hx4_1, hx5_0⟩
+
+/-- **Exact Pinning of the First Six Seed Bits under `GValid` (`seed_bits_zero_to_five`):**
+for any seed `X` satisfying `GValid (tr X) m` with `3 ≤ m`, its lowest six binary digits are
+`(false, true, true, false, tr X 4, !tr X 4)`. -/
+theorem seed_bits_zero_to_five {X m : Nat} (hm : 3 ≤ m) (hG : GValid (tr X) m) :
+    X.testBit 0 = false ∧ X.testBit 1 = true ∧ X.testBit 2 = true ∧
+    X.testBit 3 = false ∧ X.testBit 4 = tr X 4 ∧ X.testBit 5 = !tr X 4 := by
+  rcases tr_two_eq_true_of_gvalid (by omega) hG with ⟨h0, h2⟩
+  have h1 := (x_one_even_odd (r := 0) (by omega) hG).1
+  have h2' := (x_two_even_odd (r := 0) (by omega) hG).1
+  have h3' := (x_three_even_odd (r := 0) (by omega) hG).1
+  rcases x_four_five_zero hm hG with ⟨h4', _, h5'⟩
+  simp only [Nat.mul_zero, Nat.zero_add, x_zero_eq_testBit] at h1 h2' h3' h4' h5'
+  rw [h0] at h1
+  rw [h2] at h2'
+  exact ⟨h0, h1, h2', h3', h4', h5'⟩
+
+/-- **Universal 4-Bit and 6-Bit Seed Weight Invariants (`wtH_four_and_six_of_gvalid`):**
+for every seed `X` satisfying `GValid (tr X) m` with `3 ≤ m`, `wtH 4 X = 2` and `wtH 6 X = 3`
+(since bits `0..3` are `(false, true, true, false)` and bits `4, 5` are complementary `(tr X 4, !tr X 4)`). -/
+theorem wtH_four_and_six_of_gvalid {X m : Nat} (hm : 3 ≤ m) (hG : GValid (tr X) m) :
+    wtH 4 X = 2 ∧ wtH 6 X = 3 := by
+  rcases seed_bits_zero_to_five hm hG with ⟨b0, b1, b2, b3, b4, b5⟩
+  have hw4 : wtH 4 X = 2 := by
+    simp only [wtH, b0, b1, b2, b3]
+    rfl
+  refine ⟨hw4, ?_⟩
+  change wtH 4 X + (if X.testBit 4 = true then 1 else 0) + (if X.testBit 5 = true then 1 else 0) = 3
+  rw [hw4, b4, b5]
+  cases tr X 4 <;> rfl
+
+end Retrodiction
+
+/-! ## Weakening `Q01Gap` to the 5-word condition `Q01GapWords` in the `RD` split -/
+
+section CQSplitWords
+
+/-- **`RD` and `Q01GapWords` give `CQ01` (`CQ01_of_RD_of_Q01GapWords`):**
+weakens `CQ01_of_RD_of_Q01Gap` from `Rule30GateTrap.Q01Gap` to the 5-word forbidden-gap condition
+`Rule30GateTrapWords.Q01GapWords`. -/
+theorem CQ01_of_RD_of_Q01GapWords (hRD : RD) (hQ : Rule30GateTrapWords.Q01GapWords) :
+    Rule30PeriodTwoCoupled.CQ01 := by
+  rw [Rule30PeriodTwoSideways.CQ01_iff_Psi]
+  intro R hR
+  rcases hRD R hR with ⟨t0, h0, hw⟩ | hp
+  · exact Rule30GateTrapWords.not_finSupp_Psi_of_Q01GapWords hQ R h0 hw
+  · exact Rule30PeriodTwoSideways.not_finSupp_Psi_of_eventuallyPeriodic R hp
+
+/-- **Single-Seed Corollary (`no_eventual_period_two_of_RD_of_Q01GapWords`):**
+`RD` and `Q01GapWords` exclude an eventually 2-periodic center column. -/
+theorem no_eventual_period_two_of_RD_of_Q01GapWords (hRD : RD)
+    (hQ : Rule30GateTrapWords.Q01GapWords) :
+    ¬ ∃ T0, ∀ t, T0 ≤ t → Rule30Prize.center (t + 2) = Rule30Prize.center t :=
+  Rule30PeriodTwoCoupled.no_eventual_period_two_of_CQ01 (CQ01_of_RD_of_Q01GapWords hRD hQ)
+
+end CQSplitWords
+
 end Rule30PeriodTwoWidth13
 end Ruliology.CellularAutomata
