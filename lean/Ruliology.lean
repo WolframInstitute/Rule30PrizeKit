@@ -23,6 +23,7 @@ public import Ruliology.CellularAutomata.Rule30RecordCharge
 public import Ruliology.CellularAutomata.Rule30DifferenceOrder
 public import Ruliology.CellularAutomata.Rule30WhiteSeed
 public import Ruliology.CellularAutomata.Rule30Realization
+public import Ruliology.CellularAutomata.Rule30FiveColumnBound
 public import Ruliology.CellularAutomata.Rule30FactorWindow
 public import Ruliology.CellularAutomata.Rule30PeriodTwo
 public import Ruliology.CellularAutomata.Rule30ZeroBoundary
