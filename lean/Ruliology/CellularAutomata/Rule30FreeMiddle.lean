@@ -1323,5 +1323,70 @@ theorem lower_bound_needed :
     simp [pop1] at h1 h0
     omega
 
+/-! ### Monotonicity of `ToInfty` and `Late`, boundary collapse under linear lower bounds, and arbitrary integer lower bounds -/
+
+/-- **Pointwise Monotonicity of `ToInfty` (`toInfty_mono`):**
+if `u W ≤ u' W` for all `W` and `ToInfty u`, then `ToInfty u'`. -/
+theorem toInfty_mono {u u' : Nat → Nat} (hle : ∀ W, u W ≤ u' W) (hu : ToInfty u) :
+    ToInfty u' := by
+  intro N
+  obtain ⟨W0, hW0⟩ := hu N
+  exact ⟨W0, fun W hW => Nat.le_trans (hW0 W hW) (hle W)⟩
+
+/-- **Monotonicity of the Late Population in the Cutoff Margin `u` (`late_mono`):**
+if `u W ≤ u' W` for all `W`, then every row in `Late u s W` also lies in `Late u' s W`
+(since `W - u' W ≤ W - u W`). -/
+theorem late_mono {u u' : Nat → Nat} (hle : ∀ W, u W ≤ u' W) {s : Nat → Bool} {W : Nat}
+    (h : Late u s W) : Late u' s W := by
+  refine ⟨h.1, h.2.1, h.2.2.1, h.2.2.2.1, fun i hi => h.2.2.2.2 i ?_⟩
+  have := hle W
+  omega
+
+/-- **Boundary Collapse of Every Linearly Bounded Non-Increasing Additive Rank
+(`late_descent_rank_eq_boundary`):** if `rank w e m β h s W ≥ -K * W` and `rank` never increases
+along double steps on `Late u s W`, then once `m - 1 ≤ w` and `m - 1 ≤ e`, `rank w e m β h s W`
+equals a purely local function `β' W (wallW w s) (edgeW e s W)` of the width and boundary windows
+on every row `s` and width `W`. -/
+theorem late_descent_rank_eq_boundary (w e m K : Nat) (hm : 1 ≤ m) (he1 : 1 ≤ e)
+    (hw : m - 1 ≤ w) (he : m - 1 ≤ e) (u : Nat → Nat) (hu : ToInfty u)
+    (β : Nat → List Bool → List Bool → Int) (h : List Bool → Int)
+    (hlow : ∀ s W, Late u s W → -((K : Int) * (W : Int)) ≤ rank w e m β h s W)
+    (hdesc : ∀ s W, Late u s W → rank w e m β h (dstep s) (W + 2) ≤ rank w e m β h s W) :
+    ∃ β' : Nat → List Bool → List Bool → Int, ∀ s W,
+      rank w e m β h s W = β' W (wallW w s) (edgeW e s W) :=
+  rank_local w e m hm hw he β h (free_middle_coboundary w e m K hm he1 u hu β h hlow hdesc)
+
+/-- **No Bounded-Below Local Ranking of the Late Population (`no_bounded_below_local_ranking_late`):**
+for any integer lower bound `B : Int`, no integer function `R W (wallW w s) (edgeW e s W)` bounded
+below by `B` on `Late u s W` strictly decreases along every double step on `Late u s W`. -/
+theorem no_bounded_below_local_ranking_late (w e : Nat) (u : Nat → Nat) (hu : ToInfty u)
+    (B : Int) (R : Nat → List Bool → List Bool → Int)
+    (hlow : ∀ s W, Late u s W → B ≤ R W (wallW w s) (edgeW e s W))
+    (hdesc : ∀ s W, Late u s W →
+      R (W + 2) (wallW w (dstep s)) (edgeW e (dstep s) (W + 2)) < R W (wallW w s) (edgeW e s W)) :
+    False := by
+  refine no_local_ranking_late w e u hu (fun W a b => R W a b - B)
+    (fun s W hs => by have := hlow s W hs; omega)
+    (fun s W hs => by have := hdesc s W hs; omega)
+
+/-- **No Bounded-Below Additive Ranking of the Late Population
+(`no_bounded_below_additive_ranking_late`):** for any integer lower bound `B : Int`, once
+`m - 1 ≤ w` and `m - 1 ≤ e`, no additive rank `rank w e m β h s W` bounded below by `B` on
+`Late u s W` strictly decreases along every double step on `Late u s W`. -/
+theorem no_bounded_below_additive_ranking_late (w e m : Nat) (hm : 1 ≤ m) (he1 : 1 ≤ e)
+    (hw : m - 1 ≤ w) (he : m - 1 ≤ e) (u : Nat → Nat) (hu : ToInfty u)
+    (B : Int) (β : Nat → List Bool → List Bool → Int) (h : List Bool → Int)
+    (hlow : ∀ s W, Late u s W → B ≤ rank w e m β h s W)
+    (hdesc : ∀ s W, Late u s W → rank w e m β h (dstep s) (W + 2) < rank w e m β h s W) :
+    False := by
+  have hshift : ∀ s W, rank w e m (fun W a b => β W a b - B) h s W = rank w e m β h s W - B := by
+    intro s W
+    unfold rank
+    dsimp only
+    omega
+  refine no_additive_ranking_late w e m hm he1 hw he u hu (fun W a b => β W a b - B) h
+    (fun s W hs => by rw [hshift]; have := hlow s W hs; omega)
+    (fun s W hs => by rw [hshift, hshift]; have := hdesc s W hs; omega)
+
 end Rule30FreeMiddle
 end Ruliology.CellularAutomata
