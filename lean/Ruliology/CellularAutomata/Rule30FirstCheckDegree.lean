@@ -619,5 +619,100 @@ theorem other_phase_odd (n : Nat) (hn : 1 ≤ n) :
       ih (by omega)]
     rfl
 
+/-! ### Exact degree, odd cube weight, Walsh residue modulo 4, universal non-balance, and even-`n` phase separation for `otherCheck` -/
+
+/-- **Exact Degree `n` of `otherCheck n` for All `n ≥ 1` (`otherCheck_degree`):**
+unlike `check n` (whose degree drops to `n - 1` at even `n`), the other-phase check
+`otherCheck n` has full algebraic degree `n` for every `n ≥ 1`. -/
+theorem otherCheck_degree (n : Nat) (hn : 1 ≤ n) :
+    IsDegree n (otherCheck n) n := by
+  refine ⟨fun S hS hlt => ?_, List.replicate n true, List.length_replicate,
+    List.count_replicate_self, other_phase_odd n hn⟩
+  have hle : S.count true ≤ S.length := List.count_le_length
+  omega
+
+/-- The number of bit lists of length `n` on which `otherCheck n` is black (`true`). -/
+def otherOnes (n : Nat) : Nat := cubeSum n (fun l => (otherCheck n l).toNat)
+
+/-- **Top-Sum Form of `other_phase_odd` (`other_top_sum`):**
+for every `n ≥ 1`, the exclusive-or sum `xs n (otherCheck n)` over `{0, 1}^n` is `true`. -/
+theorem other_top_sum (n : Nat) (hn : 1 ≤ n) :
+    xs n (otherCheck n) = true := by
+  have h := other_phase_odd n hn
+  rwa [coeff_replicate] at h
+
+/-- **Universal Odd Parity of `otherOnes n` (`otherOnes_parity`):**
+for every `n ≥ 1`, the number of words of length `n` on which `otherCheck n` is black is odd
+(`otherOnes n % 2 = 1`). -/
+theorem otherOnes_parity (n : Nat) (hn : 1 ≤ n) :
+    otherOnes n % 2 = 1 := by
+  have h := cubeSum_parity n (otherCheck n)
+  have e : otherOnes n = cubeSum n (fun l => (otherCheck n l).toNat) := rfl
+  rw [e, h, other_top_sum n hn]
+  rfl
+
+/-- **Walsh Sum Modulo `4` for `otherCheck` (`other_walsh_mod_four`):**
+for every `n ≥ 2`, `((2 : Int) ^ n - 2 * (otherOnes n : Int)) % 4 = 2`. -/
+theorem other_walsh_mod_four (n : Nat) (hn : 2 ≤ n) :
+    ((2 : Int) ^ n - 2 * (otherOnes n : Int)) % 4 = 2 := by
+  have h := otherOnes_parity n (by omega)
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 2 := ⟨n - 2, by omega⟩
+  rw [show (2 : Int) ^ (m + 2) = 4 * 2 ^ m by rw [Int.pow_succ, Int.pow_succ]; omega]
+  generalize (2 : Int) ^ m = N
+  omega
+
+/-- **Exact Exception at `n = 1` for `otherCheck` (`other_walsh_one`):**
+at `n = 1`, `otherOnes 1 = 1` and the Walsh sum `(2 : Int) ^ 1 - 2 * (otherOnes 1 : Int)` is `0`. -/
+theorem other_walsh_one :
+    otherOnes 1 = 1 ∧ (2 : Int) ^ 1 - 2 * (otherOnes 1 : Int) = 0 := by
+  decide
+
+/-- **Non-Balance of `otherCheck n` for All `n ≥ 2` (`otherCheck_not_balanced`):**
+for every `n ≥ 2`, `2 * otherOnes n ≠ 2 ^ n` (since `otherOnes n` is odd while `2 ^ (n - 1)` is even). -/
+theorem otherCheck_not_balanced (n : Nat) (hn : 2 ≤ n) :
+    2 * otherOnes n ≠ 2 ^ n := by
+  intro heq
+  have hp := otherOnes_parity n (by omega)
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 2 := ⟨n - 2, by omega⟩
+  have hpow : 2 ^ (m + 2) = 4 * 2 ^ m := by
+    rw [Nat.pow_succ, Nat.pow_succ]; omega
+  rw [hpow] at heq
+  generalize otherOnes (m + 2) = A at hp heq
+  generalize 2 ^ m = B at heq
+  omega
+
+/-- **Odd-`n` Non-Balance of `check n` for `n ≥ 2` (`check_not_balanced_of_odd`):**
+for every odd `n ≥ 2` (`n % 2 = 1`), `2 * ones n ≠ 2 ^ n`. -/
+theorem check_not_balanced_of_odd (n : Nat) (hn : 2 ≤ n) (hodd : n % 2 = 1) :
+    2 * ones n ≠ 2 ^ n := by
+  intro heq
+  have hp := ones_parity n (by omega)
+  rw [hodd] at hp
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 2 := ⟨n - 2, by omega⟩
+  have hpow : 2 ^ (m + 2) = 4 * 2 ^ m := by
+    rw [Nat.pow_succ, Nat.pow_succ]; omega
+  rw [hpow] at heq
+  generalize ones (m + 2) = A at hp heq
+  generalize 2 ^ m = B at heq
+  omega
+
+/-- **Clock-Phase Top-Coefficient & Weight-Parity Dichotomy (`phase_top_and_parity_dichotomy`):**
+for every `n ≥ 1`, the top coefficients of `check n` and `otherCheck n` agree if and only if
+`n` is odd (`n % 2 = 1`), and for every even `n ≥ 2` (`n % 2 = 0`), their black-word counts
+have opposite parities (`ones n % 2 = 0` vs. `otherOnes n % 2 = 1`), so `ones n ≠ otherOnes n`. -/
+theorem phase_top_and_parity_dichotomy (n : Nat) (hn : 1 ≤ n) :
+    (coeff (List.replicate n true) (check n) = coeff (List.replicate n true) (otherCheck n) ↔
+      n % 2 = 1) ∧
+    (n % 2 = 0 → ones n % 2 = 0 ∧ otherOnes n % 2 = 1 ∧ ones n ≠ otherOnes n) := by
+  refine ⟨?_, fun heven => ?_⟩
+  · rw [top_coefficient n hn, other_phase_odd n hn]
+    exact decide_eq_true_iff
+  · have h1 := ones_parity n hn
+    have h2 := otherOnes_parity n hn
+    rw [heven] at h1
+    refine ⟨h1, h2, fun heq => ?_⟩
+    rw [heq, h2] at h1
+    exact Nat.noConfusion h1
+
 end Rule30FirstCheckDegree
 end Ruliology.CellularAutomata
