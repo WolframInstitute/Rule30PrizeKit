@@ -258,5 +258,94 @@ theorem tip_not_affine (t : Nat) (ht : 2 ≤ t) (heven : t % 2 = 0) (c : Bool) (
     (fun L => affine_second c S L t (t - 1)) (fun _ => false)
   exact hM (h M)
 
+/-! ## Leading-edge first/second differences, vanishing third differences, and `InX` 2-cube face escape -/
+
+/-- **Leading-Edge First Difference (`top_first_diff`):**
+for every `t : Nat` and row `L`, flipping depth `t + 1` flips `zrow L t 1`
+(`xor (zrow L t 1) (zrow (flip L (t + 1)) t 1) = true`). -/
+theorem top_first_diff (t : Nat) (L : Nat → Bool) :
+    xor (zrow L t 1) (zrow (flip L (t + 1)) t 1) = true := by
+  have h := level_aff (L := L) (L' := flip L (t + 1)) t 1 (Nat.le_refl 1)
+    (fun i _ hi => flip_only L (t + 1) i (by omega))
+  rw [show 1 + t = t + 1 by omega, flip_differs L (t + 1)] at h
+  exact h
+
+/-- **Vanishing of All Mixed Second Differences Involving the Leading Depth `t + 1`
+(`top_second_diff_zero`):** for every `t, e : Nat` and row `L`, the mixed second difference of
+`zrow L t 1` in directions `e` and `t + 1` is `false`. -/
+theorem top_second_diff_zero (t e : Nat) (L : Nat → Bool) :
+    xor (xor (zrow L t 1) (zrow (flip L (t + 1)) t 1))
+      (xor (zrow (flip L e) t 1) (zrow (flip (flip L e) (t + 1)) t 1)) = false := by
+  rw [top_first_diff t L, top_first_diff t (flip L e)]
+  rfl
+
+/-- **Vanishing of All Sub-Leading Third Differences (`subleading_third_diff_zero`):**
+for every `t ≥ 2`, every third direction `d : Nat`, and every row `L`, the third difference
+of `zrow L t 1` in directions `t - 1`, `t`, and `d` vanishes (`= false`). -/
+theorem subleading_third_diff_zero (t : Nat) (ht : 2 ≤ t) (d : Nat) (L : Nat → Bool) :
+    xor
+      (xor (xor (zrow L t 1) (zrow (flip L t) t 1))
+        (xor (zrow (flip L (t - 1)) t 1) (zrow (flip (flip L (t - 1)) t) t 1)))
+      (xor (xor (zrow (flip L d) t 1) (zrow (flip (flip L d) t) t 1))
+        (xor (zrow (flip (flip L d) (t - 1)) t 1) (zrow (flip (flip (flip L d) (t - 1)) t) t 1))) =
+      false := by
+  rw [cone_tip t ht L, cone_tip t ht (flip L d)]
+  generalize decide (t % 2 = 0) = b
+  cases b <;> rfl
+
+/-- **No Even-Tick 2-Cube Face Has All Four Corners Black (`not_all_four_true_on_even_face`):**
+for every `r ≥ 1` and row `L`, the four corners `L`, `flip L (2 * r)`, `flip L (2 * r - 1)`,
+and `flip (flip L (2 * r - 1)) (2 * r)` cannot all have `zrow · (2 * r) 1 = true`. -/
+theorem not_all_four_true_on_even_face {r : Nat} (hr : 1 ≤ r) (L : Nat → Bool) :
+    ¬ (zrow L (2 * r) 1 = true ∧
+       zrow (flip L (2 * r)) (2 * r) 1 = true ∧
+       zrow (flip L (2 * r - 1)) (2 * r) 1 = true ∧
+       zrow (flip (flip L (2 * r - 1)) (2 * r)) (2 * r) 1 = true) := by
+  rintro ⟨h1, h2, h3, h4⟩
+  have htip := cone_tip (2 * r) (by omega) L
+  rw [h1, h2, h3, h4, decide_eq_true (by omega)] at htip
+  exact Bool.noConfusion htip
+
+/-- **No Sub-Leading 2-Cube Face Is Contained in `InX` (`not_face_subset_InX`):**
+for every `r ≥ 1` and row `L`, the four corners of the `(2 * r - 1, 2 * r)` face cannot all
+belong to `InX`. -/
+theorem not_face_subset_InX {r : Nat} (hr : 1 ≤ r) (L : Nat → Bool) :
+    ¬ (InX L ∧ InX (flip L (2 * r)) ∧ InX (flip L (2 * r - 1)) ∧
+       InX (flip (flip L (2 * r - 1)) (2 * r))) := by
+  rintro ⟨h1, h2, h3, h4⟩
+  exact not_all_four_true_on_even_face hr L ⟨h1 r, h2 r, h3 r, h4 r⟩
+
+/-- **Prefix-Preserving Face Escape From `InX` at Every Even Tick (`inX_face_escape_with_prefix`):**
+if `InX L` and `1 ≤ r`, then among the three perturbed corners `flip L (2 * r)`,
+`flip L (2 * r - 1)`, and `flip (flip L (2 * r - 1)) (2 * r)`, there is a row `M` that escapes
+`InX` at tick `2 * r` (`zrow M (2 * r) 1 = false`) while preserving `zrow M (2 * s) 1 = true`
+for every earlier tick `s` with `s + 1 < r`. -/
+theorem inX_face_escape_with_prefix {L : Nat → Bool} (hL : InX L) {r : Nat} (hr : 1 ≤ r) :
+    ∃ M : Nat → Bool,
+      (M = flip L (2 * r) ∨ M = flip L (2 * r - 1) ∨ M = flip (flip L (2 * r - 1)) (2 * r)) ∧
+      zrow M (2 * r) 1 = false ∧
+      (∀ s : Nat, s + 1 < r → zrow M (2 * s) 1 = true) := by
+  have hlight : ∀ M : Nat → Bool,
+      (M = flip L (2 * r) ∨ M = flip L (2 * r - 1) ∨ M = flip (flip L (2 * r - 1)) (2 * r)) →
+      ∀ s : Nat, s + 1 < r → zrow M (2 * s) 1 = true := by
+    intro M hM s hs
+    have hcone : zrow M (2 * s) 1 = zrow L (2 * s) 1 := by
+      apply zrow_light_cone (2 * s) 1
+      intro i _ hi
+      rcases hM with rfl | rfl | rfl
+      · exact flip_ne L (by omega)
+      · exact flip_ne L (by omega)
+      · rw [flip_ne _ (by omega), flip_ne L (by omega)]
+    rw [hcone]
+    exact hL s
+  cases h1 : zrow (flip L (2 * r)) (2 * r) 1
+  · exact ⟨flip L (2 * r), Or.inl rfl, h1, hlight _ (Or.inl rfl)⟩
+  · cases h2 : zrow (flip L (2 * r - 1)) (2 * r) 1
+    · exact ⟨flip L (2 * r - 1), Or.inr (Or.inl rfl), h2, hlight _ (Or.inr (Or.inl rfl))⟩
+    · cases h3 : zrow (flip (flip L (2 * r - 1)) (2 * r)) (2 * r) 1
+      · exact ⟨flip (flip L (2 * r - 1)) (2 * r), Or.inr (Or.inr rfl), h3,
+          hlight _ (Or.inr (Or.inr rfl))⟩
+      · exact absurd ⟨hL r, h1, h2, h3⟩ (not_all_four_true_on_even_face hr L)
+
 end Rule30ConeTip
 end Ruliology.CellularAutomata
