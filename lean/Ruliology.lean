@@ -136,6 +136,7 @@ public import Ruliology.CellularAutomata.Rule30ParametricStripCertificates
 public import Ruliology.CellularAutomata.Rule30PaddedWords
 public import Ruliology.CellularAutomata.Rule30CoupledEmptyRight
 public import Ruliology.CellularAutomata.Rule30FrozenRuler
+public import Ruliology.CellularAutomata.Rule30EtherCutEdge
 public import Ruliology.CellularAutomata.Rule30RightWall
 public import Ruliology.CellularAutomata.Rule30RightWallLocks
 public import Ruliology.CellularAutomata.Rule30RightWallCloud
