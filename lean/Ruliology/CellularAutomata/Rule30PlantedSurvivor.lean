@@ -694,5 +694,73 @@ theorem survival_table (L : Nat) (hL : 1 ≤ L) (W t : Nat) :
         · exact h
       rw [hp]; cases site L k <;> cases ofNat Y k <;> rfl
 
+/-! ### Multi-step fixed-point invariance, eternal `survT` survival vs. `survZ` death at `2 L`, and exact survival-table indistinguishability below `2 L - 1` -/
+
+/-- **Multi-Step Invariance of the Empty Row Under `Tn L` (`Tn_zero`):**
+for every `L ≥ 1`, step count `n : Nat`, and depth `k ≥ 1`, `Tn L (fun _ => false) n k = false`. -/
+theorem Tn_zero (L : Nat) (hL : 1 ≤ L) :
+    ∀ n k : Nat, 1 ≤ k → Tn L (fun _ => false) n k = false
+  | 0, _, _ => rfl
+  | n + 1, k, hk => by
+    show T L (Tn L (fun _ => false) n) k = false
+    have hcongr : T L (Tn L (fun _ => false) n) k = T L (fun _ => false) k := by
+      unfold T
+      apply psi_congr L _ k hk
+      intro j _
+      exact zrow_congr (psiInv_congr L (fun i hi => Tn_zero L hL n i hi)) 1 j
+    rw [hcongr, T_zero L hL k hk]
+
+/-- **Multi-Step Fixed-Point Invariance of `trunc (2 * L - 1)` Under `Tn L` (`Tn_fixed`):**
+for every `L, n, k : Nat` with `1 ≤ k`, `Tn L (trunc (2 * L - 1)) n k = trunc (2 * L - 1) k`. -/
+theorem Tn_fixed (L : Nat) :
+    ∀ n k : Nat, 1 ≤ k → Tn L (trunc (2 * L - 1)) n k = trunc (2 * L - 1) k
+  | 0, _, _ => rfl
+  | n + 1, k, hk => by
+    show T L (Tn L (trunc (2 * L - 1)) n) k = trunc (2 * L - 1) k
+    have hcongr : T L (Tn L (trunc (2 * L - 1)) n) k = T L (trunc (2 * L - 1)) k := by
+      unfold T
+      apply psi_congr L _ k hk
+      intro j _
+      exact zrow_congr (psiInv_congr L (fun i hi => Tn_fixed L n i hi)) 1 j
+    rw [hcongr, T_fixed L k hk]
+
+/-- **Eternal Survival Under `survT` vs. Exact Death at `2 * L` Under `survZ`
+(`survT_trunc_eternal_vs_survZ_dies`):** for every `L ≥ 1`, `trunc (2 * L - 1)` passes all even
+checks forever under `T L` (`∀ t, survT L (trunc (2 * L - 1)) t = true`), whereas under Rule 30
+it passes through `t < 2 * L` and fails at `t = 2 * L` (`survZ (trunc (2 * L - 1)) (2 * L) = false`). -/
+theorem survT_trunc_eternal_vs_survZ_dies (L : Nat) (hL : 1 ≤ L) :
+    (∀ t : Nat, survT L (trunc (2 * L - 1)) t = true) ∧
+    (∀ t : Nat, survZ (trunc (2 * L - 1)) t = decide (t < 2 * L)) ∧
+    survZ (trunc (2 * L - 1)) (2 * L) = false := by
+  refine ⟨fun t => ?_, fun t => survZ_trunc L hL t, ?_⟩
+  · rw [survT_eq L hL, survZ_congr (psiInv_trunc L), survZ_stripe]
+  · rw [survZ_trunc L hL (2 * L), decide_eq_false (by omega)]
+
+/-- **Exact Indistinguishability of Survival Tables Below the Threshold
+(`survival_table_eq_below_threshold`):** for every `L ≥ 1`, width `W`, and time `t`, if
+`W < 2 * L - 1` or `t < 2 * ((W + 1) / 2)`, then the survival counts under `T L` and Rule 30
+are identical. -/
+theorem survival_table_eq_below_threshold (L : Nat) (hL : 1 ≤ L) (W t : Nat)
+    (hbelow : W < 2 * L - 1 ∨ t < 2 * ((W + 1) / 2)) :
+    cnt (2 ^ W) (fun Y => survT L (ofNat Y) t) =
+      cnt (2 ^ W) (fun Y => survZ (ofNat Y) t) := by
+  rw [survival_table L hL W t,
+    ite_eq_right (show ¬ (2 * L - 1 ≤ W ∧ 2 * ((W + 1) / 2) ≤ t) by omega), Nat.add_zero]
+
+/-- **Strict Positivity & Parity Flip of the Survival Count Above the Threshold
+(`survival_table_pos_and_parity_flip`):** for every `L ≥ 1`, width `W ≥ 2 * L - 1`, and time
+`t ≥ 2 * ((W + 1) / 2)`, the survivor count under `T L` is strictly positive (`≥ 1`) and has
+opposite parity modulo `2` to Rule 30's survivor count. -/
+theorem survival_table_pos_and_parity_flip (L : Nat) (hL : 1 ≤ L) (W t : Nat)
+    (hW : 2 * L - 1 ≤ W) (ht : 2 * ((W + 1) / 2) ≤ t) :
+    cnt (2 ^ W) (fun Y => survT L (ofNat Y) t) =
+      cnt (2 ^ W) (fun Y => survZ (ofNat Y) t) + 1 ∧
+    1 ≤ cnt (2 ^ W) (fun Y => survT L (ofNat Y) t) ∧
+    cnt (2 ^ W) (fun Y => survT L (ofNat Y) t) % 2 ≠
+      cnt (2 ^ W) (fun Y => survZ (ofNat Y) t) % 2 := by
+  have htab := survival_table L hL W t
+  rw [ite_eq_left ⟨hW, ht⟩] at htab
+  refine ⟨htab, by omega, by omega⟩
+
 end Rule30PlantedSurvivor
 end Ruliology.CellularAutomata
