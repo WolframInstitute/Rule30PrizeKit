@@ -333,5 +333,80 @@ theorem seed_offset_ether_204 :
   rw [seed_code, ← h j hj, e]
   simp [show 7 + j < 20 by omega]
 
+/-! ### Exact `N`-independent 9-bit edge evolution, period-32 coset cycle, unified 9-bit formula relative to `cell (16 + t)`, and bit-12 pinning at time 55 -/
+
+/-- **Addition Law for `itN` (`itN_add`):**
+for any function `f : Nat → Nat`, `a, b, x : Nat`, `itN f (a + b) x = itN f a (itN f b x)`. -/
+theorem itN_add (f : Nat → Nat) : ∀ a b x : Nat, itN f (a + b) x = itN f a (itN f b x)
+  | 0, b, x => by rw [Nat.zero_add]; rfl
+  | a + 1, b, x => by
+    rw [Nat.succ_add, itN, itN, itN_add f a b x]
+
+/-- **Exact `N`-Independent Closed Form for the 9-Bit Edge Code of `evol (c7cut N) t`
+(`enc9_evol_c7cut`):** for every `N, t : Nat`,
+`enc 9 (code (evol (c7cut N) t) (7 * (N : Int) + 6 + t)) = itN (Tm 9) t 129`. -/
+theorem enc9_evol_c7cut (N t : Nat) :
+    enc 9 (code (evol (c7cut N) t) (7 * (N : Int) + 6 + t)) = itN (Tm 9) t 129 := by
+  have he := (edge_evol (c7cut N) (7 * (N : Int) + 6) (c7cut_hi N)
+    (fun p hp => c7cut_above N p hp) t).2.2
+  rw [he, enc_iter, enc9_cut]
+
+/-- **`N`-Invariance of the 9-Bit Edge Prefix of `evol (c7cut N) t` (`c7cut_agreeBelow9_indep_N`):**
+for any truncation parameters `N, M : Nat` and any evolution time `t : Nat`, the evolved cuts
+`evol (c7cut N) t` and `evol (c7cut M) t` have identical 9-bit edge codes from their respective
+right edges `7 * N + 6 + t` and `7 * M + 6 + t`. -/
+theorem c7cut_agreeBelow9_indep_N (N M t : Nat) :
+    AgreeBelow 9 (code (evol (c7cut N) t) (7 * (N : Int) + 6 + t))
+      (code (evol (c7cut M) t) (7 * (M : Int) + 6 + t)) := by
+  rw [← enc_ext, enc9_evol_c7cut, enc9_evol_c7cut]
+
+/-- **Period-32 Return of `129` Under `Tm 9` (`itN_Tm9_32_129`):**
+after `32` steps of the 9-bit edge map `Tm 9`, the cut-ether code `129` returns to `129`,
+and hence `itN (Tm 9) (32 + t) 129 = itN (Tm 9) t 129` for all `t : Nat`. -/
+theorem itN_Tm9_32_129 (t : Nat) :
+    itN (Tm 9) 32 129 = 129 ∧ itN (Tm 9) (t + 32) 129 = itN (Tm 9) t 129 := by
+  have h32 : itN (Tm 9) 32 129 = 129 := by decide +kernel
+  refine ⟨h32, ?_⟩
+  rw [itN_add (Tm 9) t 32 129, h32]
+
+/-- **Exact Period-32 Cycle of the 9-Bit Edge Code of `evol (c7cut N) t` (`c7cut_enc9_period32`):**
+for every `N, t : Nat`, the 9-bit edge code of `evol (c7cut N) t` is periodic in `t` with period `32`. -/
+theorem c7cut_enc9_period32 (N t : Nat) :
+    enc 9 (code (evol (c7cut N) (t + 32)) (7 * (N : Int) + 6 + ((t + 32 : Nat) : Int))) =
+      enc 9 (code (evol (c7cut N) t) (7 * (N : Int) + 6 + t)) := by
+  rw [enc9_evol_c7cut, enc9_evol_c7cut, (itN_Tm9_32_129 t).2]
+
+/-- **Unified 9-Bit Edge Formula Relative to `cell (16 + t)` (`c7cut_nine_bit_formula`):**
+for every `N, t : Nat` and every `i < 9`, bit `i` of the edge code of `evol (c7cut N) t`
+equals `xor (code (cell (16 + t)) (16 + t) i) (decide (i = 8))`. -/
+theorem c7cut_nine_bit_formula (N t : Nat) {i : Nat} (hi : i < 9) :
+    code (evol (c7cut N) t) (7 * (N : Int) + 6 + t) i =
+      xor (code (cell (16 + t)) ((16 + t : Nat) : Int) i) (decide (i = 8)) := by
+  obtain ⟨hbelow, h8, -⟩ := c7cut_frozen N t
+  by_cases hi8 : i < 8
+  · have heq := hbelow i hi8
+    rw [← heq, decide_eq_false (by omega)]
+    cases code (cell (16 + t)) ((16 + t : Nat) : Int) i <;> rfl
+  · have heq8 : i = 8 := by omega
+    subst heq8
+    rw [decide_eq_true rfl]
+    revert h8
+    cases code (cell (16 + t)) ((16 + t : Nat) : Int) 8 <;>
+      cases code (evol (c7cut N) t) (7 * (N : Int) + 6 + t) 8 <;> decide
+
+/-- **Exact Pinning of the Unique Flush Disagreement at Time `55` (`seed_flush_ether_diff_at_twelve`):**
+at time `55`, the single cell's edge code agrees with the ether `evol c7 3 (4 - j)` at all
+twelve positions `0 ≤ j < 12` and disagrees specifically at bit `j = 12`. -/
+theorem seed_flush_ether_diff_at_twelve :
+    (∀ j, j < 12 → code (cell 55) ((55 : Nat) : Int) j = evol c7 3 (4 - j)) ∧
+    code (cell 55) ((55 : Nat) : Int) 12 ≠ evol c7 3 (4 - (12 : Nat)) := by
+  refine ⟨seed_flush_ether_sharp, ?_⟩
+  obtain ⟨j, hj13, hne⟩ := seed_no_flush_ether 55 3 4
+  by_cases hj12 : j < 12
+  · exact absurd (seed_flush_ether_sharp j hj12) hne
+  · have hj_eq : j = 12 := by omega
+    subst hj_eq
+    exact hne
+
 end Rule30EtherCutEdge
 end Ruliology.CellularAutomata
