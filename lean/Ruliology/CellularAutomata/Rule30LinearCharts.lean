@@ -559,5 +559,124 @@ theorem free_bit_chart_is_chart : IsChart (fun _ => True) (fun a n => a (n + 1))
   cont := uld_mono (fun _ _ => trivial) uld_fb
   cont' := uld_Theta
 
+/-! ### Affine pullback of the inverse chart, explicit formula and fixed points of `Lm`, affinity of `Theta` through depth `6`, and non-affinity at depth `7` -/
+
+/-- **Ternary Affinity of the Inverse Chart `fb ∘ Φ'` on `A` (`IsChart.fb_inv_affine`):**
+for any chart `c : IsChart A Lm Φ Φ'` and any three elements `a, b, d` in `A`,
+`fb (Φ' (xr (xr a b) d)) = xr (xr (fb (Φ' a)) (fb (Φ' b))) (fb (Φ' d))`. -/
+theorem IsChart.fb_inv_affine {A : (Nat → Bool) → Prop} {Lm Φ Φ' : (Nat → Bool) → Nat → Bool}
+    (c : IsChart A Lm Φ Φ') {a b d : Nat → Bool} (ha : A a) (hb : A b) (hd : A d) :
+    fb (Φ' (xr (xr a b) d)) = xr (xr (fb (Φ' a)) (fb (Φ' b))) (fb (Φ' d)) := by
+  have himg : Φ (Theta (xr (xr (fb (Φ' a)) (fb (Φ' b))) (fb (Φ' d)))) = xr (xr a b) d := by
+    rw [linear_chart_is_free_bit_chart A c.affA Lm c.affL Φ Φ' c.mapsTo c.mapsTo'
+      c.left_inv c.right_inv c.conj c.cont c.cont',
+      c.psi_inv ha, c.psi_inv hb, c.psi_inv hd]
+  rw [← himg, c.inv_psi]
+
+/-- **Explicit Formula for the Induced Affine Dynamics `Lm` on `A` (`IsChart.Lm_eq_on_A`):**
+on every element `a` of `A`, `Lm a` equals `Φ (Theta (shn 1 (fb (Φ' a))))`. -/
+theorem IsChart.Lm_eq_on_A {A : (Nat → Bool) → Prop} {Lm Φ Φ' : (Nat → Bool) → Nat → Bool}
+    (c : IsChart A Lm Φ Φ') {a : Nat → Bool} (ha : A a) :
+    Lm a = Φ (Theta (shn 1 (fb (Φ' a)))) := by
+  have hsh : shn 1 (fb (Φ' a)) = (fun n => fb (Φ' a) (n + 1)) :=
+    funext fun n => congrArg (fb (Φ' a)) (Nat.add_comm 1 n)
+  rw [hsh, c.psi_shift (fb (Φ' a)), c.psi_inv ha]
+
+/-- **Exact Characterization of Double-Step Fixed Points in `KK` (`zrow_two_fixed_iff_fb_const`):**
+a constrained start `L` (`KK L`) satisfies `zrow L 2 = L` if and only if its free-bit word is
+constant (`∀ s, fb L s = fb L 0`), i.e., `L = Theta (fun _ => fb L 0)`. -/
+theorem zrow_two_fixed_iff_fb_const {L : Nat → Bool} (hL : KK L) :
+    zrow L 2 = L ↔ ∀ s : Nat, fb L s = fb L 0 := by
+  constructor
+  · intro hfix s
+    induction s with
+    | zero => rfl
+    | succ s ih =>
+      have hsh : fb (zrow L 2) s = fb L (s + 1) := congrFun (fb_shift L) s
+      rw [hfix] at hsh
+      exact hsh.symm.trans ih
+  · intro hconst
+    have hfb : fb (zrow L 2) = fb L := by
+      funext s
+      rw [congrFun (fb_shift L) s, hconst (s + 1), hconst s]
+    rw [← Theta_fb (kk_two_step hL), hfb, Theta_fb hL]
+
+/-- **Exact Classification of Fixed Points of `Lm` in `A` (`IsChart.Lm_fixed_iff`):**
+for any chart `c : IsChart A Lm Φ Φ'` and any `a` in `A`, `Lm a = a` holds if and only if
+`a = Φ (Theta (fun _ => false))` or `a = Φ (Theta (fun _ => true))`, and these two fixed points
+are distinct. -/
+theorem IsChart.Lm_fixed_iff {A : (Nat → Bool) → Prop} {Lm Φ Φ' : (Nat → Bool) → Nat → Bool}
+    (c : IsChart A Lm Φ Φ') {a : Nat → Bool} (ha : A a) :
+    (Lm a = a ↔ a = Φ (Theta (fun _ => false)) ∨ a = Φ (Theta (fun _ => true))) ∧
+    Φ (Theta (fun _ => false)) ≠ Φ (Theta (fun _ => true)) := by
+  refine ⟨⟨fun hfix => ?_, fun hconst => ?_⟩, fun heq => ?_⟩
+  · have hL : KK (Φ' a) := c.mapsTo' a ha
+    have hz : zrow (Φ' a) 2 = Φ' a := by
+      rw [← c.left_inv (zrow (Φ' a) 2) (kk_two_step hL), c.conj (Φ' a) hL, c.right_inv a ha, hfix]
+    have hconst := (zrow_two_fixed_iff_fb_const hL).1 hz
+    have hfn : fb (Φ' a) = (fun _ => fb (Φ' a) 0) := funext hconst
+    cases hb : fb (Φ' a) 0
+    · left
+      rw [← c.psi_inv ha, hfn, hb]
+    · right
+      rw [← c.psi_inv ha, hfn, hb]
+  · rcases hconst with rfl | rfl
+    · exact c.lm_white
+    · exact (c.psi_shift (fun _ => true)).symm
+  · have h0 : fb (Φ' (Φ (Theta (fun _ => false)))) 0 = fb (Φ' (Φ (Theta (fun _ => true)))) 0 :=
+      congrArg (fun x => fb (Φ' x) 0) heq
+    rw [c.inv_psi, c.inv_psi] at h0
+    exact Bool.noConfusion h0
+
+/-- The sequence with prescribed first three bits `b0, b1, b2` and `false` thereafter. -/
+def cut3 (b0 b1 b2 : Bool) : Nat → Bool :=
+  prep b0 (prep b1 (prep b2 (fun _ => false)))
+
+theorem Theta_eq_cut3_of_le_six (x : Nat → Bool) {k : Nat} (hk : k ≤ 6) :
+    Theta x k = Theta (cut3 (x 0) (x 1) (x 2)) k := by
+  apply Theta_dep x (cut3 (x 0) (x 1) (x 2)) k
+  intro s hs
+  rcases (show s = 0 ∨ s = 1 ∨ s = 2 by omega) with rfl | rfl | rfl <;> rfl
+
+/-- **Exact Affinity of `Theta` at All Spatial Depths `k ≤ 6` (`Theta_affine_le_six`):**
+for all sequences `f, g, h : Nat → Bool` and every depth `k ≤ 6`,
+`Theta (xr (xr f g) h) k = xr (xr (Theta f) (Theta g)) (Theta h) k`. -/
+theorem Theta_affine_le_six (f g h : Nat → Bool) {k : Nat} (hk : k ≤ 6) :
+    Theta (xr (xr f g) h) k = xr (xr (Theta f) (Theta g)) (Theta h) k := by
+  have hcheck : ∀ b0 b1 b2 c0 c1 c2 d0 d1 d2 : Bool, ∀ k : Nat, k ≤ 6 →
+      Theta (cut3 (xor (xor b0 c0) d0) (xor (xor b1 c1) d1) (xor (xor b2 c2) d2)) k =
+        xor (xor (Theta (cut3 b0 b1 b2) k) (Theta (cut3 c0 c1 c2) k)) (Theta (cut3 d0 d1 d2) k) := by
+    decide +kernel
+  show Theta (xr (xr f g) h) k = xor (xor (Theta f k) (Theta g k)) (Theta h k)
+  rw [Theta_eq_cut3_of_le_six (xr (xr f g) h) hk,
+    Theta_eq_cut3_of_le_six f hk,
+    Theta_eq_cut3_of_le_six g hk,
+    Theta_eq_cut3_of_le_six h hk]
+  exact hcheck (f 0) (f 1) (f 2) (g 0) (g 1) (g 2) (h 0) (h 1) (h 2) k hk
+
+/-- **Non-Affinity of `Theta` at Spatial Depth `7` (`not_Theta_affine_at_depth_seven`):**
+while `Theta f k` is affine for `k ≤ 6` (`Theta_affine_le_six`), for the sequences
+`f10 = prep true (fun _ => false)`, `f01 = prep false (prep true (fun _ => false))`,
+and `f00 = fun _ => false`, the spatial reconstruction `Theta` violates the ternary affine law at
+depth `7`: `Theta (xr (xr f10 f01) f00) 7 ≠ xr (xr (Theta f10) (Theta f01)) (Theta f00) 7`. -/
+theorem not_Theta_affine_at_depth_seven :
+    let f00 : Nat → Bool := fun _ => false
+    let f10 : Nat → Bool := prep true f00
+    let f01 : Nat → Bool := prep false (prep true f00)
+    Theta (xr (xr f10 f01) f00) 7 ≠
+      xr (xr (Theta f10) (Theta f01)) (Theta f00) 7 := by
+  decide
+
+/-- **The Spatial Identity Coordinate Map Is Never a Linear Chart (`id_not_linear_chart`):**
+there is no affine set `A` and affine operator `Lm` for which the spatial identity map
+`Φ = id`, `Φ' = id` forms a linear chart of `KK` (`¬ IsChart A Lm id id`). -/
+theorem id_not_linear_chart (A : (Nat → Bool) → Prop) (Lm : (Nat → Bool) → Nat → Bool) :
+    ¬ IsChart A Lm (fun x => x) (fun x => x) := by
+  intro c
+  have haff := linear_chart_is_free_bit_chart A c.affA Lm c.affL (fun x => x) (fun x => x)
+    c.mapsTo c.mapsTo' c.left_inv c.right_inv c.conj c.cont c.cont'
+    (prep true (fun _ => false)) (prep false (prep true (fun _ => false))) (fun _ => false)
+  exact not_Theta_affine_at_depth_seven (congrFun haff 7)
+
 end Rule30LinearCharts
 end Ruliology.CellularAutomata
