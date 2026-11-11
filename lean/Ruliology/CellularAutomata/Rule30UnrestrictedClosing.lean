@@ -254,5 +254,126 @@ theorem not_unrestricted_closing :
   obtain ⟨N, hN⟩ := h rowA rowB inX_A inX_B fun k => by rw [two_A, two_B]
   exact differ_AB N (hN (14 * N + 3) (by omega))
 
+/-! ### Exact free-tail characterization of `2m`-tick collisions, full-trajectory coalescence for `t ≥ 2`, and infinite violation of minimum-gap-3 gate spacing -/
+
+/-- **Full-Trajectory Coalescence of `rowA` and `rowB` from Tick `2` Onward (`zrow_rowA_eq_zrow_rowB_of_ge_two`):**
+although `rowA` and `rowB` differ infinitely often at `t = 0` (`differ_AB`) and `t = 1`
+(`differ_one_tick`), for every time `t ≥ 2` and every depth `k : Nat`, `zrow rowA t k = zrow rowB t k`. -/
+theorem zrow_rowA_eq_zrow_rowB_of_ge_two {t : Nat} (ht : 2 ≤ t) (k : Nat) :
+    zrow rowA t k = zrow rowB t k := by
+  obtain ⟨d, rfl⟩ : ∃ d, t = 2 + d := ⟨t - 2, by omega⟩
+  rw [zrow_shift rowA 2 d, zrow_shift rowB 2 d, two_cycle.1, two_cycle.2.1]
+
+/-- **Exact `4`-Tick Periodicity of `rowA` and `rowC` (`four_tick_cycle_AC`):**
+for every `m, k : Nat`, `zrow rowA (4 * m) k = rowA k`, `zrow rowA (4 * m + 2) k = rowC k`,
+`zrow rowC (4 * m) k = rowC k`, and `zrow rowC (4 * m + 2) k = rowA k`. -/
+theorem four_tick_cycle_AC (m : Nat) :
+    zrow rowA (4 * m) = rowA ∧ zrow rowA (4 * m + 2) = rowC ∧
+    zrow rowC (4 * m) = rowC ∧ zrow rowC (4 * m + 2) = rowA := by
+  induction m with
+  | zero =>
+    refine ⟨?_, two_cycle.1, ?_, two_cycle.2.2⟩
+    · funext k; cases k <;> rfl
+    · funext k; cases k <;> rfl
+  | succ m ih =>
+    have hA0 : zrow rowA (4 * (m + 1)) = rowA := by
+      funext k
+      rw [show 4 * (m + 1) = 2 + (4 * m + 2) by omega, zrow_shift rowA 2, two_cycle.1]
+      exact congrFun ih.2.2.2 k
+    have hC0 : zrow rowC (4 * (m + 1)) = rowC := by
+      funext k
+      rw [show 4 * (m + 1) = 2 + (4 * m + 2) by omega, zrow_shift rowC 2, two_cycle.2.2]
+      exact congrFun ih.2.1 k
+    have hA2 : zrow rowA (4 * (m + 1) + 2) = rowC := by
+      funext k
+      rw [show 4 * (m + 1) + 2 = (4 * (m + 1)) + 2 by omega, zrow_shift rowA (4 * (m + 1)) 2, hA0, two_A]
+    have hC2 : zrow rowC (4 * (m + 1) + 2) = rowA := by
+      funext k
+      rw [show 4 * (m + 1) + 2 = (4 * (m + 1)) + 2 by omega, zrow_shift rowC (4 * (m + 1)) 2, hC0, two_C]
+    exact ⟨hA0, hA2, hC0, hC2⟩
+
+/-- **Single-Bit Initial Discrepancy Between `fA` and `fB` (`fA_eq_fB_iff`):**
+the free words `fA` and `fB` disagree at `s = 0` (`fA 0 = true`, `fB 0 = false`) and agree at
+every `s ≥ 1` (`fA s = fB s ↔ s ≠ 0`). -/
+theorem fA_eq_fB_iff (s : Nat) : (fA s = fB s) ↔ s ≠ 0 := by
+  cases s with
+  | zero => decide
+  | succ s =>
+    rw [fA_succ, fB_succ]
+    exact ⟨fun _ h => Nat.noConfusion h, fun _ => rfl⟩
+
+/-- **`InX` and Free-Word Shift Law Under `2 * m` Ticks (`inX_and_free_shift`):**
+if `InX L`, then `InX (zrow L (2 * m))` holds and its free word is the `m`-shifted free word
+`zrow (zrow L (2 * m)) (2 * s + 1) 1 = zrow L (2 * (m + s) + 1) 1`. -/
+theorem inX_and_free_shift {L : Nat → Bool} (hL : InX L) (m : Nat) :
+    InX (zrow L (2 * m)) ∧
+      ∀ s : Nat, zrow (zrow L (2 * m)) (2 * s + 1) 1 = zrow L (2 * (m + s) + 1) 1 := by
+  refine ⟨fun s => ?_, fun s => ?_⟩
+  · rw [← zrow_shift L (2 * m) (2 * s), show 2 * m + 2 * s = 2 * (m + s) by omega]
+    exact hL (m + s)
+  · rw [← zrow_shift L (2 * m) (2 * s + 1), show 2 * m + (2 * s + 1) = 2 * (m + s) + 1 by omega]
+
+/-- **Exact Free-Tail Characterization of `2 * m`-Tick Collisions on `InX`
+(`zrow_two_mul_eq_iff_free_tail_eq`):** for any two constrained starts `L, L'` (`InX L`, `InX L'`)
+and any `m : Nat`, their rows after `m` double steps agree everywhere
+(`∀ k, zrow L (2 * m) k = zrow L' (2 * m) k`) if and only if their odd-tick free words agree
+from index `m` onward (`∀ s, zrow L (2 * (m + s) + 1) 1 = zrow L' (2 * (m + s) + 1) 1`). -/
+theorem zrow_two_mul_eq_iff_free_tail_eq {L L' : Nat → Bool} (hL : InX L) (hL' : InX L') (m : Nat) :
+    (∀ k : Nat, zrow L (2 * m) k = zrow L' (2 * m) k) ↔
+      (∀ s : Nat, zrow L (2 * (m + s) + 1) 1 = zrow L' (2 * (m + s) + 1) 1) := by
+  obtain ⟨hLm, hfL⟩ := inX_and_free_shift hL m
+  obtain ⟨hL'm, hfL'⟩ := inX_and_free_shift hL' m
+  constructor
+  · intro heq s
+    rw [← hfL s, ← hfL' s, show zrow L (2 * m) = zrow L' (2 * m) from funext heq]
+  · intro hfree k
+    have hθL := Theta_unique hLm hfL
+    have hθL' := Theta_unique hL'm (fun s => by rw [hfL' s, ← hfree s])
+    have heq0 : zrow (zrow L (2 * m)) 0 k = zrow (zrow L' (2 * m)) 0 k := by
+      rw [hθL, hθL']
+    cases k with
+    | zero => rw [zrow_wall, zrow_wall]
+    | succ k => exact heq0
+
+/-- The complemented odd-tick gate stream of a zero-boundary start `L`:
+`gateOf L s = !zrow L (2 * s + 1) 1`. -/
+def gateOf (L : Nat → Bool) (s : Nat) : Bool := !zrow L (2 * s + 1) 1
+
+/-- Minimum-gap-`3` spacing on a gate stream `G` from index `S₀` onward: no two `true` values
+occur at distance `1` or `2` at or after `S₀`. -/
+def SpacedFrom (S₀ : Nat) (G : Nat → Bool) : Prop :=
+  ∀ s : Nat, S₀ ≤ s → G s = true → G (s + 1) = false ∧ G (s + 2) = false
+
+/-- **Every Double-Step Preimage of `rowA` or `rowC` Violates `SpacedFrom` on Every Tail
+(`not_spacedFrom_gateOf_rowA_rowB_rowC`):** for every threshold `S₀ : Nat`, none of
+`gateOf rowA`, `gateOf rowB`, or `gateOf rowC` satisfies `SpacedFrom S₀` (since each has
+consecutive black gates at distance `2` at arbitrarily large indices). -/
+theorem not_spacedFrom_gateOf_rowA_rowB_rowC (S₀ : Nat) :
+    ¬ SpacedFrom S₀ (gateOf rowA) ∧
+    ¬ SpacedFrom S₀ (gateOf rowB) ∧
+    ¬ SpacedFrom S₀ (gateOf rowC) := by
+  refine ⟨fun hA => ?_, fun hB => ?_, fun hC => ?_⟩
+  · have hs : S₀ ≤ 2 * S₀ + 1 := by omega
+    have h1 : gateOf rowA (2 * S₀ + 1) = true := by
+      unfold gateOf; rw [free_A]; unfold fA; rw [decide_eq_false (by omega)]; rfl
+    have h3 : gateOf rowA (2 * S₀ + 1 + 2) = true := by
+      unfold gateOf; rw [free_A]; unfold fA; rw [decide_eq_false (by omega)]; rfl
+    have hsp := (hA (2 * S₀ + 1) hs h1).2
+    rw [h3] at hsp; exact Bool.noConfusion hsp
+  · have hs : S₀ ≤ 2 * S₀ + 1 := by omega
+    have h1 : gateOf rowB (2 * S₀ + 1) = true := by
+      unfold gateOf; rw [free_B]; unfold fB; rw [decide_eq_false (by omega)]; rfl
+    have h3 : gateOf rowB (2 * S₀ + 1 + 2) = true := by
+      unfold gateOf; rw [free_B]; unfold fB; rw [decide_eq_false (by omega)]; rfl
+    have hsp := (hB (2 * S₀ + 1) hs h1).2
+    rw [h3] at hsp; exact Bool.noConfusion hsp
+  · have hs : S₀ ≤ 2 * S₀ := by omega
+    have h0 : gateOf rowC (2 * S₀) = true := by
+      unfold gateOf; rw [free_C]; unfold fC; rw [decide_eq_false (by omega)]; rfl
+    have h2 : gateOf rowC (2 * S₀ + 2) = true := by
+      unfold gateOf; rw [free_C]; unfold fC; rw [decide_eq_false (by omega)]; rfl
+    have hsp := (hC (2 * S₀) hs h0).2
+    rw [h2] at hsp; exact Bool.noConfusion hsp
+
 end Rule30UnrestrictedClosing
 end Ruliology.CellularAutomata
