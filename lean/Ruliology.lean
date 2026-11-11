@@ -31,6 +31,7 @@ public import Ruliology.CellularAutomata.Rule30DelayedDefectPeriods
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryStripe
 public import Ruliology.CellularAutomata.Rule30ZeroBoundarySmall
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryBarriers
+public import Ruliology.CellularAutomata.Rule30FreeMiddle
 public import Ruliology.CellularAutomata.Rule30Ether
 public import Ruliology.CellularAutomata.Rule30EtherSingleCell
 public import Ruliology.CellularAutomata.Rule30EtherSingleCellAux
