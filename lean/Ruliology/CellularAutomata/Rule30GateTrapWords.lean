@@ -895,4 +895,494 @@ theorem minimal_paths :
     trapPath path553.1 path553.2 (gapWord [5, 5, 3]) = true := by
   decide +kernel
 
+/-! ## Universal 5-layer coverage of `trap`, universal spacing renormalization, and the two-word collapse (`33` and `3553`) -/
+
+/-- Every window of the `829`-window invariant set `trap` either has column `1` black immediately
+(`w.headD false = true`) or lies in `layer1 ∪ layer2 ∪ layer3 ∪ layer4`. -/
+def trapInLayers : Bool :=
+  trap.all (fun w => w.headD false || inM (mask layer1) w || inM (mask layer2) w ||
+    inM (mask layer3) w || inM (mask layer4) w)
+
+theorem trapInLayers_ok : trapInLayers = true := by decide +kernel
+
+section UniversalTrap
+variable (R : Nat → Bool)
+
+theorem u_black_of_mem_layer4 {s : Nat} (hm4 : win R (2 * s + 1) ∈ layer4) :
+    Rule30PeriodTwoSideways.u R (s + 1) = true := by
+  have r5 := win_next R fifthStep_ok (t := 2 * s + 1) (by omega) hm4
+  rw [show 2 * s + 1 + 2 = 2 * (s + 1) + 1 by omega] at r5
+  rw [u_eq_head]
+  exact r5
+
+theorem u_black_of_mem_layer3 {s : Nat} (hm3 : win R (2 * s + 1) ∈ layer3) :
+    Rule30PeriodTwoSideways.u R (s + 1) = false ∧
+      Rule30PeriodTwoSideways.u R (s + 2) = true := by
+  have r4 := win_next R fourthStep_ok (t := 2 * s + 1) (by omega) hm3
+  simp only [Bool.and_eq_true, Bool.not_eq_true'] at r4
+  rw [show 2 * s + 1 + 2 = 2 * (s + 1) + 1 by omega] at r4
+  have hm4 : win R (2 * (s + 1) + 1) ∈ layer4 := mem_of_inM (win_length _ _) r4.2
+  have h2 := u_black_of_mem_layer4 R hm4
+  rw [show s + 1 + 1 = s + 2 by omega] at h2
+  rw [u_eq_head]
+  exact ⟨r4.1, h2⟩
+
+theorem u_black_of_mem_layer2 {s : Nat} (hm2 : win R (2 * s + 1) ∈ layer2) :
+    Rule30PeriodTwoSideways.u R (s + 1) = true ∨
+      (Rule30PeriodTwoSideways.u R (s + 1) = false ∧
+       Rule30PeriodTwoSideways.u R (s + 2) = false ∧
+       Rule30PeriodTwoSideways.u R (s + 3) = true) := by
+  have r3 := win_next R thirdStep_ok (t := 2 * s + 1) (by omega) hm2
+  rw [show 2 * s + 1 + 2 = 2 * (s + 1) + 1 by omega] at r3
+  cases h1 : (win R (2 * (s + 1) + 1)).headD false with
+  | true =>
+    left
+    rw [u_eq_head]
+    exact h1
+  | false =>
+    right
+    rw [h1, Bool.false_or] at r3
+    have hm3 : win R (2 * (s + 1) + 1) ∈ layer3 := mem_of_inM (win_length _ _) r3
+    rcases u_black_of_mem_layer3 R hm3 with ⟨h2, h3⟩
+    rw [show s + 1 + 1 = s + 2 by omega] at h2
+    rw [show s + 1 + 2 = s + 3 by omega] at h3
+    rw [u_eq_head]
+    exact ⟨h1, h2, h3⟩
+
+theorem u_black_of_mem_layer1 {s : Nat} (hm1 : win R (2 * s + 1) ∈ layer1) :
+    (Rule30PeriodTwoSideways.u R (s + 1) = false ∧
+     Rule30PeriodTwoSideways.u R (s + 2) = true) ∨
+    (Rule30PeriodTwoSideways.u R (s + 1) = false ∧
+     Rule30PeriodTwoSideways.u R (s + 2) = false ∧
+     Rule30PeriodTwoSideways.u R (s + 3) = false ∧
+     Rule30PeriodTwoSideways.u R (s + 4) = true) := by
+  have r2 := win_next R secondStep_ok (t := 2 * s + 1) (by omega) hm1
+  simp only [Bool.and_eq_true, Bool.not_eq_true'] at r2
+  rw [show 2 * s + 1 + 2 = 2 * (s + 1) + 1 by omega] at r2
+  have hm2 : win R (2 * (s + 1) + 1) ∈ layer2 := mem_of_inM (win_length _ _) r2.2
+  have h1 : Rule30PeriodTwoSideways.u R (s + 1) = false := by
+    rw [u_eq_head]; exact r2.1
+  rcases u_black_of_mem_layer2 R hm2 with h2 | ⟨h2, h3, h4⟩
+  · left
+    rw [show s + 1 + 1 = s + 2 by omega] at h2
+    exact ⟨h1, h2⟩
+  · right
+    rw [show s + 1 + 1 = s + 2 by omega] at h2
+    rw [show s + 1 + 2 = s + 3 by omega] at h3
+    rw [show s + 1 + 3 = s + 4 by omega] at h4
+    exact ⟨h1, h2, h3, h4⟩
+
+/-- **Universal 5-Step Black-Cell Guarantee (`u_black_within_five_of_entry`):**
+for **every** right half `R` whose window enters `trap` at an odd time `t0`, and every step `s`
+with `t0 ≤ 2 * s + 1`, at least one of the five consecutive steps `s, s + 1, s + 2, s + 3, s + 4`
+is black in `u R`. -/
+theorem u_black_within_five_of_entry {t0 : Nat} (h0 : t0 % 2 = 1) (hw : win R t0 ∈ trap)
+    (s : Nat) (hs : t0 ≤ 2 * s + 1) :
+    Rule30PeriodTwoSideways.u R s = true ∨
+    Rule30PeriodTwoSideways.u R (s + 1) = true ∨
+    Rule30PeriodTwoSideways.u R (s + 2) = true ∨
+    Rule30PeriodTwoSideways.u R (s + 3) = true ∨
+    Rule30PeriodTwoSideways.u R (s + 4) = true := by
+  have hw0 : win R (2 * s + 1) ∈ trap := by
+    have := win_mem_trap R h0 hw ((2 * s + 1 - t0) / 2)
+    rwa [show t0 + 2 * ((2 * s + 1 - t0) / 2) = 2 * s + 1 by omega] at this
+  have hcov := List.all_eq_true.1 trapInLayers_ok _ hw0
+  simp only [Bool.or_eq_true] at hcov
+  rcases hcov with (((h0_blk | hm1) | hm2) | hm3) | hm4
+  · left; rw [u_eq_head]; exact h0_blk
+  · rcases u_black_of_mem_layer1 R (mem_of_inM (win_length _ _) hm1) with ⟨_, h2⟩ | ⟨_, _, _, h4⟩
+    · right; right; left; exact h2
+    · right; right; right; right; exact h4
+  · rcases u_black_of_mem_layer2 R (mem_of_inM (win_length _ _) hm2) with h1 | ⟨_, _, h3⟩
+    · right; left; exact h1
+    · right; right; right; left; exact h3
+  · right; right; left
+    exact (u_black_of_mem_layer3 R (mem_of_inM (win_length _ _) hm3)).2
+  · right; left
+    exact u_black_of_mem_layer4 R (mem_of_inM (win_length _ _) hm4)
+
+/-- **Universal Gate Window after Trap Entry (`u_window_of_entry`):**
+for **every** right half `R` whose window enters `trap` at an odd time `t0`, `u R` satisfies
+`Rule30DrivenPrefix.Window (u R) r` at every step `r` with `t0 ≤ 2 * r + 1`. -/
+theorem u_window_of_entry {t0 : Nat} (h0 : t0 % 2 = 1) (hw : win R t0 ∈ trap)
+    (r : Nat) (hr : t0 ≤ 2 * r + 1) :
+    Rule30DrivenPrefix.Window (Rule30PeriodTwoSideways.u R) r := by
+  unfold Rule30DrivenPrefix.Window
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · cases h : Rule30PeriodTwoSideways.u R r with
+    | false => rfl
+    | true =>
+      rcases gaps_of_entry R h0 hw r hr h with ⟨h1, _, _⟩ | ⟨h1, _, _, _, _⟩ <;> rw [h1] <;> rfl
+  · cases h : Rule30PeriodTwoSideways.u R r with
+    | false => rfl
+    | true =>
+      rcases gaps_of_entry R h0 hw r hr h with ⟨_, h2, _⟩ | ⟨_, h2, _, _, _⟩ <;> rw [h2] <;> rfl
+  · intro h
+    rcases gaps_of_entry R h0 hw r hr h with ⟨_, _, h3⟩ | ⟨_, _, h3, h4, h5⟩
+    · left
+      rcases gaps_of_entry R h0 hw (r + 3) (by omega) h3 with ⟨h4, h5, _⟩ | ⟨h4, h5, _, _, _⟩
+      · exact ⟨h3, by simpa only [Nat.add_assoc] using h4, by simpa only [Nat.add_assoc] using h5⟩
+      · exact ⟨h3, by simpa only [Nat.add_assoc] using h4, by simpa only [Nat.add_assoc] using h5⟩
+    · right; exact ⟨h3, h4, h5⟩
+  · rcases u_black_within_five_of_entry R h0 hw r hr with h' | h' | h' | h' | h' <;> simp [h']
+
+/-- The shifted gate of `R` starting at step `s0`. -/
+def entryGate (s0 r : Nat) : Bool := Rule30PeriodTwoSideways.u R (s0 + r)
+
+theorem entryGate_window {t0 s0 : Nat} (h0 : t0 % 2 = 1) (hw : win R t0 ∈ trap)
+    (hs0 : t0 ≤ 2 * s0 + 1) (r : Nat) :
+    Rule30DrivenPrefix.Window (entryGate R s0) r := by
+  have h := u_window_of_entry R h0 hw (s0 + r) (by omega)
+  unfold Rule30DrivenPrefix.Window at h ⊢
+  simpa only [entryGate, Nat.add_assoc] using h
+
+/-- **Universal Spacing Renormalization Premise (`entryGate_spaced`):**
+for **every** right half `R` whose window enters `trap` at `t0` and every `s0` with `t0 ≤ 2 * s0 + 1`,
+`entryGate R s0` satisfies `Rule30SpacingRenormalization.Spaced`. -/
+theorem entryGate_spaced {t0 s0 : Nat} (h0 : t0 % 2 = 1) (hw : win R t0 ∈ trap)
+    (hs0 : t0 ≤ 2 * s0 + 1) :
+    Rule30SpacingRenormalization.Spaced (entryGate R s0) := fun r =>
+  ⟨(entryGate_window R h0 hw hs0 r).1, (entryGate_window R h0 hw hs0 r).2.1⟩
+
+/-- **Universal Breakdown of Iterated Spacing Renormalization (`entryGate_transform_not_spaced`):**
+for **every** right half `R` whose window enters `trap` at `t0` and every `s0` with `t0 ≤ 2 * s0 + 1`,
+the 8-column transformed gate `transform (entryGate R s0)` is not spaced. -/
+theorem entryGate_transform_not_spaced {t0 s0 : Nat} (h0 : t0 % 2 = 1) (hw : win R t0 ∈ trap)
+    (hs0 : t0 ≤ 2 * s0 + 1) :
+    ¬ Rule30SpacingRenormalization.Spaced (Rule30SpacingRenormalization.transform (entryGate R s0)) := by
+  intro htr
+  have hz := (Rule30SpacingRenormalization.transform_spaced_iff _ (entryGate_spaced R h0 hw hs0)).1 htr
+  have h04 := hz 0
+  have h14 := hz 1
+  have h24 := hz 2
+  have h34 := hz 3
+  have h44 := hz 4
+  unfold entryGate at h04 h14 h24 h34 h44
+  rcases u_black_within_five_of_entry R h0 hw (s0 + 4) (by omega) with hb0 | hb1 | hb2 | hb3 | hb4
+  · rw [show s0 + (0 + 4) = s0 + 4 by omega, hb0] at h04; exact Bool.noConfusion h04
+  · rw [show s0 + (1 + 4) = s0 + 4 + 1 by omega, hb1] at h14; exact Bool.noConfusion h14
+  · rw [show s0 + (2 + 4) = s0 + 4 + 2 by omega, hb2] at h24; exact Bool.noConfusion h24
+  · rw [show s0 + (3 + 4) = s0 + 4 + 3 by omega, hb3] at h34; exact Bool.noConfusion h34
+  · rw [show s0 + (4 + 4) = s0 + 4 + 4 by omega, hb4] at h44; exact Bool.noConfusion h44
+
+end UniversalTrap
+
+/-- **Two-Word Gate-Trap Predicate (`TwoWordsOK`):**
+at `s`, the sequence `g` satisfies `GapOK g s` and reads neither `gapWord [3, 3]` nor `gapWord [3, 5, 5, 3]`. -/
+def TwoWordsOK (g : Nat → Bool) (s : Nat) : Prop :=
+  GapOK g s ∧ ¬ Reads g s (gapWord [3, 3]) ∧ ¬ Reads g s (gapWord [3, 5, 5, 3])
+
+/-- **Two Forbidden Words Imply All Five Forbidden Words (`WordsOK_of_TwoWordsOK`):**
+because `333` and `3353` begin with `33` while `3533` and `5533` end with `33` at offsets `+8` and `+10`,
+`TwoWordsOK g s`, `TwoWordsOK g (s + 8)`, and `TwoWordsOK g (s + 10)` imply `WordsOK g s`. -/
+theorem WordsOK_of_TwoWordsOK (g : Nat → Bool) (s : Nat)
+    (h0 : TwoWordsOK g s) (h8 : TwoWordsOK g (s + 8)) (h10 : TwoWordsOK g (s + 10)) :
+    WordsOK g s := by
+  refine ⟨h0.1, ?_, ?_, ?_, h0.2.2, ?_⟩
+  · intro hr
+    have h' := reads_take hr 7
+    rw [show (gapWord [3, 3, 3]).take 7 = gapWord [3, 3] by decide] at h'
+    exact h0.2.1 h'
+  · intro hr
+    have h' := reads_take hr 7
+    rw [show (gapWord [3, 3, 5, 3]).take 7 = gapWord [3, 3] by decide] at h'
+    exact h0.2.1 h'
+  · intro hr
+    have h' := reads_drop hr 8
+    rw [show (gapWord [3, 5, 3, 3]).drop 8 = gapWord [3, 3] by decide] at h'
+    exact h8.2.1 h'
+  · intro hr
+    have h' := reads_drop hr 10
+    rw [show (gapWord [5, 5, 3, 3]).drop 10 = gapWord [3, 3] by decide] at h'
+    exact h10.2.1 h'
+
+/-- **General Abstract `no_late_33` for Any `WordsOK` Sequence (`no_late_33_of_WordsOK`):**
+for **any** sequence `g : Nat → Bool` (not only `u R`), if `WordsOK g s`, `WordsOK g (s + 3)`, and
+`WordsOK g (s + 5)` hold, then for any two initial gaps `x, y ∈ {3, 5}`, `g` never reads `gapWord [x, y, 3, 3]` at `s`. -/
+theorem no_late_33_of_WordsOK (g : Nat → Bool) (s : Nat)
+    (hw0 : WordsOK g s) (hw3 : WordsOK g (s + 3)) (hw5 : WordsOK g (s + 5))
+    (x y : Nat) (hx : x = 3 ∨ x = 5) (hy : y = 3 ∨ y = 5) :
+    ¬ Reads g s (gapWord [x, y, 3, 3]) := by
+  intro h
+  rcases hy with rfl | rfl
+  · rcases hx with rfl | rfl
+    · have h' := reads_drop h 3
+      rw [show (gapWord [3, 3, 3, 3]).drop 3 = gapWord [3, 3, 3] by decide] at h'
+      exact hw3.2.1 h'
+    · have h' := reads_drop h 5
+      rw [show (gapWord [5, 3, 3, 3]).drop 5 = gapWord [3, 3, 3] by decide] at h'
+      exact hw5.2.1 h'
+  · rcases hx with rfl | rfl
+    · exact hw0.2.2.2.1 h
+    · exact hw0.2.2.2.2.2 h
+
+/-- **Backward Predecessor-Gap Reconstruction (`prev_gap_three_or_five`):**
+if `g` satisfies `GapOK` on `[b, b + 4]`, has at least one black cell in `[b, b + 4]`, and
+`g (b + 5) = true`, then either:
+1. the preceding black cell is at distance `3` (`g (b + 2) = true ∧ g (b + 3) = false ∧ g (b + 4) = false`), or
+2. the preceding black cell is at distance `5` (`g b = true ∧ g (b + 1) = false ∧ g (b + 2) = false ∧ g (b + 3) = false ∧ g (b + 4) = false`). -/
+theorem prev_gap_three_or_five (g : Nat → Bool) (b : Nat)
+    (_hg0 : GapOK g b) (hg1 : GapOK g (b + 1)) (_hg2 : GapOK g (b + 2))
+    (hg3 : GapOK g (b + 3)) (hg4 : GapOK g (b + 4))
+    (hblk : g b = true ∨ g (b + 1) = true ∨ g (b + 2) = true ∨ g (b + 3) = true ∨ g (b + 4) = true)
+    (h5 : g (b + 5) = true) :
+    (g (b + 2) = true ∧ g (b + 3) = false ∧ g (b + 4) = false) ∨
+    (g b = true ∧ g (b + 1) = false ∧ g (b + 2) = false ∧ g (b + 3) = false ∧ g (b + 4) = false) := by
+  have hn4 : g (b + 4) = false := by
+    cases h : g (b + 4) with
+    | false => rfl
+    | true =>
+      rcases hg4 h with ⟨hf, _, _⟩ | ⟨hf, _, _, _, _⟩ <;>
+        (rw [show b + 4 + 1 = b + 5 by omega, h5] at hf; exact Bool.noConfusion hf)
+  have hn3 : g (b + 3) = false := by
+    cases h : g (b + 3) with
+    | false => rfl
+    | true =>
+      rcases hg3 h with ⟨_, hf, _⟩ | ⟨_, hf, _, _, _⟩ <;>
+        (rw [show b + 3 + 2 = b + 5 by omega, h5] at hf; exact Bool.noConfusion hf)
+  cases h2 : g (b + 2) with
+  | true =>
+    left; exact ⟨rfl, hn3, hn4⟩
+  | false =>
+    have hn1 : g (b + 1) = false := by
+      cases h : g (b + 1) with
+      | false => rfl
+      | true =>
+        rcases hg1 h with ⟨_, _, hf⟩ | ⟨_, _, _, hf, _⟩
+        · rw [show b + 1 + 3 = b + 4 by omega, hn4] at hf; exact Bool.noConfusion hf
+        · rw [show b + 1 + 4 = b + 5 by omega, h5] at hf; exact Bool.noConfusion hf
+    right
+    rcases hblk with hb0 | hb1 | hb2 | hb3 | hb4
+    · exact ⟨hb0, hn1, rfl, hn3, hn4⟩
+    · rw [hn1] at hb1; exact Bool.noConfusion hb1
+    · rw [h2] at hb2; exact Bool.noConfusion hb2
+    · rw [hn3] at hb3; exact Bool.noConfusion hb3
+    · rw [hn4] at hb4; exact Bool.noConfusion hb4
+
+theorem reads_prepend_three {g : Nat → Bool} {b : Nat} {gs : List Nat}
+    (h0 : g b = true) (h1 : g (b + 1) = false) (h2 : g (b + 2) = false)
+    (hr : Reads g (b + 3) (gapWord gs)) :
+    Reads g b (gapWord (3 :: gs)) := by
+  intro i hi
+  cases i with
+  | zero => exact h0
+  | succ i =>
+    cases i with
+    | zero => exact h1
+    | succ i =>
+      cases i with
+      | zero => exact h2
+      | succ j =>
+        have hj : j < (gapWord gs).length := by
+          simp only [gapWord, List.length_cons, List.length_append, List.length_replicate] at hi
+          omega
+        have hstep := hr j hj
+        rw [show b + (j + 3) = b + 3 + j by omega]
+        exact hstep
+
+theorem reads_prepend_five {g : Nat → Bool} {b : Nat} {gs : List Nat}
+    (h0 : g b = true) (h1 : g (b + 1) = false) (h2 : g (b + 2) = false)
+    (h3 : g (b + 3) = false) (h4 : g (b + 4) = false)
+    (hr : Reads g (b + 5) (gapWord gs)) :
+    Reads g b (gapWord (5 :: gs)) := by
+  intro i hi
+  cases i with
+  | zero => exact h0
+  | succ i =>
+    cases i with
+    | zero => exact h1
+    | succ i =>
+      cases i with
+      | zero => exact h2
+      | succ i =>
+        cases i with
+        | zero => exact h3
+        | succ i =>
+          cases i with
+          | zero => exact h4
+          | succ j =>
+            have hj : j < (gapWord gs).length := by
+              simp only [gapWord, List.length_cons, List.length_append, List.length_replicate] at hi
+              omega
+            have hstep := hr j hj
+            rw [show b + (j + 5) = b + 5 + j by omega]
+            exact hstep
+
+/-- **Universal Elimination of `gapWord [3, 3]` 10 Double-Steps After Trap Entry (`no_33_after_ten_of_entry`):**
+for **every** right half `R` whose window enters `trap` at an odd time `t0`, and every step `s`
+with `t0 + 20 ≤ 2 * s + 1` (i.e. `10` double-steps after entry), `u R` never reads `gapWord [3, 3]` at `s`. -/
+theorem no_33_after_ten_of_entry (R : Nat → Bool) {t0 : Nat} (h0 : t0 % 2 = 1)
+    (hw : win R t0 ∈ trap) (s : Nat) (hs : t0 + 20 ≤ 2 * s + 1) :
+    ¬ Reads (Rule30PeriodTwoSideways.u R) s (gapWord [3, 3]) := by
+  intro hr33
+  have hs_blk : Rule30PeriodTwoSideways.u R s = true := hr33 0 (by decide)
+  have hprev1 := prev_gap_three_or_five (Rule30PeriodTwoSideways.u R) (s - 5)
+    (gaps_of_entry R h0 hw (s - 5) (by omega))
+    (gaps_of_entry R h0 hw (s - 5 + 1) (by omega))
+    (gaps_of_entry R h0 hw (s - 5 + 2) (by omega))
+    (gaps_of_entry R h0 hw (s - 5 + 3) (by omega))
+    (gaps_of_entry R h0 hw (s - 5 + 4) (by omega))
+    (u_black_within_five_of_entry R h0 hw (s - 5) (by omega))
+    (by rw [show s - 5 + 5 = s by omega]; exact hs_blk)
+  rcases hprev1 with ⟨h3_0, h3_1, h3_2⟩ | ⟨h5_0, h5_1, h5_2, h5_3, h5_4⟩
+  · have hr333 : Reads (Rule30PeriodTwoSideways.u R) (s - 3) (gapWord [3, 3, 3]) :=
+      reads_prepend_three
+        (by rw [show s - 3 = s - 5 + 2 by omega]; exact h3_0)
+        (by rw [show s - 3 + 1 = s - 5 + 3 by omega]; exact h3_1)
+        (by rw [show s - 3 + 2 = s - 5 + 4 by omega]; exact h3_2)
+        (by rw [show s - 3 + 3 = s by omega]; exact hr33)
+    exact (gap_words_of_entry R h0 hw (s - 3) (by omega)).1 hr333
+  · have hr533 : Reads (Rule30PeriodTwoSideways.u R) (s - 5) (gapWord [5, 3, 3]) :=
+      reads_prepend_five h5_0 h5_1 h5_2 h5_3 h5_4
+        (by rw [show s - 5 + 5 = s by omega]; exact hr33)
+    have hprev2 := prev_gap_three_or_five (Rule30PeriodTwoSideways.u R) (s - 10)
+      (gaps_of_entry R h0 hw (s - 10) (by omega))
+      (gaps_of_entry R h0 hw (s - 10 + 1) (by omega))
+      (gaps_of_entry R h0 hw (s - 10 + 2) (by omega))
+      (gaps_of_entry R h0 hw (s - 10 + 3) (by omega))
+      (gaps_of_entry R h0 hw (s - 10 + 4) (by omega))
+      (u_black_within_five_of_entry R h0 hw (s - 10) (by omega))
+      (by rw [show s - 10 + 5 = s - 5 by omega]; exact h5_0)
+    rcases hprev2 with ⟨hb3_0, hb3_1, hb3_2⟩ | ⟨hb5_0, hb5_1, hb5_2, hb5_3, hb5_4⟩
+    · have hr3533 : Reads (Rule30PeriodTwoSideways.u R) (s - 8) (gapWord [3, 5, 3, 3]) :=
+        reads_prepend_three
+          (by rw [show s - 8 = s - 10 + 2 by omega]; exact hb3_0)
+          (by rw [show s - 8 + 1 = s - 10 + 3 by omega]; exact hb3_1)
+          (by rw [show s - 8 + 2 = s - 10 + 4 by omega]; exact hb3_2)
+          (by rw [show s - 8 + 3 = s - 5 by omega]; exact hr533)
+      exact (gap_words_of_entry R h0 hw (s - 8) (by omega)).2.2.1 hr3533
+    · have hr5533 : Reads (Rule30PeriodTwoSideways.u R) (s - 10) (gapWord [5, 5, 3, 3]) :=
+        reads_prepend_five hb5_0 hb5_1 hb5_2 hb5_3 hb5_4
+          (by rw [show s - 10 + 5 = s - 5 by omega]; exact hr533)
+      exact (gap_words_of_entry R h0 hw (s - 10) (by omega)).2.2.2.2 hr5533
+
+/-- **Universal `TwoWordsOK` 10 Double-Steps After Trap Entry (`TwoWordsOK_of_entry`):**
+for **every** right half `R` whose window enters `trap` at an odd time `t0`, and every step `s`
+with `t0 + 20 ≤ 2 * s + 1`, `u R` satisfies the two-word condition `TwoWordsOK (u R) s`
+(`GapOK`, no `33`, and no `3553`). -/
+theorem TwoWordsOK_of_entry (R : Nat → Bool) {t0 : Nat} (h0 : t0 % 2 = 1)
+    (hw : win R t0 ∈ trap) (s : Nat) (hs : t0 + 20 ≤ 2 * s + 1) :
+    TwoWordsOK (Rule30PeriodTwoSideways.u R) s :=
+  ⟨gaps_of_entry R h0 hw s (by omega),
+   no_33_after_ten_of_entry R h0 hw s hs,
+   (gap_words_of_entry R h0 hw s (by omega)).2.2.2.1⟩
+
+/-- **Abstract 5-Step Black-Cell Propagation from Any Black Seed under `GapOK` (`black_within_five_of_GapOK`):**
+if `g b0 = true` and `GapOK g s` holds for all `s ≥ b0`, then every 5 consecutive steps `[b0 + n, b0 + n + 4]`
+contain at least one black cell. -/
+theorem black_within_five_of_GapOK (g : Nat → Bool) (b0 : Nat)
+    (hb0 : g b0 = true) (hgap : ∀ s, b0 ≤ s → GapOK g s) :
+    ∀ n : Nat, g (b0 + n) = true ∨ g (b0 + n + 1) = true ∨ g (b0 + n + 2) = true ∨
+      g (b0 + n + 3) = true ∨ g (b0 + n + 4) = true
+  | 0 => Or.inl (by simpa using hb0)
+  | n + 1 => by
+    rcases black_within_five_of_GapOK g b0 hb0 hgap n with h0 | h1 | h2 | h3 | h4
+    · rcases hgap (b0 + n) (by omega) h0 with ⟨_, _, h3'⟩ | ⟨_, _, _, _, h5'⟩
+      · right; right; left; rw [show b0 + (n + 1) + 2 = b0 + n + 3 by omega]; exact h3'
+      · right; right; right; right; rw [show b0 + (n + 1) + 4 = b0 + n + 5 by omega]; exact h5'
+    · left; rw [show b0 + (n + 1) = b0 + n + 1 by omega]; exact h1
+    · right; left; rw [show b0 + (n + 1) + 1 = b0 + n + 2 by omega]; exact h2
+    · right; right; left; rw [show b0 + (n + 1) + 2 = b0 + n + 3 by omega]; exact h3
+    · right; right; right; left; rw [show b0 + (n + 1) + 3 = b0 + n + 4 by omega]; exact h4
+
+/-- **Eventual Equivalence of `WordsOK` and `TwoWordsOK` (`eventually_TwoWordsOK_of_WordsOK`):**
+for any sequence `g : Nat → Bool`, if `WordsOK g s` holds for all `s ≥ s0`, then there exists
+`s1` (`s0 ≤ s1`) such that `TwoWordsOK g s` holds for all `s ≥ s1`. -/
+theorem eventually_TwoWordsOK_of_WordsOK (g : Nat → Bool) (s0 : Nat)
+    (hw : ∀ s, s0 ≤ s → WordsOK g s) :
+    ∃ s1, s0 ≤ s1 ∧ ∀ s, s1 ≤ s → TwoWordsOK g s := by
+  by_cases hex : ∃ b0, s0 ≤ b0 ∧ g b0 = true
+  · rcases hex with ⟨b0, hb0_ge, hb0⟩
+    have hgap : ∀ s, b0 ≤ s → GapOK g s := fun s hs => (hw s (by omega)).1
+    have hblk5 : ∀ s, b0 ≤ s →
+        g s = true ∨ g (s + 1) = true ∨ g (s + 2) = true ∨ g (s + 3) = true ∨ g (s + 4) = true := by
+      intro s hs
+      have h := black_within_five_of_GapOK g b0 hb0 hgap (s - b0)
+      rwa [show b0 + (s - b0) = s by omega] at h
+    refine ⟨b0 + 10, by omega, fun s hs => ⟨(hw s (by omega)).1, ?_, (hw s (by omega)).2.2.2.2.1⟩⟩
+    intro hr33
+    have hs_blk : g s = true := hr33 0 (by decide)
+    have hprev1 := prev_gap_three_or_five g (s - 5)
+      (hgap (s - 5) (by omega)) (hgap (s - 5 + 1) (by omega)) (hgap (s - 5 + 2) (by omega))
+      (hgap (s - 5 + 3) (by omega)) (hgap (s - 5 + 4) (by omega))
+      (hblk5 (s - 5) (by omega)) (by rw [show s - 5 + 5 = s by omega]; exact hs_blk)
+    rcases hprev1 with ⟨h3_0, h3_1, h3_2⟩ | ⟨h5_0, h5_1, h5_2, h5_3, h5_4⟩
+    · have hr333 : Reads g (s - 3) (gapWord [3, 3, 3]) :=
+        reads_prepend_three
+          (by rw [show s - 3 = s - 5 + 2 by omega]; exact h3_0)
+          (by rw [show s - 3 + 1 = s - 5 + 3 by omega]; exact h3_1)
+          (by rw [show s - 3 + 2 = s - 5 + 4 by omega]; exact h3_2)
+          (by rw [show s - 3 + 3 = s by omega]; exact hr33)
+      exact (hw (s - 3) (by omega)).2.1 hr333
+    · have hr533 : Reads g (s - 5) (gapWord [5, 3, 3]) :=
+        reads_prepend_five h5_0 h5_1 h5_2 h5_3 h5_4
+          (by rw [show s - 5 + 5 = s by omega]; exact hr33)
+      have hprev2 := prev_gap_three_or_five g (s - 10)
+        (hgap (s - 10) (by omega)) (hgap (s - 10 + 1) (by omega)) (hgap (s - 10 + 2) (by omega))
+        (hgap (s - 10 + 3) (by omega)) (hgap (s - 10 + 4) (by omega))
+        (hblk5 (s - 10) (by omega)) (by rw [show s - 10 + 5 = s - 5 by omega]; exact h5_0)
+      rcases hprev2 with ⟨hb3_0, hb3_1, hb3_2⟩ | ⟨hb5_0, hb5_1, hb5_2, hb5_3, hb5_4⟩
+      · have hr3533 : Reads g (s - 8) (gapWord [3, 5, 3, 3]) :=
+          reads_prepend_three
+            (by rw [show s - 8 = s - 10 + 2 by omega]; exact hb3_0)
+            (by rw [show s - 8 + 1 = s - 10 + 3 by omega]; exact hb3_1)
+            (by rw [show s - 8 + 2 = s - 10 + 4 by omega]; exact hb3_2)
+            (by rw [show s - 8 + 3 = s - 5 by omega]; exact hr533)
+        exact (hw (s - 8) (by omega)).2.2.2.1 hr3533
+      · have hr5533 : Reads g (s - 10) (gapWord [5, 5, 3, 3]) :=
+          reads_prepend_five hb5_0 hb5_1 hb5_2 hb5_3 hb5_4
+            (by rw [show s - 10 + 5 = s - 5 by omega]; exact hr533)
+        exact (hw (s - 10) (by omega)).2.2.2.2.2 hr5533
+  · refine ⟨s0, Nat.le_refl s0, fun s hs => ?_⟩
+    have hfalse : g s = false := by
+      cases h : g s with
+      | false => rfl
+      | true => exact False.elim (hex ⟨s, hs, h⟩)
+    refine ⟨fun ht => by rw [hfalse] at ht; exact Bool.noConfusion ht,
+      fun hr => by have h0 := hr 0 (by decide); rw [Nat.add_zero, hfalse] at h0; exact Bool.noConfusion h0,
+      fun hr => by have h0 := hr 0 (by decide); rw [Nat.add_zero, hfalse] at h0; exact Bool.noConfusion h0⟩
+
+/-- **`Q01TwoWords` (`Q01GapWords` collapsed to the two forbidden words `33` and `3553`):**
+no finitely supported constrained start of the zero-boundary left half has free bits whose complement,
+from some step on, satisfies `TwoWordsOK` (`GapOK` and neither `33` nor `3553`). -/
+def Q01TwoWords : Prop := ∀ L : Nat → Bool, FinSupp L → InX L →
+  ¬ ∃ s0, ∀ s, s0 ≤ s → TwoWordsOK (fun s => !zrow L (2 * s + 1) 1) s
+
+/-- **`Q01GapWords` implies `Q01TwoWords` (`Q01TwoWords_of_Q01GapWords`):**
+since `TwoWordsOK` from `s0` on implies `WordsOK` from `s0` on via `WordsOK_of_TwoWordsOK`. -/
+theorem Q01TwoWords_of_Q01GapWords (hQ : Q01GapWords) : Q01TwoWords :=
+  fun L hf hX ⟨s0, hs⟩ =>
+    hQ L hf hX ⟨s0, fun s hs0 =>
+      WordsOK_of_TwoWordsOK _ s (hs s hs0) (hs (s + 8) (by omega)) (hs (s + 10) (by omega))⟩
+
+/-- **`Q01TwoWords` implies `Q01GapWords` (`Q01GapWords_of_Q01TwoWords`):**
+since `WordsOK` from `s0` on forces `TwoWordsOK` from some `s1 ≥ s0` on via `eventually_TwoWordsOK_of_WordsOK`. -/
+theorem Q01GapWords_of_Q01TwoWords (hQ : Q01TwoWords) : Q01GapWords :=
+  fun L hf hX ⟨s0, hs⟩ => by
+    rcases eventually_TwoWordsOK_of_WordsOK (fun s => !zrow L (2 * s + 1) 1) s0 hs with ⟨s1, _, hs1⟩
+    exact hQ L hf hX ⟨s1, hs1⟩
+
+/-- **Exact Logical Equivalence of the 5-Word and 2-Word Gate-Trap Conjectures (`Q01TwoWords_iff_Q01GapWords`):**
+`Q01TwoWords` (excluding only `33` and `3553`) is logically equivalent to `Q01GapWords`
+(excluding `333`, `3353`, `3533`, `3553`, and `5533`). -/
+theorem Q01TwoWords_iff_Q01GapWords : Q01TwoWords ↔ Q01GapWords :=
+  ⟨Q01GapWords_of_Q01TwoWords, Q01TwoWords_of_Q01GapWords⟩
+
+/-- **`Q01TwoWords` gives `¬ FinSupp (Psi R)` for every right half whose window enters the trap
+(`not_finSupp_Psi_of_Q01TwoWords`).** -/
+theorem not_finSupp_Psi_of_Q01TwoWords (hQ : Q01TwoWords) (R : Nat → Bool) {t0 : Nat}
+    (h0 : t0 % 2 = 1) (hw : win R t0 ∈ trap) :
+    ¬ FinSupp (Rule30PeriodTwoSideways.Psi R) := by
+  intro hfin
+  refine hQ _ hfin (Rule30PeriodTwoSideways.Psi_inX R) ⟨t0 + 10, fun s hs => ?_⟩
+  have e : (fun s => !zrow (Rule30PeriodTwoSideways.Psi R) (2 * s + 1) 1) =
+      Rule30PeriodTwoSideways.u R := by
+    funext s; rw [Rule30PeriodTwoSideways.Psi_free]; simp; rfl
+  rw [e]
+  exact TwoWordsOK_of_entry R h0 hw s (by omega)
+
+/-- **`CQ01Empty` follows directly from the two-word condition `Q01TwoWords` (`CQ01Empty_of_Q01TwoWords`).** -/
+theorem CQ01Empty_of_Q01TwoWords (hQ : Q01TwoWords) : Rule30PeriodTwoSideways.CQ01Empty :=
+  not_finSupp_Psi_of_Q01TwoWords hQ _ (t0 := 293) (by decide) entry_empty
+
 end Ruliology.CellularAutomata.Rule30GateTrapWords
