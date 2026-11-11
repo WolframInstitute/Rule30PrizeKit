@@ -152,6 +152,7 @@ public import Ruliology.CellularAutomata.Rule30BlackRunErosion
 public import Ruliology.CellularAutomata.Rule30LeftReset
 public import Ruliology.CellularAutomata.Rule30LeftUnbounded
 public import Ruliology.CellularAutomata.Rule30LeftAntiPeriod
+public import Ruliology.CellularAutomata.Rule30ZeroWallDiagonals
 public import Ruliology.CellularAutomata.Rule30SettledBarrier
 public import Ruliology.CellularAutomata.Rule30FrontLaw
 public import Ruliology.CellularAutomata.Rule30SettledBarrierEffective
