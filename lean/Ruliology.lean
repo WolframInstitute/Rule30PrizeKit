@@ -118,6 +118,7 @@ public import Ruliology.CellularAutomata.Rule30PackedReconstruction
 public import Ruliology.CellularAutomata.Rule30SpacingGapCounterexample
 public import Ruliology.CellularAutomata.Rule30DrivenPrefix
 public import Ruliology.CellularAutomata.Rule30ExactReturn
+public import Ruliology.CellularAutomata.Rule30WallDeadlines
 public import Ruliology.CellularAutomata.Rule30ControlledResponse
 public import Ruliology.CellularAutomata.Rule30ResponseAncestry
 public import Ruliology.CellularAutomata.Rule30ResponseWidth
