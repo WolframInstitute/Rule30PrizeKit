@@ -444,5 +444,85 @@ theorem column0_alternates (p q : Bool) (t : Nat) :
   rw [h, evolN_shift, show (0 : Int) - 2 = -2 by rfl]
   exact (clock p q t).2
 
+/-! ### `(p, q)`-invariance, odd-block reflection symmetry, 4-column anti-synchronization, and exact light-cone support bounds -/
+
+/-- **Universal `(p, q)`-Invariance of `evolN p q seed02` (`evolN_seed02_indep_pq`):**
+all four rules `N p q` produce the exact same space-time trajectory from `seed02`. -/
+theorem evolN_seed02_indep_pq (p q p' q' : Bool) (t : Nat) (i : Int) :
+    evolN p q seed02 t i = evolN p' q' seed02 t i := by
+  rw [row_formula p q t, row_formula p' q' t]
+
+/-- **Odd-Block Reflection Symmetry About `j = -1` (`z_odd_refl_symm`):**
+for every time `t : Nat` and every odd block index `j : Int` (`j % 2 ≠ 0`),
+`z t j = z t (-2 - j)`. -/
+theorem z_odd_refl_symm (t : Nat) (j : Int) (hodd : j % 2 ≠ 0) :
+    z t j = z t (-2 - j) := by
+  have hd : d t j = false := by
+    obtain ⟨n, rfl | rfl⟩ : ∃ n, t = 2 * n ∨ t = 2 * n + 1 := ⟨t / 2, by omega⟩
+    · rw [(d_band n).1]
+      exact E_f n j (fun h => hodd h.1)
+    · rw [(d_band n).2]
+      exact E_f (n + 1) j (fun h => hodd h.1)
+  unfold d at hd
+  revert hd
+  cases z t j <;> cases z t (-2 - j) <;> decide
+
+/-- **Reflection Antisymmetry of Blocks `0` and `-2` for `t ≥ 1` (`z_zero_eq_not_neg_two`):**
+for every `t ≥ 1`, `z t 0 = !z t (-2)`. -/
+theorem z_zero_eq_not_neg_two {t : Nat} (ht : 1 ≤ t) :
+    z t 0 = !z t (-2) := by
+  have h := d_zero t
+  rw [decide_eq_true ht] at h
+  unfold d at h
+  rw [show (-2 : Int) - 0 = -2 by rfl] at h
+  revert h
+  cases z t 0 <;> cases z t (-2) <;> decide
+
+/-- **Four-Column Anti-Synchronization Around the Clock Core (`columns_zero_one_neg_four_three`):**
+for every `p, q : Bool` and every `t ≥ 1`, columns `0` and `1` agree (`evolN p q seed02 t 0 = evolN p q seed02 t 1`),
+columns `-4` and `-3` agree (`evolN p q seed02 t (-4) = evolN p q seed02 t (-3)`), and the two pairs
+are exact Boolean complements (`evolN p q seed02 t 0 = !evolN p q seed02 t (-4)`). -/
+theorem columns_zero_one_neg_four_three (p q : Bool) {t : Nat} (ht : 1 ≤ t) :
+    evolN p q seed02 t 0 = evolN p q seed02 t 1 ∧
+    evolN p q seed02 t (-4) = evolN p q seed02 t (-3) ∧
+    evolN p q seed02 t 0 = !evolN p q seed02 t (-4) := by
+  rw [row_formula p q t]
+  unfold row
+  rw [ite_eq_left (show (0 : Int) ≤ 2 * (t : Int) - 1 by omega),
+    ite_eq_left (show (1 : Int) ≤ 2 * (t : Int) - 1 by omega),
+    ite_eq_left (show (-4 : Int) ≤ 2 * (t : Int) - 1 by omega),
+    ite_eq_left (show (-3 : Int) ≤ 2 * (t : Int) - 1 by omega),
+    show (0 : Int) / 2 = 0 by rfl, show (1 : Int) / 2 = 0 by rfl,
+    show (-4 : Int) / 2 = -2 by rfl, show (-3 : Int) / 2 = -2 by rfl]
+  exact ⟨rfl, rfl, z_zero_eq_not_neg_two ht⟩
+
+/-- **Exact Light-Cone Support Bounds (`evolN_right_edge_and_outside_white`):**
+for every `p, q : Bool` and `t : Nat`, cell `2 * t + 2` is black (`true`), while every cell
+with `i < -2 * t` or `2 * t + 2 < i` is white (`false`). -/
+theorem evolN_right_edge_and_outside_white (p q : Bool) (t : Nat) :
+    evolN p q seed02 t (2 * (t : Int) + 2) = true ∧
+    ∀ i : Int, (i < -2 * (t : Int) ∨ 2 * (t : Int) + 2 < i) → evolN p q seed02 t i = false := by
+  rw [row_formula p q t]
+  refine ⟨?_, fun i hi => ?_⟩
+  · unfold row
+    rw [ite_eq_right (show ¬ (2 * (t : Int) + 2 ≤ 2 * (t : Int) - 1) by omega)]
+    simp
+  · unfold row
+    rcases hi with hleft | hright
+    · rw [ite_eq_left (show i ≤ 2 * (t : Int) - 1 by omega)]
+      exact z_support t (i / 2) (Or.inl (by omega))
+    · rw [ite_eq_right (show ¬ (i ≤ 2 * (t : Int) - 1) by omega)]
+      simp [show ¬ (i = 2 * (t : Int) + 2) by omega, show ¬ (i = 2 * (t : Int)) by omega]
+
+/-- **Column `0` Also Alternates From the Odd-Shifted Seed `{1, 3}` (`column0_alternates_from_13`):**
+from the two black cells `1` and `3`, column `0` alternates (`decide (t % 2 = 1)`) at every time `t`. -/
+theorem column0_alternates_from_13 (p q : Bool) (t : Nat) :
+    evolN p q (fun i => decide (i = 1 ∨ i = 3)) t 0 = decide (t % 2 = 1) := by
+  have h : (fun i : Int => decide (i = 1 ∨ i = 3)) = fun i => seed02 (i - 1) := by
+    funext i; unfold seed02
+    exact decide_eq_decide.2 ⟨fun h => by omega, fun h => by omega⟩
+  rw [h, evolN_shift, show (0 : Int) - 1 = -1 by rfl]
+  exact (clock p q t).1
+
 end Rule30RadiusTwoClock
 end Ruliology.CellularAutomata
