@@ -133,5 +133,77 @@ theorem not_absorptionT_t001 : ¬ AbsorptionT t001 := by
 theorem rule30open_half : trap001fifteen.st 25 = 196676618523018 ∧ trap001fifteen.lab 25 = 3 := by
   decide +kernel
 
+/-! ### Exact modulo-15 clock law, eternal pointwise avoidance of `t001` along `Fw`, and exact width `48` of the witness `xw` -/
+
+/-- **Exact Spatial Width `48` of the Witness Right Half `xw` (`xw_exact_width_48`):**
+`xw` is white at `0`, black at cell `48` (`xw 48 = true`), and white at every cell `p > 48`. -/
+theorem xw_exact_width_48 :
+    xw 0 = false ∧ xw 48 = true ∧ ∀ p : Nat, 48 < p → xw p = false := by
+  refine ⟨by decide +kernel, by decide +kernel, xw_fin⟩
+
+/-- **Exact Modulo-`15` Clock Invariant of the Witness Orbit `Fw` (`stays_mod15`):**
+at every time `t : Nat`, the orbit `Fw` lies in a state `j < 153` of `trap001fifteen`
+whose label is `t % 15` (`trap001fifteen.lab j = t % 15`). -/
+theorem stays_mod15 (t : Nat) :
+    ∃ j, j < trap001fifteen.n ∧ EncF Fw trap001fifteen.b t 0 (trap001fifteen.st j) ∧
+      trap001fifteen.lab j = t % 15 := by
+  have hc : ∀ t, 0 ≤ t → Fw t 0 = wordAt3 trap001fifteen.w (t - 0) := by
+    intro t _
+    unfold Fw
+    rw [drv_col0]
+    rfl
+  have hr0 : EncF Fw trap001fifteen.b 0 0 (trap001fifteen.st i0) := by
+    refine ⟨PTrap.st_lt trap001fifteen i0, fun k _ => ?_⟩
+    unfold Fw
+    rw [drv_init _ _ _ (by omega), st_i0]
+    show x0.testBit k = x0.testBit (0 + 1 + k - 1)
+    congr 1
+    omega
+  have hph : (0 - 0) % 3 = trap001fifteen.lab i0 % 3 := by rw [lab_i0]
+  obtain ⟨j, hj, hr, hl⟩ :=
+    PTrap.invariant trap001fifteen trap001fifteen_check (drv_isR30 _ _) 0 hc 0 i0
+      (Nat.le_refl 0) i0_lt hph hr0 t
+  refine ⟨j, hj, ?_, ?_⟩
+  · rw [Nat.zero_add] at hr
+    exact hr
+  · have hm : trap001fifteen.m = 15 := rfl
+    rw [hl, lab_i0, hm]
+    omega
+
+/-- **Period-`15` Label Return Along `Fw` (`stays_mod15_periodic`):**
+for every `t, k : Nat`, at time `t + 15 * k` the orbit `Fw` lies in a state `j < 153` of
+`trap001fifteen` with the same modulo-`15` label `t % 15` as at time `t`. -/
+theorem stays_mod15_periodic (t k : Nat) :
+    ∃ j, j < trap001fifteen.n ∧ EncF Fw trap001fifteen.b (t + 15 * k) 0 (trap001fifteen.st j) ∧
+      trap001fifteen.lab j = t % 15 := by
+  obtain ⟨j, hj, hr, hlab⟩ := stays_mod15 (t + 15 * k)
+  refine ⟨j, hj, hr, ?_⟩
+  rw [hlab]
+  omega
+
+/-- **Eternal Pointwise Avoidance of `t001` by `Fw` (`Fw_never_in_t001`):**
+at every time `t : Nat` and for every state `i < t001.n` whose label matches `t` modulo `3`,
+the witness trajectory `Fw` does not encode `t001.st i` on its first `47` cells. -/
+theorem Fw_never_in_t001 (t i : Nat) (hi : i < t001.n) (hph : t001.lab i % 3 = t % 3) :
+    ¬ EncF Fw t001.b t 0 (t001.st i) := by
+  intro hr'
+  obtain ⟨j, hj, hrj, hlj⟩ := stays_mod15 t
+  have hb47 : t001.b = 47 := rfl
+  have hb52 : trap001fifteen.b = 52 := rfl
+  have hl : trap001fifteen.lab j % 3 = t001.lab i % 3 := by
+    rw [hlj, hph]
+    omega
+  have hs : trap001fifteen.st j % 2 ^ 47 = t001.st i := by
+    apply Nat.eq_of_testBit_eq
+    intro k
+    by_cases hk : k < 47
+    · rw [Nat.testBit_mod_two_pow, decide_eq_true hk, Bool.true_and]
+      exact (hrj.2 k (by rw [hb52]; omega)).trans (hr'.2 k (by rw [hb47]; exact hk)).symm
+    · have h1 : (t001.st i).testBit k = false :=
+        Nat.testBit_lt_two_pow (Nat.lt_of_lt_of_le (PTrap.st_lt t001 i)
+          (Nat.pow_le_pow_right (by decide) (by rw [hb47]; omega)))
+      rw [Nat.testBit_mod_two_pow, decide_eq_false hk, Bool.false_and, h1]
+  exact disjointB_spec fifteen_apart_t001 hj hi hl hs
+
 end Rule30EtherThreeNotAbsorption
 end Ruliology.CellularAutomata
