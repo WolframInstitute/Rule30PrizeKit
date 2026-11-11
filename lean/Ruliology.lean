@@ -212,6 +212,7 @@ public import Ruliology.CellularAutomata.Rule30SourceEnergy
 public import Ruliology.CellularAutomata.Rule30BlackPhaseEscape
 public import Ruliology.CellularAutomata.Rule30PeriodTwoMass
 public import Ruliology.CellularAutomata.Rule30PeriodTwoNoFloor
+public import Ruliology.CellularAutomata.Rule30ConeTip
 public import Ruliology.CellularAutomata.Rule30PeriodTwoLadder
 public import Ruliology.CellularAutomata.Rule30PeriodTwoWidth13
 
