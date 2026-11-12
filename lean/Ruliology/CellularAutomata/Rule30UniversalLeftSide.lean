@@ -535,4 +535,149 @@ theorem odd_farther_weights :
 /-- The farther parent of wheel 53,207 has even weight, 6 over the period 16: Rowland's first even case. -/
 theorem even_farther_weight : weight 53206 16 = 6 := by decide +kernel
 
+/-! ### Canonical modulo-16 phase uniqueness, mutual exclusion at wheel 53,208, and dyadic anti-periodicity -/
+
+/-- **Modulo-16 Shift Reduction for Alignment with `C` (`strip_align_iff_mod_sixteen`):**
+for any array `a` and `s J : Nat`, alignment with `C` through wheel `J` at shift `s` is equivalent
+to alignment at the canonical phase `s % 16 < 16`. -/
+theorem strip_align_iff_mod_sixteen (a : Nat → Nat → Bool) (s J : Nat) :
+    (∀ j, j ≤ J → ∃ T, ∀ t, T ≤ t → a j (t + s) = C j t) ↔
+    (∀ j, j ≤ J → ∃ T, ∀ t, T ≤ t → a j (t + s % 16) = C j t) := by
+  constructor
+  · intro hal j hj
+    obtain ⟨T, hT⟩ := hal j hj
+    refine ⟨T + (s / 16) * 16, fun t ht => ?_⟩
+    have h1 := hT (t - (s / 16) * 16) (by omega)
+    have hidx : t - (s / 16) * 16 + s = t + s % 16 := by omega
+    rw [hidx] at h1
+    have hper := C_add_mul j (t - (s / 16) * 16) (s / 16)
+    have hidx2 : t - (s / 16) * 16 + (s / 16) * 16 = t := by omega
+    rw [hidx2] at hper
+    rw [h1, ← hper]
+  · intro hal j hj
+    obtain ⟨T, hT⟩ := hal j hj
+    refine ⟨T, fun t ht => ?_⟩
+    have h1 := hT (t + (s / 16) * 16) (by omega)
+    have hidx : t + (s / 16) * 16 + s % 16 = t + s := by omega
+    rw [hidx, C_add_mul] at h1
+    exact h1
+
+/-- **Modulo-16 Shift Uniqueness on `C` (`strip_shift_mod_sixteen_unique`):**
+whenever `400 ≤ J`, any two shifts `s, s'` aligning `a` with `C` through wheel `J` satisfy `s % 16 = s' % 16`. -/
+theorem strip_shift_mod_sixteen_unique {a : Nat → Nat → Bool} {s s' J : Nat} (hJ : 400 ≤ J)
+    (hs : ∀ j, j ≤ J → ∃ T, ∀ t, T ≤ t → a j (t + s) = C j t)
+    (hs' : ∀ j, j ≤ J → ∃ T, ∀ t, T ≤ t → a j (t + s') = C j t) :
+    s % 16 = s' % 16 := by
+  obtain ⟨T1, h1⟩ := hs 400 hJ
+  obtain ⟨T2, h2⟩ := hs' 400 hJ
+  apply Classical.byContradiction
+  intro hne
+  let d := (s + 15 * s') % 16
+  have hd_lt : d < 16 := Nat.mod_lt _ (by omega)
+  have hd_ne : d ≠ 0 := by omega
+  obtain ⟨p, hp_lt, hp_ne⟩ := wheel400_primitive d hd_lt hd_ne
+  let t1 := p + (T1 + T2) * 16 + 16 * s'
+  let t2 := p + (T1 + T2) * 16 + s + 15 * s'
+  have e1 := h1 t1 (by omega)
+  have e2 := h2 t2 (by omega)
+  have hsum : t2 + s' = t1 + s := by omega
+  rw [hsum] at e2
+  have heq : C 400 t2 = C 400 t1 := e2.symm.trans e1
+  have hm2 : t2 % 16 = (p + d) % 16 := by omega
+  have hm1 : t1 % 16 = p := by omega
+  rw [C_mod 400 t2, hm2, ← C_mod 400 (p + d), C_mod 400 t1, hm1] at heq
+  exact hp_ne heq
+
+/-- **Canonical Phase Existence and Uniqueness Through Wheel `53,207` (`universal_strip_canonical_unique`).** -/
+theorem universal_strip_canonical_unique {a : Nat → Nat → Bool} (ha : Recurrence a) (ha0 : a 0 0 = true) :
+    (∃ r, r < 16 ∧ ∀ j, j ≤ 53207 → ∃ T, ∀ t, T ≤ t → a j (t + r) = C j t) ∧
+    (∀ r r', r < 16 → r' < 16 →
+      (∀ j, j ≤ 53207 → ∃ T, ∀ t, T ≤ t → a j (t + r) = C j t) →
+      (∀ j, j ≤ 53207 → ∃ T, ∀ t, T ≤ t → a j (t + r') = C j t) → r = r') := by
+  refine ⟨?_, fun r r' hr hr' h1 h2 => ?_⟩
+  · obtain ⟨s, hs⟩ := universal_strip ha ha0
+    exact ⟨s % 16, Nat.mod_lt _ (by omega), (strip_align_iff_mod_sixteen a s 53207).mp hs⟩
+  · have hmod := strip_shift_mod_sixteen_unique (by omega) h1 h2
+    omega
+
+/-- **Explicit Two-Strip Realization at Wheel `53,208` (`universal_two_strips_53208`):**
+every recurrence array `a` with `a 0 0 = true` aligns through wheel `53,208` with either `C` or `C'`
+at a canonical phase `r < 16`. -/
+theorem universal_two_strips_53208 {a : Nat → Nat → Bool} (ha : Recurrence a) (ha0 : a 0 0 = true) :
+    ∃ r, r < 16 ∧
+      ((∀ j, j ≤ 53208 → ∃ T, ∀ t, T ≤ t → a j (t + r) = C j t) ∨
+       (∀ j, j ≤ 53208 → ∃ T, ∀ t, T ≤ t → a j (t + r) = C' j t)) := by
+  obtain ⟨s, hlow, htop⟩ := fork_dichotomy ha ha0
+  refine ⟨s % 16, Nat.mod_lt _ (by omega), ?_⟩
+  have hlow_r := (strip_align_iff_mod_sixteen a s 53207).mp hlow
+  rcases htop with ⟨T, hC⟩ | ⟨T, hC'⟩
+  · left
+    intro j hj
+    by_cases hlt : j ≤ 53207
+    · exact hlow_r j hlt
+    · have hj_eq : j = 53208 := by omega
+      subst hj_eq
+      refine ⟨T + (s / 16) * 16, fun t ht => ?_⟩
+      have h1 := hC (t - (s / 16) * 16) (by omega)
+      have hidx : t - (s / 16) * 16 + s = t + s % 16 := by omega
+      have hper := C_add_mul 53208 (t - (s / 16) * 16) (s / 16)
+      have hidx2 : t - (s / 16) * 16 + (s / 16) * 16 = t := by omega
+      rw [hidx] at h1
+      rw [hidx2] at hper
+      rw [h1, ← hper]
+  · right
+    intro j hj
+    by_cases hlt : j ≤ 53207
+    · obtain ⟨Tj, hTj⟩ := hlow_r j hlt
+      exact ⟨Tj, fun t ht => by rw [hTj t ht, C'_low hlt]⟩
+    · have hj_eq : j = 53208 := by omega
+      subst hj_eq
+      refine ⟨T + (s / 16) * 16, fun t ht => ?_⟩
+      have h1 := hC' (t - (s / 16) * 16) (by omega)
+      have hidx : t - (s / 16) * 16 + s = t + s % 16 := by omega
+      have hper := C_add_mul 53208 (t - (s / 16) * 16) (s / 16)
+      have hidx2 : t - (s / 16) * 16 + (s / 16) * 16 = t := by omega
+      rw [hidx] at h1
+      rw [hidx2] at hper
+      rw [h1, C'_top, ← hper]
+
+/-- **Symmetric Non-Shiftability from `C` to `C'` (`no_shift_C_to_C'`).** -/
+theorem no_shift_C_to_C' :
+    ¬ ∃ s, ∀ j, j ≤ 53208 → ∃ T, ∀ t, T ≤ t → C j (t + s) = C' j t := by
+  rintro ⟨s, hs⟩
+  refine no_shift ⟨15 * s, fun j hj => ?_⟩
+  obtain ⟨T, hT⟩ := hs j hj
+  refine ⟨T, fun t ht => ?_⟩
+  have h1 := hT (t + 15 * s) (by omega)
+  have hidx : t + 15 * s + s = t + s * 16 := by omega
+  rw [hidx, C_add_mul] at h1
+  exact h1.symm
+
+/-- **Mutual Exclusion of the Two Fork Branches (`fork_branches_disjoint`):**
+no array `a` can align through wheel `53,208` with both `C` (at shift `s`) and `C'` (at shift `s'`). -/
+theorem fork_branches_disjoint {a : Nat → Nat → Bool} {s s' : Nat}
+    (hC : ∀ j, j ≤ 53208 → ∃ T, ∀ t, T ≤ t → a j (t + s) = C j t)
+    (hC' : ∀ j, j ≤ 53208 → ∃ T, ∀ t, T ≤ t → a j (t + s') = C' j t) : False := by
+  refine no_shift ⟨s + 15 * s', fun j hj => ?_⟩
+  obtain ⟨T1, h1⟩ := hC j hj
+  obtain ⟨T2, h2⟩ := hC' j hj
+  refine ⟨T1 + T2, fun t ht => ?_⟩
+  have e1 := h1 (t + 16 * s') (by omega)
+  have e2 := h2 (t + (s + 15 * s')) (by omega)
+  have hidx : t + (s + 15 * s') + s' = t + 16 * s' + s := by omega
+  rw [← e2, hidx, e1, show t + 16 * s' = t + s' * 16 by omega, C_add_mul]
+
+/-- **All-Time Dyadic Anti-Periodicity Hierarchy on `C` and `C'` (`C_and_C'_dyadic_antiperiodic_hierarchy`).** -/
+theorem C_and_C'_dyadic_antiperiodic_hierarchy (t : Nat) :
+    (C 3 (t + 1) = !C 3 t ∧ C 8 (t + 2) = !C 8 t ∧ C 29 (t + 4) = !C 29 t ∧ C 400 (t + 8) = !C 400 t) ∧
+    (C' 3 (t + 1) = !C' 3 t ∧ C' 8 (t + 2) = !C' 8 t ∧ C' 29 (t + 4) = !C' 29 t ∧ C' 400 (t + 8) = !C' 400 t) := by
+  have h1 := (strip_shift per2 anti2).2 t
+  have h2 := (strip_shift per7 anti7).2 t
+  have h3 := (strip_shift per28 anti28).2 t
+  have h4 := (strip_shift (m := 399) per399 anti399).2 t
+  refine ⟨⟨h1, h2, h3, h4⟩, ?_⟩
+  rw [C'_low (by omega), C'_low (by omega), C'_low (by omega), C'_low (by omega),
+      C'_low (by omega), C'_low (by omega), C'_low (by omega), C'_low (by omega)]
+  exact ⟨h1, h2, h3, h4⟩
+
 end Ruliology.CellularAutomata.Rule30UniversalLeftSide
