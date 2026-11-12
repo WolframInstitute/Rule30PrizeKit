@@ -49,4 +49,31 @@ theorem stripStep_zero_iff {K r : Nat} {z : Bool} (hK : 1 ≤ K) (hr : r < 2^K) 
   · rintro ⟨rfl,rfl⟩
     simp [stripStep]
 
+/-! ## Non-zero image laws under outer/left black boundaries and all-time vacuum retention -/
+
+/-- **Outer-Black and Left-Black Non-Zero Step Laws (`stripStep_outer_or_left_true_ne_zero`).** -/
+theorem stripStep_outer_or_left_true_ne_zero {K r : Nat} (hK : 1 ≤ K) (hr : r < 2 ^ K) :
+    stripStep K false true r ≠ 0 ∧ stripStep K true false 0 ≠ 0 := by
+  refine ⟨fun h => ?_, fun h => ?_⟩
+  · have hiff := (stripStep_zero_iff hK hr).mp h
+    exact Bool.noConfusion hiff.2
+  · have hb := testBit_stripStep K true false 0 (Nat.two_pow_pos K) 0 (by omega)
+    rw [h, Nat.zero_testBit] at hb
+    simp [rule] at hb
+
+/-- **All-Time Vacuum Retention Under `image K false` and `zeros K n` (`vacuum_retained_under_image_and_zeros`).** -/
+theorem vacuum_retained_under_image_and_zeros (K S : Nat) (h0 : S.testBit 0 = true) :
+    (image K false S).testBit 0 = true ∧ ∀ n : Nat, (zeros K n S).testBit 0 = true := by
+  have himg : ∀ M : Nat, M.testBit 0 = true → (image K false M).testBit 0 = true := by
+    intro M hM0
+    have hmem := mem_imageAux (K := K) (a := false) hM0 false (2 ^ K) (Nat.two_pow_pos K)
+    have hstep0 : stripStep K false false 0 = 0 := by simp [stripStep]
+    rwa [hstep0] at hmem
+  refine ⟨himg S h0, fun n => ?_⟩
+  induction n with
+  | zero => exact h0
+  | succ n ih =>
+    rw [zeros_succ]
+    exact himg (zeros K n S) ih
+
 end Ruliology.CellularAutomata.Rule30ZeroPredecessor

@@ -109,4 +109,36 @@ theorem no_padding_seed_of_vacuum_avoidance
   simpa only [Rule30FiniteStrips.EventuallyWord, Rule30StripCertificates.EventuallyWord,
     evol_seed] using h
 
+/-! ## Exact all-white characterization of `v = 0` and finite-configuration vacuum-avoidance exclusion -/
+
+/-- **Exact All-White Characterization of the Vacuum Code `v = 0` (`enc_eq_zero_iff_all_white`):**
+under `Rule30FiniteStrips.Enc x K t i v`, `v = 0` if and only if every strip cell `j < K` is white. -/
+theorem enc_eq_zero_iff_all_white {x : Int → Bool} {K t : Nat} {i : Int} {v : Nat}
+    (he : Rule30FiniteStrips.Enc x K t i v) :
+    v = 0 ↔ ∀ j, j < K → evol x t (i + (j + 1 : Nat)) = false := by
+  constructor
+  · rintro rfl j hj
+    have hpos : i + ((j + 1 : Nat) : Int) = i + 1 + (j : Int) := by omega
+    rw [hpos, ← he.2 j hj, Nat.zero_testBit]
+  · intro hall
+    by_cases hv0 : v = 0
+    · exact hv0
+    · obtain ⟨j, hjK, hblack⟩ := enc_nonzero_has_black he hv0
+      rw [hall j hjK] at hblack
+      cases hblack
+
+/-- **Finite-Configuration Version of the Generic Vacuum-Avoidance Criterion (`no_padding_finite_of_vacuum_avoidance`).** -/
+theorem no_padding_finite_of_vacuum_avoidance {x : Int → Bool}
+    (hfin : Rule30PeriodTwoSideways.FinConfig x) (hne : ∃ p, x p = true)
+    (i : Int) (u : List Bool) (K n G : Nat)
+    (hG : zeros K n (fullSet K) = G)
+    (hstable : image K false G = G)
+    (hsafe : (applyWord K u G).testBit 0 = false)
+    (r : Nat) (hrn : n ≤ r)
+    (hrpulse : 10 * u.length + 11 ≤ r)
+    (hrwidth : K + 9 * (u.length + 1) ≤ r) :
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ u) := by
+  obtain ⟨lo, hlo, hzero⟩ := exists_leftmost hfin hne
+  exact no_padding_of_vacuum_avoidance hlo hzero i u K n G hG hstable hsafe r hrn hrpulse hrwidth
+
 end Ruliology.CellularAutomata.Rule30WhitePaddingVacuumCriterion
