@@ -456,4 +456,113 @@ theorem low_from {a : Nat → Nat → Bool} {v : Nat} {w : Nat → Nat} (ha : Re
           exact ⟨s + 8, by simp only [lsum] at hs ⊢; omega, white_shift ih h hs399.1 hs399.2⟩
     · exact ⟨s, Nat.le_trans hs hlsum, step_black ha hv hw (by omega) ih hb⟩
 
+/-! ### 16-bit word reconstruction, simplified settling recurrence, linear front bounds, and shift-budget laws -/
+
+/-- **16-Bit Word Extensionality (`word16_ext_iff`):**
+`word16 f = word16 g` iff `f r = g r` for all `r < 16`. -/
+theorem word16_ext_iff (f g : Nat → Bool) :
+    word16 f = word16 g ↔ ∀ r, r < 16 → f r = g r := by
+  constructor
+  · intro h r hr
+    have hbit := congrArg (fun x => x.testBit r) h
+    rwa [word16_bit f r hr, word16_bit g r hr] at hbit
+  · intro h
+    exact word_eq (word16_lt f) (word16_lt g) (fun r hr => by rw [word16_bit f r hr, word16_bit g r hr, h r hr])
+
+/-- **Zero Characterization of `word16` (`word16_eq_zero_iff`).** -/
+theorem word16_eq_zero_iff (f : Nat → Bool) :
+    word16 f = 0 ↔ ∀ r, r < 16 → f r = false := by
+  constructor
+  · intro h r hr
+    have hbit := congrArg (fun x => x.testBit r) h
+    rwa [word16_bit f r hr, Nat.zero_testBit] at hbit
+  · intro h
+    exact word_zero (word16_lt f) (fun r hr => by rw [word16_bit f r hr, h r hr])
+
+/-- **Reconstruction of Any 16-Bit Number from `testBit` (`word16_of_testBit`).** -/
+theorem word16_of_testBit {x : Nat} (hx : x < 2 ^ 16) :
+    word16 (fun r => x.testBit r) = x :=
+  word_eq (word16_lt _) hx (fun r hr => word16_bit _ r hr)
+
+/-- **Uniqueness of the Word Function for a Strip (`Words_unique`).** -/
+theorem Words_unique {v : Nat} {w w' : Nat → Nat} (hw : Words v w) (hw' : Words v w') (j : Nat) :
+    w j = w' j :=
+  word_eq (hw.1 j) (hw'.1 j) (fun r hr => by rw [hw.2 j r hr, hw'.2 j r hr])
+
+theorem srch_lt_sixteen_aux (w m : Nat) : ∀ fuel, fuel ≤ 16 →
+    (∃ k, 16 - fuel ≤ k ∧ k < 16 ∧ w.testBit ((m + k) % 16) = true) →
+    srch w m fuel < 16
+  | 0, _, ⟨k, hk1, hk2, _⟩ => absurd hk2 (by omega)
+  | fuel + 1, hf, ⟨k, hk1, hk2, hk⟩ => by
+    simp only [srch]
+    split
+    · omega
+    · rename_i hw
+      apply srch_lt_sixteen_aux w m fuel (by omega)
+      refine ⟨k, ?_, hk2, hk⟩
+      rcases Nat.lt_or_ge k (16 - fuel) with hlt | hge
+      · have e : k = 16 - (fuel + 1) := by omega
+        subst e
+        exact absurd hk hw
+      · exact hge
+
+/-- **Strict Upper Bound `srch w m 16 < 16` for Non-Zero 16-Bit Words (`srch_lt_sixteen_of_ne_zero`).** -/
+theorem srch_lt_sixteen_of_ne_zero {w : Nat} (hw : w < 2 ^ 16) (hne : w ≠ 0) (m : Nat) :
+    srch w m 16 < 16 := by
+  obtain ⟨r, hr, hb⟩ := bit_of_ne hw hne
+  refine srch_lt_sixteen_aux w m 16 (Nat.le_refl _) ⟨(r + 16 - m % 16) % 16, by omega, Nat.mod_lt _ (by decide), ?_⟩
+  rw [show (m + (r + 16 - m % 16) % 16) % 16 = r by omega]
+  exact hb
+
+/-- **Simplified White-Wheel Settling Step (`F_white_simp`):**
+because `F w j ≤ F w (j + 1)`, a white wheel (`w (j + 1) = 0`) adds zero delay: `F w (j + 2) = F w (j + 1)`. -/
+theorem F_white_simp (w : Nat → Nat) (j : Nat) (hb : w (j + 1) = 0) :
+    F w (j + 2) = F w (j + 1) := by
+  rw [F_white w j hb, Nat.max_eq_right (F_mono w (by omega))]
+
+/-- **Simplified Black-Wheel Settling Step (`F_black_simp`):**
+because `F w j ≤ F w (j + 1)`, at a black wheel (`w (j + 1) ≠ 0`),
+`F w (j + 2) = F w (j + 1) + srch (w (j + 1)) (F w (j + 1)) 16 + 1`. -/
+theorem F_black_simp (w : Nat → Nat) (j : Nat) (hb : w (j + 1) ≠ 0) :
+    F w (j + 2) = F w (j + 1) + srch (w (j + 1)) (F w (j + 1)) 16 + 1 := by
+  rw [F_black w j hb, Nat.max_eq_right (F_mono w (by omega))]
+
+/-- **Per-Wheel Increment Bound `F w (j + 2) ≤ F w (j + 1) + 16` (`F_step_diff_le_sixteen`).** -/
+theorem F_step_diff_le_sixteen {w : Nat → Nat} (hw : ∀ j, w j < 2 ^ 16) (j : Nat) :
+    F w (j + 2) ≤ F w (j + 1) + 16 := by
+  by_cases hb : w (j + 1) = 0
+  · rw [F_white_simp w j hb]; omega
+  · have hlt := srch_lt_sixteen_of_ne_zero (hw (j + 1)) hb (F w (j + 1))
+    rw [F_black_simp w j hb]; omega
+
+/-- **Linear Settling Bound `F w (j + 1) ≤ 1 + 16 * j` and `F w j ≤ 16 * j` (`F_linear_bounds`).** -/
+theorem F_linear_bounds {w : Nat → Nat} (hw : ∀ j, w j < 2 ^ 16) (j : Nat) :
+    F w (j + 1) ≤ 1 + 16 * j ∧ F w j ≤ 16 * j := by
+  have h1 : ∀ k, F w (k + 1) ≤ 1 + 16 * k := by
+    intro k
+    induction k with
+    | zero => rw [F_one]; omega
+    | succ k ih =>
+      have hstep := F_step_diff_le_sixteen hw k
+      change F w (k + 2) ≤ 1 + 16 * (k + 1)
+      omega
+  refine ⟨h1 j, ?_⟩
+  cases j with
+  | zero => rw [F_zero]; omega
+  | succ k =>
+    have hk := h1 k
+    omega
+
+/-- **Shift-Budget Saturation Laws (`lsum_bounds_and_saturation`):**
+for all `n`, `lsum n ≤ 15`, `lsum n ≤ lsum (n + 1)`, and `lsum n = 15 ↔ 400 ≤ n`. -/
+theorem lsum_bounds_and_saturation (n : Nat) :
+    lsum n ≤ 15 ∧ lsum n ≤ lsum (n + 1) ∧ (lsum n = 15 ↔ 400 ≤ n) := by
+  unfold lsum
+  omega
+
+/-- **Monotonicity of `OnStrip` in Horizon `T` and Wheel `J` (`onStrip_mono`).** -/
+theorem onStrip_mono {a : Nat → Nat → Bool} {v s T T' J J' : Nat}
+    (hJ : J' ≤ J) (hT : T ≤ T') (h : OnStrip a v s T J) : OnStrip a v s T' J' :=
+  fun j hj t ht => h j (Nat.le_trans hj hJ) t (Nat.le_trans hT ht)
+
 end Ruliology.CellularAutomata.Rule30FourFrontsBase
