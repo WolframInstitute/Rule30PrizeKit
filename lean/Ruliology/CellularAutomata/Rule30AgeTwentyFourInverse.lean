@@ -317,4 +317,184 @@ theorem finite_row_aged_image_two_step_predecessor_true_edge
 #print axioms aged_image_two_step_predecessor_true_edge
 #print axioms finite_row_aged_image_two_step_predecessor_true_edge
 
+/-! ### Top-band cycle structure, sharpening `band_late` to age 26 and `late_twin` to age 25, 2-bit predecessor dichotomy, and backward finite-edge inheritance for `Theta` -/
+
+/-- **Strict Period-`2` Oscillation of `EdgeGood8` Under `R` (`EdgeGood8_period_two`):**
+every state `u` with `EdgeGood8 u = true` (`u ∈ {200, 222}`) satisfies `R u ≠ u` and
+`iterR 2 u = u`. -/
+theorem EdgeGood8_period_two {u : Nat} (h : EdgeGood8 u = true) :
+    R u ≠ u ∧ iterR 2 u = u := by
+  simp only [EdgeGood8, Bool.or_eq_true, beq_iff_eq] at h
+  rcases h with rfl | rfl <;> decide
+
+/-- **Two-Step Entry of `EdgeGood20` Into the Four-Cycle `C20` (`EdgeGood20_two_step_inC20`):**
+for every `u` with `EdgeGood20 u = true`, two steps `iterR 2 u` lie in the four-cycle `inC20`
+(`820683, 822904, 911005, 912610`) and satisfy `R (iterR 2 u) ≠ iterR 2 u` and
+`iterR 6 u = iterR 2 u`. -/
+theorem EdgeGood20_two_step_inC20 {u : Nat} (h : EdgeGood20 u = true) :
+    inC20 (iterR 2 u) = true ∧ R (iterR 2 u) ≠ iterR 2 u ∧ iterR 6 u = iterR 2 u := by
+  rcases good20_iff.mp h with rfl | rfl | rfl | rfl | rfl | rfl <;> decide
+
+/-- **Sharpened Top-`20` Four-Cycle Settling at Age `26` (`band_from_age_twenty_six`):**
+for every nonzero `y` and every `t ≥ 26` (sharpening `Rule30LateTwins.band_late` from `45` down
+to `26`), the top twenty cells of `iter F t y` lie on `C20`. -/
+theorem band_from_age_twenty_six {y : Nat} (hy : y ≠ 0) {t : Nat} (ht : 26 ≤ t) :
+    inC20 (iter F t y >>> (y.log2 + t - 19)) = true := by
+  obtain ⟨d, rfl⟩ : ∃ d, t = (24 + d) + 2 := ⟨t - 26, by omega⟩
+  have hgood := top20_from_age_twenty_four y (24 + d) hy (by omega)
+  have hshift : iter F ((24 + d) + 2) y >>> (y.log2 + ((24 + d) + 2) - 19) =
+      iterR 2 (iter F (24 + d) y >>> (y.log2 + (24 + d) - 19)) := by
+    rw [iter_add F (24 + d) 2 y,
+      show y.log2 + ((24 + d) + 2) - 19 = (y.log2 + (24 + d) - 19) + 2 by omega,
+      iter_F_shiftRight]
+  rw [hshift]
+  exact (EdgeGood20_two_step_inC20 hgood).1
+
+/-- **Stacked Reset Factors Across All Six States of `EdgeGood20` (`chains_edgeGood20`):**
+every state `c` with `EdgeGood20 c = true` carries a reset factor in `c` and a deeper reset
+factor in `R c`. -/
+theorem chains_edgeGood20 (c : Nat) (hc : EdgeGood20 c = true) :
+    ∃ i1 k1 i2 k2, Fac c i1 k1 ∧ Fac (R c) i2 k2 ∧ i2 + 3 * k2 + 4 ≤ i1 := by
+  rcases good20_iff.mp hc with rfl | rfl | rfl | rfl | rfl | rfl
+  · exact ⟨14, 0, 6, 0, ⟨Or.inl rfl, by decide⟩, ⟨Or.inl rfl, by decide⟩, by decide⟩
+  · exact ⟨14, 0, 6, 0, ⟨Or.inl rfl, by decide⟩, ⟨Or.inl rfl, by decide⟩, by decide⟩
+  · exact ⟨14, 0, 0, 0, ⟨Or.inl rfl, by decide⟩, ⟨Or.inl rfl, by decide⟩, by decide⟩
+  · exact ⟨12, 1, 2, 1, ⟨Or.inr rfl, by decide⟩, ⟨Or.inr rfl, by decide⟩, by decide⟩
+  · exact ⟨12, 1, 2, 1, ⟨Or.inr rfl, by decide⟩, ⟨Or.inr rfl, by decide⟩, by decide⟩
+  · exact ⟨12, 1, 2, 0, ⟨Or.inr rfl, by decide⟩, ⟨Or.inl rfl, by decide⟩, by decide⟩
+
+/-- **Sharpened Late Twin Existence From Age `25` (`twin_from_age_twenty_five`):**
+for every nonzero natural `y` and every `t ≥ 25` (sharpening `Rule30LateTwins.late_twin` from
+`46` down to `25`), the row `x = iter F (t - 2) y` has a twin `x' ≠ x` of the same width, with
+the same bit `0` and `F (F x') = iter F t y`. -/
+theorem twin_from_age_twenty_five {y : Nat} (hy : y ≠ 0) {t : Nat} (ht : 25 ≤ t) :
+    ∃ x', x' ≠ iter F (t - 2) y ∧ x'.testBit 0 = (iter F (t - 2) y).testBit 0 ∧
+      F (F x') = iter F t y ∧ Top x' (y.log2 + (t - 2)) := by
+  have e1 : iter F (t - 1) y = F (iter F (t - 2) y) := by
+    rw [show t - 1 = (t - 2) + 1 by omega]; rfl
+  have e2 : iter F t y = F (F (iter F (t - 2) y)) := by
+    rw [← e1, show t = (t - 1) + 1 by omega]; rfl
+  obtain ⟨c, hc⟩ : ∃ c, iter F (t - 1) y >>> (y.log2 + (t - 1) - 19) = c := ⟨_, rfl⟩
+  have hin : EdgeGood20 c = true := hc ▸ top20_from_age_twenty_four y (t - 1) hy (by omega)
+  obtain ⟨i1, k1, i2, k2, f1, f2, hi⟩ := chains_edgeGood20 c hin
+  have b1 : ∀ j, (iter F (t - 1) y).testBit ((y.log2 + (t - 1) - 19) + i1 + j) = c.testBit (i1 + j) := by
+    intro j
+    rw [← hc, Nat.testBit_shiftRight, Nat.add_assoc]
+  have b2 : ∀ j, (F (iter F (t - 1) y)).testBit ((y.log2 + (t - 1) - 19) + 1 + i2 + j) =
+      (R c).testBit (i2 + j) := by
+    intro j
+    rw [← hc, ← F_shiftRight, Nat.testBit_shiftRight, Nat.add_assoc, Nat.add_assoc]
+  have g1 := fac_transfer b1 f1
+  have g2 := fac_transfer b2 f2
+  rw [e1] at g1 g2
+  obtain ⟨x', hne, hb0, hF⟩ := twin_of_factors g2 g1 (by omega)
+  refine ⟨x', hne, hb0, by rw [hF, e2], ?_⟩
+  have hx'0 : x' ≠ 0 := by
+    intro h0
+    have hT := Top_iter (top_log2 hy) t
+    rw [e2, ← hF, h0, IntegerForm.F_zero, IntegerForm.F_zero] at hT
+    exact absurd hT.1 (by rw [Nat.zero_testBit]; decide)
+  have hT' := Top_iter (top_log2 hx'0) 2
+  have hT2 := Top_iter (top_log2 hy) t
+  rw [e2, ← hF] at hT2
+  have : x'.log2 + 2 = y.log2 + t := Top_unique hT' hT2
+  rw [show y.log2 + (t - 2) = x'.log2 by omega]
+  exact top_log2 hx'0
+
+/-- **Sharpened Off-Orbit Immortal Twins From Even Age `26` (`twin_off_orbit_from_age_twenty_six`):**
+if `y` never reaches an even value under `G` and `t ≥ 26` is even (sharpening
+`Rule30LateTwins.late_twin_off_orbit` from `46` down to `26`), there exists `x'` off the `G`-orbit
+of `y` (`∀ j, x' ≠ iter G j y`) such that `G x' = iter F t y` and `∀ s, iter G s x' % 2 = 1`. -/
+theorem twin_off_orbit_from_age_twenty_six {y : Nat} (hy : ∀ s, iter G s y % 2 = 1)
+    {t : Nat} (ht : 26 ≤ t) (he : t % 2 = 0) :
+    ∃ x', (∀ s, iter G s x' % 2 = 1) ∧ G x' = iter F t y ∧ ∀ j, x' ≠ iter G j y := by
+  have hy0 : y ≠ 0 := by
+    intro h
+    have := hy 0
+    rw [h] at this
+    exact absurd this (by decide)
+  obtain ⟨x', hne, hb0, hF, hT⟩ := twin_from_age_twenty_five (t := t) hy0 (by omega)
+  refine ⟨x', ?_, hF, fun j hj => ?_⟩
+  · intro s
+    cases s with
+    | zero =>
+      have h := hy ((t - 2) / 2)
+      rw [iter_G_eq_iter_F_two_mul, show 2 * ((t - 2) / 2) = t - 2 by omega] at h
+      show x' % 2 = 1
+      rw [odd_iff_testBit, hb0, ← odd_iff_testBit]
+      exact h
+    | succ s =>
+      rw [iter_succ']
+      have hG : G x' = iter G (t / 2) y := by
+        rw [iter_G_eq_iter_F_two_mul, show 2 * (t / 2) = t by omega]
+        exact hF
+      rw [hG, ← iter_add]
+      exact hy _
+  · have hTj := Top_iter (top_log2 hy0) (2 * j)
+    rw [← iter_G_eq_iter_F_two_mul, ← hj] at hTj
+    have : y.log2 + (t - 2) = y.log2 + 2 * j := Top_unique hT hTj
+    apply hne
+    rw [hj, iter_G_eq_iter_F_two_mul, show 2 * j = t - 2 by omega]
+
+/-- **Unique 1-Bit Parameterization of One-Step Predecessors (`predecessor_unique_of_bit1`):**
+if `X` and `X'` are one-step predecessors of the same row `y` on `k ≥ 1` and agree at depth `1`
+(`X 1 = X' 1`), then `X k = X' k` for all `k ≥ 1`. -/
+theorem predecessor_unique_of_bit1 {y X X' : Nat → Bool}
+    (hX : ∀ k, 1 ≤ k → zrow X 1 k = y k)
+    (hX' : ∀ k, 1 ≤ k → zrow X' 1 k = y k)
+    (h1 : X 1 = X' 1) :
+    ∀ k, 1 ≤ k → X k = X' k := by
+  intro k hk
+  have e1 := eq_back (L := X) (y := y) hX k
+  have e2 := eq_back (L := X') (y := y) hX' k
+  rw [zrow_zero_of_pos X hk] at e1
+  rw [zrow_zero_of_pos X' hk] at e2
+  rw [e1, e2, h1]
+
+/-- **Unique 2-Bit Parameterization of Two-Step Predecessors (`two_step_predecessor_unique_of_bits`):**
+if `V` and `V'` are two-step predecessors of the same row `y` on `k ≥ 1` (`zrow V 2 k = y k` and
+`zrow V' 2 k = y k`) with `V 1 = V' 1` and `zrow V 1 1 = zrow V' 1 1`, then `V k = V' k` for
+all `k ≥ 1`. -/
+theorem two_step_predecessor_unique_of_bits {y V V' : Nat → Bool}
+    (hV : ∀ k, 1 ≤ k → zrow V 2 k = y k)
+    (hV' : ∀ k, 1 ≤ k → zrow V' 2 k = y k)
+    (h0 : V 1 = V' 1)
+    (h1 : zrow V 1 1 = zrow V' 1 1) :
+    ∀ k, 1 ≤ k → V k = V' k := by
+  have hmid : ∀ k, 1 ≤ k → zrow V 1 k = zrow V' 1 k := by
+    refine predecessor_unique_of_bit1 (y := y)
+      (fun k hk => ?_) (fun k hk => ?_) h1
+    · rw [← zrow_shift V 1 1 k]; exact hV k hk
+    · rw [← zrow_shift V' 1 1 k]; exact hV' k hk
+  exact predecessor_unique_of_bit1 (y := zrow V' 1) hmid (fun _ _ => rfl) h0
+
+/-- **Backward True-Edge Inheritance for `Theta f` From Any Age-`24` Finite Image
+(`theta_true_edge_of_shift_eq_aged_image`):** if `L` has last black cell `m ≥ 1` and for some
+`t ≥ 24` the shifted reconstruction `Theta (fun s => f (s + 1))` agrees on `k ≥ 1` with `zrow L t`,
+then `Theta f` itself has exact last black cell `m + t - 2` and is finitely supported. -/
+theorem theta_true_edge_of_shift_eq_aged_image {L f : Nat → Bool} {m t : Nat}
+    (hm : 1 ≤ m) (hedge : L m = true) (hfin : ∀ k, m < k → L k = false) (ht : 24 ≤ t)
+    (hshift : ∀ k, 1 ≤ k → Theta (fun s => f (s + 1)) k = zrow L t k) :
+    Theta f (m + t - 2) = true ∧
+    (∀ k, m + t - 2 < k → Theta f k = false) ∧
+    FinSupp (Theta f) := by
+  have hpre : ∀ k, 1 ≤ k → zrow (Theta f) 2 k = zrow L t k := by
+    intro k hk
+    rw [congrFun (two_step_shift f) k]
+    exact hshift k hk
+  obtain ⟨htrue, htail⟩ :=
+    finite_row_aged_image_two_step_predecessor_true_edge hm hedge hfin ht (Theta f) hpre
+  exact ⟨htrue, htail, ⟨m + t - 2, htail⟩⟩
+
+/-- **Disjointness of Infinite `Theta f` Starts From Shifted Age-`24` Finite Images
+(`not_theta_shift_eq_aged_image_of_not_finSupp`):** if `¬ FinSupp (Theta f)`, then for every
+finite row `L` with last black cell `m ≥ 1` and every age `t ≥ 24`, `Theta (fun s => f (s + 1))`
+cannot agree with `zrow L t` on `k ≥ 1`. -/
+theorem not_theta_shift_eq_aged_image_of_not_finSupp {L f : Nat → Bool} {m t : Nat}
+    (hinf : ¬ FinSupp (Theta f)) (hm : 1 ≤ m) (hedge : L m = true)
+    (hfin : ∀ k, m < k → L k = false) (ht : 24 ≤ t) :
+    ¬ ∀ k, 1 ≤ k → Theta (fun s => f (s + 1)) k = zrow L t k := by
+  intro hshift
+  exact hinf (theta_true_edge_of_shift_eq_aged_image hm hedge hfin ht hshift).2.2
+
 end Ruliology.CellularAutomata.Rule30AgeTwentyFourInverse

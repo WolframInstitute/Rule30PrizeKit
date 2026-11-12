@@ -255,4 +255,74 @@ theorem finite_row_aged_image_all_predecessors_true_edge
 #print axioms aged_image_predecessor_true_edge
 #print axioms finite_row_aged_image_all_predecessors_true_edge
 
+/-! ### Constructive two-branch 1-step predecessors, exact two-branch equivalence, outer synchronization, and unique `InX` predecessor at age 8 -/
+
+/-- **Constructive Two-Branch True-Edge Theorem at Age `8` (`back_aged_image_true_edge`):**
+for any finite row `L` with last black cell `m ≥ 1`, any age `t ≥ 8`, and either initial wall bit
+`b : Bool`, the backward transducer run `back b (zrow L t)` is a one-step predecessor of `zrow L t`
+with exact last black depth `m + t - 1`. -/
+theorem back_aged_image_true_edge {L : Nat → Bool} {m t : Nat}
+    (hm : 1 ≤ m) (hedge : L m = true) (hfin : ∀ k, m < k → L k = false) (ht : 8 ≤ t) (b : Bool) :
+    (∀ k, 1 ≤ k → zrow (back b (zrow L t)) 1 k = zrow L t k) ∧
+    back b (zrow L t) (m + t - 1) = true ∧
+    ∀ k, m + t - 1 < k → back b (zrow L t) k = false := by
+  have hpre : ∀ k, 1 ≤ k → zrow (back b (zrow L t)) 1 k = zrow L t k :=
+    fun k hk => zrow_back b (zrow L t) k hk
+  exact ⟨hpre,
+    finite_row_aged_image_all_predecessors_true_edge hm hedge hfin ht (back b (zrow L t)) hpre⟩
+
+/-- **Exact Two-Branch Characterization of All One-Step Predecessors
+(`predecessor_iff_eq_back_false_or_true`):** for any row `y : Nat → Bool` and any sequence
+`X : Nat → Bool`, `zrow X 1` agrees with `y` on `k ≥ 1` if and only if `X` agrees on `k ≥ 1`
+with either `back false y` or `back true y`. -/
+theorem predecessor_iff_eq_back_false_or_true (y X : Nat → Bool) :
+    (∀ k, 1 ≤ k → zrow X 1 k = y k) ↔
+      (∀ k, 1 ≤ k → X k = back false y k) ∨ (∀ k, 1 ≤ k → X k = back true y k) := by
+  constructor
+  · intro hpre
+    cases hb : X 1
+    · left
+      intro k hk
+      have h := eq_back (L := X) (y := y) hpre k
+      rwa [zrow_zero_of_pos X hk, hb] at h
+    · right
+      intro k hk
+      have h := eq_back (L := X) (y := y) hpre k
+      rwa [zrow_zero_of_pos X hk, hb] at h
+  · rintro (hf | ht) k hk
+    · rw [zrow_congr hf 1 k, zrow_back false y k hk]
+    · rw [zrow_congr ht 1 k, zrow_back true y k hk]
+
+/-- **Outer Synchronization of `back false` and `back true` From the True Edge Onward
+(`back_false_eq_back_true_from_edge`):** for any finite row `L` with last black cell `m ≥ 1` and
+age `t ≥ 8`, `back false (zrow L t)` and `back true (zrow L t)` agree at every depth
+`k ≥ m + t - 1`. -/
+theorem back_false_eq_back_true_from_edge {L : Nat → Bool} {m t : Nat}
+    (hm : 1 ≤ m) (hedge : L m = true) (hfin : ∀ k, m < k → L k = false) (ht : 8 ≤ t)
+    {k : Nat} (hk : m + t - 1 ≤ k) :
+    back false (zrow L t) k = back true (zrow L t) k := by
+  have hf := (back_aged_image_true_edge hm hedge hfin ht false).2
+  have htr := (back_aged_image_true_edge hm hedge hfin ht true).2
+  by_cases heq : k = m + t - 1
+  · subst heq; rw [hf.1, htr.1]
+  · rw [hf.2 k (by omega), htr.2 k (by omega)]
+
+/-- **Unique `InX` One-Step Predecessor and Exact Edge at Age `8`
+(`inX_predecessor_aged_image_unique_and_true_edge`):** if `X` is in `InX` and `zrow X 1` agrees
+on `k ≥ 1` with `zrow L t` (`m ≥ 1, t ≥ 8`), then `X k = back true (zrow L t) k` for all `k ≥ 1`
+and `X` has exact last black depth `m + t - 1`. -/
+theorem inX_predecessor_aged_image_unique_and_true_edge {L X : Nat → Bool} {m t : Nat}
+    (hm : 1 ≤ m) (hedge : L m = true) (hfin : ∀ k, m < k → L k = false) (ht : 8 ≤ t)
+    (hX : InX X) (hpre : ∀ k, 1 ≤ k → zrow X 1 k = zrow L t k) :
+    (∀ k, 1 ≤ k → X k = back true (zrow L t) k) ∧
+    X (m + t - 1) = true ∧
+    ∀ k, m + t - 1 < k → X k = false := by
+  refine ⟨fun k hk => ?_,
+    finite_row_aged_image_all_predecessors_true_edge hm hedge hfin ht X hpre⟩
+  have h := eq_back (L := X) (y := zrow L t) hpre k
+  have hX1 : X 1 = true := by
+    have h0 := hX 0
+    rwa [Nat.mul_zero, zrow_zero_of_pos X (Nat.le_refl 1)] at h0
+  rwa [zrow_zero_of_pos X hk, hX1] at h
+
 end Ruliology.CellularAutomata.Rule30AgeEightInverse
