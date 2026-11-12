@@ -480,4 +480,156 @@ theorem least_period_16 : ∀ d, d < 16 → d ≠ 0 →
     rowAt 87867 A0 d ≠ A0 ∧ rowAt 87867 A1 d ≠ A1 ∧ rowAt 87867 B0 d ≠ B0 ∧ rowAt 87867 B1 d ≠ B1 := by
   decide +kernel
 
+/-! ### Canonical modulo-16 phase reduction, phase uniqueness, fork-tree identities, and return divisibility -/
+
+/-- **Modulo-16 Shift Reduction for `Aligned` (`aligned_iff_aligned_mod_sixteen`):**
+for any strip `v` with `rowAt 87867 v 16 = v`, `Aligned a v s J` holds iff `Aligned a v (s % 16) J`. -/
+theorem aligned_iff_aligned_mod_sixteen {a : Nat → Nat → Bool} {v : Nat}
+    (hv : rowAt 87867 v 16 = v) (s J : Nat) :
+    Aligned a v s J ↔ Aligned a v (s % 16) J := by
+  constructor
+  · intro hal j hj
+    obtain ⟨T, hT⟩ := hal j hj
+    refine ⟨T + (s / 16) * 16, fun t ht => ?_⟩
+    have h1 := hT (t - (s / 16) * 16) (by omega)
+    have hidx : t - (s / 16) * 16 + s = t + s % 16 := by omega
+    rw [hidx] at h1
+    have hper := Sp_add_mul hv j (t - (s / 16) * 16) (s / 16)
+    have hidx2 : t - (s / 16) * 16 + (s / 16) * 16 = t := by omega
+    rw [hidx2] at hper
+    rw [h1, ← hper]
+  · intro hal j hj
+    obtain ⟨T, hT⟩ := hal j hj
+    refine ⟨T, fun t ht => ?_⟩
+    have h1 := hT (t + (s / 16) * 16) (by omega)
+    have hidx : t + (s / 16) * 16 + s % 16 = t + s := by omega
+    rw [hidx, Sp_add_mul hv] at h1
+    exact h1
+
+/-- **Primitive Period-16 Law for Wheel 400 on `B1` (`prim_B1`),** inherited from `B0` via `pair_B0_B1`. -/
+theorem prim_B1 : ∀ d, d < 16 → d ≠ 0 → ∃ p, p < 16 ∧ Sp B1 400 (p + d) ≠ Sp B1 400 p := by
+  intro d hd hne
+  obtain ⟨p, hp, hdiff⟩ := prim_B0 d hd hne
+  refine ⟨p, hp, ?_⟩
+  have h1 : Sp B0 400 (p + d) = Sp B1 400 (p + d) := by
+    rw [Sp_mod B0_return, Sp_mod B1_return]
+    exact pair_B0_B1.2 ((p + d) % 16) (Nat.mod_lt _ (by omega))
+  have h2 : Sp B0 400 p = Sp B1 400 p := pair_B0_B1.2 p hp
+  rw [← h1, ← h2]
+  exact hdiff
+
+/-- **Modulo-16 Shift Uniqueness on Any Strip with Primitive Wheel 400 (`aligned_shift_mod_sixteen_unique`):**
+if `400 ≤ J`, `Aligned a v s J`, and `Aligned a v s' J`, then `s % 16 = s' % 16`. -/
+theorem aligned_shift_mod_sixteen_unique {a : Nat → Nat → Bool} {v s s' J : Nat}
+    (hv : rowAt 87867 v 16 = v)
+    (hp : ∀ d, d < 16 → d ≠ 0 → ∃ p, p < 16 ∧ Sp v 400 (p + d) ≠ Sp v 400 p)
+    (hJ : 400 ≤ J) (hs : Aligned a v s J) (hs' : Aligned a v s' J) :
+    s % 16 = s' % 16 := by
+  obtain ⟨T1, h1⟩ := hs 400 hJ
+  obtain ⟨T2, h2⟩ := hs' 400 hJ
+  apply Classical.byContradiction
+  intro hne
+  let d := (s + 15 * s') % 16
+  have hd_lt : d < 16 := Nat.mod_lt _ (by omega)
+  have hd_ne : d ≠ 0 := by omega
+  obtain ⟨p, hp_lt, hp_ne⟩ := hp d hd_lt hd_ne
+  let t1 := p + (T1 + T2) * 16 + 16 * s'
+  let t2 := p + (T1 + T2) * 16 + s + 15 * s'
+  have e1 := h1 t1 (by omega)
+  have e2 := h2 t2 (by omega)
+  have hsum : t2 + s' = t1 + s := by omega
+  rw [hsum] at e2
+  have heq : Sp v 400 t2 = Sp v 400 t1 := e2.symm.trans e1
+  have hm2 : t2 % 16 = (p + d) % 16 := by omega
+  have hm1 : t1 % 16 = p := by omega
+  rw [Sp_mod hv 400 t2, hm2, ← Sp_mod hv 400 (p + d),
+    Sp_mod hv 400 t1, hm1] at heq
+  exact hp_ne heq
+
+/-- **Canonical 64-State Phase Classification (`canonical_phase_classification`):**
+every recurrence array `a` with `a 0 0 = true` aligns through wheel `87,866` with one of `A0, A1, B0, B1`
+at a canonical phase shift `r < 16`. -/
+theorem canonical_phase_classification {a : Nat → Nat → Bool} (ha : Recurrence a) (ha0 : a 0 0 = true) :
+    ∃ r, r < 16 ∧
+      (Aligned a A0 r 87866 ∨ Aligned a A1 r 87866 ∨ Aligned a B0 r 87866 ∨ Aligned a B1 r 87866) := by
+  obtain ⟨s, hs⟩ := classification ha ha0
+  refine ⟨s % 16, Nat.mod_lt _ (by omega), ?_⟩
+  rcases hs with h | h | h | h
+  · exact Or.inl ((aligned_iff_aligned_mod_sixteen A0_return s 87866).mp h)
+  · exact Or.inr (Or.inl ((aligned_iff_aligned_mod_sixteen A1_return s 87866).mp h))
+  · exact Or.inr (Or.inr (Or.inl ((aligned_iff_aligned_mod_sixteen B0_return s 87866).mp h)))
+  · exact Or.inr (Or.inr (Or.inr ((aligned_iff_aligned_mod_sixteen B1_return s 87866).mp h)))
+
+/-- **Canonical Phase Uniqueness on Each of the Four Strips (`canonical_phase_unique`):**
+if `r < 16` and `r' < 16` both align `a` with the same strip among `A0, A1, B0, B1`, then `r = r'`. -/
+theorem canonical_phase_unique {a : Nat → Nat → Bool} {r r' : Nat} (hr : r < 16) (hr' : r' < 16) :
+    (Aligned a A0 r 87866 → Aligned a A0 r' 87866 → r = r') ∧
+    (Aligned a A1 r 87866 → Aligned a A1 r' 87866 → r = r') ∧
+    (Aligned a B0 r 87866 → Aligned a B0 r' 87866 → r = r') ∧
+    (Aligned a B1 r 87866 → Aligned a B1 r' 87866 → r = r') := by
+  have hm : r % 16 = r ∧ r' % 16 = r' := ⟨Nat.mod_eq_of_lt hr, Nat.mod_eq_of_lt hr'⟩
+  refine ⟨fun h1 h2 => ?_, fun h1 h2 => ?_, fun h1 h2 => ?_, fun h1 h2 => ?_⟩
+  · have := aligned_shift_mod_sixteen_unique A0_return prim_A0 (by omega) h1 h2; omega
+  · have := aligned_shift_mod_sixteen_unique A1_return prim_A1 (by omega) h1 h2; omega
+  · have := aligned_shift_mod_sixteen_unique B0_return prim_B0 (by omega) h1 h2; omega
+  · have := aligned_shift_mod_sixteen_unique B1_return prim_B1 (by omega) h1 h2; omega
+
+/-- **All-Time Agreement of All Four Strips Below the First Fork (`Sp_all_four_eq_below_53208`):**
+for every `j ≤ 53,207` and every tick `t`, `A1`, `B0`, and `B1` agree identically with `A0`. -/
+theorem Sp_all_four_eq_below_53208 {j : Nat} (hj : j ≤ 53207) (t : Nat) :
+    Sp A1 j t = Sp A0 j t ∧ Sp B0 j t = Sp A0 j t ∧ Sp B1 j t = Sp A0 j t := by
+  have hA1 : Sp A1 j t = Sp A0 j t := low_of_phase A0_return A1_return low_A1 j t (by omega)
+  have hB0 : Sp B0 j t = Sp A0 j t := low_of_phase A0_return B0_return low_B0 j t (by omega)
+  have hB1 : Sp B1 j t = Sp B0 j t := low_of_phase B0_return B1_return low_B1 j t (by omega)
+  exact ⟨hA1, hB0, hB1.trans hB0⟩
+
+/-- **All-Time Agreement and Fork-Complement Law at Wheel `58,287` (`Sp_A1_A0_fork_58287`).** -/
+theorem Sp_A1_A0_fork_58287 (t : Nat) :
+    (∀ j, j ≤ 58286 → Sp A1 j t = Sp A0 j t) ∧ Sp A1 58287 t = !Sp A0 58287 t :=
+  ⟨fun j hj => low_of_phase A0_return A1_return low_A1 j t (by omega),
+   comp_of_phase A0_return A1_return top_A1 t⟩
+
+/-- **All-Time Agreement and Fork-Complement Law at Wheel `72,576` (`Sp_B1_B0_fork_72576`).** -/
+theorem Sp_B1_B0_fork_72576 (t : Nat) :
+    (∀ j, j ≤ 72575 → Sp B1 j t = Sp B0 j t) ∧ Sp B1 72576 t = !Sp B0 72576 t :=
+  ⟨fun j hj => low_of_phase B0_return B1_return low_B1 j t (by omega),
+   comp_of_phase B0_return B1_return top_B1 t⟩
+
+/-- **All-Time Fork-Complement Law Between the `B` and `A` Branches at Wheel `53,208` (`Sp_B_A_fork_53208`).** -/
+theorem Sp_B_A_fork_53208 (t : Nat) :
+    Sp B0 53208 t = !Sp A0 53208 t ∧ Sp B1 53208 t = !Sp A0 53208 t := by
+  have hB0 : Sp B0 53208 t = !Sp A0 53208 t := comp_of_phase A0_return B0_return top_B0 t
+  have hB1 : Sp B1 53208 t = Sp B0 53208 t := low_of_phase B0_return B1_return low_B1 53208 t (by omega)
+  exact ⟨hB0, hB1.trans hB0⟩
+
+/-- **Exact Modulo-16 Return Divisibility Characterization for `A0, A1, B0, B1` (`rowAt_eq_self_iff_mod_sixteen_eq_zero`).** -/
+theorem rowAt_eq_self_iff_mod_sixteen_eq_zero (d : Nat) :
+    (rowAt 87867 A0 d = A0 ↔ d % 16 = 0) ∧
+    (rowAt 87867 A1 d = A1 ↔ d % 16 = 0) ∧
+    (rowAt 87867 B0 d = B0 ↔ d % 16 = 0) ∧
+    (rowAt 87867 B1 d = B1 ↔ d % 16 = 0) := by
+  have hdiv : d = d % 16 + (d / 16) * 16 := by omega
+  have hA0 : rowAt 87867 A0 d = rowAt 87867 A0 (d % 16) := by
+    conv => lhs; rw [hdiv]
+    exact rowAt_add_mul A0_return (d % 16) (d / 16)
+  have hA1 : rowAt 87867 A1 d = rowAt 87867 A1 (d % 16) := by
+    conv => lhs; rw [hdiv]
+    exact rowAt_add_mul A1_return (d % 16) (d / 16)
+  have hB0 : rowAt 87867 B0 d = rowAt 87867 B0 (d % 16) := by
+    conv => lhs; rw [hdiv]
+    exact rowAt_add_mul B0_return (d % 16) (d / 16)
+  have hB1 : rowAt 87867 B1 d = rowAt 87867 B1 (d % 16) := by
+    conv => lhs; rw [hdiv]
+    exact rowAt_add_mul B1_return (d % 16) (d / 16)
+  rw [hA0, hA1, hB0, hB1]
+  have hlt : d % 16 < 16 := Nat.mod_lt _ (by omega)
+  refine ⟨⟨fun h => ?_, fun h => by rw [h]; rfl⟩,
+          ⟨fun h => ?_, fun h => by rw [h]; rfl⟩,
+          ⟨fun h => ?_, fun h => by rw [h]; rfl⟩,
+          ⟨fun h => ?_, fun h => by rw [h]; rfl⟩⟩
+  · apply Classical.byContradiction; intro hne; exact (least_period_16 (d % 16) hlt hne).1 h
+  · apply Classical.byContradiction; intro hne; exact (least_period_16 (d % 16) hlt hne).2.1 h
+  · apply Classical.byContradiction; intro hne; exact (least_period_16 (d % 16) hlt hne).2.2.1 h
+  · apply Classical.byContradiction; intro hne; exact (least_period_16 (d % 16) hlt hne).2.2.2 h
+
 end Ruliology.CellularAutomata.Rule30FourLeftSides
