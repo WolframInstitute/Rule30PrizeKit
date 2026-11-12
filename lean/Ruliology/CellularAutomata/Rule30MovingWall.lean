@@ -984,6 +984,54 @@ theorem edge_law_tail {H : Nat → Int → Bool} (hH : IsR30Z H) (hag : ∀ x, x
   · rw [hc x (by omega)]; exact hE x hx
   · rw [hc _ (by omega)]; exact hs i hi
 
+/-! ### Quantifier-free intact half-plane, mismatch band, and `19k`-tick displacement bounds for `Ring57` -/
+
+/-- **Quantifier-Free Intact Background Half-Plane for `Ring57` (`edge_tail_intact_halfplane`):**
+for every evolution `H` agreeing with `Gedge 0` on `x ≤ 252`, every `t ≥ 300`, and every column `x`
+with `19 * (x + 72) + 5 * ((t : Int) - 300) ≤ -14`, the background is intact (`H t x = E t x`). -/
+theorem edge_tail_intact_halfplane {H : Nat → Int → Bool} (hH : IsR30Z H)
+    (hag : ∀ x, x ≤ 252 → H 0 x = Gedge 0 x)
+    (t : Nat) (ht : 300 ≤ t) (x : Int)
+    (hx : 19 * (x + 72) + 5 * ((t : Int) - 300) ≤ -14) :
+    H t x = E t x := by
+  obtain ⟨A, hE, -, hlo, -⟩ := edge_law_tail hH hag t ht
+  exact hE x (by omega)
+
+/-- **Quantifier-Free Intact Background Half-Plane for `Ring57.Gedge` (`edge_intact_halfplane`).** -/
+theorem edge_intact_halfplane (t : Nat) (ht : 300 ≤ t) (x : Int)
+    (hx : 19 * (x + 72) + 5 * ((t : Int) - 300) ≤ -14) :
+    Gedge t x = E t x :=
+  edge_tail_intact_halfplane Gedge_isR30 (fun _ _ => rfl) t ht x hx
+
+/-- **Quantifier-Free Mismatch Affine Strip for `Ring57` (`edge_tail_mismatch_in_band`):**
+for every evolution `H` agreeing with `Gedge 0` on `x ≤ 252` and every `t ≥ 300`, there exists a
+column `x` in the affine strip `5 ≤ 19 * (x + 72) + 5 * (t - 300) ≤ 478` where `H t x ≠ E t x`. -/
+theorem edge_tail_mismatch_in_band {H : Nat → Int → Bool} (hH : IsR30Z H)
+    (hag : ∀ x, x ≤ 252 → H 0 x = Gedge 0 x) (t : Nat) (ht : 300 ≤ t) :
+    ∃ x : Int, H t x ≠ E t x ∧
+      5 ≤ 19 * (x + 72) + 5 * ((t : Int) - 300) ∧
+      19 * (x + 72) + 5 * ((t : Int) - 300) ≤ 478 := by
+  obtain ⟨A, -, ⟨x, hx1, hx2, hne⟩, hlo, hhi⟩ := edge_law_tail hH hag t ht
+  exact ⟨x, hne, by omega, by omega⟩
+
+/-- **Quantifier-Free Mismatch Affine Strip for `Ring57.Gedge` (`edge_mismatch_in_band`).** -/
+theorem edge_mismatch_in_band (t : Nat) (ht : 300 ≤ t) :
+    ∃ x : Int, Gedge t x ≠ E t x ∧
+      5 ≤ 19 * (x + 72) + 5 * ((t : Int) - 300) ∧
+      19 * (x + 72) + 5 * ((t : Int) - 300) ≤ 478 :=
+  edge_tail_mismatch_in_band Gedge_isR30 (fun _ _ => rfl) t ht
+
+/-- **Exact `19k`-Tick Displacement Bounds with `±1` Jitter for `Ring57` (`anchor_nineteen_mul_shift_bounds`):**
+because `22 - (-14) = 36 < 2 * 19`, any valid anchors `A_t` at tick `t` and `A_t'` at tick `t + 19 * k`
+satisfy `-5 * k - 1 ≤ A_t' - A_t ≤ -5 * k + 1` (in particular, `|A₁ - A₂| ≤ 1` when `k = 0`). -/
+theorem anchor_nineteen_mul_shift_bounds (t k : Nat) (A_t A_t' : Int)
+    (hlo : -14 ≤ 19 * (A_t + 72) + 5 * ((t : Int) - 300))
+    (hhi : 19 * (A_t + 72) + 5 * ((t : Int) - 300) ≤ 22)
+    (hlo' : -14 ≤ 19 * (A_t' + 72) + 5 * (((t + 19 * k : Nat) : Int) - 300))
+    (hhi' : 19 * (A_t' + 72) + 5 * (((t + 19 * k : Nat) : Int) - 300) ≤ 22) :
+    -5 * (k : Int) - 1 ≤ A_t' - A_t ∧ A_t' - A_t ≤ -5 * (k : Int) + 1 := by
+  omega
+
 end Ring57
 
 namespace Ring63
@@ -1508,6 +1556,70 @@ theorem edge_law_tail {H : Nat → Int → Bool} (hH : IsR30Z H) (hag : ∀ x, x
   · rw [hc x (by omega)]; exact hE x hx
   · rw [hc _ (by omega)]; exact hs i hi
 
+/-! ### Quantifier-free intact half-plane, mismatch band, and `9k`-tick displacement bounds for `Ring63` -/
+
+/-- **Quantifier-Free Intact Background Half-Plane for `Ring63` (`edge_tail_intact_halfplane`):**
+for every evolution `H` agreeing with `Gedge 0` on `x ≤ 261`, every `t ≥ 300`, and every column `x`
+with `9 * (x + 55) + 2 * ((t : Int) - 300) ≤ -20`, the background is intact (`H t x = E t x`). -/
+theorem edge_tail_intact_halfplane {H : Nat → Int → Bool} (hH : IsR30Z H)
+    (hag : ∀ x, x ≤ 261 → H 0 x = Gedge 0 x)
+    (t : Nat) (ht : 300 ≤ t) (x : Int)
+    (hx : 9 * (x + 55) + 2 * ((t : Int) - 300) ≤ -20) :
+    H t x = E t x := by
+  obtain ⟨A, hE, -, hlo, -⟩ := edge_law_tail hH hag t ht
+  exact hE x (by omega)
+
+/-- **Quantifier-Free Intact Background Half-Plane for `Ring63.Gedge` (`edge_intact_halfplane`).** -/
+theorem edge_intact_halfplane (t : Nat) (ht : 300 ≤ t) (x : Int)
+    (hx : 9 * (x + 55) + 2 * ((t : Int) - 300) ≤ -20) :
+    Gedge t x = E t x :=
+  edge_tail_intact_halfplane Gedge_isR30 (fun _ _ => rfl) t ht x hx
+
+/-- **Quantifier-Free Mismatch Affine Strip for `Ring63` (`edge_tail_mismatch_in_band`):**
+for every evolution `H` agreeing with `Gedge 0` on `x ≤ 261` and every `t ≥ 300`, there exists a
+column `x` in the affine strip `-11 ≤ 9 * (x + 55) + 2 * (t - 300) ≤ 148` where `H t x ≠ E t x`. -/
+theorem edge_tail_mismatch_in_band {H : Nat → Int → Bool} (hH : IsR30Z H)
+    (hag : ∀ x, x ≤ 261 → H 0 x = Gedge 0 x) (t : Nat) (ht : 300 ≤ t) :
+    ∃ x : Int, H t x ≠ E t x ∧
+      -11 ≤ 9 * (x + 55) + 2 * ((t : Int) - 300) ∧
+      9 * (x + 55) + 2 * ((t : Int) - 300) ≤ 148 := by
+  obtain ⟨A, -, ⟨x, hx1, hx2, hne⟩, hlo, hhi⟩ := edge_law_tail hH hag t ht
+  exact ⟨x, hne, by omega, by omega⟩
+
+/-- **Quantifier-Free Mismatch Affine Strip for `Ring63.Gedge` (`edge_mismatch_in_band`).** -/
+theorem edge_mismatch_in_band (t : Nat) (ht : 300 ≤ t) :
+    ∃ x : Int, Gedge t x ≠ E t x ∧
+      -11 ≤ 9 * (x + 55) + 2 * ((t : Int) - 300) ∧
+      9 * (x + 55) + 2 * ((t : Int) - 300) ≤ 148 :=
+  edge_tail_mismatch_in_band Gedge_isR30 (fun _ _ => rfl) t ht
+
+/-- **Exact `9k`-Tick Displacement Bounds with `±2` Jitter for `Ring63` (`anchor_nine_mul_shift_bounds`):**
+because `4 - (-20) = 24 < 3 * 9`, any valid anchors `A_t` at tick `t` and `A_t'` at tick `t + 9 * k`
+satisfy `-2 * k - 2 ≤ A_t' - A_t ≤ -2 * k + 2` (in particular, `|A₁ - A₂| ≤ 2` when `k = 0`). -/
+theorem anchor_nine_mul_shift_bounds (t k : Nat) (A_t A_t' : Int)
+    (hlo : -20 ≤ 9 * (A_t + 55) + 2 * ((t : Int) - 300))
+    (hhi : 9 * (A_t + 55) + 2 * ((t : Int) - 300) ≤ 4)
+    (hlo' : -20 ≤ 9 * (A_t' + 55) + 2 * (((t + 9 * k : Nat) : Int) - 300))
+    (hhi' : 9 * (A_t' + 55) + 2 * (((t + 9 * k : Nat) : Int) - 300) ≤ 4) :
+    -2 * (k : Int) - 2 ≤ A_t' - A_t ∧ A_t' - A_t ≤ -2 * (k : Int) + 2 := by
+  omega
+
 end Ring63
+
+/-- **Joint `171k`-Tick Relative Displacement Separation (`macro_period_171_displacement_separation`):**
+over `171 * k` ticks (`171 = 9 * 19`), the `Ring57` anchor shifts by `-45 * k ± 1` cells while the
+`Ring63` anchor shifts by `-38 * k ± 2` cells, so their relative displacement grows as `7 * k ± 3` cells. -/
+theorem macro_period_171_displacement_separation (t k : Nat) (A57 A57' A63 A63' : Int)
+    (h57_lo : -14 ≤ 19 * (A57 + 72) + 5 * ((t : Int) - 300))
+    (h57_hi : 19 * (A57 + 72) + 5 * ((t : Int) - 300) ≤ 22)
+    (h57_lo' : -14 ≤ 19 * (A57' + 72) + 5 * (((t + 171 * k : Nat) : Int) - 300))
+    (h57_hi' : 19 * (A57' + 72) + 5 * (((t + 171 * k : Nat) : Int) - 300) ≤ 22)
+    (h63_lo : -20 ≤ 9 * (A63 + 55) + 2 * ((t : Int) - 300))
+    (h63_hi : 9 * (A63 + 55) + 2 * ((t : Int) - 300) ≤ 4)
+    (h63_lo' : -20 ≤ 9 * (A63' + 55) + 2 * (((t + 171 * k : Nat) : Int) - 300))
+    (h63_hi' : 9 * (A63' + 55) + 2 * (((t + 171 * k : Nat) : Int) - 300) ≤ 4) :
+    7 * (k : Int) - 3 ≤ (A63' - A63) - (A57' - A57) ∧
+    (A63' - A63) - (A57' - A57) ≤ 7 * (k : Int) + 3 := by
+  omega
 
 end Ruliology.CellularAutomata.Rule30MovingWall
