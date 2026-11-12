@@ -78,4 +78,44 @@ theorem short_decomposition (u : List Bool) (hlen : u.length ≤ 4) :
     obtain ⟨b, _, hbcheck⟩ := List.any_eq_true.mp hacheck
     exact ⟨a, b, v, hv, by simpa only [beq_iff_eq] using hbcheck⟩
 
+/-! ## Unconditional bidirectional rotation equivalences and invariants of `shortCores` -/
+
+/-- **Unconditional Bidirectional Rotation Equivalence for `EventuallyWord` (`eventuallyWord_swap_iff_and_seed`).** -/
+theorem eventuallyWord_swap_iff_and_seed (x : Int → Bool) (i : Int) (u v : List Bool) :
+    (Rule30FiniteStrips.EventuallyWord x i (u ++ v) ↔
+      Rule30FiniteStrips.EventuallyWord x i (v ++ u)) ∧
+    (Rule30StripCertificates.EventuallyWord (u ++ v) ↔
+      Rule30StripCertificates.EventuallyWord (v ++ u)) := by
+  have hswap : ∀ {y : Int → Bool} {a b : List Bool},
+      Rule30FiniteStrips.EventuallyWord y i (a ++ b) →
+      Rule30FiniteStrips.EventuallyWord y i (b ++ a) := by
+    intro y a b hw
+    by_cases hpos : 0 < (a ++ b).length
+    · exact eventuallyWord_swap hpos hw
+    · have hnil : a ++ b = [] := List.eq_nil_of_length_eq_zero (by omega)
+      have ha : a = [] := (List.append_eq_nil_iff.mp hnil).1
+      have hb : b = [] := (List.append_eq_nil_iff.mp hnil).2
+      subst ha; subst hb; exact hw
+  have hswap_seed : ∀ {a b : List Bool},
+      Rule30StripCertificates.EventuallyWord (a ++ b) →
+      Rule30StripCertificates.EventuallyWord (b ++ a) := by
+    intro a b hw
+    have hw' : Rule30FiniteStrips.EventuallyWord Rule30Realization.seed 0 (a ++ b) := by
+      simpa only [Rule30FiniteStrips.EventuallyWord, Rule30StripCertificates.EventuallyWord,
+        Rule30Realization.evol_seed] using hw
+    by_cases hpos : 0 < (a ++ b).length
+    · have hr := eventuallyWord_swap hpos hw'
+      simpa only [Rule30FiniteStrips.EventuallyWord, Rule30StripCertificates.EventuallyWord,
+        Rule30Realization.evol_seed] using hr
+    · have hnil : a ++ b = [] := List.eq_nil_of_length_eq_zero (by omega)
+      have ha : a = [] := (List.append_eq_nil_iff.mp hnil).1
+      have hb : b = [] := (List.append_eq_nil_iff.mp hnil).2
+      subst ha; subst hb; exact hw
+  exact ⟨⟨hswap, hswap⟩, ⟨hswap_seed, hswap_seed⟩⟩
+
+/-- **Length Bounds and Black-Endpoint Invariants of `shortCores` (`shortCores_length_and_endpoints`).** -/
+theorem shortCores_length_and_endpoints :
+    shortCores.all (fun v => decide (1 ≤ v.length ∧ v.length ≤ 4) &&
+      v.headD false && v.getD (v.length - 1) false) = true := by decide
+
 end Ruliology.CellularAutomata.Rule30WordRotation

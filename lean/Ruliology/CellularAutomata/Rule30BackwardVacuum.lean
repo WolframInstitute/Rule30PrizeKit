@@ -92,4 +92,25 @@ theorem no_padding_of_backward_certificate {x : Int → Bool} {lo : Int}
   rw [hb] at hw
   contradiction
 
+/-! ## Finite-configuration (`FinConfig`) and single-seed backward-certificate exclusions -/
+
+/-- **Finite-Configuration (`FinConfig`) and Single-Seed Backward-Certificate Exclusions (`no_padding_of_backward_certificate_finite_and_seed`).** -/
+theorem no_padding_of_backward_certificate_finite_and_seed
+    (u : List Bool) (K N : Nat) (Q : Nat → Nat)
+    (hstart : Q 0 = 0) (hend : Q (N + u.length) = 1)
+    (hpre : ∀ j, j < N + u.length →
+      preCheck K ((List.replicate N false ++ u).getD j false) (Q j) (Q (j + 1)) = true)
+    (r : Nat) (hrN : N ≤ r) (hrpulse : 10 * u.length + 11 ≤ r)
+    (hrwidth : K + 9 * (u.length + 1) ≤ r) :
+    (∀ {x : Int → Bool}, Rule30PeriodTwoSideways.FinConfig x → (∃ p, x p = true) → ∀ i : Int,
+      ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ u)) ∧
+    ¬ Rule30StripCertificates.EventuallyWord (List.replicate r false ++ u) := by
+  refine ⟨fun hfin hne i => ?_, ?_⟩
+  · obtain ⟨lo, hlo, hzero⟩ := Rule30FiniteConfigs.exists_leftmost hfin hne
+    exact no_padding_of_backward_certificate hlo hzero i u K N Q hstart hend hpre r hrN hrpulse hrwidth
+  · have hzero : ∀ p : Int, p < 0 → seed p = false := fun p hp => by simp [seed, show p ≠ 0 by omega]
+    have h := no_padding_of_backward_certificate (x := seed) (lo := 0) (by decide) hzero 0 u K N Q
+      hstart hend hpre r hrN hrpulse hrwidth
+    simpa only [Rule30FiniteStrips.EventuallyWord, Rule30StripCertificates.EventuallyWord, evol_seed] using h
+
 end Ruliology.CellularAutomata.Rule30BackwardVacuum

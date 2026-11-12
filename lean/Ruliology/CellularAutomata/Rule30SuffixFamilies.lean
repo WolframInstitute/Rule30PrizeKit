@@ -70,4 +70,18 @@ theorem no_padding_suffix111001_seed (v : List Bool) (r : Nat) (hr : 10*v.length
   exact no_padding_of_forbidden_suffix_seed v suffix111001 6 safe111001 r
     (by simp [suffix111001]; omega) (by simp [suffix111001]; omega)
 
+/-! ## Finite-configuration (`FinConfig`) exclusions for `suffix001001` and `suffix111001`, and simultaneous three-family exclusion -/
+
+/-- **Finite-Configuration (`FinConfig`) Exclusions for `suffix001001` and `suffix111001`, and Simultaneous Exclusion Above `10 * v.length + 71` (`no_padding_suffix_finite_and_all_three`).** -/
+theorem no_padding_suffix_finite_and_all_three {x : Int → Bool}
+    (hfin : Rule30PeriodTwoSideways.FinConfig x) (hne : ∃ p, x p = true)
+    (i : Int) (v : List Bool) (r : Nat) (hr : 10 * v.length + 71 ≤ r) :
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ (v ++ suffix011)) ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ (v ++ suffix001001)) ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ (v ++ suffix111001)) := by
+  obtain ⟨lo, hlo, hzero⟩ := Rule30FiniteConfigs.exists_leftmost hfin hne
+  exact ⟨no_padding_suffix011_leftFinite hlo hzero i v r (by omega),
+         no_padding_suffix001001_leftFinite hlo hzero i v r hr,
+         no_padding_suffix111001_leftFinite hlo hzero i v r hr⟩
+
 end Ruliology.CellularAutomata.Rule30SuffixFamilies

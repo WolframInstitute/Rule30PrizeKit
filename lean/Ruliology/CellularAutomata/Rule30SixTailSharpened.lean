@@ -102,4 +102,25 @@ theorem no_six_tail_seed (u : List Bool) (hu : u.length ≤ 6) (r : Nat) (hr : 7
   simpa only [Rule30FiniteStrips.EventuallyWord,
     Rule30StripCertificates.EventuallyWord, evol_seed] using h
 
+/-! ## Sharpened `P ≥ 75` exclusion of `0^(P-1) 1` and two-sided split six-tail exclusions -/
+
+/-- **Sharpened Unconditional Exclusion of `0^(P-1) 1` for All `P ≥ 75` and Two-Sided Split Six-Tails (`no_oneBlack_ge_75_and_split_six_tail`).** -/
+theorem no_oneBlack_ge_75_and_split_six_tail (P a b : Nat) (u : List Bool)
+    (hP : 75 ≤ P) (hu : u.length ≤ 6) (hab : 74 ≤ a + b) :
+    (∀ {x : Int → Bool} {lo : Int}, x lo = true → (∀ p, p < lo → x p = false) → ∀ i : Int,
+      ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate (P - 1) false ++ [true]) ∧
+      ¬ Rule30FiniteStrips.EventuallyWord x i ((List.replicate a false ++ u) ++ List.replicate b false)) ∧
+    ¬ Rule30StripCertificates.EventuallyWord (List.replicate (P - 1) false ++ [true]) := by
+  have hrep : ∀ m n : Nat, List.replicate m false ++ List.replicate n false = List.replicate (m + n) false := by
+    intro m n
+    induction m with
+    | zero => simp
+    | succ m ih => simp [List.replicate_succ, Nat.succ_add, ih]
+  refine ⟨fun hlo hzero i => ⟨?_, ?_⟩, no_six_tail_seed [true] (by decide) (P - 1) (by omega)⟩
+  · exact no_six_tail_leftFinite hlo hzero i [true] (by decide) (P - 1) (by omega)
+  · intro hword
+    have hrot := Rule30WordRotation.eventuallyWord_swap (by simp; omega) hword
+    rw [← List.append_assoc, hrep b a] at hrot
+    exact no_six_tail_leftFinite hlo hzero i u hu (b + a) (by omega) hrot
+
 end Ruliology.CellularAutomata.Rule30SixTailSharpened
