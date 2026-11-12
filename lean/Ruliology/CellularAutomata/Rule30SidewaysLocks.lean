@@ -315,5 +315,77 @@ theorem u_28998 (n : Nat) : u (rh 28998) (7 + n) = word5.getD (n % 5) false := b
     lock5_entry n
   rwa [Nat.zero_add] at this
 
+/-! ## Family-wide `u R` word-reading laws, all-time gate-trap invariance of `lock5`, and period incompatibility -/
+
+/-- **Family-Wide Word-Reading and Period-5 Law for `lock5` (`u_lock5_family`):**
+every right half `R` whose cells `1..49` match `28998` satisfies
+`u R (7 + n) = word5.getD (n % 5) false` and `u R (7 + n + 5) = u R (7 + n)` for all `n`. -/
+theorem u_lock5_family {R : Nat → Bool} (h : ∀ i, i < 49 → R (i + 1) = (28998 : Nat).testBit i) (n : Nat) :
+    u R (7 + n) = word5.getD (n % 5) false ∧ u R (7 + n + 5) = u R (7 + n) := by
+  have hw : winW 34 R (2 * 7 + 1) ∈ cls 34 lock5Codes 0 := by
+    rw [winW_prefix h, ← winW_prefix (rh_prefix 28998 _)]; exact lock5_entry
+  have h1 := u_of_lock (V := 33) lock5_ok (by decide) R (s0 := 7) (k := 0) (by decide) hw n
+  have h2 := u_of_lock (V := 33) lock5_ok (by decide) R (s0 := 7) (k := 0) (by decide) hw (n + 5)
+  rw [Nat.zero_add] at h1
+  rw [Nat.zero_add, show 7 + (n + 5) = 7 + n + 5 by omega, Nat.add_mod_right] at h2
+  exact ⟨h1, h2.trans h1.symm⟩
+
+/-- **Family-Wide Word-Reading and Period-7 Law for `lock7` (`u_lock7_family`):**
+every right half `R` whose cells `1..57` match `1891` satisfies
+`u R (13 + n) = word7.getD ((4 + n) % 7) false` and `u R (13 + n + 7) = u R (13 + n)` for all `n`. -/
+theorem u_lock7_family {R : Nat → Bool} (h : ∀ i, i < 57 → R (i + 1) = (1891 : Nat).testBit i) (n : Nat) :
+    u R (13 + n) = word7.getD ((4 + n) % 7) false ∧ u R (13 + n + 7) = u R (13 + n) := by
+  have hw : winW 30 R (2 * 13 + 1) ∈ cls 30 lock7Codes 4 := by
+    rw [winW_prefix h, ← winW_prefix (rh_prefix 1891 _)]; exact lock7_entry
+  have h1 := u_of_lock (V := 29) lock7_ok (by decide) R (s0 := 13) (k := 4) (by decide) hw n
+  have h2 := u_of_lock (V := 29) lock7_ok (by decide) R (s0 := 13) (k := 4) (by decide) hw (n + 7)
+  rw [show 13 + (n + 7) = 13 + n + 7 by omega, show 4 + (n + 7) = 4 + n + 7 by omega, Nat.add_mod_right] at h2
+  exact ⟨h1, h2.trans h1.symm⟩
+
+/-- **Family-Wide Word-Reading and Period-7 Law for `lock7b` (`u_lock7b_family`):**
+every right half `R` whose cells `1..74` match `3793493` satisfies
+`u R (14 + n) = word7b.getD ((6 + n) % 7) false` and `u R (14 + n + 7) = u R (14 + n)` for all `n`. -/
+theorem u_lock7b_family {R : Nat → Bool} (h : ∀ i, i < 74 → R (i + 1) = (3793493 : Nat).testBit i) (n : Nat) :
+    u R (14 + n) = word7b.getD ((6 + n) % 7) false ∧ u R (14 + n + 7) = u R (14 + n) := by
+  have hw : winW 45 R (2 * 14 + 1) ∈ cls 45 lock7bCodes 6 := by
+    rw [winW_prefix h, ← winW_prefix (rh_prefix 3793493 _)]; exact lock7b_entry
+  have h1 := u_of_lock (V := 44) lock7b_ok (by decide) R (s0 := 14) (k := 6) (by decide) hw n
+  have h2 := u_of_lock (V := 44) lock7b_ok (by decide) R (s0 := 14) (k := 6) (by decide) hw (n + 7)
+  rw [show 14 + (n + 7) = 14 + n + 7 by omega, show 6 + (n + 7) = 6 + n + 7 by omega, Nat.add_mod_right] at h2
+  exact ⟨h1, h2.trans h1.symm⟩
+
+/-- **Explicit `u` Trajectories for the Canonical Witnesses `rh 1891` and `rh 3793493` (`u_1891_and_3793493`).** -/
+theorem u_1891_and_3793493 (n : Nat) :
+    u (rh 1891) (13 + n) = word7.getD ((4 + n) % 7) false ∧
+    u (rh 3793493) (14 + n) = word7b.getD ((6 + n) % 7) false :=
+  ⟨(u_lock7_family (rh_prefix 1891 _) n).1, (u_lock7b_family (rh_prefix 3793493 _) n).1⟩
+
+/-- **All-Time Gate-Trap Containment for the `lock5` Prefix Family (`lock5_family_trap_forever`):**
+for every right half `R` whose cells `1..49` match `28998` and every `n : Nat`,
+`Rule30GateTrap.win R (15 + 2 * n) ∈ Rule30GateTrap.trap`. -/
+theorem lock5_family_trap_forever {R : Nat → Bool}
+    (h : ∀ i, i < 49 → R (i + 1) = (28998 : Nat).testBit i) (n : Nat) :
+    Rule30GateTrap.win R (15 + 2 * n) ∈ Rule30GateTrap.trap := by
+  have hw0 : winW 34 R 15 ∈ cls 34 lock5Codes 0 := by
+    rw [winW_prefix h, ← winW_prefix (rh_prefix 28998 _)]; exact lock5_entry
+  have hwn := lock_forever lock5_ok (by decide) R (t0 := 15) (k := 0) (by decide) (by decide) hw0 n
+  exact lock5_win_trap (Nat.mod_lt _ (by decide)) hwn
+
+/-- **Period-5 vs. Period-7 Incompatibility on `u R` (`lock_families_period_incompatibility`):**
+any `R` in the `lock5` family satisfies `u R (7 + 7) ≠ u R (7 + 0)`, while any `R` in the `lock7`
+family satisfies `u R (13 + 9) ≠ u R (13 + 4)` (a step of `+5`) and any `R` in the `lock7b` family
+satisfies `u R (14 + 8) ≠ u R (14 + 3)` (a step of `+5`). -/
+theorem lock_families_period_incompatibility :
+    (∀ R : Nat → Bool, (∀ i, i < 49 → R (i + 1) = (28998 : Nat).testBit i) →
+      u R (7 + 7) ≠ u R (7 + 0)) ∧
+    (∀ R : Nat → Bool, (∀ i, i < 57 → R (i + 1) = (1891 : Nat).testBit i) →
+      u R (13 + 9) ≠ u R (13 + 4)) ∧
+    (∀ R : Nat → Bool, (∀ i, i < 74 → R (i + 1) = (3793493 : Nat).testBit i) →
+      u R (14 + 8) ≠ u R (14 + 3)) := by
+  refine ⟨fun R h => ?_, fun R h => ?_, fun R h => ?_⟩
+  · rw [(u_lock5_family h 7).1, (u_lock5_family h 0).1]; decide
+  · rw [(u_lock7_family h 9).1, (u_lock7_family h 4).1]; decide
+  · rw [(u_lock7b_family h 8).1, (u_lock7b_family h 3).1]; decide
+
 end Rule30SidewaysLocks
 end Ruliology.CellularAutomata
