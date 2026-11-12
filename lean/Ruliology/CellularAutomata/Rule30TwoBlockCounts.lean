@@ -1,6 +1,7 @@
 module
 
 public import Ruliology.CellularAutomata.Rule30Prize
+public import Ruliology.CellularAutomata.Rule30Diagonals
 
 /-!
 # Rule 30 Two-Block Transition Counts, Single-Row Three-Column Identities, and Problem 2 Equivalences
@@ -504,6 +505,45 @@ theorem problem2_iff_incoming_black_sublinear :
     have h1 := Nat.mul_le_mul_left k h_diff
     have h2 := two_mul_mul_add_two k (2 * ((count01 center n : Int) + (count11 center n : Int)) - (n : Int)).natAbs
     omega
+
+/-! ### Main-diagonal `D t t` identities and right-neighbour masking -/
+
+/-- **Main-Diagonal Identity for `center` (`center_eq_D_diag`):**
+for every tick `t`, `center t = Rule30Diagonals.D t t`. -/
+theorem center_eq_D_diag (t : Nat) : center t = Rule30Diagonals.D t t := by
+  unfold center Rule30Diagonals.D
+  congr 1
+  omega
+
+/-- **Sub-Diagonal Identity for the Left Neighbour `cell t (-1)` (`cell_neg_one_eq_D_sub_one`):**
+for every tick `t ≥ 1`, `cell t (-1) = Rule30Diagonals.D (t - 1) t`. -/
+theorem cell_neg_one_eq_D_sub_one (t : Nat) (ht : 1 ≤ t) :
+    cell t (-1) = Rule30Diagonals.D (t - 1) t := by
+  unfold Rule30Diagonals.D
+  congr 1
+  omega
+
+/-- **Super-Diagonal Identity for the Right Neighbour `cell t 1` (`cell_one_eq_D_add_one`):**
+for every tick `t`, `cell t 1 = Rule30Diagonals.D (t + 1) t`. -/
+theorem cell_one_eq_D_add_one (t : Nat) :
+    cell t 1 = Rule30Diagonals.D (t + 1) t := by
+  unfold Rule30Diagonals.D
+  congr 1
+  omega
+
+/-- **One-Step Center Evolution in Terms of Spatial Neighbours (`center_succ_eq_rule`):**
+`center (t + 1) = rule (cell t (-1)) (center t) (cell t 1)`. -/
+theorem center_succ_eq_rule (t : Nat) :
+    center (t + 1) = rule (cell t (-1)) (center t) (cell t 1) := rfl
+
+/-- **Right-Neighbour Masking When `center t = true` (`center_succ_of_center_true`):**
+whenever `center t = true`, the next center bit is the complement of the left neighbour (`!cell t (-1)`),
+independently of the right neighbour `cell t 1`. -/
+theorem center_succ_of_center_true (t : Nat) (hc : center t = true) :
+    center (t + 1) = !cell t (-1) := by
+  rw [center_succ_eq_rule, hc]
+  unfold rule
+  cases cell t (-1) <;> cases cell t 1 <;> rfl
 
 end Rule30TwoBlockCounts
 end Ruliology.CellularAutomata
