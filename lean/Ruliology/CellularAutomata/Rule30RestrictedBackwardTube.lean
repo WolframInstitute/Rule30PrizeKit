@@ -191,4 +191,77 @@ theorem no_padding_of_endpoint_tube {x : Int → Bool} {lo : Int}
       rw [hor t ht, hor (t+(r+u.length)) (by omega),
         show t+(r+u.length)-T=(t-T)+(r+u.length) by omega, Nat.add_mod_right]⟩
 
+/-! ## Vacuity and vacuum laws for `restrictedPreCheck`, one-step `encRow` backward soundness, and finite/seed endpoint-tube exclusions -/
+
+/-- **Empty-Domain, Empty-Target, and Vacuum Predecessor Closure for `restrictedPreCheck` (`restrictedPreCheck_vacuous_and_vacuum`).** -/
+theorem restrictedPreCheck_vacuous_and_vacuum (K Z Q R : Nat) (a : Bool) (hQ0 : Q.testBit 0 = true) :
+    restrictedPreCheck K a 0 Q R = true ∧
+    restrictedPreCheck K a Z Q 0 = true ∧
+    restrictedPreCheck K false Z Q 1 = true := by
+  have hZ0 : ∀ n, allBelow (fun s => !(0 : Nat).testBit s ||
+      ((! R.testBit (stripStep K a false s) || Q.testBit s) &&
+       (! R.testBit (stripStep K a true s) || Q.testBit s))) n = true := by
+    intro n; induction n with
+    | zero => rfl
+    | succ n ih => unfold allBelow; rw [ih]; simp
+  have hR0 : ∀ n, allBelow (fun s => !Z.testBit s ||
+      ((! (0 : Nat).testBit (stripStep K a false s) || Q.testBit s) &&
+       (! (0 : Nat).testBit (stripStep K a true s) || Q.testBit s))) n = true := by
+    intro n; induction n with
+    | zero => rfl
+    | succ n ih => unfold allBelow; rw [ih]; simp
+  have hR1 : ∀ n, n ≤ 2 ^ K → allBelow (fun s => !Z.testBit s ||
+      ((! (1 : Nat).testBit (stripStep K false false s) || Q.testBit s) &&
+       (! (1 : Nat).testBit (stripStep K false true s) || Q.testBit s))) n = true := by
+    intro n; induction n with
+    | zero => intro _; rfl
+    | succ n ih =>
+      intro hn
+      simp only [allBelow, ih (by omega), Bool.true_and]
+      cases Z.testBit n
+      · rfl
+      · simp only [Bool.not_true, Bool.false_or, Bool.and_eq_true]
+        have hstep_z : ∀ z : Bool, (! (1 : Nat).testBit (stripStep K false z n) || Q.testBit n) = true := by
+          intro z
+          cases htb : (1 : Nat).testBit (stripStep K false z n)
+          · rfl
+          · have hz0 : stripStep K false z n = 0 := Nat.testBit_one_eq_true_iff_self_eq_zero.mp htb
+            have hn0 : n = 0 := stripStep_zero_predecessor (by omega : n < 2 ^ K) hz0
+            subst hn0
+            rw [hQ0, Bool.or_true]
+        exact ⟨hstep_z false, hstep_z true⟩
+  exact ⟨hZ0 (2 ^ K), hR0 (2 ^ K), hR1 (2 ^ K) (Nat.le_refl _)⟩
+
+/-- **One-Step Restricted Backward Soundness for `encRow` (`enc_restricted_backward`).** -/
+theorem enc_restricted_backward {x : Int → Bool} {K t Z Q R : Nat} {i : Int} {a : Bool}
+    (h : restrictedPreCheck K a Z Q R = true) (ha : evol x t i = a)
+    (hZ : Z.testBit (Rule30FiniteStrips.encRow x t i K) = true)
+    (hR : R.testBit (Rule30FiniteStrips.encRow x (t + 1) i K) = true) :
+    Q.testBit (Rule30FiniteStrips.encRow x t i K) = true := by
+  rw [encRow_step, ha] at hR
+  exact restrictedPreCheck_sound h (Rule30FiniteStrips.enc_encRow K t i).1 hZ hR
+
+/-- **Finite-Configuration and Single-Seed Endpoint-Tube Exclusions (`no_padding_of_endpoint_tube_finite_and_seed`).** -/
+theorem no_padding_of_endpoint_tube_finite_and_seed
+    (u : List Bool) (K L Z : Nat) (Q P S : Nat → Nat) (b c : Nat → Bool) (hK : 1 ≤ K)
+    (hZzero : Z.testBit 0 = true) (hZfixed : image K false Z = Z)
+    (hSzero : S 0 = Z) (hPend : P u.length = 1) (hQstart : Q 0 = P 0) (hQend : Q L = 1)
+    (hQpre : ∀ d, d < L → restrictedPreCheck K false Z (Q (d + 1)) (Q d) = true)
+    (hPpre : ∀ j, j < u.length → preCheck K (u.getD j false) (P j) (P (j + 1)) = true)
+    (hSforward : ∀ j, j < u.length → image K (u.getD j false) (S j) = S (j + 1))
+    (hQforce : ∀ d, d ≤ L → colConst K (Z &&& Q d) (b d) = true)
+    (hPforce : ∀ j, j < u.length → u.getD j false = false → colConst K (S j &&& P j) (c j) = true)
+    (r : Nat) (hrpulse : 10 * u.length + 11 ≤ r) (hrwidth : K - 1 + 9 * (u.length + 1) ≤ r) (hrL : L ≤ r) :
+    (∀ {x : Int → Bool}, Rule30PeriodTwoSideways.FinConfig x → (∃ p, x p = true) → ∀ i : Int,
+      ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ u)) ∧
+    ¬ Rule30StripCertificates.EventuallyWord (List.replicate r false ++ u) := by
+  refine ⟨fun hfin hne i => ?_, ?_⟩
+  · obtain ⟨lo, hlo, hzero⟩ := Rule30FiniteConfigs.exists_leftmost hfin hne
+    exact no_padding_of_endpoint_tube hlo hzero i u K L Z Q P S b c hK hZzero hZfixed
+      hSzero hPend hQstart hQend hQpre hPpre hSforward hQforce hPforce r hrpulse hrwidth hrL
+  · have hzero : ∀ p : Int, p < 0 → seed p = false := fun p hp => by simp [seed, show p ≠ 0 by omega]
+    have h := no_padding_of_endpoint_tube (x := seed) (lo := 0) (by decide) hzero 0 u K L Z Q P S b c
+      hK hZzero hZfixed hSzero hPend hQstart hQend hQpre hPpre hSforward hQforce hPforce r hrpulse hrwidth hrL
+    simpa only [Rule30FiniteStrips.EventuallyWord, Rule30StripCertificates.EventuallyWord, evol_seed] using h
+
 end Ruliology.CellularAutomata.Rule30RestrictedBackwardTube
