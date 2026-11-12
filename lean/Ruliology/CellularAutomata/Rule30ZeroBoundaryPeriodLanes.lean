@@ -514,5 +514,88 @@ theorem QP_restricted_of_chunks {W P K n : Nat} (hP : 2 ≤ P) (hn : n ≤ nfree
   rw [hall k] at hk
   exact absurd hk (by decide)
 
+/-! ## Divisibility antitonicity of `QP P`, all-phase rotation exclusions, and the `fidx`/`lev` bijection -/
+
+/-- **Right-Multiple Antitonicity of `QP` (`QP_of_mul_right`):**
+if `QP (P * d)` holds, then `QP P` holds, since keeping column `-1` black at all multiples of `P`
+implies keeping it black at all multiples of `P * d`. -/
+theorem QP_of_mul_right (P d : Nat) (h : QP (P * d)) : QP P :=
+  fun m s hm hs0 hedge hall =>
+    h m s hm hs0 hedge (fun k => by rw [Nat.mul_assoc]; exact hall (d * k))
+
+/-- **Divisibility Antitonicity of `QP` (`QP_of_dvd`):**
+if `P ∣ Q` and `QP Q` holds, then `QP P` holds. -/
+theorem QP_of_dvd {P Q : Nat} (hdvd : P ∣ Q) (hQ : QP Q) : QP P := by
+  obtain ⟨d, rfl⟩ := hdvd
+  exact QP_of_mul_right P d hQ
+
+/-- **`QP 4` Simultaneously Implies `Rule30ZeroBoundary.Q01` and `C3 w0001` (`Q01_and_C3_0001_of_QP_four`).** -/
+theorem Q01_and_C3_0001_of_QP_four (hQ : QP 4) :
+    Rule30ZeroBoundary.Q01 ∧ Rule30PeriodFourSkeleton.C3 Rule30Ether.w0001 :=
+  ⟨QP_two_iff_Q01.1 (QP_of_mul_right 2 2 hQ), C3_0001_of_QP_four hQ⟩
+
+theorem mod_add_one_eq_iff {P q r : Nat} (_hP : 2 ≤ P) (hq : q < P) (hr : r < P) :
+    (q + 1 + r) % P = q ↔ r = P - 1 := by
+  rcases Nat.lt_or_ge (q + 1 + r) P with hlt | hge
+  · rw [Nat.mod_eq_of_lt hlt]
+    omega
+  · have heq : q + 1 + r = (q + 1 + r - P) + P * 1 := by omega
+    rw [heq, Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt (by omega : q + 1 + r - P < P)]
+    omega
+
+/-- **All-Phase Cyclic-Rotation Exclusion of `0^(P-1) 1` Under `QP P` (`not_eventually_oneBlack_any_phase_of_QP`):**
+for every `P ≥ 2` and every residue `q < P`, `QP P` excludes `∃ T, ∀ t ≥ T, center t = decide (t % P = q)`. -/
+theorem not_eventually_oneBlack_any_phase_of_QP {P q : Nat} (hP : 2 ≤ P) (hq : q < P) (hQ : QP P) :
+    ¬ ∃ T, ∀ t, T ≤ t → center t = decide (t % P = q) := by
+  rintro ⟨T, hT⟩
+  apply not_eventually_oneBlack_of_QP hP hQ
+  refine ⟨P * T + q + 1, fun t ht => ?_⟩
+  have h1 : T ≤ P * T := Nat.le_mul_of_pos_left T (by omega)
+  have hd := Nat.div_add_mod (t - (P * T + q + 1)) P
+  have heq : t = (q + 1 + (t - (P * T + q + 1)) % P) + P * (T + (t - (P * T + q + 1)) / P) := by
+    rw [Nat.mul_add]
+    omega
+  rw [hT t (by omega)]
+  conv => lhs; rw [heq, Nat.add_mul_mod_self_left]
+  exact decide_eq_decide.mpr (mod_add_one_eq_iff hP hq (Nat.mod_lt _ (by omega)))
+
+/-- **Exact Quotient and Non-Zero Remainder of `lev P s` (`lev_div_and_mod`):**
+for every `P ≥ 2` and `s : Nat`, `(lev P s) / P = s / (P - 1)`, `(lev P s) % P = s % (P - 1) + 1`,
+and `(lev P s) % P ≠ 0`. -/
+theorem lev_div_and_mod {P : Nat} (hP : 2 ≤ P) (s : Nat) :
+    (lev P s) / P = s / (P - 1) ∧
+    (lev P s) % P = s % (P - 1) + 1 ∧
+    (lev P s) % P ≠ 0 := by
+  obtain ⟨Q, rfl⟩ : ∃ Q, P = Q + 1 := ⟨P - 1, by omega⟩
+  have hQ : 0 < Q := by omega
+  have hd := Nat.div_add_mod s Q
+  have hm := Nat.mod_lt s hQ
+  have hdecomp : lev (Q + 1) s = (s % Q + 1) + (Q + 1) * (s / Q) := by
+    unfold lev
+    show s + s / Q + 1 = (s % Q + 1) + (Q + 1) * (s / Q)
+    rw [Nat.succ_mul]
+    omega
+  have hdiv : (lev (Q + 1) s) / (Q + 1) = s / Q := by
+    rw [hdecomp, Nat.add_mul_div_left _ _ (by omega : 0 < Q + 1),
+      Nat.div_eq_of_lt (by omega : s % Q + 1 < Q + 1), Nat.zero_add]
+  have hmod : (lev (Q + 1) s) % (Q + 1) = s % Q + 1 := by
+    rw [hdecomp, Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt (by omega : s % Q + 1 < Q + 1)]
+  simp only [Nat.add_sub_cancel]
+  exact ⟨hdiv, hmod, by omega⟩
+
+/-- **Right-Inverse Identity `fidx P (lev P s) = s` and Strict Monotonicity of `lev P` (`fidx_lev_and_strictMono`).** -/
+theorem fidx_lev_and_strictMono {P : Nat} (hP : 2 ≤ P) (s : Nat) :
+    fidx P (lev P s) = s ∧ ∀ s', s < s' → lev P s < lev P s' := by
+  obtain ⟨hdiv, _, _⟩ := lev_div_and_mod hP s
+  refine ⟨?_, fun s' hlt => ?_⟩
+  · unfold fidx
+    show lev P s - (lev P s) / P - 1 = s
+    rw [hdiv]
+    unfold lev
+    omega
+  · unfold lev
+    have hle : s / (P - 1) ≤ s' / (P - 1) := Nat.div_le_div_right (by omega)
+    omega
+
 end Rule30ZeroBoundaryPeriodLanes
 end Ruliology.CellularAutomata
