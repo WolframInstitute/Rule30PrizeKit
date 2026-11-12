@@ -451,5 +451,266 @@ theorem exists_gt_pow_of_problem3Robust (hP3R : Problem3Robust) {M : Machine} {T
     · exact False.elim (hn ⟨n, hge, hlt⟩)
     · exact hle
 
+/-! ### Two-Sided Causal-Speed Bounds, Closed Causal-Box Autonomy, Causal-State Injectivity, and Round-Trip Lower Bounds -/
+
+/-- **Two-Sided Single-Step Move Bounds (`move_apply_bounds`):**
+every head move changes the head position by at most `1` cell in either direction. -/
+theorem move_apply_bounds (d : Move) (h : Int) :
+    h - 1 ≤ d.apply h ∧ d.apply h ≤ h + 1 := by
+  cases d <;> simp [Move.apply] <;> omega
+
+/-- **Single-Step Head and Tape Locality (`step_inr_head_and_tape`):**
+if `c.step = .inr c'`, then `c.head - 1 ≤ c'.head ≤ c.head + 1` and every tape cell
+`i ≠ c.head` is unchanged (`c'.tape i = c.tape i`). -/
+theorem step_inr_head_and_tape {M : Machine} {c c' : Cfg M} (hstep : c.step = .inr c') :
+    (c.head - 1 ≤ c'.head ∧ c'.head ≤ c.head + 1) ∧
+    ∀ i : Int, i ≠ c.head → c'.tape i = c.tape i := by
+  unfold Cfg.step at hstep
+  cases hδ : M.δ c.state (c.tape c.head) with
+  | inl b => rw [hδ] at hstep; cases hstep
+  | inr val =>
+    obtain ⟨p, a, d⟩ := val
+    rw [hδ] at hstep
+    injection hstep with hcfg
+    subst hcfg
+    refine ⟨move_apply_bounds d c.head, fun i hi => ?_⟩
+    dsimp only
+    rw [ite_eq_right (fun heq => hi heq)]
+
+/-- **Active Run Monotonicity (`run_inr_of_add_inr`):**
+if `M.run n (t + k) = .inr c₂`, then `M` has not halted at step `t`, so `M.run n t = .inr c₁`
+for some configuration `c₁`. -/
+theorem run_inr_of_add_inr {M : Machine} {n t k : Nat} {c₂ : Cfg M}
+    (h₂ : M.run n (t + k) = .inr c₂) :
+    ∃ c₁ : Cfg M, M.run n t = .inr c₁ := by
+  cases hr : M.run n t with
+  | inl b =>
+    have hadd := Machine.run_add hr k
+    rw [h₂] at hadd
+    cases hadd
+  | inr c₁ => exact ⟨c₁, rfl⟩
+
+/-- **Interval Causal-Speed Bound (`run_head_sub_bounds`):**
+if `M.run n t = .inr c₁` and `M.run n (t + k) = .inr c₂`, then over those `k` steps the head
+moves by at most `k` cells in either direction:
+`c₁.head - k ≤ c₂.head ∧ c₂.head ≤ c₁.head + k`. -/
+theorem run_head_sub_bounds {M : Machine} {n t : Nat} :
+    ∀ (k : Nat) {c₁ c₂ : Cfg M},
+      M.run n t = .inr c₁ → M.run n (t + k) = .inr c₂ →
+      c₁.head - (k : Int) ≤ c₂.head ∧ c₂.head ≤ c₁.head + (k : Int)
+  | 0, c₁, c₂, h₁, h₂ => by
+    rw [Nat.add_zero, h₁] at h₂
+    injection h₂ with heq
+    subst heq
+    omega
+  | k + 1, c₁, c₂, h₁, h₂ => by
+    have hstep : M.run n (t + k + 1) = .inr c₂ := by
+      rwa [show t + k + 1 = t + (k + 1) by omega]
+    cases hr : M.run n (t + k) with
+    | inl b =>
+      simp [Machine.run, hr] at hstep
+    | inr cm =>
+      have hm : cm.step = .inr c₂ := by
+        simpa [Machine.run, hr] using hstep
+      have ih := run_head_sub_bounds k h₁ hr
+      have hb := (step_inr_head_and_tape hm).1
+      omega
+
+/-- **Light-Cone Head Bound From Time Zero (`run_head_bounds`):**
+if `M.run n t = .inr c`, then `-(t : Int) ≤ c.head ∧ c.head ≤ (t : Int)`. -/
+theorem run_head_bounds {M : Machine} {n t : Nat} {c : Cfg M}
+    (h : M.run n t = .inr c) :
+    -(t : Int) ≤ c.head ∧ c.head ≤ (t : Int) := by
+  have h0 : M.run n 0 = .inr (M.init n) := rfl
+  have hsub := run_head_sub_bounds (t := 0) t h0 (by simpa using h)
+  have hinit : (M.init n).head = 0 := rfl
+  rw [hinit] at hsub
+  omega
+
+/-- **Two-Sided Causal Box Predicate (`InCausalBox`):**
+during the first `t` steps on input `n`, `M`'s head remains inside the spatial interval `[L, R)`. -/
+def InCausalBox (M : Machine) (n t : Nat) (L R : Int) : Prop :=
+  ∀ s, s < t → ∀ c, M.run n s = .inr c → L ≤ c.head ∧ c.head < R
+
+/-- **Closed Causal-Box Write Boundary (`tape_eq_init_outside_causalBox`):**
+if `InCausalBox M n t L R` holds and `M.run n t = .inr c`, then every tape cell `i` outside
+`[L, R)` (`i < L ∨ R ≤ i`) has never been written to and equals `(M.init n).tape i`. -/
+theorem tape_eq_init_outside_causalBox {M : Machine} {n : Nat} {L R : Int} :
+    ∀ (t : Nat) {c : Cfg M},
+      InCausalBox M n t L R → M.run n t = .inr c →
+      ∀ i : Int, (i < L ∨ R ≤ i) → c.tape i = (M.init n).tape i
+  | 0, c, _, hrun, i, _ => by
+    injection hrun with heq
+    subst heq
+    rfl
+  | t + 1, c, hbox, hrun, i, hout => by
+    cases hr : M.run n t with
+    | inl b => simp [Machine.run, hr] at hrun
+    | inr c₀ =>
+      have hstep : c₀.step = .inr c := by simpa [Machine.run, hr] using hrun
+      have hbox₀ : InCausalBox M n t L R := fun s hs c' hc' => hbox s (by omega) c' hc'
+      have ih := tape_eq_init_outside_causalBox t hbox₀ hr i hout
+      have hhead := hbox t (Nat.lt_succ_self t) c₀ hr
+      have hne : i ≠ c₀.head := by omega
+      rw [(step_inr_head_and_tape hstep).2 i hne, ih]
+
+/-- **Every Run Stays Inside the Light Cone `[-(t : Int), (t : Int) + 1)` (`inCausalBox_lightCone`).** -/
+theorem inCausalBox_lightCone (M : Machine) (n t : Nat) :
+    InCausalBox M n t (-(t : Int)) ((t : Int) + 1) := by
+  intro s hs c hc
+  have hb := run_head_bounds hc
+  omega
+
+/-- **Light-Cone Write Boundary (`tape_eq_init_outside_lightCone`):**
+if `M.run n t = .inr c`, then for every tape cell `i` outside `[-(t : Int), (t : Int)]`
+(`i < -(t : Int) ∨ (t : Int) < i`), `c.tape i = (M.init n).tape i`. -/
+theorem tape_eq_init_outside_lightCone {M : Machine} {n t : Nat} {c : Cfg M}
+    (hrun : M.run n t = .inr c) {i : Int} (hout : i < -(t : Int) ∨ (t : Int) < i) :
+    c.tape i = (M.init n).tape i :=
+  tape_eq_init_outside_causalBox t (inCausalBox_lightCone M n t) hrun i (by omega)
+
+/-- **One-Step Closed Causal-Box Congruence (`step_congr_in_box`):**
+if two configurations `c₁, c₂` agree on state, head (`L ≤ c₁.head < R`), and tape cells inside
+`[L, R)`, then one step either halts with the same answer on both or produces configurations
+agreeing on state, head, and tape cells inside `[L, R)`. -/
+theorem step_congr_in_box {M : Machine} {c₁ c₂ : Cfg M} {L R : Int}
+    (hs : c₁.state = c₂.state) (hh : c₁.head = c₂.head)
+    (hL : L ≤ c₁.head) (hR : c₁.head < R)
+    (ht : ∀ i : Int, L ≤ i → i < R → c₁.tape i = c₂.tape i) :
+    (∃ b, c₁.step = .inl b ∧ c₂.step = .inl b) ∨
+      ∃ c₁' c₂', c₁.step = .inr c₁' ∧ c₂.step = .inr c₂' ∧
+        c₁'.state = c₂'.state ∧ c₁'.head = c₂'.head ∧
+        (∀ i : Int, L ≤ i → i < R → c₁'.tape i = c₂'.tape i) := by
+  have hread : c₁.tape c₁.head = c₂.tape c₂.head := by
+    rw [← hh]; exact ht c₁.head hL hR
+  unfold Cfg.step
+  rw [hs, hread]
+  cases hδ : M.δ c₂.state (c₂.tape c₂.head) with
+  | inl b => exact Or.inl ⟨b, rfl, rfl⟩
+  | inr val =>
+    obtain ⟨p, a, d⟩ := val
+    refine Or.inr ⟨_, _, rfl, rfl, rfl, by rw [hh], fun i hiL hiR => ?_⟩
+    dsimp only
+    rw [hh]
+    by_cases hih : i = c₂.head
+    · simp [hih]
+    · simp [hih, ht i hiL hiR]
+
+/-- **Multi-Step Closed Causal-Box Autonomy (`run_add_congr_in_box`):**
+if `M.run m s₁ = .inr c₁` and `M.run n s₂ = .inr c₂` agree on state, head, and tape inside `[L, R)`,
+and `M.run m` stays inside `[L, R)` during `[s₁, s₁ + k)`, then after `k` steps either both have
+halted with the same answer or both are in active configurations agreeing on state, head, and
+tape inside `[L, R)`. -/
+theorem run_add_congr_in_box {M : Machine} (m n : Nat) {L R : Int} :
+    ∀ (k s₁ s₂ : Nat) {c₁ c₂ : Cfg M},
+      M.run m s₁ = .inr c₁ → M.run n s₂ = .inr c₂ →
+      (∀ u, u < k → ∀ c, M.run m (s₁ + u) = .inr c → L ≤ c.head ∧ c.head < R) →
+      c₁.state = c₂.state → c₁.head = c₂.head →
+      (∀ i : Int, L ≤ i → i < R → c₁.tape i = c₂.tape i) →
+      (∃ b, M.run m (s₁ + k) = .inl b ∧ M.run n (s₂ + k) = .inl b) ∨
+        ∃ c₁' c₂', M.run m (s₁ + k) = .inr c₁' ∧ M.run n (s₂ + k) = .inr c₂' ∧
+          c₁'.state = c₂'.state ∧ c₁'.head = c₂'.head ∧
+          (∀ i : Int, L ≤ i → i < R → c₁'.tape i = c₂'.tape i)
+  | 0, s₁, s₂, c₁, c₂, hm, hn, _, hs, hh, ht =>
+    Or.inr ⟨c₁, c₂, hm, hn, hs, hh, ht⟩
+  | k + 1, s₁, s₂, c₁, c₂, hm, hn, hbox, hs, hh, ht => by
+    have hb0 := hbox 0 (Nat.succ_pos k) c₁ (by simpa using hm)
+    have hstep := step_congr_in_box hs hh hb0.1 hb0.2 ht
+    rcases hstep with ⟨b, hb₁, hb₂⟩ | ⟨c₁', c₂', hc₁', hc₂', hs', hh', ht'⟩
+    · left
+      have hm1 : M.run m (s₁ + 1) = .inl b := by simp [Machine.run, hm, hb₁]
+      have hn1 : M.run n (s₂ + 1) = .inl b := by simp [Machine.run, hn, hb₂]
+      refine ⟨b, ?_, ?_⟩
+      · have := Machine.run_add hm1 k
+        rwa [show s₁ + 1 + k = s₁ + (k + 1) by omega] at this
+      · have := Machine.run_add hn1 k
+        rwa [show s₂ + 1 + k = s₂ + (k + 1) by omega] at this
+    · have hm1 : M.run m (s₁ + 1) = .inr c₁' := by simp [Machine.run, hm, hc₁']
+      have hn1 : M.run n (s₂ + 1) = .inr c₂' := by simp [Machine.run, hn, hc₂']
+      have hbox' : ∀ u, u < k → ∀ c, M.run m (s₁ + 1 + u) = .inr c → L ≤ c.head ∧ c.head < R := by
+        intro u hu c hc
+        exact hbox (1 + u) (by omega) c (by rwa [show s₁ + (1 + u) = s₁ + 1 + u by omega])
+      have ih := run_add_congr_in_box m n k (s₁ + 1) (s₂ + 1) hm1 hn1 hbox' hs' hh' ht'
+      rwa [show s₁ + 1 + k = s₁ + (k + 1) by omega,
+        show s₂ + 1 + k = s₂ + (k + 1) by omega] at ih
+
+/-- **Eternal Causal-Box Loop From a Repeated Causal State (`run_mul_inr_of_causalBox_repeat`):**
+if on input `n` at steps `s` and `s + d` (`M.run n s = .inr c₁`, `M.run n (s + d) = .inr c₂`),
+the head stays inside `[L, R)` during `[s, s + d)` and `(state, head, tape|_{[L, R)})` repeats at
+`s + d`, then for every multiple `m : Nat`, `M.run n (s + m * d)` is active and repeats the same
+causal state on `[L, R)`. -/
+theorem run_mul_inr_of_causalBox_repeat {M : Machine} {n s d : Nat} {L R : Int} {c₁ c₂ : Cfg M}
+    (h₁ : M.run n s = .inr c₁) (h₂ : M.run n (s + d) = .inr c₂)
+    (hbox : ∀ u, u < d → ∀ c, M.run n (s + u) = .inr c → L ≤ c.head ∧ c.head < R)
+    (hs : c₁.state = c₂.state) (hh : c₁.head = c₂.head)
+    (ht : ∀ i : Int, L ≤ i → i < R → c₁.tape i = c₂.tape i) :
+    ∀ m : Nat, ∃ cm : Cfg M, M.run n (s + m * d) = .inr cm ∧
+      c₁.state = cm.state ∧ c₁.head = cm.head ∧
+      (∀ i : Int, L ≤ i → i < R → c₁.tape i = cm.tape i)
+  | 0 => ⟨c₁, by simpa using h₁, rfl, rfl, fun _ _ _ => rfl⟩
+  | m + 1 => by
+    obtain ⟨cm, hcm, hsm, hhm, htm⟩ :=
+      run_mul_inr_of_causalBox_repeat h₁ h₂ hbox hs hh ht m
+    have hstep := run_add_congr_in_box n n d s (s + m * d) h₁ hcm hbox hsm hhm htm
+    rcases hstep with ⟨b, hb₁, _⟩ | ⟨c₁', cm', hc₁', hcm', hs', hh', ht'⟩
+    · rw [h₂] at hb₁; cases hb₁
+    · rw [h₂] at hc₁'
+      injection hc₁' with heq
+      subst heq
+      refine ⟨cm', ?_, hs.trans hs', hh.trans hh', fun i hiL hiR => (ht i hiL hiR).trans (ht' i hiL hiR)⟩
+      rwa [show s + (m + 1) * d = s + m * d + d by rw [Nat.succ_mul, Nat.add_assoc]]
+
+/-- **Strict Causal-State Injectivity Before Halting (`causalBox_state_ne_of_halts`):**
+if `M.run n T = .inl b` halts and `InCausalBox M n T L R` holds, then no two active steps
+`s < s + d` (`1 ≤ d`, `s + d ≤ T`) can share the same `(state, head, tape|_{[L, R)})` inside `[L, R)`. -/
+theorem causalBox_state_ne_of_halts {M : Machine} {n T s d : Nat} {L R : Int} {b : Bool} {c₁ c₂ : Cfg M}
+    (hT : M.run n T = .inl b) (hbox : InCausalBox M n T L R)
+    (hd : 1 ≤ d) (hsd : s + d ≤ T)
+    (h₁ : M.run n s = .inr c₁) (h₂ : M.run n (s + d) = .inr c₂) :
+    ¬ (c₁.state = c₂.state ∧ c₁.head = c₂.head ∧
+      ∀ i : Int, L ≤ i → i < R → c₁.tape i = c₂.tape i) := by
+  rintro ⟨hs, hh, ht⟩
+  have hbox_d : ∀ u, u < d → ∀ c, M.run n (s + u) = .inr c → L ≤ c.head ∧ c.head < R :=
+    fun u hu c hc => hbox (s + u) (by omega) c hc
+  obtain ⟨cm, hcm, _, _, _⟩ :=
+    run_mul_inr_of_causalBox_repeat h₁ h₂ hbox_d hs hh ht T
+  have hle : T ≤ s + T * d := by
+    have : T * 1 ≤ T * d := Nat.mul_le_mul_left T hd
+    omega
+  have hhalt := Machine.run_add hT (s + T * d - T)
+  rw [Nat.add_sub_cancel' hle, hcm] at hhalt
+  cases hhalt
+
+/-- **Lagrangian Round-Trip Write-Read Causal Speed Bound (`round_trip_steps_ge_add_min`):**
+if a run visits a negative work-tape cell `c₁.head ≤ -(a : Int)` at step `t₁` and a positive
+input-tape cell `c₂.head ≥ (b : Int)` at step `t₂`, then regardless of the causal order of
+`t₁` and `t₂`, `a + b + min a b ≤ max t₁ t₂`. -/
+theorem round_trip_steps_ge_add_min {M : Machine} {n t₁ t₂ a b : Nat} {c₁ c₂ : Cfg M}
+    (h₁ : M.run n t₁ = .inr c₁) (h₂ : M.run n t₂ = .inr c₂)
+    (ha : c₁.head ≤ -(a : Int)) (hb : (b : Int) ≤ c₂.head) :
+    a + b + min a b ≤ max t₁ t₂ := by
+  have hb₁ := run_head_bounds h₁
+  have hb₂ := run_head_bounds h₂
+  rcases Nat.le_total t₁ t₂ with hle | hle
+  · have hsub := run_head_sub_bounds (t := t₁) (t₂ - t₁) h₁
+      (by rwa [Nat.add_sub_cancel' hle])
+    omega
+  · have hsub := run_head_sub_bounds (t := t₂) (t₁ - t₂) h₂
+      (by rwa [Nat.add_sub_cancel' hle])
+    omega
+
+/-- **Halting-Time Round-Trip Lower Bound From Negative and Positive Excursions
+(`time_ge_add_min_of_visit_neg_and_pos`):** if `t₁ < T` and `t₂ < T`, `M.run n t₁ = .inr c₁` with
+`c₁.head ≤ -(a : Int)`, and `M.run n t₂ = .inr c₂` with `(b : Int) ≤ c₂.head`, then
+`a + b + min a b + 1 ≤ T`. -/
+theorem time_ge_add_min_of_visit_neg_and_pos {M : Machine} {n T t₁ t₂ a b : Nat} {c₁ c₂ : Cfg M}
+    (ht₁ : t₁ < T) (ht₂ : t₂ < T)
+    (h₁ : M.run n t₁ = .inr c₁) (h₂ : M.run n t₂ = .inr c₂)
+    (ha : c₁.head ≤ -(a : Int)) (hb : (b : Int) ≤ c₂.head) :
+    a + b + min a b + 1 ≤ T := by
+  have hrt := round_trip_steps_ge_add_min h₁ h₂ ha hb
+  omega
+
+
 end Rule30Problem3
 end Ruliology.CellularAutomata
