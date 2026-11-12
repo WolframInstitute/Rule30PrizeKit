@@ -231,5 +231,22 @@ theorem no_black_run_block_finite {x : Int → Bool} (hfin : FinConfig x) (hne :
   obtain ⟨lo, hlo, hzero⟩ := exists_leftmost hfin hne
   exact no_black_run_block hlo hzero i u j0 hdet hj0 T r t1 hper ht1 hr9 hrj hrun hu
 
+/-! ### Exact length of `colTraceAt` and finite-configuration (`FinConfig`) exclusion of `1^r 0` (`r ≥ 18`) -/
+
+/-- **Exact Length of `colTraceAt` (`colTraceAt_length`).** -/
+theorem colTraceAt_length (x : Int → Bool) (p : Int) :
+    ∀ (n e : Nat), (colTraceAt x p e n).length = n + 1
+  | 0, _ => rfl
+  | n + 1, e => by simp [colTraceAt, colTraceAt_length x p n (e + 1)]
+
+/-- **Finite-Configuration (`FinConfig`) Exclusion of Repeating `1^r 0` for `r ≥ 18` (`no_period_black_run_then_white_finite`).** -/
+theorem no_period_black_run_then_white_finite {x : Int → Bool}
+    (hfin : Rule30PeriodTwoSideways.FinConfig x) (hne : ∃ p, x p = true)
+    (i : Int) (T r t1 : Nat) (hr : 18 ≤ r)
+    (hper : ∀ t, T ≤ t → evol x (t + (r + 1)) i = evol x t i) (ht1 : T ≤ t1)
+    (hrun : ∀ s, s < r → evol x (t1 + s) i = true) (hw : evol x (t1 + r) i = false) : False := by
+  obtain ⟨lo, hlo, hzero⟩ := exists_leftmost hfin hne
+  exact no_period_black_run_then_white hlo hzero i T r t1 hr hper ht1 hrun hw
+
 end Rule30FiniteBlackRunBlocks
 end Ruliology.CellularAutomata
