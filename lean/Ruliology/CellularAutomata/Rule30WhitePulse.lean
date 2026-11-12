@@ -319,4 +319,46 @@ theorem white_padding_forces_early_white {x : Int → Bool} {lo : Int}
       List.getElem?_replicate_of_lt hk]
     rfl
 
+/-! ## Spatial period-2 and shift-complement symmetries of `stripe`, and finite-configuration pulse laws -/
+
+/-- **Spatial Period-2 and Shift-Complement Symmetries of `stripe` (`stripe_symmetries`).** -/
+theorem stripe_symmetries (i p k : Int) :
+    stripe i (p + 2 * k) = stripe i p ∧
+    stripe (i + 2 * k) p = stripe i p ∧
+    stripe i (p + 1) = !stripe i p ∧
+    stripe (i + 1) p = !stripe i p := by
+  unfold stripe
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · exact decide_eq_decide.mpr ⟨fun h => by omega, fun h => by omega⟩
+  · exact decide_eq_decide.mpr ⟨fun h => by omega, fun h => by omega⟩
+  · cases h : decide ((p - i) % 2 = 1)
+    · have h0 : (p - i) % 2 ≠ 1 := of_decide_eq_false h
+      exact decide_eq_true (by omega)
+    · have h1 : (p - i) % 2 = 1 := of_decide_eq_true h
+      exact decide_eq_false (by omega)
+  · cases h : decide ((p - i) % 2 = 1)
+    · have h0 : (p - i) % 2 ≠ 1 := of_decide_eq_false h
+      exact decide_eq_true (by omega)
+    · have h1 : (p - i) % 2 = 1 := of_decide_eq_true h
+      exact decide_eq_false (by omega)
+
+/-- **Finite-Configuration Early-Black Exclusion and Early-White Reduction (`white_pulse_finite_config_laws`).** -/
+theorem white_pulse_finite_config_laws {x : Int → Bool}
+    (hfin : Rule30PeriodTwoSideways.FinConfig x) (hne : ∃ p, x p = true) (i : Int) :
+    (∀ (a r m s : Nat), 10 * m + 11 ≤ r →
+      (∀ t, a ≤ t → evol x (t + (r + m)) i = evol x t i) →
+      (∀ n k, k < r → evol x (a + n * (r + m) + k) i = false) →
+      evol x (a + s) (i + 1) = true → s + 9 * (m + 1) ≤ r → False) ∧
+    (∀ (u : List Bool) (r : Nat), 10 * u.length + 11 ≤ r →
+      Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ u) →
+      ∃ T, (∀ t, T ≤ t → evol x t i =
+          (List.replicate r false ++ u).getD ((t - T) % (r + u.length)) false) ∧
+        ∀ n s, s + 9 * (u.length + 1) ≤ r →
+          evol x (T + n * (r + u.length) + s) (i + 1) = false) := by
+  obtain ⟨lo, hlo, hzero⟩ := Rule30FiniteConfigs.exists_leftmost hfin hne
+  exact ⟨fun a r m s hr hper hw hearly hs =>
+           no_periodic_boundary_early_black hlo hzero i a r m s hr hper hw hearly hs,
+         fun u r hr hword =>
+           white_padding_forces_early_white hlo hzero i u r hr hword⟩
+
 end Ruliology.CellularAutomata.Rule30WhitePulse

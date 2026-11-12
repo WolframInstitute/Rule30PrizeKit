@@ -341,4 +341,35 @@ theorem not_finSupp_Psi_of_Q01Gap (hQ : Q01Gap) (R : Nat → Bool) {t0 : Nat} (h
 theorem CQ01Empty_of_Q01Gap (hQ : Q01Gap) : Rule30PeriodTwoSideways.CQ01Empty :=
   not_finSupp_Psi_of_Q01Gap hQ _ (t0 := 293) (by decide) entry_empty
 
+/-! ## Universal `Spaced` law for every trap-entering right half and initial profile of `emptyGate` -/
+
+/-- **Universal `Spaced` Renormalization Law for Every Trap-Entering Right Half (`u_spaced_of_trap_entry`):**
+if the 16-column window of `R` is in `trap` at an odd time `t0`, then for every `s0` with
+`t0 ≤ 2 * s0 + 1`, the gate `fun r => u R (s0 + r)` satisfies `Rule30SpacingRenormalization.Spaced`. -/
+theorem u_spaced_of_trap_entry (R : Nat → Bool) {t0 s0 : Nat} (h0 : t0 % 2 = 1)
+    (hw : win R t0 ∈ trap) (hs0 : t0 ≤ 2 * s0 + 1) :
+    Rule30SpacingRenormalization.Spaced (fun r => Rule30PeriodTwoSideways.u R (s0 + r)) := by
+  intro r
+  refine ⟨?_, ?_⟩
+  · show (Rule30PeriodTwoSideways.u R (s0 + r) && Rule30PeriodTwoSideways.u R (s0 + (r + 1))) = false
+    cases h : Rule30PeriodTwoSideways.u R (s0 + r) with
+    | false => rfl
+    | true =>
+      rw [show s0 + (r + 1) = (s0 + r) + 1 by omega]
+      rcases gaps_of_entry R h0 hw (s0 + r) (by omega) h with ⟨h1, _, _⟩ | ⟨h1, _, _, _, _⟩ <;> rw [h1] <;> rfl
+  · show (Rule30PeriodTwoSideways.u R (s0 + r) && Rule30PeriodTwoSideways.u R (s0 + (r + 2))) = false
+    cases h : Rule30PeriodTwoSideways.u R (s0 + r) with
+    | false => rfl
+    | true =>
+      rw [show s0 + (r + 2) = (s0 + r) + 2 by omega]
+      rcases gaps_of_entry R h0 hw (s0 + r) (by omega) h with ⟨_, h2, _⟩ | ⟨_, h2, _, _, _⟩ <;> rw [h2] <;> rfl
+
+/-- **Exact Initial Three-Step Profile of `emptyGate` (`emptyGate_initial_values`).** -/
+theorem emptyGate_initial_values :
+    emptyGate 0 = true ∧ emptyGate 1 = false ∧ emptyGate 2 = false := by
+  have h0 : emptyGate 0 = true := u_empty_146
+  rcases u_empty_gaps 146 (Nat.le_refl _) u_empty_146 with ⟨h1, h2, _⟩ | ⟨h1, h2, _, _, _⟩
+  · exact ⟨h0, h1, h2⟩
+  · exact ⟨h0, h1, h2⟩
+
 end Ruliology.CellularAutomata.Rule30GateTrap
