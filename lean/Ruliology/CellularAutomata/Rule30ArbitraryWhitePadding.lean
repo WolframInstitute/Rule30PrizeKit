@@ -741,4 +741,30 @@ theorem not_eventually_padded_word (u : List Bool) (q : Nat)
   exact not_adjacent 0 ⟨T,P,hP,hper⟩ ⟨T+2*P,P,hP,hcol⟩
 
 
+/-! ### Multi-period shift invariance of `phase_periodic` and all-black block white-padding exclusions -/
+
+/-- **Multi-Period Shift Invariance and `EventuallyPeriodic` Corollary of `phase_periodic` (`phase_periodic_mul_and_eventuallyPeriodic`).** -/
+theorem phase_periodic_mul_and_eventuallyPeriodic (f : Nat → Bool) (T P : Nat) (hP : 0 < P)
+    (hphase : ∀ m, 2 ≤ m → ∀ s, s < P → f (T + (m + 1) * P + s) = f (T + m * P + s)) :
+    (∀ t, T + 2 * P ≤ t → ∀ k : Nat, f (t + k * P) = f t) ∧
+    Rule30Jen.EventuallyPeriodic f := by
+  have h1 := phase_periodic f T P hP hphase
+  refine ⟨fun t ht k => ?_, ⟨T + 2 * P, P, hP, h1⟩⟩
+  induction k with
+  | zero => simp
+  | succ k ih =>
+    rw [show t + (k + 1) * P = (t + k * P) + P by rw [Nat.add_mul, Nat.one_mul]; omega]
+    rw [h1 (t + k * P) (by omega), ih]
+
+/-- **Exclusion of Arbitrary-Length Black Runs Followed by Admissible White Padding (`not_eventually_black_run_padded`).** -/
+theorem not_eventually_black_run_padded (n q : Nat) (hn : 1 ≤ n)
+    (hq : paddingThreshold n ≤ q) :
+    ¬ Rule30StripCertificates.EventuallyWord (List.replicate n true ++ List.replicate q false) := by
+  have hlen : (List.replicate n true).length = n := List.length_replicate
+  have hblack : ∃ j, j < (List.replicate n true).length ∧ (List.replicate n true).getD j false = true := by
+    refine ⟨0, by omega, ?_⟩
+    rw [List.getD_eq_getElem?_getD, List.getElem?_replicate_of_lt (by omega)]
+    rfl
+  exact not_eventually_padded_word (List.replicate n true) q hblack (by rwa [hlen])
+
 end Ruliology.CellularAutomata.Rule30ArbitraryWhitePadding

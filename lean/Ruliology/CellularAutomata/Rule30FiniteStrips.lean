@@ -222,5 +222,38 @@ theorem not_eventually_word_strip_finite {x : Int → Bool}
   exact not_eventually_word_strip hlo hzero i w K k hK hw hcert
 
 
+/-! ### Pointwise strip equality characterization of `encRow` and single-seed `EventuallyWord` equivalence -/
+
+/-- **Pointwise Cell-Agreement Characterization of `encRow` Equality (`encRow_eq_iff_cells_eq`).** -/
+theorem encRow_eq_iff_cells_eq (x y : Int → Bool) (K t1 t2 : Nat) (j1 j2 : Int) :
+    Rule30FiniteStrips.encRow x t1 j1 K = Rule30FiniteStrips.encRow y t2 j2 K ↔
+      ∀ k, k < K → Rule30Realization.evol x t1 (j1 + 1 + k) = Rule30Realization.evol y t2 (j2 + 1 + k) := by
+  constructor
+  · intro heq k hk
+    have h1 := (Rule30FiniteStrips.enc_encRow (x := x) K t1 j1).2 k hk
+    have h2 := (Rule30FiniteStrips.enc_encRow (x := y) K t2 j2).2 k hk
+    rw [heq] at h1
+    exact h1.symm.trans h2
+  · intro hall
+    apply Nat.eq_of_testBit_eq
+    intro k
+    rw [Rule30FiniteStrips.testBit_encRow, Rule30FiniteStrips.testBit_encRow]
+    by_cases hk : k < K
+    · simp [hk, hall k hk]
+    · simp [hk]
+
+/-- **Eventual Periodicity from `EventuallyWord` and Single-Seed Equivalence (`eventuallyWord_periodic_and_seed_iff`).** -/
+theorem eventuallyWord_periodic_and_seed_iff (x : Int → Bool) (i : Int) (w : List Bool) :
+    (0 < w.length → Rule30FiniteStrips.EventuallyWord x i w →
+      Rule30Jen.EventuallyPeriodic (fun t => Rule30Realization.evol x t i)) ∧
+    (Rule30FiniteStrips.EventuallyWord Rule30Realization.seed 0 w ↔
+      Rule30StripCertificates.EventuallyWord w) := by
+  refine ⟨fun hw ⟨T, hT⟩ => ⟨T, w.length, hw, fun t ht => ?_⟩, ?_⟩
+  · change Rule30Realization.evol x (t + w.length) i = Rule30Realization.evol x t i
+    rw [hT t ht, hT (t + w.length) (by omega),
+      show t + w.length - T = (t - T) + w.length by omega, Nat.add_mod_right]
+  · simp only [Rule30FiniteStrips.EventuallyWord, Rule30StripCertificates.EventuallyWord,
+      Rule30Realization.evol_seed]
+
 end Rule30FiniteStrips
 end Ruliology.CellularAutomata

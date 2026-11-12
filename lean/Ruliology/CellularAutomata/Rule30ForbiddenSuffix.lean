@@ -109,4 +109,24 @@ theorem no_padding_of_forbidden_suffix_seed
   simpa only [Rule30FiniteStrips.EventuallyWord,
     Rule30StripCertificates.EventuallyWord, evol_seed] using h
 
+/-! ### Empty-lead pure white-padding exclusions for forbidden words -/
+
+/-- **Pure White-Padded Forbidden-Word Exclusions Across Left-Bounded, Finite, and Seed Starts (`no_padding_of_forbidden_word_all`).** -/
+theorem no_padding_of_forbidden_word_all (suffix : List Bool) (K r : Nat)
+    (hsafe : (Rule30StripCertificates.applyWord K suffix (Rule30StripCertificates.fullSet K)).testBit 0 = false)
+    (hrpulse : 10 * suffix.length + 11 ≤ r)
+    (hrwidth : K + 9 * (suffix.length + 1) ≤ r) :
+    (∀ {x : Int → Bool} {lo : Int}, x lo = true → (∀ p, p < lo → x p = false) → ∀ i : Int,
+      ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ suffix)) ∧
+    (∀ {x : Int → Bool}, Rule30PeriodTwoSideways.FinConfig x → (∃ p, x p = true) → ∀ i : Int,
+      ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ suffix)) ∧
+    ¬ Rule30StripCertificates.EventuallyWord (List.replicate r false ++ suffix) := by
+  refine ⟨fun hlo hzero i => ?_, fun hfin hne i => ?_, ?_⟩
+  · simpa using no_padding_of_forbidden_suffix hlo hzero i [] suffix K hsafe r
+      (by simpa using hrpulse) (by simpa using hrwidth)
+  · simpa using no_padding_of_forbidden_suffix_finite hfin hne i [] suffix K hsafe r
+      (by simpa using hrpulse) (by simpa using hrwidth)
+  · simpa using no_padding_of_forbidden_suffix_seed [] suffix K hsafe r
+      (by simpa using hrpulse) (by simpa using hrwidth)
+
 end Ruliology.CellularAutomata.Rule30ForbiddenSuffix
