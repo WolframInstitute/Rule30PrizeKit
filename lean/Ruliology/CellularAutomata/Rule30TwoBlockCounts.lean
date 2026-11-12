@@ -351,5 +351,159 @@ theorem problem2_iff_spatial_three_column_sublinear :
   · rw [count11_eq_spatialBlackLeftWhiteCount, count00_eq_spatialWhiteSymmetricCount]
     exact hN n hn
 
+-- ============================================================================
+-- SECTION 4: Bitwise Complement Duality, Second-Coordinate Marginals, and
+--            Incoming-Black Problem 2 Equivalence
+-- ============================================================================
+
+/-- **Bitwise Complement Duality for `count00` and `count11` (`count00_not`).** -/
+theorem count00_not (f : Nat → Bool) (n : Nat) :
+    count00 (fun i => !(f i)) n = count11 f n := by
+  unfold count00 count11
+  congr 1
+  apply List.filter_congr
+  intro i _
+  dsimp only
+  cases f i <;> cases f (i + 1) <;> rfl
+
+/-- **Bitwise Complement Duality for `count11` and `count00` (`count11_not`).** -/
+theorem count11_not (f : Nat → Bool) (n : Nat) :
+    count11 (fun i => !(f i)) n = count00 f n := rfl
+
+/-- **Bitwise Complement Duality for `count01` and `count10` (`count01_not`).** -/
+theorem count01_not (f : Nat → Bool) (n : Nat) :
+    count01 (fun i => !(f i)) n = count10 f n := by
+  unfold count01 count10
+  congr 1
+  apply List.filter_congr
+  intro i _
+  dsimp only
+  cases f i <;> cases f (i + 1) <;> rfl
+
+/-- **Bitwise Complement Duality for `count10` and `count01` (`count10_not`).** -/
+theorem count10_not (f : Nat → Bool) (n : Nat) :
+    count10 (fun i => !(f i)) n = count01 f n := by
+  unfold count10 count01
+  congr 1
+  apply List.filter_congr
+  intro i _
+  dsimp only
+  cases f i <;> cases f (i + 1) <;> rfl
+
+/-- **Complement Partition Identity for `onesCount` (`onesCount_not_add_onesCount`).** -/
+theorem onesCount_not_add_onesCount (f : Nat → Bool) (n : Nat) :
+    onesCount (fun i => !(f i)) n + onesCount f n = n := by
+  induction n with
+  | zero => rfl
+  | succ k ih =>
+    rw [onesCount_succ, onesCount_succ]
+    cases f k <;> simp <;> omega
+
+/-- **Sign-Reversal of Homogeneous 2-Block Imbalance Under Bitwise Complement (`homogeneous_imbalance_not`).** -/
+theorem homogeneous_imbalance_not (f : Nat → Bool) (n : Nat) :
+    (count11 (fun i => !(f i)) n : Int) - (count00 (fun i => !(f i)) n : Int) =
+      -((count11 f n : Int) - (count00 f n : Int)) := by
+  rw [count11_not, count00_not]
+  omega
+
+/-- **First-Coordinate Zero-Marginal Identity (`zeros_marginal_eq_count00_add_count01`):**
+`count00 f n + count01 f n + onesCount f n = n`. -/
+theorem zeros_marginal_eq_count00_add_count01 (f : Nat → Bool) (n : Nat) :
+    count00 f n + count01 f n + onesCount f n = n := by
+  have h1 := block_counts_sum f n
+  have h2 := onesCount_step_decomposition f n
+  omega
+
+/-- **Second-Coordinate Marginal Identity (`onesCount_shift_one_eq_count01_add_count11`):**
+`onesCount (fun i => f (i + 1)) n = count01 f n + count11 f n`. -/
+theorem onesCount_shift_one_eq_count01_add_count11 (f : Nat → Bool) (n : Nat) :
+    onesCount (fun i => f (i + 1)) n = count01 f n + count11 f n := by
+  induction n with
+  | zero => rfl
+  | succ k ih =>
+    rw [onesCount_succ, count01_succ, count11_succ]
+    cases f k <;> cases f (k + 1) <;> simp <;> omega
+
+/-- **Shifted Center-Column Black-Count Decomposition (`blackCount_succ_eq_one_add_count01_add_count11`):**
+for every `n : Nat`, `blackCount (n + 1) = 1 + count01 center n + count11 center n`. -/
+theorem blackCount_succ_eq_one_add_count01_add_count11 (n : Nat) :
+    blackCount (n + 1) = 1 + count01 center n + count11 center n := by
+  rw [← onesCount_center_eq_blackCount]
+  induction n with
+  | zero => rfl
+  | succ k ih =>
+    rw [onesCount_succ, count01_succ, count11_succ]
+    cases center k <;> cases center (k + 1) <;> simp <;> omega
+
+/-- **Universal `±1` Bound Between `count10` and `count01` (`natAbs_count10_sub_count01_le_one`).** -/
+theorem natAbs_count10_sub_count01_le_one (f : Nat → Bool) (n : Nat) :
+    ((count10 f n : Int) - (count01 f n : Int)).natAbs ≤ 1 := by
+  have h := transition_balance_10_01_general f n
+  unfold bit at h
+  cases h0 : f 0 <;> cases hn : f n <;> simp [h0, hn] at h <;> omega
+
+/-- **One-Sided Alternating-Switch Sandwich for the Center Column (`center_count01_le_count10_and_le_succ`):**
+because `center 0 = true`, `count01 center n ≤ count10 center n ≤ count01 center n + 1`. -/
+theorem center_count01_le_count10_and_le_succ (n : Nat) :
+    count01 center n ≤ count10 center n ∧ count10 center n ≤ count01 center n + 1 := by
+  have h := transition_balance_10_01 n
+  unfold bit at h
+  cases hcn : center n <;> simp [hcn] at h <;> omega
+
+/-- **Spatial Three-Column Partition Identity (`spatial_four_counts_sum`)** and
+**Spatial Decomposition of `blackCount` (`blackCount_eq_spatial_black_sum`).** -/
+theorem spatial_four_counts_sum_and_blackCount (n : Nat) :
+    spatialWhiteSymmetricCount n + spatialWhiteAsymmetricCount n +
+      spatialBlackLeftBlackCount n + spatialBlackLeftWhiteCount n = n ∧
+    blackCount n = spatialBlackLeftBlackCount n + spatialBlackLeftWhiteCount n := by
+  rw [← count00_eq_spatialWhiteSymmetricCount, ← count01_eq_spatialWhiteAsymmetricCount,
+    ← count10_eq_spatialBlackLeftBlackCount, ← count11_eq_spatialBlackLeftWhiteCount]
+  exact ⟨block_counts_sum center n, blackCount_step_decomposition n⟩
+
+/-- Pointwise bound between `|2 * blackCount n - n|` and the incoming-black 2-block discrepancy
+`|2 * (count01 center n + count11 center n) - n|`: they differ by at most `2`. -/
+theorem natAbs_discrepancy_sub_incoming_black_le_two (n : Nat) :
+    (2 * (blackCount n : Int) - (n : Int)).natAbs ≤
+      (2 * ((count01 center n : Int) + (count11 center n : Int)) - (n : Int)).natAbs + 2 ∧
+    (2 * ((count01 center n : Int) + (count11 center n : Int)) - (n : Int)).natAbs ≤
+      (2 * (blackCount n : Int) - (n : Int)).natAbs + 2 := by
+  have h_ones : (blackCount n : Int) = (count10 center n : Int) + (count11 center n : Int) := by
+    exact_mod_cast blackCount_step_decomposition n
+  have h_bal := transition_balance_10_01 n
+  unfold bit at h_bal
+  cases hcn : center n <;> simp [hcn] at h_bal <;> omega
+
+private theorem two_mul_mul_add_two (k x : Nat) : 2 * (k * (x + 2)) = (2 * k) * x + 4 * k := by
+  rw [Nat.mul_add, Nat.mul_add, ← Nat.mul_assoc]
+  omega
+
+/-- **Incoming-Black Marginal Equivalence for `Problem2` (`problem2_iff_incoming_black_sublinear`):**
+`Rule30Prize.Problem2` holds iff `|2 * (count01 center n + count11 center n) - n| = o(n)`. -/
+theorem problem2_iff_incoming_black_sublinear :
+    Problem2 ↔
+      ∀ k : Nat, 0 < k → ∃ N : Nat, ∀ n : Nat, N ≤ n →
+        k * (2 * ((count01 center n : Int) + (count11 center n : Int)) - (n : Int)).natAbs ≤ n := by
+  constructor
+  · intro hp2 k hk
+    obtain ⟨N, hN⟩ := hp2 (2 * k) (by omega)
+    refine ⟨max N (4 * k), fun n hn => ?_⟩
+    have hnN : N ≤ n := by omega
+    have hnk : 4 * k ≤ n := by omega
+    have h_step := hN n hnN
+    have h_diff := (natAbs_discrepancy_sub_incoming_black_le_two n).2
+    have h1 := Nat.mul_le_mul_left k h_diff
+    have h2 := two_mul_mul_add_two k (2 * (blackCount n : Int) - (n : Int)).natAbs
+    omega
+  · intro hin k hk
+    obtain ⟨N, hN⟩ := hin (2 * k) (by omega)
+    refine ⟨max N (4 * k), fun n hn => ?_⟩
+    have hnN : N ≤ n := by omega
+    have hnk : 4 * k ≤ n := by omega
+    have h_step := hN n hnN
+    have h_diff := (natAbs_discrepancy_sub_incoming_black_le_two n).1
+    have h1 := Nat.mul_le_mul_left k h_diff
+    have h2 := two_mul_mul_add_two k (2 * ((count01 center n : Int) + (count11 center n : Int)) - (n : Int)).natAbs
+    omega
+
 end Rule30TwoBlockCounts
 end Ruliology.CellularAutomata
