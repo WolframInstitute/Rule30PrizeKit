@@ -754,4 +754,110 @@ theorem edge_pinned_tail87 (c0 c1 : Nat) (h0' : c0 < 7) (h1' : c1 < 4) {H : Nat 
   | c0 + 7, _, h, _ => absurd h (by omega)
   | _, c1 + 4, _, h => absurd h (by omega)
 
+/-! ### Algebraic laws of the difference operator `mis`, uniqueness of the rooted front, and cone bounds -/
+
+/-- **Difference-Witness Equivalence (`dif_eq_true_iff_ne`):**
+`dif H E t x = true` holds if and only if `H t x ≠ E t x`. -/
+theorem dif_eq_true_iff_ne (H E : Nat → Int → Bool) (t : Nat) (x : Int) :
+    dif H E t x = true ↔ H t x ≠ E t x := by
+  unfold dif
+  cases H t x <;> cases E t x <;> decide
+
+/-- **Agreement Equivalence (`dif_eq_false_iff_eq`):**
+`dif H E t x = false` holds if and only if `H t x = E t x`. -/
+theorem dif_eq_false_iff_eq (H E : Nat → Int → Bool) (t : Nat) (x : Int) :
+    dif H E t x = false ↔ H t x = E t x := by
+  unfold dif
+  cases H t x <;> cases E t x <;> decide
+
+/-- **Symmetry and Cocycle Identity for `dif` (`dif_symm_and_xor_trans`):**
+`dif H E t x = dif E H t x` and `dif H G t x = xor (dif H E t x) (dif E G t x)`. -/
+theorem dif_symm_and_xor_trans (H E G : Nat → Int → Bool) (t : Nat) (x : Int) :
+    dif H E t x = dif E H t x ∧
+    dif H G t x = xor (dif H E t x) (dif E G t x) := by
+  unfold dif
+  cases H t x <;> cases E t x <;> cases G t x <;> decide
+
+/-- **Left-Bijectivity of `mis` (`mis_flip_dl`):**
+flipping the left parent difference `dl` unconditionally flips `mis`, regardless of `dc, dr, c, r`. -/
+theorem mis_flip_dl (dl dc dr c r : Bool) :
+    mis (!dl) dc dr c r = !mis dl dc dr c r := by
+  revert dl dc dr c r
+  decide
+
+/-- **Background-Independent Rightward Propagation of a Solitary Left Difference (`mis_solitary_left`):**
+when `dc = false` and `dr = false`, `mis dl false false c r = dl` for every background `(c, r)`. -/
+theorem mis_solitary_left (dl c r : Bool) :
+    mis dl false false c r = dl := by
+  revert dl c r
+  decide
+
+/-- **Leftward Front Advance Criterion (`mis_left_front`):**
+when `dl = false`, `dc = false`, and `dr = true` (one cell left of the rooted front `L`),
+`mis false false true c r = !c`, so the front advances left iff the background cell `c` is white (`false`). -/
+theorem mis_left_front (c r : Bool) :
+    mis false false true c r = !c := by
+  revert c r
+  decide
+
+/-- **Black Background Shielding Law (`mis_black_center_masks_right`):**
+when `dl = false`, `dc = false`, and the background centre cell is black (`c = true`), any right
+difference `dr` is completely masked (`mis false false dr true r = false`). -/
+theorem mis_black_center_masks_right (dr r : Bool) :
+    mis false false dr true r = false := by
+  revert dr r
+  decide
+
+/-- **Uniqueness of the Rooted Leftmost Difference Position (`HoldsR_L_unique`):**
+if `HoldsR δ s₁` and `HoldsR δ s₂`, then `s₁.L = s₂.L`. -/
+theorem HoldsR_L_unique {δ : Int → Bool} {s₁ s₂ : St}
+    (h₁ : HoldsR δ s₁) (h₂ : HoldsR δ s₂) : s₁.L = s₂.L := by
+  have hnot1 : ¬ s₁.L < s₂.L := fun hlt => by
+    have hz := h₂.1 s₁.L hlt
+    rw [h₁.2.1] at hz
+    exact Bool.noConfusion hz
+  have hnot2 : ¬ s₂.L < s₁.L := fun hlt => by
+    have hz := h₁.1 s₂.L hlt
+    rw [h₂.2.1] at hz
+    exact Bool.noConfusion hz
+  omega
+
+/-- **Strict Separation Between Half-Line Agreement and the Rooted Front (`HoldsH_lt_HoldsR_L`):**
+if `HoldsH δ m` (`δ = false` on `x ≤ m`) and `HoldsR δ s`, then `m < s.L`. -/
+theorem HoldsH_lt_HoldsR_L {δ : Int → Bool} {m : Int} {s : St}
+    (hH : HoldsH δ m) (hR : HoldsR δ s) : m < s.L := by
+  apply Classical.byContradiction
+  intro hge
+  have hz := hH s.L (by omega)
+  rw [hR.2.1] at hz
+  exact Bool.noConfusion hz
+
+/-- **Tight Bounds on the Half-Line Recruitment Step (`succH_bounds`):**
+for every background `e` and frontier `m`, `m - 1 ≤ succH e m ∧ succH e m ≤ m`. -/
+theorem succH_bounds (e : Int → Bool) (m : Int) :
+    m - 1 ≤ succH e m ∧ succH e m ≤ m := by
+  unfold succH
+  cases e m <;> simp <;> omega
+
+/-- **Background-Independent One-Step Half-Line Cone (`HoldsH_step_sub_one`):**
+under `StepRel δ δ' E`, `HoldsH δ m` unconditionally implies `HoldsH δ' (m - 1)`. -/
+theorem HoldsH_step_sub_one {δ δ' E : Int → Bool} {m : Int}
+    (hs : StepRel δ δ' E) (h : HoldsH δ m) : HoldsH δ' (m - 1) :=
+  (succH_sound hs rfl h).mono (succH_bounds E m).1
+
+/-- **Multi-Step Difference-Free Light Cone (`dif_holdsH_cone`):**
+for any two Rule 30 evolutions `H, E`, `HoldsH (dif H E t) m` implies
+`HoldsH (dif H E (t + n)) (m - (n : Int))` for all `n : Nat`. -/
+theorem dif_holdsH_cone {H E : Nat → Int → Bool} (hH : IsR30Z H) (hE : IsR30Z E)
+    (t : Nat) : ∀ (n : Nat) (m : Int),
+      HoldsH (dif H E t) m → HoldsH (dif H E (t + n)) (m - (n : Int))
+  | 0, m, h => by simpa using h
+  | n + 1, m, h => by
+    have ih := dif_holdsH_cone hH hE t n m h
+    have hs : StepRel (dif H E (t + n)) (dif H E (t + n + 1)) (E (t + n)) :=
+      fun x => dif_succ hH hE (t + n) x
+    have hstep := HoldsH_step_sub_one hs ih
+    rw [show t + (n + 1) = t + n + 1 by omega]
+    refine hstep.mono (by omega)
+
 end Ruliology.CellularAutomata.Rule30RootedFront
