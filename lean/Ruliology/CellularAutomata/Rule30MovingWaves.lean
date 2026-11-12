@@ -302,6 +302,90 @@ theorem aperiodic_travelling_wave :
       (∀ m : Nat, 0<m → ¬ Per m x) :=
   ⟨field marker 0,period_twelve marker,marker_spatially_aperiodic⟩
 
+/-- **Multi-Period Time Invariance of `field` (`field_add_mul_twelve`):**
+for every `code : Int → Bool` and `t k : Nat`, `field code (t + 12 * k) = field code t`. -/
+theorem field_add_mul_twelve (code : Int → Bool) (t : Nat) :
+    ∀ k : Nat, field code (t + 12 * k) = field code t
+  | 0 => by simp
+  | k + 1 => by
+    rw [show t + 12 * (k + 1) = (t + 12 * k) + 12 by omega,
+      field_period, field_add_mul_twelve code t k]
+
+/-- **Multi-Period Co-Moving Return (`orbit_field_mul_twelve`):**
+for every `code : Int → Bool` and `k : Nat`, `orbit (field code 0) (12 * k) = field code 0`. -/
+theorem orbit_field_mul_twelve (code : Int → Bool) (k : Nat) :
+    orbit (field code 0) (12 * k) = field code 0 := by
+  rw [orbit_field, show 12 * k = 0 + 12 * k by omega, field_add_mul_twelve]
+
+/-- **Exact Divisibility Characterization of Co-Moving Return (`orbit_field_eq_iff_mod_twelve_eq_zero`):**
+for every `code : Int → Bool` and `d : Nat`,
+`orbit (field code 0) d = field code 0 ↔ d % 12 = 0`. -/
+theorem orbit_field_eq_iff_mod_twelve_eq_zero (code : Int → Bool) (d : Nat) :
+    orbit (field code 0) d = field code 0 ↔ d % 12 = 0 := by
+  have hred : orbit (field code 0) d = orbit (field code 0) (d % 12) := by
+    rw [orbit_field, orbit_field]
+    conv => lhs; rw [show d = d % 12 + 12 * (d / 12) by omega]
+    exact field_add_mul_twelve code (d % 12) (d / 12)
+  rw [hred]
+  constructor
+  · intro heq
+    apply Classical.byContradiction
+    intro hne
+    exact (exact_period_twelve code).2 (d % 12) (by omega) (by omega) heq
+  · intro hmod
+    rw [hmod]
+    rfl
+
+/-- **Multi-Period Physical Spacetime Wave Identity (`evol_field_add_mul_twelve`):**
+for every `code : Int → Bool`, `t k : Nat`, and `i : Int`,
+`evol (field code 0) (t + 12 * k) (i + 12 * (k : Int)) = evol (field code 0) t i`. -/
+theorem evol_field_add_mul_twelve (code : Int → Bool) (t : Nat) :
+    ∀ (k : Nat) (i : Int),
+      evol (field code 0) (t + 12 * k) (i + 12 * (k : Int)) = evol (field code 0) t i
+  | 0, i => by simp
+  | k + 1, i => by
+    have hstep := physical_wave_all_times code (t + 12 * k) (i + 12 * (k : Int))
+    have ht : t + 12 * (k + 1) = t + 12 * k + 12 := by omega
+    have hi : i + 12 * ((k + 1 : Nat) : Int) = i + 12 * (k : Int) + 12 := by omega
+    rw [ht, hi, hstep, evol_field_add_mul_twelve code t k i]
+
+/-- **Light-Cone Symbol Readout at Multiples of 12 (`evol_decode_at_twelve_mul`):**
+at every tick `12 * k` and spatial site `34 * q + 20 + 12 * k`, Rule 30 evolution reads `code q`. -/
+theorem evol_decode_at_twelve_mul (code : Int → Bool) (k : Nat) (q : Int) :
+    evol (field code 0) (12 * k) (34 * q + 20 + 12 * (k : Int)) = code q := by
+  have h := evol_field_add_mul_twelve code 0 k (34 * q + 20)
+  rw [Nat.zero_add] at h
+  rw [h]
+  exact decode code q
+
+/-- **Arbitrary Integer Block-Shift Equivariance (`block_shift_int`):**
+for every `code : Int → Bool`, `t : Nat`, and `m i : Int`,
+`field code t (i + 34 * m) = field (fun q => code (q + m)) t i`. -/
+theorem block_shift_int (code : Int → Bool) (t : Nat) (m i : Int) :
+    field code t (i + 34 * m) = field (fun q => code (q + m)) t i := by
+  have hq : (i + 34 * m) / 34 = i / 34 + m := by omega
+  have hr : (i + 34 * m) % 34 = i % 34 := by omega
+  simp only [field, hq, hr]
+
+/-- **Spatial `34 * k`-Periodicity Equivalence (`per_mul_thirty_four_iff_code_per`):**
+for every `code : Int → Bool` and `k : Nat`,
+`Per (34 * k) (field code 0) ↔ Per k code`. -/
+theorem per_mul_thirty_four_iff_code_per (code : Int → Bool) (k : Nat) :
+    Per (34 * k) (field code 0) ↔ Per k code := by
+  constructor
+  · intro hp q
+    have hh := hp (34 * q + 20)
+    have hidx : (34 * q + 20) + ((34 * k : Nat) : Int) = 34 * (q + (k : Int)) + 20 := by omega
+    rw [hidx, decode, decode] at hh
+    exact hh
+  · intro hper i
+    have hidx : i + ((34 * k : Nat) : Int) = i + 34 * (k : Int) := by omega
+    rw [hidx, block_shift_int]
+    have hcode : (fun q => code (q + (k : Int))) = code := by
+      funext q
+      exact hper q
+    rw [hcode]
+
 end TravellingCode
 
 /-- Extend a finite word `u : Fin k → Bool` by `false` outside `0 ≤ q < k`. -/
@@ -375,5 +459,14 @@ theorem minimum_exponential_period_twelve :
       Function.Injective word ∧
       ∀ u, ∃ x, orbit x 12 = x ∧ ∀ j : Fin n, word u j = x (j.val : Int)) :=
   ⟨low_period_linear_words, exponential_words_twelve⟩
+
+/-- **Explicit Coordinate Left-Inverse for `word12OfFin` (`word12OfFin_decode`):**
+for every `n : Nat`, `u : Fin (n / 34) → Bool`, and `j : Fin (n / 34)`, sample coordinate
+`34 * j.val + 20 < n` recovers `u j` directly (`word12OfFin n u ⟨34 * j.val + 20, _⟩ = u j`). -/
+theorem word12OfFin_decode (n : Nat) (u : Fin (n / 34) → Bool) (j : Fin (n / 34)) :
+    word12OfFin n u ⟨34 * j.val + 20, by have := j.isLt; omega⟩ = u j := by
+  dsimp only [word12OfFin]
+  have hcast : ((34 * j.val + 20 : Nat) : Int) = 34 * (j.val : Int) + 20 := by omega
+  rw [hcast, TravellingCode.decode, codeOfFin_read]
 
 end Ruliology.CellularAutomata.Rule30MovingWaves
