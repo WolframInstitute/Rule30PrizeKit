@@ -973,5 +973,75 @@ theorem episode_witness_finite (k : Nat) (hk : 1 ≤ k) :
 example : ∀ t, t < 7 → iter t (witCut 6) 6 = ether 9 (t + 1) ∧ iter t (witCut 6) 7 = ether 10 (t + 1) := by
   decide
 
+/-! ### Exact-tick breakdown of `wit` and `witCut` at `Lw k`, and periodicity and sharp linear sandwich for `Lw` and `Rw` -/
+
+/-- **Exact-Tick Breakdown of the Witness `wit` at Tick `Lw k` (`wit_breaks_at_Lw`):**
+for every depth `k ≥ 1`, `wit` carries the ether pair on `0 .. Lw k - 1` (`wit_episode`) and
+loses it at the exact tick `t = Lw k`. -/
+theorem wit_breaks_at_Lw (k : Nat) (hk : 1 ≤ k) :
+    ¬ (iter (Lw k) wit k = ether (k + 3) (Lw k + 1) ∧
+       iter (Lw k) wit (k + 1) = ether (k + 4) (Lw k + 1)) := by
+  intro hLw
+  refine episode_bound wit wit_zero k hk (k + 3) 1 0 (fun t _ ht => ?_)
+  rcases Nat.lt_or_eq_of_le ht with hlt | rfl
+  · exact wit_episode k hk t (by omega)
+  · rw [Nat.zero_add]
+    exact ⟨hLw.1, by rw [show k + 3 + 1 = k + 4 by omega]; exact hLw.2⟩
+
+/-- **Exact-Tick Breakdown of the Finite Witness `witCut k` at Tick `Lw k` (`witCut_breaks_at_Lw`).** -/
+theorem witCut_breaks_at_Lw (k : Nat) (hk : 1 ≤ k) :
+    ¬ (iter (Lw k) (witCut k) k = ether (k + 3) (Lw k + 1) ∧
+       iter (Lw k) (witCut k) (k + 1) = ether (k + 4) (Lw k + 1)) := by
+  intro hLw
+  have h0 : AgreeBelow (k + 2) (witCut k) wit := fun i hi => by
+    simp only [witCut]; rw [ite_eq_left (by omega)]
+  have ag := iter_agree h0 (Lw k)
+  rw [ag k (by omega), ag (k + 1) (by omega)] at hLw
+  exact wit_breaks_at_Lw k hk hLw
+
+/-- **Period-(6, 4) Shift Law for `Lw` (`Lw_add_six_and_mul`):**
+for every `k, m : Nat`, `Lw (k + 6) = Lw k + 4` and `Lw (k + 6 * m) = Lw k + 4 * m`. -/
+theorem Lw_add_six_and_mul (k m : Nat) :
+    Lw (k + 6) = Lw k + 4 ∧ Lw (k + 6 * m) = Lw k + 4 * m := by
+  have hstep : ∀ n, Lw (n + 6) = Lw n + 4 := by
+    intro n
+    have h1 := Lw_cases n
+    have h2 := Lw_cases (n + 6)
+    omega
+  refine ⟨hstep k, ?_⟩
+  induction m with
+  | zero => simp
+  | succ m ih =>
+    have hs := hstep (k + 6 * m)
+    rw [show k + 6 * (m + 1) = k + 6 * m + 6 by omega, hs, ih]
+    omega
+
+/-- **Monotonicity, Step Bound `+2`, and Sharp Linear Sandwich for `Lw` (`Lw_mono_step_and_sandwich`):**
+`Lw k ≤ Lw (k + 1) ≤ Lw k + 2` (with `+2` jump iff `k % 6 = 2`) and `2 * k + 8 ≤ 3 * Lw k ≤ 2 * k + 12`
+(with lower equality iff `k % 6 = 2` and upper equality iff `k % 6 = 3`). -/
+theorem Lw_mono_step_and_sandwich (k : Nat) :
+    Lw k ≤ Lw (k + 1) ∧ Lw (k + 1) ≤ Lw k + 2 ∧
+    (Lw (k + 1) = Lw k + 2 ↔ k % 6 = 2) ∧
+    2 * k + 8 ≤ 3 * Lw k ∧ 3 * Lw k ≤ 2 * k + 12 ∧
+    (3 * Lw k = 2 * k + 8 ↔ k % 6 = 2) ∧
+    (3 * Lw k = 2 * k + 12 ↔ k % 6 = 3) := by
+  have h1 := Lw_cases k
+  have h2 := Lw_cases (k + 1)
+  refine ⟨by omega, by omega, ⟨by omega, by omega⟩, by omega, by omega, ⟨by omega, by omega⟩, ⟨by omega, by omega⟩⟩
+
+/-- **Period-(4, 6) Shift Law, Monotonicity, Step Bound, and Even Parity for `Rw` (`Rw_shift_mono_and_even`).** -/
+theorem Rw_shift_mono_and_even (t m : Nat) :
+    Rw (t + 4) = Rw t + 6 ∧ Rw (t + 4 * m) = Rw t + 6 * m ∧
+    Rw t ≤ Rw (t + 1) ∧ Rw (t + 1) ≤ Rw t + 2 ∧ Rw t % 2 = 0 := by
+  have hstep : ∀ n, Rw (n + 4) = Rw n + 6 := by
+    intro n; unfold Rw; omega
+  have hmul : Rw (t + 4 * m) = Rw t + 6 * m := by
+    induction m with
+    | zero => simp
+    | succ m ih =>
+      rw [show t + 4 * (m + 1) = t + 4 * m + 4 by omega, hstep, ih]
+      omega
+  refine ⟨hstep t, hmul, ?_, ?_, ?_⟩ <;> { unfold Rw; omega }
+
 end Ruliology.CellularAutomata.Rule30EtherEpisode
 
