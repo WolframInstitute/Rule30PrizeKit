@@ -499,4 +499,25 @@ theorem not_eventually_word_seed_pair (N r : Nat) (u : Nat → List Bool) (q : N
     hbefore hafter hdrive
 
 
+/-! ### Step recurrences and monotonicity of `horizon`, `padding`, and `Drives` -/
+
+/-- **Step Recurrences and Monotonicity of `horizon` and `padding` (`horizon_and_padding_step_and_mono`).** -/
+theorem horizon_and_padding_step_and_mono (N M : Nat) :
+    Maintenance.horizon (N + 1) = Maintenance.horizon N + 2 ∧
+    Maintenance.padding (N + 1) = Maintenance.padding N + 19 ∧
+    (N ≤ M → Maintenance.horizon N ≤ Maintenance.horizon M ∧
+             Maintenance.padding N ≤ Maintenance.padding M) := by
+  have h1 : Maintenance.horizon (N + 1) = Maintenance.horizon N + 2 := by
+    unfold Maintenance.horizon; omega
+  have h2 : Maintenance.padding (N + 1) = Maintenance.padding N + 19 := by
+    rw [Maintenance.padding_eq, Maintenance.padding_eq]; omega
+  refine ⟨h1, h2, fun hle => ⟨?_, ?_⟩⟩
+  · unfold Maintenance.horizon; omega
+  · rw [Maintenance.padding_eq, Maintenance.padding_eq]; omega
+
+/-- **Gap-Truncation Monotonicity of `Maintenance.Drives` (`drives_mono`).** -/
+theorem drives_mono (t : Nat) (u : List Bool) {q1 q2 : Nat} (hq : q1 ≤ q2)
+    (hd : Maintenance.Drives t u q2) : Maintenance.Drives t u q1 :=
+  fun s hs => hd s (by omega)
+
 end Ruliology.CellularAutomata.Rule30WhitePaddingMixtures
