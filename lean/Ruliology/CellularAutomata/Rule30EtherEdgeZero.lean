@@ -456,4 +456,101 @@ theorem edge_pinned_tail (c0 c1 : Nat) (h0' : c0 < 7) (h1' : c1 < 4) {H : Nat �
   | c0 + 7, _, h, _ => absurd h (by omega)
   | _, c1 + 4, _, h => absurd h (by omega)
 
+/-! ### Periodicity of `etherZ`, B3 anchor trichotomy, and uniform 28-alignment pinning zone -/
+
+/-- **Spatial Period-7 and Temporal Period-4 Invariance of `etherZ` (`etherZ_periodic_seven_and_four`).** -/
+theorem etherZ_periodic_seven_and_four (c x k : Int) (φ q : Nat) :
+    etherZ c (x + 7 * k) (φ + 4 * q) = etherZ c x φ :=
+  etherZ_congr (by omega) (by omega)
+
+/-- **Tight `±12` Proximity of Any Two 13-Cell Pinning Anchors (`pinned_anchors_close`):**
+if `xB₁` and `xB₂` both witness an intact left half-line and a mismatch within `13` cells to the
+right at tick `t`, then `-12 ≤ xB₁ - xB₂ ∧ xB₁ - xB₂ ≤ 12`. -/
+theorem pinned_anchors_close {H : Nat → Int → Bool} {c0 c1 t : Nat} {xB₁ xB₂ : Int}
+    (hE₁ : ∀ x, x ≤ xB₁ → H t x = etherZ c0 x (t + c1))
+    (hne₁ : ∃ x, xB₁ < x ∧ x ≤ xB₁ + 13 ∧ H t x ≠ etherZ c0 x (t + c1))
+    (hE₂ : ∀ x, x ≤ xB₂ → H t x = etherZ c0 x (t + c1))
+    (hne₂ : ∃ x, xB₂ < x ∧ x ≤ xB₂ + 13 ∧ H t x ≠ etherZ c0 x (t + c1)) :
+    -12 ≤ xB₁ - xB₂ ∧ xB₁ - xB₂ ≤ 12 := by
+  obtain ⟨x₁, hx₁_lo, hx₁_hi, hdiff₁⟩ := hne₁
+  obtain ⟨x₂, hx₂_lo, hx₂_hi, hdiff₂⟩ := hne₂
+  have hnot₁ : ¬ x₁ ≤ xB₂ := fun hle => hdiff₁ (hE₂ x₁ hle)
+  have hnot₂ : ¬ x₂ ≤ xB₁ := fun hle => hdiff₂ (hE₁ x₂ hle)
+  omega
+
+/-- **Three-Way Trichotomy for B3 Pinning Anchors (`pinned_B3_anchor_trichotomy`):**
+any two B3 pinning anchors `xB₁, xB₂` (`(xB_i + c0) % 7 = 2`) at tick `t` satisfy
+`xB₁ = xB₂ ∨ xB₁ = xB₂ + 7 ∨ xB₂ = xB₁ + 7`. -/
+theorem pinned_B3_anchor_trichotomy {H : Nat → Int → Bool} {c0 c1 t : Nat} {xB₁ xB₂ : Int}
+    (hk₁ : (xB₁ + (c0 : Int)) % 7 = 2)
+    (hk₂ : (xB₂ + (c0 : Int)) % 7 = 2)
+    (hE₁ : ∀ x, x ≤ xB₁ → H t x = etherZ c0 x (t + c1))
+    (hne₁ : ∃ x, xB₁ < x ∧ x ≤ xB₁ + 13 ∧ H t x ≠ etherZ c0 x (t + c1))
+    (hE₂ : ∀ x, x ≤ xB₂ → H t x = etherZ c0 x (t + c1))
+    (hne₂ : ∃ x, xB₂ < x ∧ x ≤ xB₂ + 13 ∧ H t x ≠ etherZ c0 x (t + c1)) :
+    xB₁ = xB₂ ∨ xB₁ = xB₂ + 7 ∨ xB₂ = xB₁ + 7 := by
+  have hclose := pinned_anchors_close hE₁ hne₁ hE₂ hne₂
+  omega
+
+/-- **Uniform Parameter Bounds Across All 28 Alignments (`edge_pinned_tail_bounded`):**
+for every `c0 < 7, c1 < 4` and every evolution `H` agreeing with `initRow c0 c1` on `x ≤ 198`,
+the pinning anchor `xB` and onset time `t1` satisfy `-38 ≤ xB ∧ xB ≤ 2 ∧ t1 ≤ 222 ∧ (xB + c0) % 7 = 2`. -/
+theorem edge_pinned_tail_bounded (c0 c1 : Nat) (h0' : c0 < 7) (h1' : c1 < 4)
+    {H : Nat → Int → Bool} (hH : IsR30Z H) (h0 : ∀ x, x ≤ 198 → H 0 x = initRow c0 c1 x) :
+    ∃ xB : Int, ∃ t1 : Nat,
+      -38 ≤ xB ∧ xB ≤ 2 ∧ t1 ≤ 222 ∧ (xB + (c0 : Int)) % 7 = 2 ∧
+      ∀ t, t1 ≤ t →
+        (∀ x, x ≤ xB → H t x = etherZ c0 x (t + c1)) ∧
+        ∃ x, xB < x ∧ x ≤ xB + 13 ∧ H t x ≠ etherZ c0 x (t + c1) :=
+  match c0, c1, h0', h1' with
+  | 0, 0, _, _ => ⟨(-19), 81, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_0_0 (by decide) hH h0⟩
+  | 0, 1, _, _ => ⟨(-5), 13, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_0_1 (by decide) hH h0⟩
+  | 0, 2, _, _ => ⟨2, 10, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_0_2 (by decide) hH h0⟩
+  | 0, 3, _, _ => ⟨(-26), 186, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_0_3 (by decide) hH h0⟩
+  | 1, 0, _, _ => ⟨(-27), 185, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_1_0 (by decide) hH h0⟩
+  | 1, 1, _, _ => ⟨(-6), 17, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_1_1 (by decide) hH h0⟩
+  | 1, 2, _, _ => ⟨1, 9, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_1_2 (by decide) hH h0⟩
+  | 1, 3, _, _ => ⟨1, 9, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_1_3 (by decide) hH h0⟩
+  | 2, 0, _, _ => ⟨0, 8, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_2_0 (by decide) hH h0⟩
+  | 2, 1, _, _ => ⟨(-7), 17, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_2_1 (by decide) hH h0⟩
+  | 2, 2, _, _ => ⟨(-7), 16, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_2_2 (by decide) hH h0⟩
+  | 2, 3, _, _ => ⟨0, 8, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_2_3 (by decide) hH h0⟩
+  | 3, 0, _, _ => ⟨(-1), 7, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_3_0 (by decide) hH h0⟩
+  | 3, 1, _, _ => ⟨(-1), 7, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_3_1 (by decide) hH h0⟩
+  | 3, 2, _, _ => ⟨(-8), 16, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_3_2 (by decide) hH h0⟩
+  | 3, 3, _, _ => ⟨(-1), 7, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_3_3 (by decide) hH h0⟩
+  | 4, 0, _, _ => ⟨(-2), 6, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_4_0 (by decide) hH h0⟩
+  | 4, 1, _, _ => ⟨(-23), 148, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_4_1 (by decide) hH h0⟩
+  | 4, 2, _, _ => ⟨(-2), 6, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_4_2 (by decide) hH h0⟩
+  | 4, 3, _, _ => ⟨(-37), 222, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_4_3 (by decide) hH h0⟩
+  | 5, 0, _, _ => ⟨(-38), 221, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_5_0 (by decide) hH h0⟩
+  | 5, 1, _, _ => ⟨(-24), 148, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_5_1 (by decide) hH h0⟩
+  | 5, 2, _, _ => ⟨(-3), 5, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_5_2 (by decide) hH h0⟩
+  | 5, 3, _, _ => ⟨(-3), 5, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_5_3 (by decide) hH h0⟩
+  | 6, 0, _, _ => ⟨(-4), 4, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_6_0 (by decide) hH h0⟩
+  | 6, 1, _, _ => ⟨(-11), 25, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_6_1 (by decide) hH h0⟩
+  | 6, 2, _, _ => ⟨(-4), 4, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_6_2 (by decide) hH h0⟩
+  | 6, 3, _, _ => ⟨(-18), 82, by decide, by decide, by decide, by decide, pinned_of_check_tail entry_6_3 (by decide) hH h0⟩
+  | c0 + 7, _, h, _ => absurd h (by omega)
+  | _, c1 + 4, _, h => absurd h (by omega)
+
+/-- **Quantifier-Free Uniform Pinning Zone Across All 28 Alignments (`edge_pinned_tail_uniform_zone`):**
+for every `c0 < 7, c1 < 4`, every evolution `H` agreeing with `initRow c0 c1` on `x ≤ 198`, and
+every tick `t ≥ 222`, every column `x ≤ -38` is undisturbed ether and a mismatch persists in `[-37, 15]`. -/
+theorem edge_pinned_tail_uniform_zone (c0 c1 : Nat) (h0' : c0 < 7) (h1' : c1 < 4)
+    {H : Nat → Int → Bool} (hH : IsR30Z H) (h0 : ∀ x, x ≤ 198 → H 0 x = initRow c0 c1 x)
+    (t : Nat) (ht : 222 ≤ t) :
+    (∀ x : Int, x ≤ -38 → H t x = etherZ c0 x (t + c1)) ∧
+    (∃ x : Int, -37 ≤ x ∧ x ≤ 15 ∧ H t x ≠ etherZ c0 x (t + c1)) := by
+  obtain ⟨xB, t1, hlo, hhi, ht1, -, hpin⟩ := edge_pinned_tail_bounded c0 c1 h0' h1' hH h0
+  obtain ⟨hE, ⟨x, hx1, hx2, hne⟩⟩ := hpin t (by omega)
+  exact ⟨fun y hy => hE y (by omega), ⟨x, by omega, by omega, hne⟩⟩
+
+/-- **Quantifier-Free Uniform Pinning Zone for `G c0 c1` (`edge_pinned_uniform_zone`).** -/
+theorem edge_pinned_uniform_zone (c0 c1 : Nat) (h0' : c0 < 7) (h1' : c1 < 4)
+    (t : Nat) (ht : 222 ≤ t) :
+    (∀ x : Int, x ≤ -38 → G c0 c1 t x = etherZ c0 x (t + c1)) ∧
+    (∃ x : Int, -37 ≤ x ∧ x ≤ 15 ∧ G c0 c1 t x ≠ etherZ c0 x (t + c1)) :=
+  edge_pinned_tail_uniform_zone c0 c1 h0' h1' (G_isR30 c0 c1) (fun _ _ => rfl) t ht
+
 end Ruliology.CellularAutomata.Rule30EtherEdgeZero
