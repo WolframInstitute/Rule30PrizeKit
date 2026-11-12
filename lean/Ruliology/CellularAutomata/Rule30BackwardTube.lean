@@ -298,4 +298,78 @@ theorem no_padding_of_endpoint_tube {x : Int → Bool} {lo : Int}
       rw [hor t ht, hor (t+(r+u.length)) (by omega),
         show t+(r+u.length)-T=(t-T)+(r+u.length) by omega, Nat.add_mod_right]⟩
 
+/-! ## Vacuum predecessor closure, multi-step backward `encRow` chains, and intersection bit uniqueness -/
+
+/-- **Empty-Target Vacuity and Vacuum Predecessor Closure for `preCheck` (`preCheck_zero_right_and_vacuum`):**
+`preCheck K a Q 0 = true` for all `K, a, Q`, and `preCheck K false Q 1 = true` whenever `Q.testBit 0 = true`. -/
+theorem preCheck_zero_right_and_vacuum (K Q : Nat) (a : Bool) (hQ0 : Q.testBit 0 = true) :
+    preCheck K a Q 0 = true ∧ preCheck K false Q 1 = true := by
+  have h0 : ∀ n, allBelow (fun s =>
+      (! (0 : Nat).testBit (stripStep K a false s) || Q.testBit s) &&
+      (! (0 : Nat).testBit (stripStep K a true s) || Q.testBit s)) n = true := by
+    intro n
+    induction n with
+    | zero => rfl
+    | succ n ih =>
+      unfold allBelow
+      rw [ih]
+      simp
+  have h1 : ∀ n, n ≤ 2 ^ K → allBelow (fun s =>
+      (! (1 : Nat).testBit (stripStep K false false s) || Q.testBit s) &&
+      (! (1 : Nat).testBit (stripStep K false true s) || Q.testBit s)) n = true := by
+    intro n
+    induction n with
+    | zero => intro _; rfl
+    | succ n ih =>
+      intro hn
+      simp only [allBelow, ih (by omega), Bool.true_and, Bool.and_eq_true]
+      have hstep_z : ∀ z : Bool, (! (1 : Nat).testBit (stripStep K false z n) || Q.testBit n) = true := by
+        intro z
+        cases htb : (1 : Nat).testBit (stripStep K false z n)
+        · rfl
+        · have hz0 : stripStep K false z n = 0 := Nat.testBit_one_eq_true_iff_self_eq_zero.mp htb
+          have hn0 : n = 0 := stripStep_zero_predecessor (by omega : n < 2 ^ K) hz0
+          subst hn0
+          rw [hQ0, Bool.or_true]
+      exact ⟨hstep_z false, hstep_z true⟩
+  exact ⟨h0 (2 ^ K), h1 (2 ^ K) (Nat.le_refl _)⟩
+
+/-- **Multi-Step Backward Chain Soundness for `encRow` (`enc_backward_chain`):**
+if `P` is a backward-checked chain of masks along driver word `u` and column `i` of `evol x`
+reads `u` from `t0` to `t0 + u.length`, then `(P u.length).testBit (encRow x (t0 + u.length) i K) = true`
+implies `(P 0).testBit (encRow x t0 i K) = true`. -/
+theorem enc_backward_chain {x : Int → Bool} (K t0 : Nat) (i : Int) (u : List Bool) (P : Nat → Nat)
+    (hpre : ∀ j, j < u.length → preCheck K (u.getD j false) (P j) (P (j + 1)) = true)
+    (hevol : ∀ j, j < u.length → evol x (t0 + j) i = u.getD j false)
+    (hend : (P u.length).testBit (Rule30FiniteStrips.encRow x (t0 + u.length) i K) = true) :
+    (P 0).testBit (Rule30FiniteStrips.encRow x t0 i K) = true ∧
+    ∀ d, d ≤ u.length →
+      (P (u.length - d)).testBit (Rule30FiniteStrips.encRow x (t0 + (u.length - d)) i K) = true := by
+  have hchain : ∀ d, d ≤ u.length →
+      (P (u.length - d)).testBit (Rule30FiniteStrips.encRow x (t0 + (u.length - d)) i K) = true := by
+    intro d
+    induction d with
+    | zero => intro _; simpa using hend
+    | succ d ih =>
+      intro hd
+      have hi := ih (by omega)
+      have hidx : t0 + (u.length - d) = (t0 + (u.length - (d + 1))) + 1 := by omega
+      have hPidx : u.length - d = (u.length - (d + 1)) + 1 := by omega
+      rw [hidx, hPidx] at hi
+      exact enc_backward (hpre (u.length - (d + 1)) (by omega)) (hevol (u.length - (d + 1)) (by omega)) hi
+  refine ⟨?_, hchain⟩
+  have h0 := hchain u.length (Nat.le_refl _)
+  simpa using h0
+
+/-- **Uniqueness of Forced Column-1 Bits on Overlapping Masks (`colConst_intersection_unique`):**
+if `colConst K (Z &&& Q1) b1 = true` and `colConst K (Z &&& Q2) b2 = true` and a state `s < 2^K`
+lies in `Z`, `Q1`, and `Q2`, then `b1 = b2`. -/
+theorem colConst_intersection_unique {K Z Q1 Q2 s : Nat} {b1 b2 : Bool}
+    (h1 : colConst K (Z &&& Q1) b1 = true)
+    (h2 : colConst K (Z &&& Q2) b2 = true)
+    (hs : s < 2 ^ K) (hZ : Z.testBit s = true)
+    (hQ1 : Q1.testBit s = true) (hQ2 : Q2.testBit s = true) :
+    b1 = b2 :=
+  (colConst_intersection h1 hs hZ hQ1).symm.trans (colConst_intersection h2 hs hZ hQ2)
+
 end Ruliology.CellularAutomata.Rule30BackwardTube
