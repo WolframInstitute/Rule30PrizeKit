@@ -633,4 +633,109 @@ theorem forced_front_low_left_side {x : Int → Bool} {lo : Int} (hleft : ∀ p,
     (hlo : x lo = true) : ∃ s, s ≤ 15 ∧ OnStrip (Ld x lo) A0 s 107310 53207 :=
   forced_front_low (Ld_recurrence hleft) (by simpa [Ld, evol] using hlo)
 
+/-! ### Early forced front at wheel 400, fork-wheel front identities, branch-sharp bounds, and OnStrip disjointness -/
+
+/-- **Forced Front at Wheel `400` Across All Four Strips (`F_400`):**
+`F wdA0 400 = 783 ∧ F wdA1 400 = 783 ∧ F wdB0 400 = 783 ∧ F wdB1 400 = 783`. -/
+theorem F_400 : F wdA0 400 = 783 ∧ F wdA1 400 = 783 ∧ F wdB0 400 = 783 ∧ F wdB1 400 = 783 := by
+  have h0 : F wdA0 400 = 783 := F_of_S a_low
+  have h1 : F wdA1 400 = 783 := by
+    rw [← h0]; exact (F_congr 400 (fun i hi => wA1_eq_A0 i (by omega))).symm
+  have h2 : F wdB0 400 = 783 := by
+    rw [← h0]; exact (F_congr 400 (fun i hi => wB0_eq_A0 i (by omega))).symm
+  have h3 : F wdB1 400 = 783 := by
+    rw [← h2]; exact (F_congr 400 (fun i hi => wB1_eq_B0 i (by omega))).symm
+  exact ⟨h0, h1, h2, h3⟩
+
+/-- **Second- and Third-Fork Settling Fronts (`F_forks_58286_and_72575`):**
+`F wdA0 58286 = 117439 ∧ F wdA1 58286 = 117439 ∧ F wdB0 72575 = 146463 ∧ F wdB1 72575 = 146463`. -/
+theorem F_forks_58286_and_72575 :
+    F wdA0 58286 = 117439 ∧ F wdA1 58286 = 117439 ∧
+    F wdB0 72575 = 146463 ∧ F wdB1 72575 = 146463 :=
+  ⟨F_of_S a_58286, F_of_S a1_58286, F_of_S b_72575, F_of_S b1_72575⟩
+
+theorem front_400_of_alignedFrom {a : Nat → Nat → Bool} {v s : Nat} {w : Nat → Nat}
+    (hF : F w 400 = 783) (hs : ∀ j t, j ≤ 400 → Sp v j t = Sp A0 j t)
+    (h : AlignedFrom a v s (F w) 87866) : OnStrip a A0 s 783 400 :=
+  fun j hj t ht => by
+    rw [h j (by omega) t (Nat.le_trans (by rw [← hF]; exact F_mono w hj) ht)]
+    exact hs j t hj
+
+/-- **Early Universal Forced Front Through Wheel `400` at Strip Tick `783` (`forced_front_400`):**
+every array with the recurrence and a black start carries `A0` through wheel `400` from strip tick `783`
+(own clock at most `798`). -/
+theorem forced_front_400 {a : Nat → Nat → Bool} (ha : Recurrence a) (ha0 : a 0 0 = true) :
+    ∃ s, s ≤ 15 ∧ OnStrip a A0 s 783 400 := by
+  obtain ⟨s, hs, h⟩ := forced_front_four ha ha0
+  obtain ⟨f0, f1, f2, f3⟩ := F_400
+  have eB0 : ∀ j t, j ≤ 400 → Sp B0 j t = Sp A0 j t := fun j t hj =>
+    low_of_phase A0_return B0_return low_B0 j t (by omega)
+  refine ⟨s, hs, ?_⟩
+  rcases h with h | h | h | h
+  · exact front_400_of_alignedFrom f0 (fun _ _ _ => rfl) h
+  · exact front_400_of_alignedFrom f1 (fun j t hj => low_of_phase A0_return A1_return low_A1 j t (by omega)) h
+  · exact front_400_of_alignedFrom f2 eB0 h
+  · exact front_400_of_alignedFrom f3 (fun j t hj => by
+      rw [low_of_phase B0_return B1_return low_B1 j t (by omega)]; exact eB0 j t hj) h
+
+/-- **Early Forced Front Through Wheel `400` for Configurations (`forced_front_400_left_side`).** -/
+theorem forced_front_400_left_side {x : Int → Bool} {lo : Int}
+    (hleft : ∀ p, p < lo → x p = false) (hlo : x lo = true) :
+    ∃ s, s ≤ 15 ∧ OnStrip (Ld x lo) A0 s 783 400 :=
+  forced_front_400 (Ld_recurrence hleft) (by simpa [Ld, evol] using hlo)
+
+/-- **Branch-Specific Monotone Bounds at Wheel `87,866` (`fronts_le_sharp`).** -/
+theorem fronts_le_sharp :
+    (∀ j, j ≤ 87866 → F wdA0 j ≤ 176968) ∧
+    (∀ j, j ≤ 87866 → F wdA1 j ≤ 177229) ∧
+    (∀ j, j ≤ 87866 → F wdB0 j ≤ 177170) ∧
+    (∀ j, j ≤ 87866 → F wdB1 j ≤ 177560) :=
+  ⟨fun j hj => by rw [← FA0_87866]; exact F_mono wdA0 hj,
+   fun j hj => by rw [← FA1_87866]; exact F_mono wdA1 hj,
+   fun j hj => by rw [← FB0_87866]; exact F_mono wdB0 hj,
+   fun j hj => by rw [← FB1_87866]; exact F_mono wdB1 hj⟩
+
+/-- **Branch-Sharp Uniform Forced Front Through Wheel `87,866` (`forced_front_four_sharp`):**
+tightens `forced_front_four_uniform` to each strip's exact horizon `176,968` (`A0`), `177,229` (`A1`),
+`177,170` (`B0`), and `177,560` (`B1`). -/
+theorem forced_front_four_sharp {a : Nat → Nat → Bool} (ha : Recurrence a) (ha0 : a 0 0 = true) :
+    ∃ s, s ≤ 15 ∧
+      (OnStrip a A0 s 176968 87866 ∨ OnStrip a A1 s 177229 87866 ∨
+       OnStrip a B0 s 177170 87866 ∨ OnStrip a B1 s 177560 87866) := by
+  obtain ⟨s, hs, h⟩ := forced_front_four ha ha0
+  refine ⟨s, hs, ?_⟩
+  rcases h with h | h | h | h
+  · exact Or.inl (onStrip_of_alignedFrom fronts_le_sharp.1 h)
+  · exact Or.inr (Or.inl (onStrip_of_alignedFrom fronts_le_sharp.2.1 h))
+  · exact Or.inr (Or.inr (Or.inl (onStrip_of_alignedFrom fronts_le_sharp.2.2.1 h)))
+  · exact Or.inr (Or.inr (Or.inr (onStrip_of_alignedFrom fronts_le_sharp.2.2.2 h)))
+
+/-- **Branch-Sharp Forced Front Through Wheel `87,866` for Configurations (`forced_front_four_left_side_sharp`).** -/
+theorem forced_front_four_left_side_sharp {x : Int → Bool} {lo : Int}
+    (hleft : ∀ p, p < lo → x p = false) (hlo : x lo = true) :
+    ∃ s, s ≤ 15 ∧
+      (OnStrip (Ld x lo) A0 s 176968 87866 ∨ OnStrip (Ld x lo) A1 s 177229 87866 ∨
+       OnStrip (Ld x lo) B0 s 177170 87866 ∨ OnStrip (Ld x lo) B1 s 177560 87866) :=
+  forced_front_four_sharp (Ld_recurrence hleft) (by simpa [Ld, evol] using hlo)
+
+/-- **`OnStrip` Implies `Aligned` (`aligned_of_onStrip`).** -/
+theorem aligned_of_onStrip {a : Nat → Nat → Bool} {v s T J : Nat}
+    (h : OnStrip a v s T J) : Aligned a v s J :=
+  fun j hj => ⟨T, fun t ht => h j hj t ht⟩
+
+/-- **Mutual Exclusion of `OnStrip` Across the Four Strips (`onStrip_four_exclusive`).** -/
+theorem onStrip_four_exclusive {a : Nat → Nat → Bool} {s s' T T' : Nat} :
+    ¬ (OnStrip a A0 s T 87866 ∧ OnStrip a A1 s' T' 87866) ∧
+    ¬ (OnStrip a A0 s T 87866 ∧ OnStrip a B0 s' T' 87866) ∧
+    ¬ (OnStrip a A0 s T 87866 ∧ OnStrip a B1 s' T' 87866) ∧
+    ¬ (OnStrip a A1 s T 87866 ∧ OnStrip a B0 s' T' 87866) ∧
+    ¬ (OnStrip a A1 s T 87866 ∧ OnStrip a B1 s' T' 87866) ∧
+    ¬ (OnStrip a B0 s T 87866 ∧ OnStrip a B1 s' T' 87866) :=
+  ⟨fun h => Rule30FourLeftSides.on_exactly_one.1 ⟨aligned_of_onStrip h.1, aligned_of_onStrip h.2⟩,
+   fun h => Rule30FourLeftSides.on_exactly_one.2.1 ⟨aligned_of_onStrip h.1, aligned_of_onStrip h.2⟩,
+   fun h => Rule30FourLeftSides.on_exactly_one.2.2.1 ⟨aligned_of_onStrip h.1, aligned_of_onStrip h.2⟩,
+   fun h => Rule30FourLeftSides.on_exactly_one.2.2.2.1 ⟨aligned_of_onStrip h.1, aligned_of_onStrip h.2⟩,
+   fun h => Rule30FourLeftSides.on_exactly_one.2.2.2.2.1 ⟨aligned_of_onStrip h.1, aligned_of_onStrip h.2⟩,
+   fun h => Rule30FourLeftSides.on_exactly_one.2.2.2.2.2 ⟨aligned_of_onStrip h.1, aligned_of_onStrip h.2⟩⟩
+
 end Ruliology.CellularAutomata.Rule30FourFronts
