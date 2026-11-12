@@ -529,4 +529,29 @@ theorem not_eventuallyWord_white_end (q : Nat) (hq : 10 ≤ q) :
 theorem white_end_seed (c : Int) (q a : Nat) (hq : 10 ≤ q) : ¬ Reads seed c q a :=
   fun hr => white_end seed 0 seed_leftmost.1 seed_leftmost.2 c q a hq hr
 
+/-! ## All-column `Reads` reduction and `1 0^q` exclusions for arbitrary left-bounded configurations (`q ≥ 10`) -/
+
+/-- **All-Column Reduction from Eventual `1 0^q` Repetition to `Reads` (`reads_of_eventually_one_zeros_any`).** -/
+theorem reads_of_eventually_one_zeros_any (x0 : Int → Bool) (c : Int) (q T : Nat)
+    (hT : ∀ t, T ≤ t → evol x0 t c =
+      (true :: List.replicate q false).getD ((t - T) % (true :: List.replicate q false).length) false) :
+    Reads x0 c q T := by
+  have hlen : (true :: List.replicate q false).length = q + 1 := by simp
+  refine fun n => ⟨?_, fun k hk1 hk2 => ?_⟩
+  · rw [hT _ (by omega), hlen, show T + n * (q + 1) - T = n * (q + 1) by omega,
+        Nat.mul_mod_left, getD_word]
+    rfl
+  · rw [hT _ (by omega), hlen, show T + n * (q + 1) + k - T = k + n * (q + 1) by omega,
+        Nat.add_mul_mod_self_right, Nat.mod_eq_of_lt (by omega), getD_word]
+    simp only [decide_eq_false_iff_not]; omega
+
+/-- **All-Column Exclusion of `1 0^q` (`q ≥ 10`) for Left-Bounded Configurations (`not_eventually_white_end_leftBounded`).** -/
+theorem not_eventually_white_end_leftBounded (x0 : Int → Bool)
+    (hfin : ∃ M : Int, ∀ j < M, x0 j = false) (hnz : ∃ j, x0 j = true)
+    (c : Int) (q : Nat) (hq : 10 ≤ q) :
+    ¬ ∃ T, ∀ t, T ≤ t → evol x0 t c =
+      (true :: List.replicate q false).getD ((t - T) % (true :: List.replicate q false).length) false := by
+  rintro ⟨T, hT⟩
+  exact white_end_finite x0 hfin hnz c q hq ⟨T, reads_of_eventually_one_zeros_any x0 c q T hT⟩
+
 end Ruliology.CellularAutomata.Rule30WhiteEnd
