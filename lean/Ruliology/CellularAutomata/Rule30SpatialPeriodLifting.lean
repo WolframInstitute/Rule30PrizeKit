@@ -298,4 +298,77 @@ theorem recon_period_lift (a : Nat → Bool) (D t p : Nat)
   simpa [Nat.add_assoc] using h'.1
 
 
+/-! ## All-black driver 3-cycle, necessity of the white-cell hypothesis, and multi-period lifting -/
+
+/-- **All-Black Driver 3-Cycle on `State` (`step_true_three_cycle`):**
+under an all-black driver bit `u = true`, `step true` cycles `0 ↦ 1 ↦ 2 ↦ 0` (with `3 ↦ 2`), so
+`power (step true) 4 s = power (step true) 1 s`, `power (step true) (k + 3) s = power (step true) k s`
+for all `k ≥ 1`, and `power (step true) 3 0 ≠ power (step true) 1 0`. -/
+theorem step_true_three_cycle :
+    (∀ s : State, power (step true) 4 s = power (step true) 1 s) ∧
+    (∀ k : Nat, 1 ≤ k → ∀ s : State, power (step true) (k + 3) s = power (step true) k s) ∧
+    power (step true) 3 (0 : State) ≠ power (step true) 1 (0 : State) := by
+  have hbase : ∀ s : State, power (step true) 4 s = power (step true) 1 s := by
+    intro ⟨s, hs⟩
+    have h4 : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 := by omega
+    rcases h4 with rfl | rfl | rfl | rfl <;> rfl
+  refine ⟨hbase, ?_, by decide⟩
+  intro k hk s
+  obtain ⟨m, rfl⟩ : ∃ m, k = 1 + m := ⟨k - 1, by omega⟩
+  clear hk
+  induction m with
+  | zero => exact hbase s
+  | succ m ih => simpa [Nat.add_assoc, power] using congrArg (step true) ih
+
+/-- **`oneCodes` Period-3 Law (`oneCodes_power_period_three`):**
+every code `c ∈ oneCodes` (the transfer codes of all-black driver words) satisfies
+`power (eval c) 4 s = power (eval c) 1 s` for all `s : State`. -/
+theorem oneCodes_power_period_three :
+    oneCodes.all (fun c => ([0, 1, 2, 3] : List State).all
+      (fun s => power (eval c) 4 s == power (eval c) 1 s)) = true := by decide
+
+/-- **Necessity of the White-Cell Hypothesis in `word_power` (`all_black_word_period_three_and_necessity`):**
+for every all-black word `w` (`false ∉ w`), `power (runWord w) 4 s = power (runWord w) 1 s`, and for
+`w = [true]` (`false ∉ [true]`), `power (runWord [true]) 5 0 ≠ power (runWord [true]) 3 0`. -/
+theorem all_black_word_period_three_and_necessity :
+    (∀ w : List Bool, false ∉ w → ∀ s : State, power (runWord w) 4 s = power (runWord w) 1 s) ∧
+    (false ∉ ([true] : List Bool) ∧
+      power (runWord [true]) 5 (0 : State) ≠ power (runWord [true]) 3 (0 : State)) := by
+  refine ⟨fun w hnw s => ?_, ⟨by decide, by decide⟩⟩
+  have hc : wordCode w ∈ oneCodes := by
+    rcases word_class w with ⟨h, _⟩ | ⟨_, h⟩
+    · exact h
+    · exact False.elim (hnw h)
+  have h1 := List.all_eq_true.mp oneCodes_power_period_three (wordCode w) hc
+  have hs : s ∈ ([0, 1, 2, 3] : List State) := by
+    obtain ⟨sv, hsv⟩ := s
+    have h4 : sv = 0 ∨ sv = 1 ∨ sv = 2 ∨ sv = 3 := by omega
+    rcases h4 with rfl | rfl | rfl | rfl <;> simp
+  have heq := beq_iff_eq.mp (List.all_eq_true.mp h1 s hs)
+  have hf : eval (wordCode w) = runWord w := funext (eval_word w)
+  simpa [hf] using heq
+
+/-- **Multi-Period Shift Invariance for `stateAt` and `recon` (`stateAt_and_recon_period_lift_mul`):**
+if row `t + 1` has period `p` after depth `D + 1` with a white cell in that period block, then for
+every `n ≥ 3 * p` and every multiple `m : Nat`, both `stateAt` and `recon a (D + n + m * (2 * p)) t`
+are invariant under `+ m * (2 * p)`. -/
+theorem stateAt_and_recon_period_lift_mul (a : Nat → Bool) (D t p : Nat)
+    (hp : ∀ n, recon a (D + n + p + 1) (t + 1) = recon a (D + n + 1) (t + 1))
+    (hz : ∃ i, i < p ∧ recon a (D + i + 1) (t + 1) = false)
+    (s : State) (n : Nat) (hn : 3 * p ≤ n) (m : Nat) :
+    stateAt (rowDriver a D t) s (n + m * (2 * p)) = stateAt (rowDriver a D t) s n ∧
+    recon a (D + n + m * (2 * p)) t = recon a (D + n) t := by
+  have hup : ∀ k, rowDriver a D t (k + p) = rowDriver a D t k := by
+    intro k; simpa [rowDriver, Nat.add_assoc] using hp k
+  have huz : ∃ i, i < p ∧ rowDriver a D t i = false := hz
+  induction m with
+  | zero => simp
+  | succ m ih =>
+    refine ⟨?_, ?_⟩
+    · rw [show n + (m + 1) * (2 * p) = (n + m * (2 * p)) + 2 * p by rw [Nat.add_mul, Nat.one_mul]; omega]
+      rw [stateAt_period (rowDriver a D t) p hup huz s (n + m * (2 * p)) (by omega), ih.1]
+    · rw [show D + n + (m + 1) * (2 * p) = D + (n + m * (2 * p)) + 2 * p by rw [Nat.add_mul, Nat.one_mul]; omega]
+      rw [recon_period_lift a D t p hp hz (n + m * (2 * p)) (by omega)]
+      rw [show D + (n + m * (2 * p)) = D + n + m * (2 * p) by omega, ih.2]
+
 end Ruliology.CellularAutomata.Rule30SpatialPeriodLifting

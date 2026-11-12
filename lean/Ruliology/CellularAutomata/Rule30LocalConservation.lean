@@ -728,4 +728,54 @@ theorem local_conserved_iff_shift_coboundary (m : Nat) (hm : 0<m)
     (h : List Bool → Int) : (∃ p, LocalConserved m h p) ↔ ShiftCoboundary m h :=
   Classification.local_conserved_iff_trivial m hm h
 
+/-! ## All-white vs. all-black charge equality, uniqueness of the bulk charge `c`, and non-conservation of monotone densities -/
+
+/-- **Tail and DropLast of a Constant Replicate Word (`replicate_tail_and_dropLast`):**
+for every `m ≥ 1` and `b : Bool`, `(List.replicate m b).tail = List.replicate (m - 1) b` and
+`(List.replicate m b).dropLast = List.replicate (m - 1) b`. -/
+theorem replicate_tail_and_dropLast {m : Nat} (hm : 0 < m) (b : Bool) :
+    (List.replicate m b).tail = List.replicate (m - 1) b ∧
+    (List.replicate m b).dropLast = List.replicate (m - 1) b := by
+  obtain ⟨k, rfl⟩ : ∃ k, m = k + 1 := ⟨m - 1, by omega⟩
+  clear hm
+  rw [Nat.add_sub_cancel]
+  refine ⟨rfl, ?_⟩
+  induction k with
+  | zero => rfl
+  | succ k ih =>
+    show (b :: List.replicate (k + 1) b).dropLast = b :: List.replicate k b
+    rw [List.dropLast_cons_of_ne_nil (by simp), ih]
+
+/-- **Exact Evaluation of Any Shift Coboundary on Constant Words (`shiftCoboundary_replicate_eq`):**
+if `h xs = c + p xs.tail - p xs.dropLast` for all `xs` of length `m > 0`, then
+`h (List.replicate m b) = c` for both `b = false` and `b = true`, and `c` is uniquely determined. -/
+theorem shiftCoboundary_replicate_eq {m : Nat} (hm : 0 < m) (h p : List Bool → Int) (c : Int)
+    (ht : ∀ xs, xs.length = m → h xs = c + p xs.tail - p xs.dropLast) (b : Bool) :
+    h (List.replicate m b) = c := by
+  have hl : (List.replicate m b).length = m := List.length_replicate
+  have hrep := ht (List.replicate m b) hl
+  obtain ⟨htl, hdl⟩ := replicate_tail_and_dropLast hm b
+  rw [htl, hdl] at hrep
+  omega
+
+/-- **All-White vs. All-Black Equality and Obstruction Criterion for Conserved Densities (`conserved_all_white_eq_all_black_and_obstruction`):**
+every locally or cyclically conserved density `h` of width `m > 0` satisfies
+`h (List.replicate m false) = h (List.replicate m true)`, so any density `h` with
+`h (List.replicate m false) ≠ h (List.replicate m true)` is neither cyclically nor locally conserved. -/
+theorem conserved_all_white_eq_all_black_and_obstruction (m : Nat) (hm : 0 < m) (h : List Bool → Int) :
+    ((CyclicConserved m h ∨ ∃ p, LocalConserved m h p) →
+      h (List.replicate m false) = h (List.replicate m true)) ∧
+    (h (List.replicate m false) ≠ h (List.replicate m true) →
+      ¬ CyclicConserved m h ∧ ∀ p, ¬ LocalConserved m h p) := by
+  have heq : (CyclicConserved m h ∨ ∃ p, LocalConserved m h p) →
+      h (List.replicate m false) = h (List.replicate m true) := by
+    intro hc
+    have htriv : ShiftCoboundary m h := by
+      rcases hc with hcyc | hloc
+      · exact (cyclic_conserved_iff_shift_coboundary m hm h).1 hcyc
+      · exact (local_conserved_iff_shift_coboundary m hm h).1 hloc
+    obtain ⟨c, p, ht⟩ := htriv
+    rw [shiftCoboundary_replicate_eq hm h p c ht false, shiftCoboundary_replicate_eq hm h p c ht true]
+  exact ⟨heq, fun hne => ⟨fun hcyc => hne (heq (Or.inl hcyc)), fun p hloc => hne (heq (Or.inr ⟨p, hloc⟩))⟩⟩
+
 end Ruliology.CellularAutomata.Rule30LocalConservation
