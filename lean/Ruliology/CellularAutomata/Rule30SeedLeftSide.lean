@@ -219,4 +219,88 @@ theorem seed_white_black {t : Nat} (ht : 177560 ≤ t) :
     e 58288 (by omega)]
   exact A0_white_black (t % 16) (Nat.mod_lt _ (by omega))
 
+/-! ### Per-wheel settling front `F wdA0 j`, sharpened `176,968` horizon, and early `783` / `77,920` white-black locks -/
+
+/-- **Exact Per-Wheel Settling Front for the Single Seed (`seed_alignedFrom_A0`):**
+for every wheel `j ≤ 87,866` and every tick `t ≥ F wdA0 j`, `D j t = Sp A0 j t` with shift `0`. -/
+theorem seed_alignedFrom_A0 : AlignedFrom D A0 0 (F wdA0) 87866 := by
+  obtain ⟨s, hs, h | h | h | h⟩ := forced_front_four Rule30FourLeftSides.D_recurrence (D_zero 0)
+  · have hon : OnStrip D A0 s 177560 87866 := onStrip_of_alignedFrom fronts_le.1 h
+    obtain rfl := shift_zero A0_return hs (fun _ _ => rfl) hon
+    exact h
+  · have hon : OnStrip D A1 s 177560 87866 := onStrip_of_alignedFrom fronts_le.2.1 h
+    obtain rfl := shift_zero A1_return hs pair_A0_A1.2 hon
+    exact (not_on_complement A1_return (w := 58287) (by omega) pair_A0_A1.1 hon).elim
+  · have hon : OnStrip D B0 s 177560 87866 := onStrip_of_alignedFrom fronts_le.2.2.1 h
+    obtain rfl := shift_zero B0_return hs pair_A0_B0.2 hon
+    exact (not_on_complement B0_return (w := 53208) (by omega) pair_A0_B0.1 hon).elim
+  · have hon : OnStrip D B1 s 177560 87866 := onStrip_of_alignedFrom fronts_le.2.2.2 h
+    obtain rfl := shift_zero B1_return hs pair_A0_B1.2 hon
+    exact (not_on_complement B1_return (w := 53208) (by omega) pair_A0_B1.1 hon).elim
+
+/-- **Per-Wheel Equality and Period-16 Invariance from `F wdA0 j` (`seed_eq_A0_from_F`).** -/
+theorem seed_eq_A0_from_F {j : Nat} (hj : j ≤ 87866) {t : Nat} (ht : F wdA0 j ≤ t) (q : Nat) :
+    D j t = Sp A0 j t ∧ D j (t + q * 16) = D j t := by
+  have h1 : D j t = Sp A0 j t := by
+    have h := seed_alignedFrom_A0 j hj t ht
+    rwa [Nat.add_zero] at h
+  have h2 : D j (t + q * 16) = Sp A0 j (t + q * 16) := by
+    have h := seed_alignedFrom_A0 j hj (t + q * 16) (by omega)
+    rwa [Nat.add_zero] at h
+  refine ⟨h1, ?_⟩
+  rw [h2, Sp_add_mul A0_return, ← h1]
+
+/-- **Sharpened Uniform Horizon `176,968` Across All `87,867` Wheels (`seed_on_A0_176968`):**
+sharpens `seed_on_A0` from `177,560` (the `B1` front) to `176,968` (`F wdA0 87866`, 592 ticks earlier). -/
+theorem seed_on_A0_176968 : OnStrip D A0 0 176968 87866 :=
+  onStrip_of_alignedFrom (fun j hj => by rw [← FA0_87866]; exact F_mono wdA0 hj) seed_alignedFrom_A0
+
+/-- **Pointwise Equality `D j t = Sp A0 j t` from Tick `176,968` (`seed_eq_A0_176968`).** -/
+theorem seed_eq_A0_176968 {j : Nat} (hj : j ≤ 87866) {t : Nat} (ht : 176968 ≤ t) :
+    D j t = Sp A0 j t := by
+  have h := seed_on_A0_176968 j hj t ht
+  rwa [Nat.add_zero] at h
+
+/-- **All Seven White Diagonals and Six Post-White Black Diagonals Hold from Tick `176,968` (`seed_white_black_176968`).** -/
+theorem seed_white_black_176968 {t : Nat} (ht : 176968 ≤ t) :
+    (D 2 t = false ∧ D 7 t = false ∧ D 28 t = false ∧ D 399 t = false ∧ D 53207 t = false ∧ D 58286 t = false ∧
+      D 87866 t = false) ∧
+    (D 4 t = true ∧ D 9 t = true ∧ D 30 t = true ∧ D 401 t = true ∧ D 53209 t = true ∧ D 58288 t = true) := by
+  have e : ∀ j, j ≤ 87866 → D j t = Sp A0 j (t % 16) := fun j hj => by rw [seed_eq_A0_176968 hj ht, Sp_mod A0_return]
+  rw [e 2 (by omega), e 7 (by omega), e 28 (by omega), e 399 (by omega), e 53207 (by omega), e 58286 (by omega),
+    e 87866 (by omega), e 4 (by omega), e 9 (by omega), e 30 (by omega), e 401 (by omega), e 53209 (by omega),
+    e 58288 (by omega)]
+  exact A0_white_black (t % 16) (Nat.mod_lt _ (by omega))
+
+/-- **First Six White Diagonals and All Six Post-White Black Diagonals Hold from Tick `77,920` (`seed_white_black_77920`).** -/
+theorem seed_white_black_77920 {t : Nat} (ht : 77920 ≤ t) :
+    (D 2 t = false ∧ D 7 t = false ∧ D 28 t = false ∧ D 399 t = false ∧ D 53207 t = false ∧ D 58286 t = false) ∧
+    (D 4 t = true ∧ D 9 t = true ∧ D 30 t = true ∧ D 401 t = true ∧ D 53209 t = true ∧ D 58288 t = true) := by
+  have e : ∀ j, j ≤ 58288 → D j t = Sp A0 j (t % 16) := fun j hj => by rw [seed_low t ht hj, Sp_mod A0_return]
+  have h := A0_white_black (t % 16) (Nat.mod_lt _ (by omega))
+  rw [e 2 (by omega), e 7 (by omega), e 28 (by omega), e 399 (by omega), e 53207 (by omega), e 58286 (by omega),
+    e 4 (by omega), e 9 (by omega), e 30 (by omega), e 401 (by omega), e 53209 (by omega), e 58288 (by omega)]
+  exact ⟨⟨h.1.1, h.1.2.1, h.1.2.2.1, h.1.2.2.2.1, h.1.2.2.2.2.1, h.1.2.2.2.2.2.1⟩, h.2⟩
+
+/-- **Early Uniform Settling of the Single Seed Through Wheel `400` from Tick `783` (`seed_on_A0_400`):**
+for all `j ≤ 400` and `t ≥ 783`, `D j t = Sp A0 j t`, locking `D 2, D 7, D 28, D 399 = false` and `D 4, D 9, D 30 = true`. -/
+theorem seed_on_A0_400 :
+    OnStrip D A0 0 783 400 ∧
+    ∀ t, 783 ≤ t →
+      (D 2 t = false ∧ D 7 t = false ∧ D 28 t = false ∧ D 399 t = false) ∧
+      (D 4 t = true ∧ D 9 t = true ∧ D 30 t = true) := by
+  have h400 : F wdA0 400 = 783 := F_of_S a_low
+  have hon : OnStrip D A0 0 783 400 :=
+    onStrip_of_alignedFrom (fun j hj => by rw [← h400]; exact F_mono wdA0 hj)
+      (fun j hj t ht => seed_alignedFrom_A0 j (by omega) t ht)
+  refine ⟨hon, fun t ht => ?_⟩
+  have e : ∀ j, j ≤ 400 → D j t = Sp A0 j (t % 16) := fun j hj => by
+    have h := hon j hj t ht
+    rw [Nat.add_zero] at h
+    rw [h, Sp_mod A0_return]
+  have h := A0_white_black (t % 16) (Nat.mod_lt _ (by omega))
+  rw [e 2 (by omega), e 7 (by omega), e 28 (by omega), e 399 (by omega),
+    e 4 (by omega), e 9 (by omega), e 30 (by omega)]
+  exact ⟨⟨h.1.1, h.1.2.1, h.1.2.2.1, h.1.2.2.2.1⟩, ⟨h.2.1, h.2.2.1, h.2.2.2.1⟩⟩
+
 end Ruliology.CellularAutomata.Rule30SeedLeftSide
