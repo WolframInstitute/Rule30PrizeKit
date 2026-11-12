@@ -567,4 +567,57 @@ theorem theta_explicit_large_periods (M : Nat) :
   exact explicit_large_periods M
 
 
+/-! ## Equivalence laws of `TailEq` and complete `Theta (free j)` tail-distinctness and non-finiteness suite -/
+
+/-- **Equivalence Laws of `TailEq` and Invariance of `SpatialPeriod P` (`tailEq_equiv_and_spatialPeriod_iff`).** -/
+theorem tailEq_equiv_and_spatialPeriod_iff (f g h : Nat → Bool) (P : Nat) :
+    TailEq f f ∧
+    (TailEq f g → TailEq g f) ∧
+    (TailEq f g → TailEq g h → TailEq f h) ∧
+    (TailEq f g → (SpatialPeriod P f ↔ SpatialPeriod P g)) := by
+  refine ⟨⟨0, fun _ _ => rfl⟩, ?_, ?_, ?_⟩
+  · rintro ⟨D, hD⟩; exact ⟨D, fun d hd => (hD d hd).symm⟩
+  · rintro ⟨D1, hD1⟩ ⟨D2, hD2⟩
+    exact ⟨D1 + D2, fun d hd => (hD1 d (by omega)).trans (hD2 d (by omega))⟩
+  · rintro ⟨D, hD⟩
+    constructor
+    · rintro ⟨D0, hP0⟩
+      refine ⟨D + D0, fun d hd => ?_⟩
+      rw [← hD (d + P) (by omega), hP0 d (by omega), hD d (by omega)]
+    · rintro ⟨D0, hP0⟩
+      refine ⟨D + D0, fun d hd => ?_⟩
+      rw [hD (d + P) (by omega), hP0 d (by omega), ← hD d (by omega)]
+
+/-- **Pairwise Tail Distinctness of `Theta (free j)` (`theta_pairwise_tail_distinct`).** -/
+theorem theta_pairwise_tail_distinct (j k : Nat) (hjk : j < k) :
+    ¬ TailEq (Rule30ZeroBoundary.Theta (free j)) (Rule30ZeroBoundary.Theta (free k)) := by
+  rw [theta_eq_recon j, theta_eq_recon k]
+  exact pairwise_tail_distinct j k hjk
+
+/-- **Spatial Period Inheritance and Absence of Common Period for `Theta (free j)` (`theta_period_inherited_and_no_common_period`).** -/
+theorem theta_period_inherited_and_no_common_period (P : Nat) (hP : 0 < P) :
+    (∀ {i j : Nat}, i ≤ j →
+      SpatialPeriod P (Rule30ZeroBoundary.Theta (free j)) →
+      SpatialPeriod P (Rule30ZeroBoundary.Theta (free i))) ∧
+    ¬ ∀ j, SpatialPeriod P (Rule30ZeroBoundary.Theta (free j)) := by
+  refine ⟨fun {i j} hij h => ?_, fun hall => no_common_spatial_period P hP (fun j => ?_)⟩
+  · rw [theta_eq_recon i]; rw [theta_eq_recon j] at h
+    exact period_inherited hij h
+  · have hj := hall j
+    rwa [theta_eq_recon j] at hj
+
+/-- **Exclusion of Spatial Period `1` for `j ≥ 2` and Universal Non-Finiteness of `Theta (free j)` (`theta_not_finSupp_all`):**
+for every `j : Nat`, `Theta (free j)` is neither spatially constant-tailed (`¬ SpatialPeriod 1 (Theta (free (j + 2)))`)
+nor finitely supported (`¬ FinSupp (Theta (free j))`). -/
+theorem theta_not_finSupp_all (j : Nat) (hj : 2 ≤ j) :
+    ¬ SpatialPeriod 1 (Rule30ZeroBoundary.Theta (free j)) ∧
+    ¬ Rule30ZeroBoundary.FinSupp (Rule30ZeroBoundary.Theta (free j)) := by
+  have hnp1 : ¬ SpatialPeriod 1 (Rule30ZeroBoundary.Theta (free j)) := by
+    intro hsp
+    have hlt := theta_delay_lt_pow_period j 1 (by decide) hsp
+    omega
+  refine ⟨hnp1, ?_⟩
+  rintro ⟨W, hW⟩
+  exact hnp1 ⟨W + 1, fun d hd => by rw [hW (d + 1) (by omega), hW d (by omega)]⟩
+
 end Ruliology.CellularAutomata.Rule30DelayedDefectPeriods

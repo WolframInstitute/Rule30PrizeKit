@@ -612,4 +612,56 @@ theorem observer_mode_right_wedge (U V : Nat) (hUV : V<U) (x : Int → Bool)
   | true => rw [hs p hx];rfl
 
 end ObserverConnection
+/-! ## Right-wedge dichotomy, explicit dyadic escape in ordinary coordinates, and observer-mode front escape -/
+
+/-- **Right-Wedge Dichotomy (`right_wedge_dichotomy`):**
+under `RightWedge.Mode U V h` and `RightWedge.Common U V h` with `V < U` and `h 0 p = false` for `p > U`,
+if `h 0 U = false` then `h t p = false` throughout `(V : Int) + t < p`, whereas if `h 0 U = true`
+then `h t p = Rule30Jen.cell (U + t) p` throughout `(V : Int) + t < p`. -/
+theorem right_wedge_dichotomy (U V : Nat) (hUV : V < U) (h : Nat → Int → Bool)
+    (hh : RightWedge.Mode U V h) (hw : RightWedge.Common U V h)
+    (hi : ∀ p : Int, (U : Int) < p → h 0 p = false) :
+    (h 0 U = false → ∀ (t : Nat) (p : Int), (V : Int) + t < p → h t p = false) ∧
+    (h 0 U = true → ∀ (t : Nat) (p : Int), (V : Int) + t < p → h t p = Rule30Jen.cell (U + t) p) := by
+  have hph := RightWedge.right_wedge_phase U V hUV h hh hw hi
+  refine ⟨fun h0 t p hp => by rw [hph t p hp, h0, Bool.false_and],
+          fun h1 t p hp => by rw [hph t p hp, h1, Bool.true_and]⟩
+
+/-- **Observer-Mode Right-Wedge Dichotomy (`observer_mode_right_wedge_dichotomy`).** -/
+theorem observer_mode_right_wedge_dichotomy (U V : Nat) (hUV : V < U) (x : Int → Bool)
+    (hw : Rule30DividedDifference.CommonField (Rule30Jen.cell U) (Rule30Jen.cell V)
+      (ObserverConnection.canonicalMode U V x))
+    (hs : ∀ p : Int, x p = true → xor (Rule30Jen.cell U p) (Rule30Jen.cell V p) = true) :
+    (x U = false → ∀ (t : Nat) (p : Int), (V : Int) + t < p →
+      ObserverConnection.canonicalMode U V x t p = false) ∧
+    (x U = true → ∀ (t : Nat) (p : Int), (V : Int) + t < p →
+      ObserverConnection.canonicalMode U V x t p = Rule30Jen.cell (U + t) p) := by
+  have hobs := ObserverConnection.observer_mode_right_wedge U V hUV x hw hs
+  refine ⟨fun hx0 t p hp => by rw [hobs t p hp, hx0, Bool.false_and],
+          fun hx1 t p hp => by rw [hobs t p hp, hx1, Bool.true_and]⟩
+
+/-- **Explicit Dyadic Escape Window in Ordinary Coordinates (`ordinary_escapes_near_dyadic_reset`):**
+at any dyadic return `U + tau = 2^E` with `L ≤ E` and `V ≤ U`, every non-zero upper-bounded
+`RightWedge.Mode U V h` visits `p ≤ (U : Int) + (tau + k) - L` at some step `k ≤ (L + 1) / 2`. -/
+theorem ordinary_escapes_near_dyadic_reset (U V E L tau : Nat) (hUV : V ≤ U)
+    (he : L ≤ E) (ht : U + tau = 2 ^ E) (h : Nat → Int → Bool)
+    (hh : RightWedge.Mode U V h) (hi : ∀ p : Int, (U : Int) < p → h 0 p = false)
+    (hne : ∃ p : Int, h 0 p = true) :
+    ∃ k, k ≤ (L + 1) / 2 ∧ ∃ p : Int, p ≤ (U : Int) + (tau + k) - L ∧ h (tau + k) p = true := by
+  obtain ⟨k, hk, j, hj, hblack⟩ := BandEscape.escapes_near_reset U E L tau he ht
+    (BandEscape.Ordinary.readB U V) (BandEscape.Ordinary.read U h)
+    (BandEscape.Ordinary.read_evolution U V hUV h hh hi)
+    (BandEscape.Ordinary.read_nonzero U h hi hne)
+  exact ⟨k, hk, (U : Int) + (tau + k) - j, by omega, hblack⟩
+
+/-- **Unbounded Escape Behind the Front for `ObserverConnection.canonicalMode` (`canonical_mode_arbitrarily_far_behind_front`).** -/
+theorem canonical_mode_arbitrarily_far_behind_front (U V : Nat) (hUV : V ≤ U) (x : Int → Bool)
+    (hi : ∀ p : Int, (U : Int) < p → x p = false) (hne : ∃ p : Int, x p = true)
+    (T L : Nat) :
+    ∃ t, T ≤ t ∧ ∃ p : Int, p ≤ (U : Int) + t - L ∧
+      ObserverConnection.canonicalMode U V x t p = true :=
+  BandEscape.Ordinary.arbitrarily_far_behind_front U V hUV
+    (ObserverConnection.canonicalMode U V x)
+    (ObserverConnection.canonical_mode_equation U V x) hi hne T L
+
 end Ruliology.CellularAutomata.Rule30CommonGauge
