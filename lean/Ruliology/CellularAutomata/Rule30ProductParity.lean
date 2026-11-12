@@ -750,4 +750,82 @@ updates on each coordinate; it is not an independently fitted map. -/
 theorem paired_F2_semantics (xs : List (Cell (Fin 2))) :
     Corner.image xs=Corner.four xs := Word.image_eq_four xs
 
+/-! ## Abelian `bxor` algebra, diagonal annihilation of constant words, and constant-ensemble charge equality -/
+
+/-- **Commutativity, Associativity, and Right-Identity of `bxor` (`bxor_comm_assoc_and_zero`).** -/
+theorem bxor_comm_assoc_and_zero (I : Type) (a b c : Cell I) :
+    bxor a b = bxor b a ∧
+    bxor (bxor a b) c = bxor a (bxor b c) ∧
+    bxor a zeroCell = a := by
+  refine ⟨?_, ?_, ?_⟩
+  · funext i; change xor (a i) (b i) = xor (b i) (a i); cases a i <;> cases b i <;> rfl
+  · funext i; change xor (xor (a i) (b i)) (c i) = xor (a i) (xor (b i) (c i))
+    cases a i <;> cases b i <;> cases c i <;> rfl
+  · funext i; change xor (a i) false = a i; cases a i <;> rfl
+
+/-- **Four-Step Annihilation of Any Spatially Constant Ensemble Word (`image_replicate_diag`):**
+for every ensemble index type `I`, every cell vector `a : Cell I`, and every width `m : Nat`,
+`Corner.image (List.replicate (m + 8) a) = List.replicate m zeroCell`. -/
+theorem image_replicate_diag (I : Type) (m : Nat) (a : Cell I) :
+    Corner.image (List.replicate (m + 8) a) = List.replicate m (zeroCell : Cell I) := by
+  have hq : ∀ k : Nat, Corner.q a (List.replicate (k + 8) a) = zeroCell := by
+    intro k
+    have hget : ∀ idx, idx < 8 → (List.replicate (k + 8) a).getD idx zeroCell = a := fun idx hidx => by
+      rw [List.getD_eq_getElem?_getD, List.getElem?_replicate_of_lt (by omega)]
+      rfl
+    unfold Corner.q
+    rw [hget 0 (by omega), hget 1 (by omega), hget 2 (by omega), hget 3 (by omega),
+        hget 4 (by omega), hget 5 (by omega), hget 6 (by omega), hget 7 (by omega)]
+    exact Corner.q9_diag a
+  induction m with
+  | zero => rfl
+  | succ m ih =>
+    change Corner.image (a :: List.replicate (m + 8) a) = zeroCell :: List.replicate m zeroCell
+    have hlen : 8 ≤ (List.replicate (m + 8) a).length := by simp
+    rw [Corner.image, ite_eq_left hlen, hq m, ih]
+
+/-- **Tail and DropLast of a Constant Ensemble Word (`replicate_cell_tail_and_dropLast`).** -/
+theorem replicate_cell_tail_and_dropLast (I : Type) {m : Nat} (hm : 0 < m) (a : Cell I) :
+    (List.replicate m a).tail = List.replicate (m - 1) a ∧
+    (List.replicate m a).dropLast = List.replicate (m - 1) a := by
+  obtain ⟨k, rfl⟩ : ∃ k, m = k + 1 := ⟨m - 1, by omega⟩
+  clear hm
+  rw [Nat.add_sub_cancel]
+  refine ⟨rfl, ?_⟩
+  induction k with
+  | zero => rfl
+  | succ k ih =>
+    show (a :: List.replicate (k + 1) a).dropLast = a :: List.replicate k a
+    rw [List.dropLast_cons_of_ne_nil (by simp), ih]
+
+/-- **Constant-Ensemble Vacuum Charge Equality and Obstruction Criterion (`conserved_replicate_eq_vacuum_and_obstruction`):**
+every locally or cyclically conserved parity density `h` of width `m > 0` satisfies
+`h (List.replicate m a) = h (List.replicate m zeroCell)` for every cell vector `a : Cell I`,
+so any `h` with `h (List.replicate m a) ≠ h (List.replicate m zeroCell)` is not conserved. -/
+theorem conserved_replicate_eq_vacuum_and_obstruction (I : Type) (m : Nat) (hm : 0 < m)
+    (h : List (Cell I) → Fin 2) (a : Cell I) :
+    ((Cycle.CyclicConserved m h ∨ ∃ p, Corner.Conserved m h p) →
+      h (List.replicate m a) = h (List.replicate m zeroCell)) ∧
+    (h (List.replicate m a) ≠ h (List.replicate m zeroCell) →
+      ¬ Cycle.CyclicConserved m h ∧ ∀ p, ¬ Corner.Conserved m h p) := by
+  have hrep_eq : ∀ (c : Fin 2) (p : List (Cell I) → Fin 2),
+      (∀ xs, xs.length = m → h xs = c + p xs.tail - p xs.dropLast) →
+      ∀ x : Cell I, h (List.replicate m x) = c := by
+    intro c p ht x
+    have hl : (List.replicate m x).length = m := List.length_replicate
+    have h1 := ht (List.replicate m x) hl
+    obtain ⟨htl, hdl⟩ := replicate_cell_tail_and_dropLast I hm x
+    rw [htl, hdl] at h1
+    simpa using h1
+  have heq : (Cycle.CyclicConserved m h ∨ ∃ p, Corner.Conserved m h p) →
+      h (List.replicate m a) = h (List.replicate m zeroCell) := by
+    intro hc
+    have htriv : Triviality.Trivial m h := by
+      rcases hc with hcyc | hloc
+      · exact (Classification.cyclic_conserved_iff_trivial m hm h).1 hcyc
+      · exact (Classification.local_conserved_iff_trivial m hm h).1 hloc
+    obtain ⟨c, p, ht⟩ := htriv
+    rw [hrep_eq c p ht a, hrep_eq c p ht zeroCell]
+  exact ⟨heq, fun hne => ⟨fun hcyc => hne (heq (Or.inl hcyc)), fun p hloc => hne (heq (Or.inr ⟨p, hloc⟩))⟩⟩
+
 end Ruliology.CellularAutomata.Rule30ProductParity
