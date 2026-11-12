@@ -381,5 +381,124 @@ theorem free_bit_constraints6 (T : Nat) (h : ∀ t, T ≤ t → cell t 0 = ((t -
   rw [show t - 2 + 2 + 2 * i = t + 2 * i by omega]
   exact hr i hi
 
+/-! ## Space-time translation invariance and arbitrary-column period-2 onset constraints -/
+
+/-- Space-time translated history `(s, j) ↦ H (d + s) (a + j)`. -/
+def shiftH (H : Nat → Int → Bool) (d : Nat) (a : Int) : Nat → Int → Bool :=
+  fun s j => H (d + s) (a + j)
+
+/-- **Space-Time Shift Equivalence for `ObeysAt` (`obeysAt_shiftH`):**
+`shiftH H d a` obeys Rule 30 at column `j` for all ticks iff `H` obeys Rule 30 at column `a + j`
+for all ticks `s ≥ d`. -/
+theorem obeysAt_shiftH_of_obeysAt {H : Nat → Int → Bool} (d : Nat) (a j : Int)
+    (h : ObeysAt H (a + j)) : ObeysAt (shiftH H d a) j := by
+  intro s
+  unfold shiftH
+  have hs := h (d + s)
+  rw [show d + (s + 1) = (d + s) + 1 by omega,
+    show a + (j - 1) = a + j - 1 by omega,
+    show a + (j + 1) = a + j + 1 by omega]
+  exact hs
+
+/-- **Spatial Shift Transfer for `Obeys` (`obeys_shiftH_of_interval`):**
+if `H` obeys Rule 30 at every column `k` in `[a + 1, a + b]`, then `shiftH H d a` satisfies
+`Obeys b (shiftH H d a)`. -/
+theorem obeys_shiftH_of_interval {H : Nat → Int → Bool} (d b : Nat) (a : Int)
+    (h : ∀ k : Int, a + 1 ≤ k → k ≤ a + (b : Int) → ObeysAt H k) :
+    Obeys b (shiftH H d a) := by
+  intro j hj1 hjb
+  exact obeysAt_shiftH_of_obeysAt d a j (h (a + j) (by omega) (by omega))
+
+/-- **Unconditional `Obeys` for Space-Time Shifted Single-Seed Evolution (`cell_obeys_shiftH`).** -/
+theorem cell_obeys_shiftH (d b : Nat) (a : Int) : Obeys b (shiftH cell d a) :=
+  obeys_shiftH_of_interval d b a (fun k _ _ => cell_obeysAt k)
+
+/-- **Arbitrary-Column Width-`5` Forbidden-Word Exclusion (`no_word5_at_col`):**
+if `H` obeys Rule 30 on columns `[a + 1, a + 5]` and column `a` alternates on `[s, s + 2 * w.length)`,
+then column `a + 1` at `s + 2 + 2 * i` never spells `w ∈ forbidden5`. -/
+theorem no_word5_at_col {H : Nat → Int → Bool} (a : Int)
+    (hH : ∀ k : Int, a + 1 ≤ k → k ≤ a + 5 → ObeysAt H k) (s : Nat)
+    {w : List Bool} (hw : w ∈ forbidden5)
+    (hc : ∀ i, i < 2 * w.length → H (s + i) a = (i % 2 == 1)) :
+    ¬ ∀ i, i < w.length → H (s + 2 + 2 * i) (a + 1) = w.getD i false := by
+  have hshift := no_word5 (obeys_shiftH_of_interval 0 5 a hH) s hw
+    (fun i hi => by simpa [shiftH] using hc i hi)
+  intro hr
+  exact hshift (fun i hi => by simpa [shiftH] using hr i hi)
+
+/-- **Arbitrary-Column Width-`6` Forbidden-Word Exclusion (`no_word6_at_col`):**
+if `H` obeys Rule 30 on columns `[a + 1, a + 6]` and column `a` alternates on `[s, s + 2 * w.length)`,
+then column `a + 1` at `s + 2 + 2 * i` never spells `w ∈ forbidden6`. -/
+theorem no_word6_at_col {H : Nat → Int → Bool} (a : Int)
+    (hH : ∀ k : Int, a + 1 ≤ k → k ≤ a + 6 → ObeysAt H k) (s : Nat)
+    {w : List Bool} (hw : w ∈ forbidden6)
+    (hc : ∀ i, i < 2 * w.length → H (s + i) a = (i % 2 == 1)) :
+    ¬ ∀ i, i < w.length → H (s + 2 + 2 * i) (a + 1) = w.getD i false := by
+  have hshift := no_word6 (obeys_shiftH_of_interval 0 6 a hH) s hw
+    (fun i hi => by simpa [shiftH] using hc i hi)
+  intro hr
+  exact hshift (fun i hi => by simpa [shiftH] using hr i hi)
+
+/-- **Arbitrary-Column Width-`5` Left-Neighbor (`a - 1`) Exclusion (`free_bit5_at_col`):**
+if `H` obeys Rule 30 on `[a, a + 5]` and column `a` alternates on `[s, s + 2 * w.length + 2)`,
+then column `a - 1` at `s + 2 + 2 * i` never spells the bitwise complement of `w ∈ forbidden5`. -/
+theorem free_bit5_at_col {H : Nat → Int → Bool} (a : Int)
+    (hH : ∀ k : Int, a + 1 ≤ k → k ≤ a + 5 → ObeysAt H k)
+    (ha : ObeysAt H a) (s : Nat)
+    {w : List Bool} (hw : w ∈ forbidden5)
+    (hc : ∀ i, i < 2 * w.length + 2 → H (s + i) a = (i % 2 == 1)) :
+    ¬ ∀ i, i < w.length → H (s + 2 + 2 * i) (a - 1) = !w.getD i false := by
+  have ha0 : ObeysAt (shiftH H 0 a) 0 := by
+    simpa [Int.add_zero] using obeysAt_shiftH_of_obeysAt 0 a 0 (by simpa [Int.add_zero] using ha)
+  have hshift := free_bit5 (obeys_shiftH_of_interval 0 5 a hH) ha0 s hw
+    (fun i hi => by simpa [shiftH] using hc i hi)
+  intro hr
+  exact hshift (fun i hi => by
+    simpa [shiftH, show a + (-1 : Int) = a - 1 by omega] using hr i hi)
+
+/-- **Arbitrary-Column Width-`6` Left-Neighbor (`a - 1`) Exclusion (`free_bit6_at_col`):**
+if `H` obeys Rule 30 on `[a, a + 6]` and column `a` alternates on `[s, s + 2 * w.length + 2)`,
+then column `a - 1` at `s + 2 + 2 * i` never spells the bitwise complement of `w ∈ forbidden6`. -/
+theorem free_bit6_at_col {H : Nat → Int → Bool} (a : Int)
+    (hH : ∀ k : Int, a + 1 ≤ k → k ≤ a + 6 → ObeysAt H k)
+    (ha : ObeysAt H a) (s : Nat)
+    {w : List Bool} (hw : w ∈ forbidden6)
+    (hc : ∀ i, i < 2 * w.length + 2 → H (s + i) a = (i % 2 == 1)) :
+    ¬ ∀ i, i < w.length → H (s + 2 + 2 * i) (a - 1) = !w.getD i false := by
+  have ha0 : ObeysAt (shiftH H 0 a) 0 := by
+    simpa [Int.add_zero] using obeysAt_shiftH_of_obeysAt 0 a 0 (by simpa [Int.add_zero] using ha)
+  have hshift := free_bit6 (obeys_shiftH_of_interval 0 6 a hH) ha0 s hw
+    (fun i hi => by simpa [shiftH] using hc i hi)
+  intro hr
+  exact hshift (fun i hi => by
+    simpa [shiftH, show a + (-1 : Int) = a - 1 by omega] using hr i hi)
+
+/-- **Single-Seed Arbitrary-Column Right-Neighbor Onset-`T + 2` Constraints (`cell_col_succ_constraints6`):**
+if column `a` of `cell` alternates `cell t a = ((t - T) % 2 == 1)` from `T` on, then from every
+white tick `t ≥ T + 2` (`(t - T) % 2 = 0`), column `a + 1` avoids every pattern in `forbidden6`. -/
+theorem cell_col_succ_constraints6 (a : Int) (T : Nat)
+    (h : ∀ t, T ≤ t → cell t a = ((t - T) % 2 == 1)) :
+    ∀ t, T + 2 ≤ t → (t - T) % 2 = 0 → ∀ pat ∈ forbidden6,
+      ¬ ∀ i, i < pat.length → cell (t + 2 * i) (a + 1) = pat.getD i false := by
+  have hon := onset6 (cell_obeys_shiftH 0 6 a) T (fun t ht => by simpa [shiftH] using h t ht)
+  intro t ht hp pat hpat hr
+  exact hon t ht hp pat hpat (fun i hi => by simpa [shiftH] using hr i hi)
+
+/-- **Single-Seed Arbitrary-Column Left-Neighbor Onset-`T + 2` Constraints (`cell_col_pred_constraints6`):**
+if column `a` of `cell` alternates `cell t a = ((t - T) % 2 == 1)` from `T` on, then from every
+white tick `t ≥ T + 2` (`(t - T) % 2 = 0`), column `a - 1` avoids the bitwise complement of every
+pattern in `forbidden6`. -/
+theorem cell_col_pred_constraints6 (a : Int) (T : Nat)
+    (h : ∀ t, T ≤ t → cell t a = ((t - T) % 2 == 1)) :
+    ∀ t, T + 2 ≤ t → (t - T) % 2 = 0 → ∀ pat ∈ forbidden6,
+      ¬ ∀ i, i < pat.length → cell (t + 2 * i) (a - 1) = !pat.getD i false := by
+  intro t ht hp pat hpat hr
+  have hcs := clock_shift (H := shiftH cell 0 a) (fun u hu => by simpa [shiftH] using h u hu) ht hp (2 * pat.length + 2)
+  refine free_bit6_at_col a (fun k _ _ => cell_obeysAt k) (cell_obeysAt a) (t - 2) hpat
+    (fun i hi => by simpa [shiftH] using hcs i hi)
+    (fun i hi => ?_)
+  rw [show t - 2 + 2 + 2 * i = t + 2 * i by omega]
+  exact hr i hi
+
 end Rule30PeriodTwoOnset
 end Ruliology.CellularAutomata
