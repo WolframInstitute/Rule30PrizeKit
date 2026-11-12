@@ -193,4 +193,102 @@ theorem period_four_left_periodic_right_finite :
       ws2 ws2_mem (by decide)
     exact ⟨_, h1, ⟨7 + 13, h2⟩, h3⟩
 
+/-! ### Spatio-temporal periodicities of `etherL`, all-time left-half ether and right light-cone invariants, and coupled period-4 witnesses -/
+
+/-- **Spatial Period-7 and Temporal Period-4 Invariance of `etherL` (`etherL_periodic`).** -/
+theorem etherL_periodic (j0 s0 m q : Nat) (p : Int) (hp : p ≤ 0) :
+    etherL j0 (s0 + 4 * q) (p - 7 * (m : Int)) = etherL j0 s0 p := by
+  unfold etherL
+  exact ether_congr (by omega) (by omega)
+
+/-- **Spatial Period-7 and Temporal Period-4 Invariance of `L ... (etherL j0 s0)` (`L_ether_periodic`).** -/
+theorem L_ether_periodic (j0 s0 t q m : Nat) (p : Int) (hp : p ≤ 0) :
+    L (fun u => ether j0 (u + s0)) (etherL j0 s0) (t + 4 * q) (p - 7 * (m : Int)) =
+      L (fun u => ether j0 (u + s0)) (etherL j0 s0) t p := by
+  rw [L_ether j0 s0 (t + 4 * q) (p - 7 * (m : Int)) (by omega), L_ether j0 s0 t p hp]
+  exact ether_congr (by omega) (by omega)
+
+/-- **All-Time Left-Half Ether Identity for `ether_wall_config` (`ether_wall_config_left_ether_all_time`):**
+in the glued configuration `glue (etherL j0 s) (wordAt w 0) (config j0 s k ws)`, every column `p ≤ 0`
+at every time `t` equals `ether (j0 + 6 * (-p).toNat) (t + s)`. -/
+theorem ether_wall_config_left_ether_all_time (w : List Bool) (j0 s k : Nat) (hal : aligned w j0 s = true)
+    (hk : (j0 + k) % 7 = 2) (hk1 : 1 ≤ k) (ws : List Bool) (hws : (s % 4, ws) ∈ wallStates)
+    (hlen : ws.length = 13) :
+    ∀ (t : Nat) (p : Int), p ≤ 0 →
+      Rule30Realization.evol (glue (etherL j0 s) (wordAt w 0) (config j0 s k ws)) t p =
+        ether (j0 + 6 * (-p).toNat) (t + s)
+  | 0, p, hp => by
+    show glue (etherL j0 s) (wordAt w 0) (config j0 s k ws) p = _
+    by_cases hlt : p < 0
+    · simp only [glue, hlt, ↓reduceIte]; unfold etherL; rw [Nat.zero_add]
+    · have hp0 : p = 0 := by omega
+      subst hp0
+      simp only [glue, show ¬ ((0 : Int) < 0) by omega, ↓reduceIte]
+      rw [← aligned_spec hal 0]
+      simp
+  | t + 1, p, hp => by
+    by_cases hlt : p < 0
+    · show rule _ _ _ = _
+      rw [ether_wall_config_left_ether_all_time w j0 s k hal hk hk1 ws hws hlen t (p - 1) (by omega),
+          ether_wall_config_left_ether_all_time w j0 s k hal hk hk1 ws hws hlen t p hp,
+          ether_wall_config_left_ether_all_time w j0 s k hal hk hk1 ws hws hlen t (p + 1) (by omega)]
+      have e1 : ether (j0 + 6 * (-(p - 1)).toNat) (t + s) =
+          ether (j0 + 6 * (-p).toNat + 6) (t + s) := ether_congr (by omega) rfl
+      have e3 : ether (j0 + 6 * (-(p + 1)).toNat) (t + s) =
+          ether (j0 + 6 * (-p).toNat + 1) (t + s) := ether_congr (by omega) rfl
+      rw [e1, e3, show t + 1 + s = (t + s) + 1 by omega, ether_rule (j0 + 6 * (-p).toNat) (t + s)]
+    · have hp0 : p = 0 := by omega
+      subst hp0
+      rw [(ether_wall_config w j0 s k hal hk hk1 ws hws hlen).2.2 (t + 1), ← aligned_spec hal (t + 1)]
+      simp
+
+/-- **All-Time Left Periodicity and Right Light-Cone Support for `ether_wall_config` (`ether_wall_config_all_time_invariants`).** -/
+theorem ether_wall_config_all_time_invariants (w : List Bool) (j0 s k : Nat) (hal : aligned w j0 s = true)
+    (hk : (j0 + k) % 7 = 2) (hk1 : 1 ≤ k) (ws : List Bool) (hws : (s % 4, ws) ∈ wallStates)
+    (hlen : ws.length = 13) (t : Nat) :
+    (∀ p : Int, p ≤ 0 →
+      Rule30Realization.evol (glue (etherL j0 s) (wordAt w 0) (config j0 s k ws)) t (p - 7) =
+        Rule30Realization.evol (glue (etherL j0 s) (wordAt w 0) (config j0 s k ws)) t p) ∧
+    (∀ p : Int, p ≤ 0 →
+      Rule30Realization.evol (glue (etherL j0 s) (wordAt w 0) (config j0 s k ws)) (t + 4) p =
+        Rule30Realization.evol (glue (etherL j0 s) (wordAt w 0) (config j0 s k ws)) t p) ∧
+    (∀ p : Int, ((k + 13 + t : Nat) : Int) < p →
+      Rule30Realization.evol (glue (etherL j0 s) (wordAt w 0) (config j0 s k ws)) t p = false) := by
+  have hleft := ether_wall_config_left_ether_all_time w j0 s k hal hk hk1 ws hws hlen
+  refine ⟨fun p hp => ?_, fun p hp => ?_, ?_⟩
+  · rw [hleft t (p - 7) (by omega), hleft t p hp]
+    exact ether_congr (by omega) rfl
+  · rw [hleft (t + 4) p hp, hleft t p hp]
+    exact ether_congr rfl (by omega)
+  · induction t with
+    | zero =>
+      intro p hp
+      exact (ether_wall_config w j0 s k hal hk hk1 ws hws hlen).2.1 p (by omega)
+    | succ u ih =>
+      intro p hp
+      show rule _ _ _ = false
+      rw [ih (p - 1) (by omega), ih p (by omega), ih (p + 1) (by omega)]
+      rfl
+
+/-- **Coupled Period-4 Counterexamples Under a Periodic Left Half (`period_four_coupled_left_periodic`):**
+for each of `w0001, w0011, w0111`, some period-7 left half `s` and right half `x` supported on `p ≤ 20`
+satisfy `Coupled (wordAt w) s x`. -/
+theorem period_four_coupled_left_periodic :
+    ∀ w ∈ [w0001, w0011, w0111], ∃ (s : Int → Bool) (x : Nat → Bool),
+      (∀ p : Int, p < 0 → s (p - 7) = s p) ∧
+      (∀ p : Nat, 20 < p → x p = false) ∧
+      Coupled (wordAt w) s x := by
+  intro w hw
+  simp only [List.mem_cons, List.not_mem_nil, or_false] at hw
+  rcases hw with rfl | rfl | rfl
+  · refine ⟨etherL 5 0, config 5 0 4 ws0, fun p _ => ether_congr (by omega) rfl,
+      fun p hp => config_finite 5 0 4 ws0 p (by omega),
+      coupled_ether_wall w0001 5 0 4 aligned_0001_5 (by decide) (by decide) ws0 ws0_mem (by decide)⟩
+  · refine ⟨etherL 0 0, config 0 0 2 ws0, fun p _ => ether_congr (by omega) rfl,
+      fun p hp => config_finite 0 0 2 ws0 p (by omega),
+      coupled_ether_wall w0011 0 0 2 aligned_0011_0 (by decide) (by decide) ws0 ws0_mem (by decide)⟩
+  · refine ⟨etherL 2 2, config 2 2 7 ws2, fun p _ => ether_congr (by omega) rfl,
+      fun p hp => config_finite 2 2 7 ws2 p (by omega),
+      coupled_ether_wall w0111 2 2 7 aligned_0111_2 (by decide) (by decide) ws2 ws2_mem (by decide)⟩
+
 end Ruliology.CellularAutomata.Rule30EtherWallWitness
