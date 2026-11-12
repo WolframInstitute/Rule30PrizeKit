@@ -147,5 +147,28 @@ theorem periodic_window {i : Int} {T P : Nat} (hP : 0 < P)
 
 end Window
 
+/-! ### Finite-configuration (`FinConfig`) masked and window forms of Jen's theorem -/
+
+/-- **Finite-Configuration (`FinConfig`) Masked Jen and `orCol` Non-Periodicity (`masked_jen_and_orCol_finite`).** -/
+theorem masked_jen_and_orCol_finite {x : Int → Bool}
+    (hfin : Rule30PeriodTwoSideways.FinConfig x) (hne : ∃ p, x p = true) (i : Int) :
+    (∀ {T P : Nat}, 0 < P →
+      (∀ t, T ≤ t → evol x (t + P) i = evol x t i) →
+      ¬ ∀ t, T ≤ t → evol x t i = false → evol x (t + P) (i + 1) = evol x t (i + 1)) ∧
+    (EventuallyPeriodic (fun t => evol x t i) → ¬ EventuallyPeriodic (orCol x i)) := by
+  obtain ⟨lo, hlo, hzero⟩ := exists_leftmost hfin hne
+  exact ⟨fun hP h0 h1 => masked_jen hlo hzero i hP h0 h1,
+         orCol_not_eventuallyPeriodic hlo hzero i⟩
+
+/-- **Finite-Configuration (`FinConfig`) Window Form of Jen's Theorem (`window_jen_col_finite`).** -/
+theorem window_jen_col_finite {x : Int → Bool}
+    (hfin : Rule30PeriodTwoSideways.FinConfig x) (hne : ∃ p, x p = true) (i : Int) :
+    ∃ lo : Int, x lo = true ∧ (∀ p, p < lo → x p = false) ∧
+      ∀ {t₁ t₂ : Nat} (m : Nat), t₁ < t₂ → i - (m : Int) = lo - (t₂ : Int) →
+        (∀ s, s ≤ m → evol x (t₁ + s) i = evol x (t₂ + s) i) →
+        (∀ s, s < m → orCol x i (t₁ + s) = orCol x i (t₂ + s)) → False := by
+  obtain ⟨lo, hlo, hzero⟩ := exists_leftmost hfin hne
+  exact ⟨lo, hlo, hzero, fun m h hm hc he => window_jen_col hlo hzero m h hm hc he⟩
+
 end Rule30FiniteMaskedJen
 end Ruliology.CellularAutomata
