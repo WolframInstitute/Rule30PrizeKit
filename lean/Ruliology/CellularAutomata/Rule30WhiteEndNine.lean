@@ -935,5 +935,54 @@ theorem not_eventually_white_end_ge9 (q : Nat) (hq : 9 ≤ q) :
     ¬ EventuallyWord (true :: List.replicate q false) :=
   not_eventually_word_mode (wq q) 12 5 2 _ _ _ (by decide) (by simp [wq]) (modeCert_white_end q hq)
 
+/-! ## Semigroup additivity of `fiter`, `subB` equivalence, and exclusion of `0^q 1` for all `q ≥ 9` -/
+
+/-- **Semigroup Additivity of `fiter` and Exact Subset Equivalence `subB K S S' = true ↔ SubK K S S'` (`fiter_add_and_subB_iff`).** -/
+theorem fiter_add_and_subB_iff (K : Nat) (w : List Bool) (a b S S' : Nat) :
+    fiter K w (a + b) S = fiter K w b (fiter K w a S) ∧
+    (subB K S S' = true ↔ SubK K S S') := by
+  refine ⟨?_, ⟨subB_spec, subB_of⟩⟩
+  induction a generalizing S with
+  | zero => simp [fiter]
+  | succ a ih =>
+    rw [Nat.succ_add]
+    exact ih (fapply K w S)
+
+/-- **Exact `getD` Formula for `0^q 1` (`getD_replicate_false_append_true`).** -/
+theorem getD_replicate_false_append_true : ∀ (q k : Nat),
+    (List.replicate q false ++ [true]).getD k false = decide (k = q)
+  | 0, 0 => rfl
+  | 0, k + 1 => rfl
+  | q + 1, 0 => rfl
+  | q + 1, k + 1 => by
+    rw [List.replicate_succ, List.cons_append, List.getD_cons_succ,
+        getD_replicate_false_append_true q k]
+    exact decide_eq_decide.mpr ⟨fun h => by omega, fun h => by omega⟩
+
+/-- **Unconditional Exclusion of `0^q 1` (`List.replicate q false ++ [true]`) for Every `q ≥ 9` (`not_eventually_oneBlack_ge9`).** -/
+theorem not_eventually_oneBlack_ge9 (q : Nat) (hq : 9 ≤ q) :
+    ¬ EventuallyWord (List.replicate q false ++ [true]) := by
+  rintro ⟨T, hT⟩
+  have hlen1 : (List.replicate q false ++ [true]).length = q + 1 := by simp
+  have hlen2 : (true :: List.replicate q false).length = q + 1 := by simp
+  apply not_eventually_white_end_ge9 q hq
+  refine ⟨T + q, fun t ht => ?_⟩
+  rw [hT t (by omega), hlen1, hlen2, getD_replicate_false_append_true, show true :: List.replicate q false = wq q from rfl, getD_wq]
+  let u := t - (T + q)
+  have htu : t - T = u + q := by dsimp [u]; omega
+  rw [htu]
+  have hd := Nat.div_add_mod u (q + 1)
+  have hm := Nat.mod_lt u (by omega : 0 < q + 1)
+  generalize u / (q + 1) = k at hd
+  generalize u % (q + 1) = r at hd hm ⊢
+  rcases Nat.eq_zero_or_pos r with hr0 | hrpos
+  · have heq : u + q = q + (q + 1) * k := by omega
+    rw [heq, Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt (by omega : q < q + 1), hr0]
+    simp
+  · have heq : u + q = (r - 1) + (q + 1) * (k + 1) := by
+      rw [Nat.mul_add, Nat.mul_one]; omega
+    rw [heq, Nat.add_mul_mod_self_left, Nat.mod_eq_of_lt (by omega : r - 1 < q + 1)]
+    exact decide_eq_decide.mpr ⟨fun h => by omega, fun h => by omega⟩
+
 end Rule30WhiteEndNine
 end Ruliology.CellularAutomata
