@@ -548,4 +548,30 @@ theorem affine_prefix_bound (g : Nat → Bool → Bool → Bool) (x : Nat → Bo
   have hd := (prefix_period_iff g x n _).mp hper
   exact (Nat.pow_dvd_pow_iff_le_right (by decide)).mp hd
 
+/-! ## Exact four-point mixed-derivative criterion for `Affine` gates and non-affinity of `(· || ·)` -/
+
+/-- **Four-Point Mixed-Derivative Criterion for `Affine` Gates and Non-Affinity of OR (`affine_iff_four_point_xor_and_not_affine_or`).** -/
+theorem affine_iff_four_point_xor_and_not_affine_or (g : Bool → Bool → Bool) :
+    (Affine g ↔ xor (xor (g false false) (g false true)) (xor (g true false) (g true true)) = false) ∧
+    Affine xor ∧
+    ¬ Affine (fun b s => b || s) := by
+  have hiff : ∀ h : Bool → Bool → Bool,
+      Affine h ↔ xor (xor (h false false) (h false true)) (xor (h true false) (h true true)) = false := by
+    intro h
+    constructor
+    · rintro ⟨α, β, γ, hh⟩
+      rw [hh false false, hh false true, hh true false, hh true true]
+      cases α <;> cases β <;> cases γ <;> rfl
+    · intro h4
+      refine ⟨xor (h true false) (h false false),
+              xor (h false true) (h false false),
+              h false false,
+              fun b s => ?_⟩
+      revert h4
+      cases h00 : h false false <;> cases h01 : h false true <;>
+        cases h10 : h true false <;> cases h11 : h true true <;>
+        cases b <;> cases s <;> simp_all
+  refine ⟨hiff g, (hiff xor).mpr rfl, fun hor => ?_⟩
+  exact Bool.noConfusion ((hiff (fun b s => b || s)).mp hor)
+
 end Ruliology.CellularAutomata.Rule30GateClocks
