@@ -890,4 +890,699 @@ theorem q01_and_gapWords_imp_q01GapCore_and_win18_props (R : Nat → Bool) (t : 
           win18_length R t,
           win18_head R t⟩
 
+/-! ## Three-word collapse (`Q01TwoCore`), time-shift elimination (`s0 = 0`), phase anchoring, and the 16-depth pulse skeleton -/
+
+/-- **Two-Word + Core Condition (`TwoCoreOK`):**
+`TwoWordsOK g s` (gaps in `{3, 5}`, neither `33` nor `3553`) together with exclusion of `3535353`. -/
+def TwoCoreOK (g : Nat → Bool) (s : Nat) : Prop :=
+  TwoWordsOK g s ∧ ¬ Reads g s (gapWord [3, 5, 3, 5, 3, 5, 3])
+
+/-- **`Q01TwoCore` (`Q01GapCore` collapsed to the three minimal forbidden words `33`, `3553`, `3535353`).** -/
+def Q01TwoCore : Prop := ∀ L : Nat → Bool, FinSupp L → InX L →
+  ¬ ∃ s0, ∀ s, s0 ≤ s → TwoCoreOK (fun s => !zrow L (2 * s + 1) 1) s
+
+/-- **Zero-Threshold Form of `Q01TwoWords` (`Q01TwoWordsFromZero`).** -/
+def Q01TwoWordsFromZero : Prop := ∀ L : Nat → Bool, FinSupp L → InX L →
+  ¬ ∀ s, TwoWordsOK (fun s => !zrow L (2 * s + 1) 1) s
+
+/-- **Zero-Threshold Form of `Q01GapCore` (`Q01GapCoreFromZero`).** -/
+def Q01GapCoreFromZero : Prop := ∀ L : Nat → Bool, FinSupp L → InX L →
+  ¬ ∀ s, CoreOK (fun s => !zrow L (2 * s + 1) 1) s
+
+/-- **Zero-Threshold Form of `Q01TwoCore` (`Q01TwoCoreFromZero`).** -/
+def Q01TwoCoreFromZero : Prop := ∀ L : Nat → Bool, FinSupp L → InX L →
+  ¬ ∀ s, TwoCoreOK (fun s => !zrow L (2 * s + 1) 1) s
+
+/-- **Phase-Anchored Form of `Q01TwoWords` (`Q01TwoWordsAnchored`):**
+`TwoWordsOK` from `s = 0` onward with initial anchor `zrow L 1 1 = false` (`g 0 = true`). -/
+def Q01TwoWordsAnchored : Prop := ∀ L : Nat → Bool, FinSupp L → InX L →
+  zrow L 1 1 = false → ¬ ∀ s, TwoWordsOK (fun s => !zrow L (2 * s + 1) 1) s
+
+/-- **Phase-Anchored Form of `Q01TwoCore` (`Q01TwoCoreAnchored`):**
+`TwoCoreOK` from `s = 0` onward with initial anchor `zrow L 1 1 = false` (`g 0 = true`). -/
+def Q01TwoCoreAnchored : Prop := ∀ L : Nat → Bool, FinSupp L → InX L →
+  zrow L 1 1 = false → ¬ ∀ s, TwoCoreOK (fun s => !zrow L (2 * s + 1) 1) s
+
+theorem finSupp_zrow {L : Nat → Bool} (h : FinSupp L) (t : Nat) : FinSupp (zrow L t) := by
+  rcases h with ⟨W, hW⟩
+  exact ⟨W + t, zrow_fin hW t⟩
+
+theorem inX_zrow_even {L : Nat → Bool} (hX : InX L) (s0 : Nat) : InX (zrow L (2 * s0)) := by
+  intro s
+  rw [← zrow_shift, show 2 * s0 + 2 * s = 2 * (s0 + s) by omega]
+  exact hX (s0 + s)
+
+theorem zrow_even_free_comp (L : Nat → Bool) (s0 : Nat) :
+    (fun s => !zrow (zrow L (2 * s0)) (2 * s + 1) 1) =
+    (fun s => !zrow L (2 * (s0 + s) + 1) 1) := by
+  funext s
+  rw [← zrow_shift, show 2 * s0 + (2 * s + 1) = 2 * (s0 + s) + 1 by omega]
+
+theorem exists_free_false_of_finSupp_inX {L : Nat → Bool} (hf : FinSupp L) (hX : InX L) :
+    ∃ b0, zrow L (2 * b0 + 1) 1 = false :=
+  Classical.byContradiction fun h => by
+    refine free_not_eventuallyPeriodic hf hX ⟨0, 1, by decide, fun s _ => ?_⟩
+    have h1 : zrow L (2 * (s + 1) + 1) 1 = true := by
+      cases hbit : zrow L (2 * (s + 1) + 1) 1 with
+      | false => exact False.elim (h ⟨s + 1, hbit⟩)
+      | true => rfl
+    have h2 : zrow L (2 * s + 1) 1 = true := by
+      cases hbit : zrow L (2 * s + 1) 1 with
+      | false => exact False.elim (h ⟨s, hbit⟩)
+      | true => rfl
+    exact h1.trans h2.symm
+
+theorem reads_shift (g : Nat → Bool) (s0 s : Nat) (w : List Bool) :
+    Reads (fun n => g (s0 + n)) s w ↔ Reads g (s0 + s) w := by
+  constructor <;> intro h i hi <;> simpa [Nat.add_assoc] using h i hi
+
+theorem gapOK_shift (g : Nat → Bool) (s0 s : Nat) :
+    GapOK (fun n => g (s0 + n)) s ↔ GapOK g (s0 + s) := by
+  unfold GapOK
+  simp only [Nat.add_assoc]
+
+theorem twoWordsOK_shift (g : Nat → Bool) (s0 s : Nat) :
+    TwoWordsOK (fun n => g (s0 + n)) s ↔ TwoWordsOK g (s0 + s) := by
+  unfold TwoWordsOK
+  rw [gapOK_shift, reads_shift, reads_shift]
+
+theorem wordsOK_shift (g : Nat → Bool) (s0 s : Nat) :
+    WordsOK (fun n => g (s0 + n)) s ↔ WordsOK g (s0 + s) := by
+  unfold WordsOK
+  rw [← gapOK_shift g s0 s]
+  simp only [reads_shift, GapOK]
+
+theorem coreOK_shift (g : Nat → Bool) (s0 s : Nat) :
+    CoreOK (fun n => g (s0 + n)) s ↔ CoreOK g (s0 + s) := by
+  unfold CoreOK
+  rw [wordsOK_shift, reads_shift]
+
+theorem twoCoreOK_shift (g : Nat → Bool) (s0 s : Nat) :
+    TwoCoreOK (fun n => g (s0 + n)) s ↔ TwoCoreOK g (s0 + s) := by
+  unfold TwoCoreOK
+  rw [twoWordsOK_shift, reads_shift]
+
+/-- **Exact Logical Equivalence of the 6-Word (`Q01GapCore`) and 3-Word (`Q01TwoCore`) Conjectures (`Q01TwoCore_iff_Q01GapCore`).** -/
+theorem Q01TwoCore_iff_Q01GapCore : Q01TwoCore ↔ Q01GapCore := by
+  constructor
+  · intro hQ L hf hX ⟨s0, hs⟩
+    have hw : ∀ s, s0 ≤ s → WordsOK (fun n => !zrow L (2 * n + 1) 1) s := fun s hs0 => (hs s hs0).1
+    rcases eventually_TwoWordsOK_of_WordsOK (fun n => !zrow L (2 * n + 1) 1) s0 hw with ⟨s1, _, hs1⟩
+    exact hQ L hf hX ⟨s1, fun s hs' => ⟨hs1 s hs', (hs s (by omega)).2⟩⟩
+  · intro hQ L hf hX ⟨s0, hs⟩
+    refine hQ L hf hX ⟨s0, fun s hs0 => ⟨?_, (hs s hs0).2⟩⟩
+    exact WordsOK_of_TwoWordsOK (fun n => !zrow L (2 * n + 1) 1) s
+      (hs s hs0).1 (hs (s + 8) (by omega)).1 (hs (s + 10) (by omega)).1
+
+/-- **Eight-Step One-Bit Pulse Law Under `TwoWordsOK` (`twoWordsOK_eight_step_one_bit_law`):**
+whenever `g s = true` under `TwoWordsOK`, the entire 8-step window `g s .. g (s + 7)` has only one
+Boolean degree of freedom `g (s + 3)`: offsets `s + 1`, `s + 2`, `s + 4`, `s + 6`, and `s + 7` are
+universally `false`, while `g (s + 5) = !g (s + 3)`. -/
+theorem twoWordsOK_eight_step_one_bit_law (g : Nat → Bool) (s : Nat)
+    (h0 : TwoWordsOK g s) (h3 : GapOK g (s + 3)) (h5 : GapOK g (s + 5))
+    (hs : g s = true) :
+    g (s + 1) = false ∧ g (s + 2) = false ∧ g (s + 4) = false ∧
+    g (s + 5) = !g (s + 3) ∧ g (s + 6) = false ∧ g (s + 7) = false := by
+  rcases h0.1 hs with ⟨h1, h2, hg3⟩ | ⟨h1, h2, hg3, hg4, hg5⟩
+  · rcases h3 hg3 with ⟨hg4, hg5, hg6⟩ | ⟨hg4, hg5, hg6, hg7, _⟩
+    · exfalso
+      apply h0.2.1
+      intro i hi
+      have hi7 : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 ∨ i = 4 ∨ i = 5 ∨ i = 6 := by
+        change i < 7 at hi; omega
+      rcases hi7 with rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      · change g (s + 0) = true; simpa using hs
+      · change g (s + 1) = false; exact h1
+      · change g (s + 2) = false; exact h2
+      · change g (s + 3) = true; exact hg3
+      · change g (s + 4) = false; simpa [Nat.add_assoc] using hg4
+      · change g (s + 5) = false; simpa [Nat.add_assoc] using hg5
+      · change g (s + 6) = true; simpa [Nat.add_assoc] using hg6
+    · refine ⟨h1, h2, by simpa [Nat.add_assoc] using hg4, ?_,
+        by simpa [Nat.add_assoc] using hg6, by simpa [Nat.add_assoc] using hg7⟩
+      have hg5' : g (s + 5) = false := by simpa [Nat.add_assoc] using hg5
+      rw [hg5', hg3]; rfl
+  · rcases h5 hg5 with ⟨hg6, hg7, _⟩ | ⟨hg6, hg7, _, _, _⟩
+    · refine ⟨h1, h2, hg4, ?_,
+        by simpa [Nat.add_assoc] using hg6, by simpa [Nat.add_assoc] using hg7⟩
+      rw [hg5, hg3]; rfl
+    · refine ⟨h1, h2, hg4, ?_,
+        by simpa [Nat.add_assoc] using hg6, by simpa [Nat.add_assoc] using hg7⟩
+      rw [hg5, hg3]; rfl
+
+/-- The two 8-bit free-word templates at an anchored black pulse (`g 0 = true`). -/
+def pulseFreeFive (s : Nat) : Bool :=
+  [false, true, true, true, true, false, true, true].getD s false
+
+def pulseFreeThree (s : Nat) : Bool :=
+  [false, true, true, false, true, true, true, true].getD s false
+
+theorem theta_pulseFreeFive_16 :
+    Theta pulseFreeFive 1 = true ∧ Theta pulseFreeFive 2 = true ∧
+    Theta pulseFreeFive 3 = false ∧ Theta pulseFreeFive 4 = false ∧
+    Theta pulseFreeFive 5 = false ∧ Theta pulseFreeFive 6 = true ∧
+    Theta pulseFreeFive 7 = true ∧ Theta pulseFreeFive 8 = false ∧
+    Theta pulseFreeFive 9 = true ∧ Theta pulseFreeFive 10 = false ∧
+    Theta pulseFreeFive 11 = true ∧ Theta pulseFreeFive 12 = true ∧
+    Theta pulseFreeFive 13 = true ∧ Theta pulseFreeFive 14 = true ∧
+    Theta pulseFreeFive 15 = true ∧ Theta pulseFreeFive 16 = true := by decide
+
+theorem theta_pulseFreeThree_16 :
+    Theta pulseFreeThree 1 = true ∧ Theta pulseFreeThree 2 = true ∧
+    Theta pulseFreeThree 3 = false ∧ Theta pulseFreeThree 4 = false ∧
+    Theta pulseFreeThree 5 = false ∧ Theta pulseFreeThree 6 = true ∧
+    Theta pulseFreeThree 7 = true ∧ Theta pulseFreeThree 8 = true ∧
+    Theta pulseFreeThree 9 = true ∧ Theta pulseFreeThree 10 = false ∧
+    Theta pulseFreeThree 11 = true ∧ Theta pulseFreeThree 12 = true ∧
+    Theta pulseFreeThree 13 = true ∧ Theta pulseFreeThree 14 = true ∧
+    Theta pulseFreeThree 15 = true ∧ Theta pulseFreeThree 16 = false := by decide
+
+/-- **Sixteen-Depth Spatial Pulse Skeleton Under `TwoWordsOK` (`twoWordsOK_sixteen_depth_skeleton`):**
+for any constrained start `L` (`InX L`) anchored at `zrow L 1 1 = false` (`g 0 = true`),
+`TwoWordsOK` at `0` together with `GapOK` at `3` and `5` uniquely locks 14 out of the first 16
+depths of `L` (`k = 1, 2, 6, 7, 9, 11, 12, 13, 14, 15` black; `k = 3, 4, 5, 10` white) and forces
+`L 8 = !zrow L 7 1` and `L 16 = zrow L 7 1`. -/
+theorem twoWordsOK_sixteen_depth_skeleton (L : Nat → Bool) (hX : InX L)
+    (hanchor : zrow L 1 1 = false)
+    (h0 : TwoWordsOK (fun s => !zrow L (2 * s + 1) 1) 0)
+    (h3 : GapOK (fun s => !zrow L (2 * s + 1) 1) 3)
+    (h5 : GapOK (fun s => !zrow L (2 * s + 1) 1) 5) :
+    L 1 = true ∧ L 2 = true ∧ L 3 = false ∧ L 4 = false ∧ L 5 = false ∧
+    L 6 = true ∧ L 7 = true ∧ L 8 = !zrow L 7 1 ∧ L 9 = true ∧ L 10 = false ∧
+    L 11 = true ∧ L 12 = true ∧ L 13 = true ∧ L 14 = true ∧ L 15 = true ∧
+    L 16 = zrow L 7 1 := by
+  have hg0 : (!zrow L (2 * 0 + 1) 1) = true := by rw [hanchor]; rfl
+  rcases twoWordsOK_eight_step_one_bit_law (fun s => !zrow L (2 * s + 1) 1) 0 h0 h3 h5 hg0 with
+    ⟨hg1, hg2, hg4, hg5, hg6, hg7⟩
+  have hf0 : zrow L 1 1 = false := hanchor
+  have hf1 : zrow L 3 1 = true := by cases h : zrow L 3 1 <;> simp_all
+  have hf2 : zrow L 5 1 = true := by cases h : zrow L 5 1 <;> simp_all
+  have hf4 : zrow L 9 1 = true := by cases h : zrow L 9 1 <;> simp_all
+  have hf6 : zrow L 13 1 = true := by cases h : zrow L 13 1 <;> simp_all
+  have hf7 : zrow L 15 1 = true := by cases h : zrow L 15 1 <;> simp_all
+  have hth : ∀ k, 1 ≤ k → L k = Theta (fun s => zrow L (2 * s + 1) 1) k := by
+    intro k hk
+    rw [← zrow_zero_of_pos L hk, Theta_unique hX (fun _ => rfl)]
+  cases hb : zrow L 7 1
+  · have hf5 : zrow L 11 1 = true := by
+      change (!zrow L 11 1) = !(!zrow L 7 1) at hg5
+      rw [hb] at hg5
+      cases h : zrow L 11 1 <;> simp_all
+    have hdep : ∀ k, 1 ≤ k → k ≤ 16 → L k = Theta pulseFreeThree k := by
+      intro k hk1 hk16
+      rw [hth k hk1]
+      apply Theta_dep
+      intro s hs
+      have hs8 : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 := by omega
+      rcases hs8 with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      · exact hf0
+      · exact hf1
+      · exact hf2
+      · exact hb
+      · exact hf4
+      · exact hf5
+      · exact hf6
+      · exact hf7
+    have h3_16 := theta_pulseFreeThree_16
+    refine ⟨(hdep 1 (by omega) (by omega)).trans h3_16.1,
+      (hdep 2 (by omega) (by omega)).trans h3_16.2.1,
+      (hdep 3 (by omega) (by omega)).trans h3_16.2.2.1,
+      (hdep 4 (by omega) (by omega)).trans h3_16.2.2.2.1,
+      (hdep 5 (by omega) (by omega)).trans h3_16.2.2.2.2.1,
+      (hdep 6 (by omega) (by omega)).trans h3_16.2.2.2.2.2.1,
+      (hdep 7 (by omega) (by omega)).trans h3_16.2.2.2.2.2.2.1,
+      (hdep 8 (by omega) (by omega)).trans h3_16.2.2.2.2.2.2.2.1,
+      (hdep 9 (by omega) (by omega)).trans h3_16.2.2.2.2.2.2.2.2.1,
+      (hdep 10 (by omega) (by omega)).trans h3_16.2.2.2.2.2.2.2.2.2.1,
+      (hdep 11 (by omega) (by omega)).trans h3_16.2.2.2.2.2.2.2.2.2.2.1,
+      (hdep 12 (by omega) (by omega)).trans h3_16.2.2.2.2.2.2.2.2.2.2.2.1,
+      (hdep 13 (by omega) (by omega)).trans h3_16.2.2.2.2.2.2.2.2.2.2.2.2.1,
+      (hdep 14 (by omega) (by omega)).trans h3_16.2.2.2.2.2.2.2.2.2.2.2.2.2.1,
+      (hdep 15 (by omega) (by omega)).trans h3_16.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1,
+      (hdep 16 (by omega) (by omega)).trans h3_16.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2⟩
+  · have hf5 : zrow L 11 1 = false := by
+      change (!zrow L 11 1) = !(!zrow L 7 1) at hg5
+      rw [hb] at hg5
+      cases h : zrow L 11 1 <;> simp_all
+    have hdep : ∀ k, 1 ≤ k → k ≤ 16 → L k = Theta pulseFreeFive k := by
+      intro k hk1 hk16
+      rw [hth k hk1]
+      apply Theta_dep
+      intro s hs
+      have hs8 : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 := by omega
+      rcases hs8 with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      · exact hf0
+      · exact hf1
+      · exact hf2
+      · exact hb
+      · exact hf4
+      · exact hf5
+      · exact hf6
+      · exact hf7
+    have h5_16 := theta_pulseFreeFive_16
+    refine ⟨(hdep 1 (by omega) (by omega)).trans h5_16.1,
+      (hdep 2 (by omega) (by omega)).trans h5_16.2.1,
+      (hdep 3 (by omega) (by omega)).trans h5_16.2.2.1,
+      (hdep 4 (by omega) (by omega)).trans h5_16.2.2.2.1,
+      (hdep 5 (by omega) (by omega)).trans h5_16.2.2.2.2.1,
+      (hdep 6 (by omega) (by omega)).trans h5_16.2.2.2.2.2.1,
+      (hdep 7 (by omega) (by omega)).trans h5_16.2.2.2.2.2.2.1,
+      (hdep 8 (by omega) (by omega)).trans h5_16.2.2.2.2.2.2.2.1,
+      (hdep 9 (by omega) (by omega)).trans h5_16.2.2.2.2.2.2.2.2.1,
+      (hdep 10 (by omega) (by omega)).trans h5_16.2.2.2.2.2.2.2.2.2.1,
+      (hdep 11 (by omega) (by omega)).trans h5_16.2.2.2.2.2.2.2.2.2.2.1,
+      (hdep 12 (by omega) (by omega)).trans h5_16.2.2.2.2.2.2.2.2.2.2.2.1,
+      (hdep 13 (by omega) (by omega)).trans h5_16.2.2.2.2.2.2.2.2.2.2.2.2.1,
+      (hdep 14 (by omega) (by omega)).trans h5_16.2.2.2.2.2.2.2.2.2.2.2.2.2.1,
+      (hdep 15 (by omega) (by omega)).trans h5_16.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1,
+      (hdep 16 (by omega) (by omega)).trans h5_16.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2⟩
+
+/-- **Complete Three-Word, Zero-Threshold (`s0 = 0`), and Phase-Anchored (`zrow L 1 1 = false`)
+Equivalence Chain (`q01_three_word_time_shift_and_phase_anchored_equivalences`).** -/
+theorem q01_three_word_time_shift_and_phase_anchored_equivalences :
+    (Q01TwoWords ↔ Q01TwoWordsFromZero) ∧
+    (Q01TwoWordsFromZero ↔ Q01TwoWordsAnchored) ∧
+    (Q01GapCore ↔ Q01GapCoreFromZero) ∧
+    (Q01TwoCore ↔ Q01TwoCoreFromZero) ∧
+    (Q01TwoCoreFromZero ↔ Q01TwoCoreAnchored) ∧
+    (Q01TwoCore ↔ Q01GapCore) := by
+  refine ⟨⟨?_, ?_⟩, ⟨?_, ?_⟩, ⟨?_, ?_⟩, ⟨?_, ?_⟩, ⟨?_, ?_⟩, Q01TwoCore_iff_Q01GapCore⟩
+  · intro hQ L hf hX hall
+    exact hQ L hf hX ⟨0, fun s _ => hall s⟩
+  · intro hQ0 L hf hX ⟨s0, hs⟩
+    refine hQ0 (zrow L (2 * s0)) (finSupp_zrow hf (2 * s0)) (inX_zrow_even hX s0) (fun s => ?_)
+    rw [zrow_even_free_comp]
+    exact (twoWordsOK_shift (fun n => !zrow L (2 * n + 1) 1) s0 s).mpr (hs (s0 + s) (by omega))
+  · intro hQ0 L hf hX _ hall
+    exact hQ0 L hf hX hall
+  · intro hQa L hf hX hall
+    rcases exists_free_false_of_finSupp_inX hf hX with ⟨b0, hb0⟩
+    refine hQa (zrow L (2 * b0)) (finSupp_zrow hf (2 * b0)) (inX_zrow_even hX b0) ?_ (fun s => ?_)
+    · rw [← zrow_shift, show 2 * b0 + 1 = 2 * b0 + 1 by rfl, hb0]
+    · rw [zrow_even_free_comp]
+      exact (twoWordsOK_shift (fun n => !zrow L (2 * n + 1) 1) b0 s).mpr (hall (b0 + s))
+  · intro hQ L hf hX hall
+    exact hQ L hf hX ⟨0, fun s _ => hall s⟩
+  · intro hQ0 L hf hX ⟨s0, hs⟩
+    refine hQ0 (zrow L (2 * s0)) (finSupp_zrow hf (2 * s0)) (inX_zrow_even hX s0) (fun s => ?_)
+    rw [zrow_even_free_comp]
+    exact (coreOK_shift (fun n => !zrow L (2 * n + 1) 1) s0 s).mpr (hs (s0 + s) (by omega))
+  · intro hQ L hf hX hall
+    exact hQ L hf hX ⟨0, fun s _ => hall s⟩
+  · intro hQ0 L hf hX ⟨s0, hs⟩
+    refine hQ0 (zrow L (2 * s0)) (finSupp_zrow hf (2 * s0)) (inX_zrow_even hX s0) (fun s => ?_)
+    rw [zrow_even_free_comp]
+    exact (twoCoreOK_shift (fun n => !zrow L (2 * n + 1) 1) s0 s).mpr (hs (s0 + s) (by omega))
+  · intro hQ0 L hf hX _ hall
+    exact hQ0 L hf hX hall
+  · intro hQa L hf hX hall
+    rcases exists_free_false_of_finSupp_inX hf hX with ⟨b0, hb0⟩
+    refine hQa (zrow L (2 * b0)) (finSupp_zrow hf (2 * b0)) (inX_zrow_even hX b0) ?_ (fun s => ?_)
+    · rw [← zrow_shift, show 2 * b0 + 1 = 2 * b0 + 1 by rfl, hb0]
+    · rw [zrow_even_free_comp]
+      exact (twoCoreOK_shift (fun n => !zrow L (2 * n + 1) 1) b0 s).mpr (hall (b0 + s))
+
+/-! ## Recurrent all-pulse 16-depth skeleton, exact `11`-of-`16` pulse weight conservation, deterministic `5`-gap forcing laws (`33`, `3553`, `3535353`), and the 5-branch depth-32 classification -/
+
+/-- **Recurrent Sixteen-Depth Spatial Skeleton at Every Black Pulse (`zrow_even_pulse_sixteen_depth_skeleton`):**
+for any constrained start `L` (`InX L`) and any pulse index `b` with `zrow L (2 * b + 1) 1 = false` (`g b = true`),
+if `TwoWordsOK g b`, `GapOK g (b + 3)`, and `GapOK g (b + 5)` hold, then the row `zrow L (2 * b)` at time `2 * b`
+satisfies the 16-depth spatial skeleton (14 fixed depths and `zrow L (2 * b) 8 = !zrow L (2 * b + 7) 1`,
+`zrow L (2 * b) 16 = zrow L (2 * b + 7) 1`), and its exact Hamming weight across depths `1 .. 16` is invariantly `11`. -/
+theorem zrow_even_pulse_sixteen_depth_skeleton (L : Nat → Bool) (hX : InX L) (b : Nat)
+    (hanchor : zrow L (2 * b + 1) 1 = false)
+    (h0 : TwoWordsOK (fun s => !zrow L (2 * s + 1) 1) b)
+    (h3 : GapOK (fun s => !zrow L (2 * s + 1) 1) (b + 3))
+    (h5 : GapOK (fun s => !zrow L (2 * s + 1) 1) (b + 5)) :
+    zrow L (2 * b) 1 = true ∧ zrow L (2 * b) 2 = true ∧
+    zrow L (2 * b) 3 = false ∧ zrow L (2 * b) 4 = false ∧ zrow L (2 * b) 5 = false ∧
+    zrow L (2 * b) 6 = true ∧ zrow L (2 * b) 7 = true ∧
+    zrow L (2 * b) 8 = !zrow L (2 * b + 7) 1 ∧
+    zrow L (2 * b) 9 = true ∧ zrow L (2 * b) 10 = false ∧
+    zrow L (2 * b) 11 = true ∧ zrow L (2 * b) 12 = true ∧ zrow L (2 * b) 13 = true ∧
+    zrow L (2 * b) 14 = true ∧ zrow L (2 * b) 15 = true ∧
+    zrow L (2 * b) 16 = zrow L (2 * b + 7) 1 ∧
+    ((List.range 16).map (fun i => if zrow L (2 * b) (i + 1) then 1 else 0)).sum = 11 := by
+  have hanch' : zrow (zrow L (2 * b)) 1 1 = false := by
+    rw [← zrow_shift]; exact hanchor
+  have h0' : TwoWordsOK (fun s => !zrow (zrow L (2 * b)) (2 * s + 1) 1) 0 := by
+    rw [zrow_even_free_comp]
+    exact (twoWordsOK_shift (fun n => !zrow L (2 * n + 1) 1) b 0).mpr (by rw [Nat.add_zero]; exact h0)
+  have h3' : GapOK (fun s => !zrow (zrow L (2 * b)) (2 * s + 1) 1) 3 := by
+    rw [zrow_even_free_comp]
+    exact (gapOK_shift (fun n => !zrow L (2 * n + 1) 1) b 3).mpr h3
+  have h5' : GapOK (fun s => !zrow (zrow L (2 * b)) (2 * s + 1) 1) 5 := by
+    rw [zrow_even_free_comp]
+    exact (gapOK_shift (fun n => !zrow L (2 * n + 1) 1) b 5).mpr h5
+  have hskel := twoWordsOK_sixteen_depth_skeleton (zrow L (2 * b)) (inX_zrow_even hX b) hanch' h0' h3' h5'
+  rw [← zrow_shift] at hskel
+  rcases hskel with ⟨d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15, d16⟩
+  refine ⟨d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15, d16, ?_⟩
+  simp only [List.range, List.range.loop, List.map, List.sum, List.foldr,
+    d1, d2, d3, d4, d5, d6, d7, d8, d9, d10, d11, d12, d13, d14, d15, d16]
+  cases zrow L (2 * b + 7) 1 <;> rfl
+
+/-- **Depth-16 Black Recovery Within Six Ticks at Every Pulse (`pulse_depth16_true_within_six_steps`):**
+at any black pulse `b` (`zrow L (2 * b + 1) 1 = false`) of a `TwoWordsOK` trajectory, either depth `16`
+is already black at time `2 * b` (`zrow L (2 * b) 16 = true`, when the gap at `b` is `5`) or it becomes
+black 6 ticks later at time `2 * b + 6` (`zrow L (2 * b + 6) 16 = true`, when the gap at `b` is `3`,
+forcing the next pulse at `b + 3` to have gap `5`). -/
+theorem pulse_depth16_true_within_six_steps (L : Nat → Bool) (hX : InX L) (b : Nat)
+    (hanchor : zrow L (2 * b + 1) 1 = false)
+    (hall : ∀ s, TwoWordsOK (fun n => !zrow L (2 * n + 1) 1) s) :
+    zrow L (2 * b) 16 = true ∨ zrow L (2 * b + 6) 16 = true := by
+  have hskel0 := zrow_even_pulse_sixteen_depth_skeleton L hX b hanchor
+    (hall b) (hall (b + 3)).1 (hall (b + 5)).1
+  cases hb3 : zrow L (2 * b + 7) 1
+  · right
+    have hanch3 : zrow L (2 * (b + 3) + 1) 1 = false := by
+      rw [show 2 * (b + 3) + 1 = 2 * b + 7 by omega]; exact hb3
+    have hskel3 := zrow_even_pulse_sixteen_depth_skeleton L hX (b + 3) hanch3
+      (hall (b + 3)) (hall (b + 3 + 3)).1 (hall (b + 3 + 5)).1
+    have hg0 : (!zrow L (2 * b + 1) 1) = true := by rw [hanchor]; rfl
+    have hlaw := twoWordsOK_eight_step_one_bit_law (fun n => !zrow L (2 * n + 1) 1) b
+      (hall b) (hall (b + 3)).1 (hall (b + 5)).1 hg0
+    have hg6 : (!zrow L (2 * (b + 6) + 1) 1) = false := hlaw.2.2.2.2.1
+    have hf6 : zrow L (2 * (b + 3) + 7) 1 = true := by
+      have htmp : (!zrow L (2 * (b + 3) + 7) 1) = false := by
+        rw [show 2 * (b + 3) + 7 = 2 * (b + 6) + 1 by omega]; exact hg6
+      cases h : zrow L (2 * (b + 3) + 7) 1 <;> simp_all
+    have h16 := hskel3.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1
+    rw [hf6, show 2 * (b + 3) = 2 * b + 6 by omega] at h16
+    exact h16
+  · left
+    have h16 := hskel0.2.2.2.2.2.2.2.2.2.2.2.2.2.2.2.1
+    rw [hb3] at h16
+    exact h16
+
+theorem twoWordsOK_pulse_at_three_forces_eight (g : Nat → Bool) (s : Nat)
+    (h0 : TwoWordsOK g s) (h3 : GapOK g (s + 3))
+    (hs : g s = true) (hs3 : g (s + 3) = true) :
+    g (s + 8) = true := by
+  rcases h0.1 hs with ⟨h1, h2, _⟩ | ⟨_, _, hg3, _, _⟩
+  · rcases h3 hs3 with ⟨hg4, hg5, hg6⟩ | ⟨_, _, _, _, hg8⟩
+    · exfalso
+      apply h0.2.1
+      intro i hi
+      have hi7 : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 ∨ i = 4 ∨ i = 5 ∨ i = 6 := by
+        change i < 7 at hi; omega
+      rcases hi7 with rfl | rfl | rfl | rfl | rfl | rfl | rfl
+      · change g (s + 0) = true; rw [Nat.add_zero]; exact hs
+      · change g (s + 1) = false; exact h1
+      · change g (s + 2) = false; exact h2
+      · change g (s + 3) = true; exact hs3
+      · change g (s + 4) = false; rw [show s + 4 = s + 3 + 1 by omega]; exact hg4
+      · change g (s + 5) = false; rw [show s + 5 = s + 3 + 2 by omega]; exact hg5
+      · change g (s + 6) = true; rw [show s + 6 = s + 3 + 3 by omega]; exact hg6
+    · rw [show s + 8 = s + 3 + 5 by omega]; exact hg8
+  · rw [hs3] at hg3; cases hg3
+
+/-- **No-`3553` Five-Gap Forcing Law (`twoWordsOK_no_3553_forces_five_after_355`):**
+under `TwoWordsOK`, if `g` has pulses at `s`, `s + 3`, `s + 8`, and `s + 13` (gaps `3, 5, 5`),
+then the next gap at `s + 13` cannot be `3` (`g (s + 16) = false`) and must be `5` (`g (s + 18) = true`). -/
+theorem twoWordsOK_no_3553_forces_five_after_355 (g : Nat → Bool) (s : Nat)
+    (h0 : TwoWordsOK g s) (h3 : GapOK g (s + 3)) (h5 : GapOK g (s + 5))
+    (h8 : TwoWordsOK g (s + 8)) (h11 : GapOK g (s + 11)) (h13 : GapOK g (s + 13))
+    (hs0 : g s = true) (hs3 : g (s + 3) = true) (hs8 : g (s + 8) = true) (hs13 : g (s + 13) = true) :
+    g (s + 16) = false ∧ g (s + 18) = true := by
+  rcases twoWordsOK_eight_step_one_bit_law g s h0 h3 h5 hs0 with
+    ⟨h1, h2, h4, h5_eq, h6, h7⟩
+  have h5_f : g (s + 5) = false := by rw [h5_eq, hs3]; rfl
+  have h11' : GapOK g (s + 8 + 3) := by rw [show s + 8 + 3 = s + 11 by omega]; exact h11
+  have h13' : GapOK g (s + 8 + 5) := by rw [show s + 8 + 5 = s + 13 by omega]; exact h13
+  rcases twoWordsOK_eight_step_one_bit_law g (s + 8) h8 h11' h13' hs8 with
+    ⟨h9, h10, h12, h13_eq, h14, h15⟩
+  have h11_f : g (s + 11) = false := by
+    rw [show s + 8 + 5 = s + 13 by omega, show s + 8 + 3 = s + 11 by omega, hs13] at h13_eq
+    cases h : g (s + 11) <;> rw [h] at h13_eq <;> cases h13_eq <;> rfl
+  rcases h13 hs13 with ⟨_, _, h16⟩ | ⟨_, _, h16, _, h18⟩
+  · exfalso
+    apply h0.2.2
+    intro i hi
+    have hi17 : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 ∨ i = 4 ∨ i = 5 ∨ i = 6 ∨ i = 7 ∨
+        i = 8 ∨ i = 9 ∨ i = 10 ∨ i = 11 ∨ i = 12 ∨ i = 13 ∨ i = 14 ∨ i = 15 ∨ i = 16 := by
+      change i < 17 at hi; omega
+    rcases hi17 with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+        rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl
+    · change g (s + 0) = true; rw [Nat.add_zero]; exact hs0
+    · change g (s + 1) = false; exact h1
+    · change g (s + 2) = false; exact h2
+    · change g (s + 3) = true; exact hs3
+    · change g (s + 4) = false; exact h4
+    · change g (s + 5) = false; exact h5_f
+    · change g (s + 6) = false; exact h6
+    · change g (s + 7) = false; exact h7
+    · change g (s + 8) = true; exact hs8
+    · change g (s + 9) = false; rw [show s + 9 = s + 8 + 1 by omega]; exact h9
+    · change g (s + 10) = false; rw [show s + 10 = s + 8 + 2 by omega]; exact h10
+    · change g (s + 11) = false; exact h11_f
+    · change g (s + 12) = false; rw [show s + 12 = s + 8 + 4 by omega]; exact h12
+    · change g (s + 13) = true; exact hs13
+    · change g (s + 14) = false; rw [show s + 14 = s + 8 + 6 by omega]; exact h14
+    · change g (s + 15) = false; rw [show s + 15 = s + 8 + 7 by omega]; exact h15
+    · change g (s + 16) = true; rw [show s + 16 = s + 13 + 3 by omega]; exact h16
+  · refine ⟨?_, ?_⟩
+    · rw [show s + 16 = s + 13 + 3 by omega]; exact h16
+    · rw [show s + 18 = s + 13 + 5 by omega]; exact h18
+
+/-- **No-`3535353` Five-Gap Forcing Law (`twoCoreOK_no_3535353_forces_five_after_353535`):**
+under `TwoCoreOK`, if `g` has pulses at `s`, `s + 3`, `s + 8`, `s + 11`, `s + 16`, `s + 19`, and `s + 24`
+(gaps `3, 5, 3, 5, 3, 5`), then the next gap at `s + 24` cannot be `3` (`g (s + 27) = false`) and must
+be `5` (`g (s + 29) = true`). -/
+theorem twoCoreOK_no_3535353_forces_five_after_353535 (g : Nat → Bool) (s : Nat)
+    (hc0 : TwoCoreOK g s) (hall : ∀ n, TwoWordsOK g n)
+    (hs0 : g s = true) (hs3 : g (s + 3) = true) (hs8 : g (s + 8) = true)
+    (hs11 : g (s + 11) = true) (hs16 : g (s + 16) = true) (hs19 : g (s + 19) = true)
+    (hs24 : g (s + 24) = true) :
+    g (s + 27) = false ∧ g (s + 29) = true := by
+  rcases twoWordsOK_eight_step_one_bit_law g s (hall s) (hall (s + 3)).1 (hall (s + 5)).1 hs0 with
+    ⟨h1, h2, h4, h5_eq, h6, h7⟩
+  have h5_f : g (s + 5) = false := by rw [h5_eq, hs3]; rfl
+  rcases twoWordsOK_eight_step_one_bit_law g (s + 8) (hall (s + 8)) (hall (s + 8 + 3)).1
+    (hall (s + 8 + 5)).1 hs8 with ⟨h9, h10, h12, h13_eq, h14, h15⟩
+  have h13_f : g (s + 13) = false := by
+    rw [show s + 8 + 5 = s + 13 by omega, show s + 8 + 3 = s + 11 by omega, hs11] at h13_eq
+    exact h13_eq
+  rcases twoWordsOK_eight_step_one_bit_law g (s + 16) (hall (s + 16)) (hall (s + 16 + 3)).1
+    (hall (s + 16 + 5)).1 hs16 with ⟨h17, h18, h20, h21_eq, h22, h23⟩
+  have h21_f : g (s + 21) = false := by
+    rw [show s + 16 + 5 = s + 21 by omega, show s + 16 + 3 = s + 19 by omega, hs19] at h21_eq
+    exact h21_eq
+  rcases (hall (s + 24)).1 hs24 with ⟨h25, h26, h27⟩ | ⟨_, _, h27, _, h29⟩
+  · exfalso
+    apply hc0.2
+    intro i hi
+    have hi28 : i = 0 ∨ i = 1 ∨ i = 2 ∨ i = 3 ∨ i = 4 ∨ i = 5 ∨ i = 6 ∨ i = 7 ∨
+        i = 8 ∨ i = 9 ∨ i = 10 ∨ i = 11 ∨ i = 12 ∨ i = 13 ∨ i = 14 ∨ i = 15 ∨
+        i = 16 ∨ i = 17 ∨ i = 18 ∨ i = 19 ∨ i = 20 ∨ i = 21 ∨ i = 22 ∨ i = 23 ∨
+        i = 24 ∨ i = 25 ∨ i = 26 ∨ i = 27 := by
+      change i < 28 at hi; omega
+    rcases hi28 with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+        rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+        rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+        rfl | rfl | rfl | rfl
+    · change g (s + 0) = true; rw [Nat.add_zero]; exact hs0
+    · change g (s + 1) = false; exact h1
+    · change g (s + 2) = false; exact h2
+    · change g (s + 3) = true; exact hs3
+    · change g (s + 4) = false; exact h4
+    · change g (s + 5) = false; exact h5_f
+    · change g (s + 6) = false; exact h6
+    · change g (s + 7) = false; exact h7
+    · change g (s + 8) = true; exact hs8
+    · change g (s + 9) = false; rw [show s + 9 = s + 8 + 1 by omega]; exact h9
+    · change g (s + 10) = false; rw [show s + 10 = s + 8 + 2 by omega]; exact h10
+    · change g (s + 11) = true; exact hs11
+    · change g (s + 12) = false; rw [show s + 12 = s + 8 + 4 by omega]; exact h12
+    · change g (s + 13) = false; exact h13_f
+    · change g (s + 14) = false; rw [show s + 14 = s + 8 + 6 by omega]; exact h14
+    · change g (s + 15) = false; rw [show s + 15 = s + 8 + 7 by omega]; exact h15
+    · change g (s + 16) = true; exact hs16
+    · change g (s + 17) = false; rw [show s + 17 = s + 16 + 1 by omega]; exact h17
+    · change g (s + 18) = false; rw [show s + 18 = s + 16 + 2 by omega]; exact h18
+    · change g (s + 19) = true; exact hs19
+    · change g (s + 20) = false; rw [show s + 20 = s + 16 + 4 by omega]; exact h20
+    · change g (s + 21) = false; exact h21_f
+    · change g (s + 22) = false; rw [show s + 22 = s + 16 + 6 by omega]; exact h22
+    · change g (s + 23) = false; rw [show s + 23 = s + 16 + 7 by omega]; exact h23
+    · change g (s + 24) = true; exact hs24
+    · change g (s + 25) = false; rw [show s + 25 = s + 24 + 1 by omega]; exact h25
+    · change g (s + 26) = false; rw [show s + 26 = s + 24 + 2 by omega]; exact h26
+    · change g (s + 27) = true; rw [show s + 27 = s + 24 + 3 by omega]; exact h27
+  · refine ⟨?_, ?_⟩
+    · rw [show s + 27 = s + 24 + 3 by omega]; exact h27
+    · rw [show s + 29 = s + 24 + 5 by omega]; exact h29
+
+/-- The 5 canonical 16-bit free-word templates at an anchored black pulse (`g 0 = true`) under `TwoWordsOK`. -/
+def pulse16Word1 (s : Nat) : Bool :=
+  [false, true, true, true, true, false, true, true, true, true, false, true, true, true, true, false].getD s false
+
+def pulse16Word2 (s : Nat) : Bool :=
+  [false, true, true, true, true, false, true, true, true, true, false, true, true, false, true, true].getD s false
+
+def pulse16Word3 (s : Nat) : Bool :=
+  [false, true, true, true, true, false, true, true, false, true, true, true, true, false, true, true].getD s false
+
+def pulse16Word4 (s : Nat) : Bool :=
+  [false, true, true, false, true, true, true, true, false, true, true, true, true, false, true, true].getD s false
+
+def pulse16Word5 (s : Nat) : Bool :=
+  [false, true, true, false, true, true, true, true, false, true, true, false, true, true, true, true].getD s false
+
+/-- **Five-Branch Classification of the First 16 Free Bits Under Anchored `TwoWordsOK` (`twoWordsOK_sixteen_step_five_branches`).** -/
+theorem twoWordsOK_sixteen_step_five_branches (f : Nat → Bool)
+    (hf0 : f 0 = false) (hall : ∀ s, TwoWordsOK (fun s => !f s) s) :
+    (∀ s, s < 16 → f s = pulse16Word1 s) ∨
+    (∀ s, s < 16 → f s = pulse16Word2 s) ∨
+    (∀ s, s < 16 → f s = pulse16Word3 s) ∨
+    (∀ s, s < 16 → f s = pulse16Word4 s) ∨
+    (∀ s, s < 16 → f s = pulse16Word5 s) := by
+  let g : Nat → Bool := fun s => !f s
+  have hg0 : g 0 = true := by dsimp [g]; rw [hf0]; rfl
+  rcases twoWordsOK_eight_step_one_bit_law g 0 (hall 0) (hall 3).1 (hall 5).1 hg0 with
+    ⟨hg1, hg2, hg4, hg5, hg6, hg7⟩
+  have hf1 : f 1 = true := by dsimp [g] at hg1; cases h : f 1 <;> simp_all
+  have hf2 : f 2 = true := by dsimp [g] at hg2; cases h : f 2 <;> simp_all
+  have hf4 : f 4 = true := by dsimp [g] at hg4; cases h : f 4 <;> simp_all
+  have hf6 : f 6 = true := by dsimp [g] at hg6; cases h : f 6 <;> simp_all
+  have hf7 : f 7 = true := by dsimp [g] at hg7; cases h : f 7 <;> simp_all
+  cases hf3 : f 3
+  · have hg3 : g 3 = true := by dsimp [g]; rw [hf3]; rfl
+    have hf5 : f 5 = true := by dsimp [g] at hg5; rw [hf3] at hg5; cases h : f 5 <;> simp_all
+    have hg8 : g 8 = true := twoWordsOK_pulse_at_three_forces_eight g 0 (hall 0) (hall 3).1 hg0 hg3
+    have hf8 : f 8 = false := by dsimp [g] at hg8; cases h : f 8 <;> simp_all
+    rcases twoWordsOK_eight_step_one_bit_law g 8 (hall 8) (hall 11).1 (hall 13).1 hg8 with
+      ⟨hg9, hg10, hg12, hg13, hg14, hg15⟩
+    have hf9 : f 9 = true := by dsimp [g] at hg9; cases h : f 9 <;> simp_all
+    have hf10 : f 10 = true := by dsimp [g] at hg10; cases h : f 10 <;> simp_all
+    have hf12 : f 12 = true := by dsimp [g] at hg12; cases h : f 12 <;> simp_all
+    have hf14 : f 14 = true := by dsimp [g] at hg14; cases h : f 14 <;> simp_all
+    have hf15 : f 15 = true := by dsimp [g] at hg15; cases h : f 15 <;> simp_all
+    cases hf11 : f 11
+    · have hf13 : f 13 = true := by dsimp [g] at hg13; rw [hf11] at hg13; cases h : f 13 <;> simp_all
+      right; right; right; right
+      intro s hs
+      have hs16 : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+          s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+      rcases hs16 with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+          rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> simp_all [pulse16Word5]
+    · have hf13 : f 13 = false := by dsimp [g] at hg13; rw [hf11] at hg13; cases h : f 13 <;> simp_all
+      right; right; right; left
+      intro s hs
+      have hs16 : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+          s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+      rcases hs16 with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+          rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> simp_all [pulse16Word4]
+  · have hf5 : f 5 = false := by dsimp [g] at hg5; rw [hf3] at hg5; cases h : f 5 <;> simp_all
+    have hg5' : g 5 = true := by dsimp [g]; rw [hf5]; rfl
+    rcases twoWordsOK_eight_step_one_bit_law g 5 (hall 5) (hall 8).1 (hall 10).1 hg5' with
+      ⟨_, _, hg9, hg10, hg11, hg12⟩
+    have hf9 : f 9 = true := by dsimp [g] at hg9; cases h : f 9 <;> simp_all
+    have hf11 : f 11 = true := by dsimp [g] at hg11; cases h : f 11 <;> simp_all
+    have hf12 : f 12 = true := by dsimp [g] at hg12; cases h : f 12 <;> simp_all
+    cases hf8 : f 8
+    · have hg8 : g 8 = true := by dsimp [g]; rw [hf8]; rfl
+      have hf10 : f 10 = true := by dsimp [g] at hg10; rw [hf8] at hg10; cases h : f 10 <;> simp_all
+      have hg13 : g 13 = true := twoWordsOK_pulse_at_three_forces_eight g 5 (hall 5) (hall 8).1 hg5' hg8
+      have hf13 : f 13 = false := by dsimp [g] at hg13; cases h : f 13 <;> simp_all
+      rcases twoWordsOK_eight_step_one_bit_law g 13 (hall 13) (hall 16).1 (hall 18).1 hg13 with
+        ⟨hg14, hg15, _, _, _, _⟩
+      have hf14 : f 14 = true := by dsimp [g] at hg14; cases h : f 14 <;> simp_all
+      have hf15 : f 15 = true := by dsimp [g] at hg15; cases h : f 15 <;> simp_all
+      right; right; left
+      intro s hs
+      have hs16 : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+          s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+      rcases hs16 with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+          rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> simp_all [pulse16Word3]
+    · have hf10 : f 10 = false := by dsimp [g] at hg10; rw [hf8] at hg10; cases h : f 10 <;> simp_all
+      have hg10' : g 10 = true := by dsimp [g]; rw [hf10]; rfl
+      rcases twoWordsOK_eight_step_one_bit_law g 10 (hall 10) (hall 13).1 (hall 15).1 hg10' with
+        ⟨_, _, hg14, hg15, _, _⟩
+      have hf14 : f 14 = true := by dsimp [g] at hg14; cases h : f 14 <;> simp_all
+      cases hf13 : f 13
+      · have hf15 : f 15 = true := by dsimp [g] at hg15; rw [hf13] at hg15; cases h : f 15 <;> simp_all
+        right; left
+        intro s hs
+        have hs16 : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+            s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+        rcases hs16 with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> simp_all [pulse16Word2]
+      · have hf15 : f 15 = false := by dsimp [g] at hg15; rw [hf13] at hg15; cases h : f 15 <;> simp_all
+        left
+        intro s hs
+        have hs16 : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+            s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+        rcases hs16 with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> simp_all [pulse16Word1]
+
+theorem theta_pulse16_universal_laws :
+    (Theta pulse16Word1 20 = false ∧ Theta pulse16Word1 21 = false ∧ Theta pulse16Word1 32 = true) ∧
+    (Theta pulse16Word2 20 = false ∧ Theta pulse16Word2 21 = false ∧ Theta pulse16Word2 29 = true) ∧
+    (Theta pulse16Word3 20 = false ∧ Theta pulse16Word3 21 = false ∧ Theta pulse16Word3 32 = true) ∧
+    (Theta pulse16Word4 20 = false ∧ Theta pulse16Word4 21 = false ∧ Theta pulse16Word4 32 = true) ∧
+    (Theta pulse16Word5 20 = false ∧ Theta pulse16Word5 21 = false ∧ Theta pulse16Word5 32 = true) := by decide
+
+/-- **Universal White Pair at Depths `20, 21`, Active Frontier in `{29, 32}`, and Support Lower Bound `29 ≤ W`
+Under Anchored `TwoWordsOK` (`twoWordsOK_depth_20_21_white_and_support_ge_29`).** -/
+theorem twoWordsOK_depth_20_21_white_and_support_ge_29 (L : Nat → Bool) (hX : InX L)
+    (hanchor : zrow L 1 1 = false)
+    (hall : ∀ s, TwoWordsOK (fun s => !zrow L (2 * s + 1) 1) s) :
+    L 20 = false ∧ L 21 = false ∧ (L 29 = true ∨ L 32 = true) ∧
+    (∀ W, (∀ k, W < k → L k = false) → 29 ≤ W) := by
+  have hth : ∀ k, 1 ≤ k → L k = Theta (fun s => zrow L (2 * s + 1) 1) k := by
+    intro k hk
+    rw [← zrow_zero_of_pos L hk, Theta_unique hX (fun _ => rfl)]
+  have hlaws := theta_pulse16_universal_laws
+  have hcore : L 20 = false ∧ L 21 = false ∧ (L 29 = true ∨ L 32 = true) := by
+    rcases twoWordsOK_sixteen_step_five_branches (fun s => zrow L (2 * s + 1) 1) hanchor hall with
+      h1 | h2 | h3 | h4 | h5
+    · have hd : ∀ k, 1 ≤ k → k ≤ 32 → L k = Theta pulse16Word1 k := fun k hk1 hk32 => by
+        rw [hth k hk1]; exact Theta_dep _ _ k (fun s hs => h1 s (by omega))
+      exact ⟨(hd 20 (by omega) (by omega)).trans hlaws.1.1,
+        (hd 21 (by omega) (by omega)).trans hlaws.1.2.1,
+        Or.inr ((hd 32 (by omega) (by omega)).trans hlaws.1.2.2)⟩
+    · have hd : ∀ k, 1 ≤ k → k ≤ 32 → L k = Theta pulse16Word2 k := fun k hk1 hk32 => by
+        rw [hth k hk1]; exact Theta_dep _ _ k (fun s hs => h2 s (by omega))
+      exact ⟨(hd 20 (by omega) (by omega)).trans hlaws.2.1.1,
+        (hd 21 (by omega) (by omega)).trans hlaws.2.1.2.1,
+        Or.inl ((hd 29 (by omega) (by omega)).trans hlaws.2.1.2.2)⟩
+    · have hd : ∀ k, 1 ≤ k → k ≤ 32 → L k = Theta pulse16Word3 k := fun k hk1 hk32 => by
+        rw [hth k hk1]; exact Theta_dep _ _ k (fun s hs => h3 s (by omega))
+      exact ⟨(hd 20 (by omega) (by omega)).trans hlaws.2.2.1.1,
+        (hd 21 (by omega) (by omega)).trans hlaws.2.2.1.2.1,
+        Or.inr ((hd 32 (by omega) (by omega)).trans hlaws.2.2.1.2.2)⟩
+    · have hd : ∀ k, 1 ≤ k → k ≤ 32 → L k = Theta pulse16Word4 k := fun k hk1 hk32 => by
+        rw [hth k hk1]; exact Theta_dep _ _ k (fun s hs => h4 s (by omega))
+      exact ⟨(hd 20 (by omega) (by omega)).trans hlaws.2.2.2.1.1,
+        (hd 21 (by omega) (by omega)).trans hlaws.2.2.2.1.2.1,
+        Or.inr ((hd 32 (by omega) (by omega)).trans hlaws.2.2.2.1.2.2)⟩
+    · have hd : ∀ k, 1 ≤ k → k ≤ 32 → L k = Theta pulse16Word5 k := fun k hk1 hk32 => by
+        rw [hth k hk1]; exact Theta_dep _ _ k (fun s hs => h5 s (by omega))
+      exact ⟨(hd 20 (by omega) (by omega)).trans hlaws.2.2.2.2.1,
+        (hd 21 (by omega) (by omega)).trans hlaws.2.2.2.2.2.1,
+        Or.inr ((hd 32 (by omega) (by omega)).trans hlaws.2.2.2.2.2.2)⟩
+  refine ⟨hcore.1, hcore.2.1, hcore.2.2, fun W hW => ?_⟩
+  rcases hcore.2.2 with h29 | h32
+  · refine Nat.le_of_not_lt fun hlt => ?_
+    have := hW 29 (by omega)
+    rw [h29] at this; cases this
+  · refine Nat.le_of_not_lt fun hlt => ?_
+    have := hW 32 (by omega)
+    rw [h32] at this; cases this
+
+/-- **Recurrent Depth-32 Laws at Every Black Pulse (`zrow_even_pulse_depth_20_21_white_and_29_or_32_black`).** -/
+theorem zrow_even_pulse_depth_20_21_white_and_29_or_32_black (L : Nat → Bool) (hX : InX L) (b : Nat)
+    (hanchor : zrow L (2 * b + 1) 1 = false)
+    (hall : ∀ s, TwoWordsOK (fun s => !zrow L (2 * s + 1) 1) s) :
+    zrow L (2 * b) 20 = false ∧ zrow L (2 * b) 21 = false ∧
+    (zrow L (2 * b) 29 = true ∨ zrow L (2 * b) 32 = true) := by
+  have hanch' : zrow (zrow L (2 * b)) 1 1 = false := by
+    rw [← zrow_shift]; exact hanchor
+  have hall' : ∀ s, TwoWordsOK (fun s => !zrow (zrow L (2 * b)) (2 * s + 1) 1) s := fun s => by
+    rw [zrow_even_free_comp]
+    exact (twoWordsOK_shift (fun n => !zrow L (2 * n + 1) 1) b s).mpr (hall (b + s))
+  have h := twoWordsOK_depth_20_21_white_and_support_ge_29 (zrow L (2 * b)) (inX_zrow_even hX b) hanch' hall'
+  exact ⟨h.1, h.2.1, h.2.2.1⟩
+
 end Ruliology.CellularAutomata.Rule30GateTrapLift
