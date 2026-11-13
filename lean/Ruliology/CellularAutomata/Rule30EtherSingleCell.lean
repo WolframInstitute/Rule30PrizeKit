@@ -346,5 +346,36 @@ theorem absorption_high (x : Nat → Bool) (φ : Nat)
     (j0 := a.1) (s := a.2 + φ % 4) (s' := a.2 + φ) hss).1 hIF
 
 
+/-! ## Unified at-most-one-black or high-support period-4 absorption and explicit `(5, 0)` / `(6, 0)` alignment -/
+
+/-- **Unified Period-4 Absorption for Right Halves With At Most One Black Cell or White on `1..30` (`atMostOneBlack_or_high_absorption`).** -/
+theorem atMostOneBlack_or_high_absorption (x : Nat → Bool) (φ : Nat)
+    (h : (∀ p q : Nat, x p = true → x q = true → p = q) ∨ (∀ i, 1 ≤ i → i ≤ 30 → x i = false)) :
+    ∃ a ∈ A0001, ∃ t1,
+      InFamily (drv (fun t => wordAt w0001 (t + φ)) x) a.1 (a.2 + φ) t1 := by
+  rcases h with huniq | hhigh
+  · by_cases hex : ∃ p, x p = true
+    · obtain ⟨p, hp⟩ := hex
+      exact singleCell_absorption x p φ hp (fun q hne => by
+        cases hq : x q
+        · rfl
+        · exact False.elim (hne (huniq q p hq hp)))
+    · exact absorption_high x φ (fun i _ _ => by
+        cases hi : x i
+        · rfl
+        · exact False.elim (hex ⟨i, hi⟩))
+  · exact absorption_high x φ hhigh
+
+/-- **Explicit Alignment `(5, φ)` or `(6, φ)` for Single-Cell and High-Support Absorption (`singleCell_and_high_alignment_five_or_six`).** -/
+theorem singleCell_and_high_alignment_five_or_six (x : Nat → Bool) (φ : Nat)
+    (h : (∀ p q : Nat, x p = true → x q = true → p = q) ∨ (∀ i, 1 ≤ i → i ≤ 30 → x i = false)) :
+    ∃ t1, InFamily (drv (fun t => wordAt w0001 (t + φ)) x) 5 φ t1 ∨
+          InFamily (drv (fun t => wordAt w0001 (t + φ)) x) 6 φ t1 := by
+  obtain ⟨a, ha, t1, hIF⟩ := atMostOneBlack_or_high_absorption x φ h
+  simp only [A0001, List.mem_cons, List.not_mem_nil, or_false] at ha
+  rcases ha with rfl | rfl
+  · exact ⟨t1, Or.inl (by simpa using hIF)⟩
+  · exact ⟨t1, Or.inr (by simpa using hIF)⟩
+
 end Rule30EtherSingleCell
 end Ruliology.CellularAutomata

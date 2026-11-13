@@ -1,6 +1,7 @@
 module
 
 public import Ruliology.CellularAutomata.Rule30RestrictedBackwardTube
+public import Ruliology.CellularAutomata.Rule30WordRotation
 public import Ruliology.CellularAutomata.Rule30Certificates.FiveTailTube
 
 /-!
@@ -59,5 +60,38 @@ theorem no_padding_10101_finite {x : Int → Bool}
       (List.replicate r false ++ [true,false,true,false,true]) := by
   obtain ⟨lo,hlo,hzero⟩ := Rule30FiniteConfigs.exists_leftmost hfin hne
   exact no_padding_10101_leftFinite hlo hzero i r hr
+
+/-! ## Two-sided split white-padding and post-padded exclusions for `10101` -/
+
+/-- **Two-Sided Split White-Padding and Post-Padded Exclusions for `10101` (`no_padding_10101_split_and_post`):**
+for all `a, b : Nat` with `69 ≤ a + b`, `(List.replicate a false ++ [true, false, true, false, true]) ++ List.replicate b false`
+is excluded at every column `i` of every left-bounded or non-zero finite configuration. -/
+theorem no_padding_10101_split_and_post (a b : Nat) (hab : 69 ≤ a + b) :
+    (∀ {x : Int → Bool} {lo : Int}, x lo = true → (∀ p, p < lo → x p = false) → ∀ i : Int,
+      ¬ Rule30FiniteStrips.EventuallyWord x i
+        ((List.replicate a false ++ [true, false, true, false, true]) ++ List.replicate b false)) ∧
+    (∀ {x : Int → Bool}, Rule30PeriodTwoSideways.FinConfig x → (∃ p, x p = true) → ∀ i : Int,
+      ¬ Rule30FiniteStrips.EventuallyWord x i
+        ([true, false, true, false, true] ++ List.replicate (a + b) false)) := by
+  have hrep : ∀ m n : Nat, List.replicate m false ++ List.replicate n false = List.replicate (m + n) false := by
+    intro m n
+    induction m with
+    | zero => simp
+    | succ m ih => simp [List.replicate_succ, Nat.succ_add, ih]
+  have hleft : ∀ (a' b' : Nat), 69 ≤ a' + b' →
+      ∀ {x : Int → Bool} {lo : Int}, x lo = true → (∀ p, p < lo → x p = false) → ∀ i : Int,
+      ¬ Rule30FiniteStrips.EventuallyWord x i
+        ((List.replicate a' false ++ [true, false, true, false, true]) ++ List.replicate b' false) := by
+    intro a' b' hab' x lo hlo hzero i hword
+    have hrot := Rule30WordRotation.eventuallyWord_swap (by simp; omega) hword
+    rw [← List.append_assoc, hrep b' a'] at hrot
+    exact no_padding_10101_leftFinite hlo hzero i (b' + a') (by omega) hrot
+  refine ⟨hleft a b hab, ?_⟩
+  intro x hfin hne i hword
+  obtain ⟨lo, hlo, hzero⟩ := Rule30FiniteConfigs.exists_leftmost hfin hne
+  have hword0 : Rule30FiniteStrips.EventuallyWord x i
+      ((List.replicate 0 false ++ [true, false, true, false, true]) ++ List.replicate (a + b) false) := by
+    simpa using hword
+  exact hleft 0 (a + b) (by omega) hlo hzero i hword0
 
 end Ruliology.CellularAutomata.Rule30WhitePadding10101
