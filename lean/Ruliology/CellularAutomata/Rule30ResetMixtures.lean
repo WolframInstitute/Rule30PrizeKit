@@ -194,4 +194,26 @@ theorem not_eventually_reset_mixtures (qs : List Nat) (ha : ∀ q ∈ qs, 9 ≤ 
   intro i hi
   simpa only [g, dite_eq_left hi] using Classical.choose_spec (hc i hi)
 
+/-! ## Homomorphism `blocks (qs1 ++ qs2) = blocks qs1 ++ blocks qs2` and two-gap reset-mixture exclusion -/
+
+/-- **Homomorphism for `blocks` and Two-Gap Reset-Mixture Exclusion (`blocks_append_and_two_gap_reset_mixture`).** -/
+theorem blocks_append_and_two_gap_reset_mixture
+    (qs1 qs2 : List Nat) (q1 q2 : Nat)
+    (hq1 : 9 ≤ q1) (hq2 : 9 ≤ q2) (h17 : 17 ≤ q1 ∨ 17 ≤ q2) :
+    blocks (qs1 ++ qs2) = blocks qs1 ++ blocks qs2 ∧
+    ¬ EventuallyWord ((true :: List.replicate q1 false) ++ (true :: List.replicate q2 false)) := by
+  refine ⟨by simp [blocks, List.flatMap_append], ?_⟩
+  have hmix := not_eventually_reset_mixtures [q1, q2]
+    (by
+      intro q hmem
+      rcases List.mem_cons.mp hmem with rfl | hmem2
+      · exact hq1
+      · have hq : q = q2 := by simpa using hmem2
+        subst hq; exact hq2)
+    (by
+      rcases h17 with h1 | h2
+      · exact ⟨q1, by simp, h1⟩
+      · exact ⟨q2, by simp, h2⟩)
+  simpa [List.flatMap] using hmix
+
 end Ruliology.CellularAutomata.Rule30ResetMixtures

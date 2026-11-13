@@ -350,4 +350,30 @@ theorem fcovers_sound {K : Nat} {a : Bool} {A B : Nat}
   rw [Nat.testBit_and, hf, Bool.true_and] at hb
   exact hb
 
+/-! ## Fundamental inclusions `Sub (image K a S) (fimage K a S)` and `Sub (fimage K a S) (fullSet K)`, and `fcovers` equivalence -/
+
+/-- **Fundamental Inclusions for `fimage` and Exact `fcovers` Equivalence (`image_sub_fimage_and_fcovers_iff_sub`).** -/
+theorem image_sub_fimage_and_fcovers_iff_sub (K : Nat) (a : Bool) (S A B : Nat) :
+    Sub (image K a S) (fimage K a S) ∧
+    Sub (fimage K a S) (fullSet K) ∧
+    (fcovers K a A B = true ↔ Sub (fimage K a A) B) := by
+  refine ⟨?_, fun s hs => ?_, ⟨fun hc s hs => ?_, fun h => ?_⟩⟩
+  · apply imageAux_forall K a S (fun y => (fimage K a S).testBit y = true) _ (2 ^ K) (by omega)
+    intro s hs hm z
+    exact fimage_mem hs hm z
+  · unfold fimage at hs
+    simp only [Nat.testBit_and, Bool.and_eq_true] at hs
+    exact hs.2
+  · have he : fimage K a A &&& B = fimage K a A := by simpa [fcovers] using hc
+    have hbit := congrArg (fun n : Nat => n.testBit s) he
+    rw [Nat.testBit_and, hs, Bool.true_and] at hbit
+    exact hbit
+  · simp only [fcovers, beq_iff_eq]
+    apply Nat.eq_of_testBit_eq
+    intro i
+    rw [Nat.testBit_and]
+    cases hf : (fimage K a A).testBit i
+    · simp
+    · simp [h i hf]
+
 end Ruliology.CellularAutomata.Rule30FastImage
