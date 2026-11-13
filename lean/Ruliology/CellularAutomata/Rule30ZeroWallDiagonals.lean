@@ -1238,5 +1238,22 @@ theorem Theta_complexity (f : Nat → Bool) (hfin : FinSupp (Theta f)) :
   rw [hf] at hnp
   exact complexity_of_bounded_lag hnp (Theta_bounded_lag f hfin)
 
+/-! ## Bounded factor-complexity excess excludes `FinSupp (Theta f)` and `FinSupp L` for constrained starts -/
+
+/-- **Bounded Factor-Complexity Excess Excludes `FinSupp (Theta f)` and `FinSupp L` (`not_finSupp_theta_and_row_of_bounded_factorCount_excess`).** -/
+theorem not_finSupp_theta_and_row_of_bounded_factorCount_excess
+    (f L : Nat → Bool) (hX : InX L) :
+    ((∃ K, ∀ N, ∃ n, N ≤ n ∧ factorCount f n ≤ n + K) → ¬ FinSupp (Theta f)) ∧
+    ((∃ K, ∀ N, ∃ n, N ≤ n ∧ factorCount (freeWord L) n ≤ n + K) → ¬ FinSupp L) := by
+  refine ⟨fun ⟨K, hsub⟩ hfin => ?_, fun ⟨K, hsub⟩ hfin => ?_⟩
+  · obtain ⟨N, hN⟩ := Theta_complexity f hfin K
+    obtain ⟨n, hn, hle⟩ := hsub N
+    have hlt := hN n hn
+    omega
+  · obtain ⟨N, hN⟩ := freeWord_complexity hfin hX K
+    obtain ⟨n, hn, hle⟩ := hsub N
+    have hlt := hN n hn
+    omega
+
 end Rule30ZeroWallDiagonals
 end Ruliology.CellularAutomata

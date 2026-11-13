@@ -1823,5 +1823,34 @@ theorem immortal_iff_param {W : Nat} {x : Row} (hW : 2 ≤ W) (hx : WidthLE W x)
   · rintro ⟨v, _, rfl⟩
     exact ⟨_, _, rfl, rfl, rfl⟩
 
+/-! ## Parameter-map injectivity equivalence and unique immortal row classification at widths `2` and `3` -/
+
+/-- **Parameter-Map Injectivity Equivalence and Unique Immortal Row at Widths `2` and `3` (`paramRow_eq_iff_and_unique_immortal_width_two_three`).** -/
+theorem paramRow_eq_iff_and_unique_immortal_width_two_three
+    (v v' x : Row) (h0 : x 0 = false) :
+    (paramRow v = paramRow v' ↔ v = v') ∧
+    (WidthLE 2 x → (Immortal x ↔ x = paramRow (fun _ => false))) ∧
+    (WidthLE 3 x → (Immortal x ↔ x = paramRow (fun _ => false))) := by
+  have hsupp0 : ∀ w : Row, Supp 0 w ↔ w = (fun _ => false) := by
+    intro w
+    constructor
+    · intro hw; funext i; exact hw i (by omega)
+    · rintro rfl i _; rfl
+  refine ⟨⟨paramRow_inj, fun h => h ▸ rfl⟩, fun hx2 => ?_, fun hx3 => ?_⟩
+  · rw [immortal_iff_param (by decide : 2 ≤ 2) hx2 h0]
+    change (∃ w, Supp 0 w ∧ x = paramRow w) ↔ x = paramRow (fun _ => false)
+    constructor
+    · rintro ⟨w, hw, rfl⟩
+      rw [(hsupp0 w).mp hw]
+    · intro hx
+      exact ⟨fun _ => false, (hsupp0 _).mpr rfl, hx⟩
+  · rw [immortal_iff_param (by decide : 2 ≤ 3) hx3 h0]
+    change (∃ w, Supp 0 w ∧ x = paramRow w) ↔ x = paramRow (fun _ => false)
+    constructor
+    · rintro ⟨w, hw, rfl⟩
+      rw [(hsupp0 w).mp hw]
+    · intro hx
+      exact ⟨fun _ => false, (hsupp0 _).mpr rfl, hx⟩
+
 end Rule30HybridWall
 end Ruliology.CellularAutomata
