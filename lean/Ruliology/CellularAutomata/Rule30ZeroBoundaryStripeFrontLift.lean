@@ -628,5 +628,48 @@ theorem return_map_cycle_lift
     (period_return hJ hu hstep hcycle) E hgood
     (exceptional_residues hL hLe hJ hu hstep hchecks)
 
+/-! ### Modulo-`2^n` characterization of `LowEq`, multi-period universal front returns, and `iter` additivity -/
+
+/-- **Equivalence Laws and Exact Modulo-`2^n` Characterization of `LowEq` (`lowEq_equiv_and_mod_two_pow_iff`).** -/
+theorem lowEq_equiv_and_mod_two_pow_iff (n a b c : Nat) :
+    LowEq n a a ∧
+    (LowEq n a b → LowEq n b a) ∧
+    (LowEq n a b → LowEq n b c → LowEq n a c) ∧
+    (LowEq n a b ↔ a % 2 ^ n = b % 2 ^ n) := by
+  refine ⟨fun _ _ => rfl,
+          fun h i hi => (h i hi).symm,
+          fun h1 h2 i hi => (h1 i hi).trans (h2 i hi),
+          ⟨fun h => ?_, fun heq i hi => ?_⟩⟩
+  · apply Nat.eq_of_testBit_eq
+    intro i
+    rw [Nat.testBit_mod_two_pow, Nat.testBit_mod_two_pow]
+    by_cases hi : i < n
+    · simp [hi, h i hi]
+    · simp [hi]
+  · have hbit := congrArg (fun x => x.testBit i) heq
+    simpa [Nat.testBit_mod_two_pow, hi] using hbit
+
+/-- **Multi-Period Universal Front Orbit Invariance and `iter J` Additivity (`universal_front_period_mul_and_iter_add`).** -/
+theorem universal_front_period_mul_and_iter_add (K a p t m : Nat) (J : Nat → Nat) (x y u : Nat)
+    (ha : a < 2 ^ (K + 1)) (hp : p < 2) :
+    Rule30ZeroBoundaryStripeFront.orb (K + 1) (t + m * 2 ^ (K + 1)) (a, p) =
+      Rule30ZeroBoundaryStripeFront.orb (K + 1) t (a, p) ∧
+    iter J (x + y) u = iter J y (iter J x u) := by
+  refine ⟨?_, ?_⟩
+  · induction m with
+    | zero => simp
+    | succ m ih =>
+      rw [show t + (m + 1) * 2 ^ (K + 1) = (t + m * 2 ^ (K + 1)) + 2 ^ (K + 1) by
+            rw [Nat.succ_mul]; omega,
+          Rule30ZeroBoundaryStripeFront.orb_add, ih]
+      have hbound : (Rule30ZeroBoundaryStripeFront.orb (K + 1) t (a, p)).1 < 2 ^ (K + 1) :=
+        orbit_bound ha t
+      have hph : (Rule30ZeroBoundaryStripeFront.orb (K + 1) t (a, p)).2 < 2 :=
+        orbit_phase_lt (K + 1) a p t hp
+      exact universal_front_period K _ _ hbound hph
+  · induction y with
+    | zero => rfl
+    | succ y ih => exact congrArg J ih
+
 end Ruliology.CellularAutomata.Rule30ZeroBoundaryStripeFrontLift
 

@@ -687,4 +687,54 @@ theorem singleton_birth_not_opposite (a b g h g' h' : Bool) (P : Nat)
   exact singleton_not_opposite a b (hd.2 hb)
 
 
+/-! ### Universal `2P`-period return of `giter` and `titer (u ++ [g])`, and zero-birth characterization -/
+
+/-- **Universal `2P`-Period Return of `giter u g` and `titer (u ++ [g])`, and Exact `P`-Period Criterion (`giter_and_titer_append_one_double_period`).** -/
+theorem giter_and_titer_append_one_double_period (u : List Bool) (g : Bool) (P : Nat)
+    (hp : titer u P = u) :
+    (∀ t : Nat, giter u g (t + (P + P)) = giter u g t) ∧
+    titer (u ++ [g]) (P + P) = u ++ [g] ∧
+    (titer (u ++ [g]) P = u ++ [g] ↔ birth P u g = false) := by
+  have hg2 : ∀ t : Nat, giter u g (t + (P + P)) = giter u g t := by
+    intro t
+    have h1 := g_displacement u g P hp (t + P)
+    have h2 := g_displacement u g P hp t
+    rw [show t + (P + P) = (t + P) + P by omega]
+    have heq : xor (giter u g ((t + P) + P)) (giter u g (t + P)) =
+        xor (giter u g (t + P)) (giter u g t) := h1.trans h2.symm
+    revert heq
+    cases giter u g ((t + P) + P) <;> cases giter u g (t + P) <;> cases giter u g t <;> decide
+  refine ⟨hg2, ?_, ?_⟩
+  · rw [titer_append_one, titer_add, hp, hp]
+    have hg0 := hg2 0
+    rw [Nat.zero_add] at hg0
+    rw [hg0]; rfl
+  · rw [titer_append_one, hp, birth_eq]
+    constructor
+    · intro h
+      have h1 : [giter u g P] = [g] := List.append_cancel_left h
+      have h2 : giter u g P = g := List.cons.inj h1 |>.1
+      rw [h2]; cases g <;> rfl
+    · intro hb
+      have h2 : giter u g P = g := by
+        revert hb; cases giter u g P <;> cases g <;> decide
+      rw [h2]
+
+/-- **Zero-Birth Vanishing Characterization of `demodR` and `demodS` (`birth_false_iff_demod_zero`).** -/
+theorem birth_false_iff_demod_zero (u : List Bool) (g h : Bool) (P : Nat)
+    (hu : u ≠ []) (hP : 0 < P) (hp : titer u P = u) :
+    birth P u g = false ↔
+      ∀ t : Nat, demodR P (u ++ [g, h]) t = false ∧ demodS P (u ++ [g, h]) t = false := by
+  constructor
+  · intro hb t
+    rw [(masked_demodulation u g h P hu hp t).1, (masked_demodulation u g h P hu hp t).2,
+        hb, Bool.false_and, Bool.false_and]
+    exact ⟨rfl, rfl⟩
+  · intro hall
+    rw [birth_detector u g h P hu hP hp]
+    apply List.any_eq_false.mpr
+    intro t _
+    rw [(hall t).1, (hall t).2]
+    decide
+
 end Ruliology.CellularAutomata.Rule30ClockBirthDemodulation
