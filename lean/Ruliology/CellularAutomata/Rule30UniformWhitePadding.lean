@@ -118,4 +118,36 @@ theorem no_paddingE_leftFinite {x : Int → Bool} {lo : Int}
   exact Rule30FiniteStrips.not_eventually_word_strip hlo hzero i _ 10 2
     (by decide) (by simp; omega) (certificateE r hr)
 
+/-! ## Finite-configuration (`FinConfig`) exclusions for all five families and unified `r ≥ 31` exclusion -/
+
+/-- **Finite-Configuration (`FinConfig`) Exclusions for All Five Pumping Families (`no_padding_all_five_finite`).** -/
+theorem no_padding_all_five_finite {x : Int → Bool}
+    (hfin : Rule30PeriodTwoSideways.FinConfig x) (hne : ∃ p, x p = true) (i : Int) (r : Nat) :
+    (13 ≤ r → ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ Rule30Certificates.WhitePaddingFamilies.Data.tailA)) ∧
+    (14 ≤ r → ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ Rule30Certificates.WhitePaddingFamilies.Data.tailB)) ∧
+    (23 ≤ r → ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ tailC)) ∧
+    (23 ≤ r → ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ tailD)) ∧
+    (31 ≤ r → ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ tailE)) := by
+  obtain ⟨lo, hlo, hzero⟩ := Rule30FiniteConfigs.exists_leftmost hfin hne
+  exact ⟨no_paddingA_leftFinite hlo hzero i r,
+         no_paddingB_leftFinite hlo hzero i r,
+         no_paddingC_leftFinite hlo hzero i r,
+         no_paddingD_leftFinite hlo hzero i r,
+         no_paddingE_leftFinite hlo hzero i r⟩
+
+/-- **Unified Exclusion of All Five Families Above the Common Threshold `r ≥ 31` (`no_padding_all_five_from_31`).** -/
+theorem no_padding_all_five_from_31 {x : Int → Bool} {lo : Int}
+    (hlo : x lo = true) (hzero : ∀ p, p < lo → x p = false) (i : Int)
+    (r : Nat) (hr : 31 ≤ r) :
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ Rule30Certificates.WhitePaddingFamilies.Data.tailA) ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ Rule30Certificates.WhitePaddingFamilies.Data.tailB) ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ tailC) ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ tailD) ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ tailE) :=
+  ⟨no_paddingA_leftFinite hlo hzero i r (by omega),
+   no_paddingB_leftFinite hlo hzero i r (by omega),
+   no_paddingC_leftFinite hlo hzero i r (by omega),
+   no_paddingD_leftFinite hlo hzero i r (by omega),
+   no_paddingE_leftFinite hlo hzero i r hr⟩
+
 end Ruliology.CellularAutomata.Rule30UniformWhitePadding

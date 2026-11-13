@@ -51,4 +51,15 @@ theorem no_paddingB_seed (r : Nat) (hr : 61 ≤ r) :
   exact no_padding_seed_of_vacuum_avoidance tailB 5 2 G reached stable safeB r
     (by omega) (by simp [tailB]; omega) (by simp [tailB]; omega)
 
+/-! ## Finite-configuration (`FinConfig`) exclusions for the two width-5 vacuum examples -/
+
+/-- **Finite-Configuration (`FinConfig`) Exclusions for `0^r 11011` and `0^r 10011` (`no_paddingA_and_B_finite`).** -/
+theorem no_paddingA_and_B_finite {x : Int → Bool}
+    (hfin : Rule30PeriodTwoSideways.FinConfig x) (hne : ∃ p, x p = true)
+    (i : Int) (r : Nat) (hr : 61 ≤ r) :
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ Rule30VacuumExample.tailA) ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ Rule30VacuumExample.tailB) := by
+  obtain ⟨lo, hlo, hzero⟩ := Rule30FiniteConfigs.exists_leftmost hfin hne
+  exact ⟨no_paddingA hlo hzero i r hr, no_paddingB hlo hzero i r hr⟩
+
 end Ruliology.CellularAutomata.Rule30VacuumExample
