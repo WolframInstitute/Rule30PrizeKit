@@ -601,5 +601,22 @@ theorem rule180_wedge_odd (n : Nat) (hn : 1 ≤ n) :
     psum 0 n (fun q => Y rule180Coef (bnd n false) q (2 * n) 0 == false) = true :=
   (wedge_parity_quadratic rule180Coef rfl n hn false false).trans rfl
 
+/-! ## Far-left target `ℓ`-invariance and boundary-flip complementarity of quadratic wedge parity -/
+
+/-- **Target `ℓ`-Invariance and Boundary-Flip Complementarity of Quadratic Wedge Parity (`wedge_parity_quadratic_invariance_and_flip`).** -/
+theorem wedge_parity_quadratic_invariance_and_flip
+    (p : Coef) (hκ : p.κ = true) (n : Nat) (hn : 1 ≤ n) (r ℓ1 ℓ2 : Bool) :
+    psum 0 n (fun q => Y p (bnd n r) q (2 * n) 0 == ℓ1) =
+      psum 0 n (fun q => Y p (bnd n r) q (2 * n) 0 == ℓ2) ∧
+    psum 0 n (fun q => Y p (bnd n (!r)) q (2 * n) 0 == ℓ1) =
+      !psum 0 n (fun q => Y p (bnd n r) q (2 * n) 0 == ℓ1) ∧
+    psum 0 n (fun q => Y rule30Coef (bnd n true) q (2 * n) 0 == ℓ1) = false := by
+  refine ⟨?_, ?_, ?_⟩
+  · rw [wedge_parity_quadratic p hκ n hn r ℓ1, wedge_parity_quadratic p hκ n hn r ℓ2]
+  · rw [wedge_parity_quadratic p hκ n hn (!r) ℓ1, wedge_parity_quadratic p hκ n hn r ℓ1]
+    cases p.α <;> cases r <;> rfl
+  · rw [wedge_parity_quadratic rule30Coef rfl n hn true ℓ1]
+    rfl
+
 end Rule30WedgeParity
 end Ruliology.CellularAutomata

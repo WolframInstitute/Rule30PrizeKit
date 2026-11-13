@@ -659,4 +659,19 @@ theorem arbitrary_local_supports (G : Type) [GroupData G]
     full_background_connection G N (fun v => L (window r (n+1) hr v))
       (fun v => M (window s (m+1) hs v)) hc
 
+/-! ## Inversion involution `(a⁻¹)⁻¹ = a` and anti-homomorphism `(a * b)⁻¹ = b⁻¹ * a⁻¹` for `GroupData` -/
+
+/-- **Inversion Involution and Anti-Homomorphism Laws for `GroupData` (`groupData_inv_inv_and_mul_inv_rev`).** -/
+theorem groupData_inv_inv_and_mul_inv_rev
+    (G : Type) [GroupData G] (a b : G) :
+    (1 : G)⁻¹ = 1 ∧
+    (a⁻¹)⁻¹ = a ∧
+    (a * b)⁻¹ = b⁻¹ * a⁻¹ := by
+  refine ⟨?_, ?_, ?_⟩
+  · simpa only [mul_one] using inv_mul_cancel (1 : G)
+  · apply mul_left_cancel (a := a⁻¹)
+    rw [mul_inv_cancel, inv_mul_cancel]
+  · apply mul_left_cancel (a := a * b)
+    rw [mul_inv_cancel, mul_assoc, ← mul_assoc b, mul_inv_cancel, one_mul, mul_inv_cancel]
+
 end Ruliology.CellularAutomata.Rule30GroupCocycle

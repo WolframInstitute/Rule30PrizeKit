@@ -613,5 +613,23 @@ theorem rule180_top_coefficient (m : Nat) :
         && evolveC rule180Coef (m + 2) (rowW (m + 2) c) 0) = false :=
   (top_coefficient_rows rule180Coef rfl m).trans rfl
 
+/-! ## Constant-term `γ`-invariance of the top ANF coefficient and Rule 30 vs. Rule 180 separation -/
+
+/-- **Constant-Term `γ`-Invariance of the Top ANF Coefficient and Rule 30 vs. Rule 180 Separation (`top_coefficient_gamma_invariance_and_rule30_vs_rule180`).** -/
+theorem top_coefficient_gamma_invariance_and_rule30_vs_rule180
+    (p : Coef) (hκ : p.κ = true) (γ' : Bool) (m : Nat) :
+    psum 0 (2 * m + 5) (fun c => (c (2 * m + 4) == false) && (c (2 * m + 3) == false)
+          && evolveC { p with γ := γ' } (m + 2) (rowW (m + 2) c) 0) =
+      psum 0 (2 * m + 5) (fun c => (c (2 * m + 4) == false) && (c (2 * m + 3) == false)
+          && evolveC p (m + 2) (rowW (m + 2) c) 0) ∧
+    psum 0 (2 * m + 5) (fun c => (c (2 * m + 4) == false) && (c (2 * m + 3) == false)
+          && evolveC rule30Coef (m + 2) (rowW (m + 2) c) 0) ≠
+      psum 0 (2 * m + 5) (fun c => (c (2 * m + 4) == false) && (c (2 * m + 3) == false)
+          && evolveC rule180Coef (m + 2) (rowW (m + 2) c) 0) := by
+  refine ⟨?_, ?_⟩
+  · rw [top_coefficient_rows { p with γ := γ' } hκ m, top_coefficient_rows p hκ m]
+  · rw [rule30_top_coefficient m, rule180_top_coefficient m]
+    decide
+
 end Rule30TopCoefficient
 end Ruliology.CellularAutomata
