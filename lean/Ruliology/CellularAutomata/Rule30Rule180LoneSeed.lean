@@ -116,5 +116,17 @@ theorem white_left (t : Nat) (_ht : 2 ≤ t) (i : Int) (hi : i ≤ (t : Int) - 2
   · simp only [h, ite_true]; simp; omega
   · simp only [h, ite_false]; simp; omega
 
+/-! ## Right-edge light-cone law `evolveC rule180Coef t seed t = true` and white right of `t` -/
+
+/-- **Right-Edge Light-Cone Law for Rule 180 From the Lone Seed (`right_edge_and_white_right_of_light_cone`).** -/
+theorem right_edge_and_white_right_of_light_cone (t : Nat) (i : Int) :
+    evolveC rule180Coef t seed (t : Int) = true ∧
+    ((t : Int) < i → evolveC rule180Coef t seed i = false) := by
+  rw [evolve_seed]
+  unfold orbit
+  refine ⟨?_, fun hi => ?_⟩
+  · by_cases h : t % 2 = 0 <;> simp [h]
+  · by_cases h : t % 2 = 0 <;> simp [h] <;> omega
+
 end Rule30Rule180LoneSeed
 end Ruliology.CellularAutomata

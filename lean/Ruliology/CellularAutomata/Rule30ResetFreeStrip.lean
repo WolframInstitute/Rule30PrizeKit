@@ -262,4 +262,23 @@ theorem five_reset_free_tails (x : Fin 5 → Nat → Bool) (recurrence : RowRecu
   have h := period (p-K) (by omega)
   simpa only [shifted,show K+(p-K+5)=p+5 by omega,show K+(p-K)=p by omega] using h
 
+/-! ## Shift equivalence for `EventuallyAvoidReset` and multi-period `p + 5 * k` strip periodicity -/
+
+/-- **Shift Equivalence for `EventuallyAvoidReset` and Multi-Period Strip Periodicity (`eventuallyAvoidReset_shift_iff_and_colored_strip_five_mul`).** -/
+theorem eventuallyAvoidReset_shift_iff_and_colored_strip_five_mul
+    (f : Nat → Bool) (d K p m : Nat) (x : Fin 5 → Nat → Bool) (r : Fin 5 → Nat → Nat) :
+    (EventuallyAvoidReset f ↔ EventuallyAvoidReset (fun i => f (d + i))) ∧
+    (1 ≤ K → (∀ t, ColoredFrom (x t) K (r t)) → RowRecurrence x → K + 7 ≤ p →
+      x 0 (p + 5 * m) = x 0 p) := by
+  refine ⟨⟨fun ⟨K0, hK0⟩ => ⟨K0, ?_⟩, fun ⟨K0, hK0⟩ => ⟨d + K0, ?_⟩⟩,
+          fun hK colors rec hp => ?_⟩
+  · have h := avoid_shift (fun i => f (K0 + i)) hK0 d
+    simpa only [show ∀ i, K0 + (d + i) = d + (K0 + i) from fun i => by omega] using h
+  · simpa only [Nat.add_assoc] using hK0
+  · induction m with
+    | zero => simp
+    | succ m ih =>
+      rw [show p + 5 * (m + 1) = (p + 5 * m) + 5 by omega,
+          colored_strip_five x r K hK colors rec (p + 5 * m) (by omega), ih]
+
 end Ruliology.CellularAutomata.Rule30ResetFreeStrip
