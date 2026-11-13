@@ -467,4 +467,26 @@ theorem no_wall (a b : Nat) (hb : 0 < b) {W : Nat → Nat → Prop} (hW : WallOK
   intro φ r hWr
   exact key ((φ + 1) % 3) _ (Nat.mod_lt _ (by decide)) (hW.2.2 φ r false hWr)
 
+/-! ### Uniqueness of `Front` and `REdge` and spatio-temporal periodicity of `eth` -/
+
+/-- **Uniqueness of `Front` and `REdge`, and Spatio-Temporal Periodicity of `eth` (`front_and_redge_unique_and_eth_periodic`).** -/
+theorem front_and_redge_unique_and_eth_periodic (F : Nat → Nat → Bool) (j0 s p t D1 D2 R1 R2 : Nat) :
+    (Front F j0 s t D1 → Front F j0 s t D2 → D1 = D2) ∧
+    (REdge F j0 s t R1 → REdge F j0 s t R2 → R1 = R2) ∧
+    eth j0 s (p + 12) t = eth j0 s p t ∧
+    eth j0 s p (t + 3) = eth j0 s p t := by
+  refine ⟨fun h1 h2 => ?_, fun h1 h2 => ?_, ?_, ?_⟩
+  · rcases Nat.lt_trichotomy D1 D2 with hlt | heq | hgt
+    · exact False.elim (h1.2 (h2.1 D1 hlt))
+    · exact heq
+    · exact False.elim (h2.2 (h1.1 D2 hgt))
+  · rcases Nat.lt_trichotomy R1 R2 with hlt | heq | hgt
+    · exact False.elim (h2.1 (h1.2 R2 hlt))
+    · exact heq
+    · exact False.elim (h1.1 (h2.2 R1 hgt))
+  · unfold eth
+    exact ether3_congr (by omega) rfl
+  · unfold eth
+    exact ether3_congr rfl (by omega)
+
 end Ruliology.CellularAutomata.Rule30EtherThreeErosion
