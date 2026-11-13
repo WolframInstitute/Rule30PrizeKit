@@ -549,5 +549,55 @@ theorem no_white_run_11_finite {x : Int → Bool} (hfin : FinConfig x) (hne : �
   rw [hy, show (((hi + t - i).toNat : Nat) : Int) + i = hi + t by omega]
   exact evol_right_edge hhi hright t
 
+/-! ### Uniqueness of the rightmost black cell and word-form `0^r 1 1` exclusion (`r ≥ 8`) -/
+
+/-- **Uniqueness of the Rightmost Black Cell `hi` and Ordering `lo ≤ hi` (`rightmost_unique_and_leftmost_le`).** -/
+theorem rightmost_unique_and_leftmost_le {x : Int → Bool} {lo hi1 hi2 : Int}
+    (h1 : x hi1 = true) (hr1 : ∀ p, hi1 < p → x p = false)
+    (h2 : x hi2 = true) (hr2 : ∀ p, hi2 < p → x p = false)
+    (hlo : x lo = true) :
+    hi1 = hi2 ∧ lo ≤ hi1 := by
+  refine ⟨?_, ?_⟩
+  · by_cases hlt : hi1 < hi2
+    · rw [hr1 hi2 hlt] at h2; cases h2
+    · by_cases hgt : hi2 < hi1
+      · rw [hr2 hi1 hgt] at h1; cases h1
+      · omega
+  · by_cases hgt : hi1 < lo
+    · rw [hr1 lo hgt] at hlo; cases hlo
+    · omega
+
+/-- **Word-Form Exclusion of `List.replicate r false ++ [true, true]` (`0^r 1 1`, `r ≥ 8`) for Every `FinConfig x` (`no_white_run_11_word_finite`).** -/
+theorem no_white_run_11_word_finite {x : Int → Bool} (hfin : FinConfig x) (hne : ∃ p, x p = true)
+    (i : Int) (r : Nat) (hr : 8 ≤ r) :
+    ¬ ∃ T, ∀ t, T ≤ t →
+      evol x t i = (List.replicate r false ++ [true, true]).getD ((t - T) % (r + 2)) false := by
+  rintro ⟨T, hT⟩
+  have hper : ∀ t, T ≤ t → evol x (t + (r + 2)) i = evol x t i := by
+    intro t ht
+    rw [hT (t + (r + 2)) (by omega), hT t ht,
+        show t + (r + 2) - T = (t - T) + (r + 2) by omega, Nat.add_mod_right]
+  have hget : ∀ (m k : Nat),
+      (List.replicate m false ++ [true, true]).getD k false = decide (k = m ∨ k = m + 1) := by
+    intro m
+    induction m with
+    | zero => rintro (_ | _ | k) <;> rfl
+    | succ m ih =>
+      rintro (_ | k)
+      · rfl
+      · rw [List.replicate_succ, List.cons_append, List.getD_cons_succ, ih k]
+        exact decide_eq_decide.mpr ⟨fun h => by omega, fun h => by omega⟩
+  have hw : ∀ k, k < r → evol x (T + k) i = false := by
+    intro k hk
+    rw [hT (T + k) (by omega), show T + k - T = k by omega, Nat.mod_eq_of_lt (by omega), hget]
+    exact decide_eq_false (by omega)
+  have hb1 : evol x (T + r) i = true := by
+    rw [hT (T + r) (by omega), show T + r - T = r by omega, Nat.mod_eq_of_lt (by omega), hget]
+    exact decide_eq_true (by omega)
+  have hb2 : evol x (T + r + 1) i = true := by
+    rw [hT (T + r + 1) (by omega), show T + r + 1 - T = r + 1 by omega, Nat.mod_eq_of_lt (by omega), hget]
+    exact decide_eq_true (by omega)
+  exact no_white_run_11_finite hfin hne i T r T hr hper (Nat.le_refl T) hw hb1 hb2
+
 end Rule30FiniteWhiteRuns
 end Ruliology.CellularAutomata

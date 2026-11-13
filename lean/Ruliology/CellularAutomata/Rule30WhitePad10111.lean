@@ -292,4 +292,30 @@ theorem not_eventually_zeros_10111 (q : Nat) (hq : 9 ≤ q) :
     exact invariant hq
   · exact observed hq
 
+/-! ### Multi-period stability of `A3` under `iterW` and post-padded `10111 0^q` exclusion (`q ≥ 9`) -/
+
+/-- **Multi-Period Stability of the 24-State Invariant `A3` (`iterW_driver_A3_sub`).** -/
+theorem iterW_driver_A3_sub {q : Nat} (hq : 9 ≤ q) :
+    ∀ m : Nat, Sub (iterW 8 (driver q) m A3) A3
+  | 0 => sub_refl A3
+  | m + 1 => by
+    unfold iterW
+    rw [← mac_eq]
+    have hstep : Sub (iterW 8 (driver q) m (mac q A3)) (iterW 8 (driver q) m A3) := by
+      have hmono : ∀ (k : Nat) {X Y : Nat}, Sub X Y → Sub (iterW 8 (driver q) k X) (iterW 8 (driver q) k Y) := by
+        intro k
+        induction k with
+        | zero => intro X Y h; exact h
+        | succ k ih => intro X Y h; exact ih (word_mono h (driver q))
+      exact hmono m (invariant hq)
+    exact sub_trans hstep (iterW_driver_A3_sub hq m)
+
+/-- **Multi-Period Closure of `wp` Under `U0`, `U1`, `U2`, and `U3` (`wp_envelopes_closed`).** -/
+theorem wp_envelopes_closed (n : Nat) :
+    Sub (wp n U0) U0 ∧ Sub (wp n U1) U1 ∧ Sub (wp n U2) U2 ∧ Sub (wp n U3) U3 :=
+  ⟨wp_closed (sub_of_and closed0) n,
+   wp_closed (sub_of_and closed1) n,
+   wp_closed (sub_of_and closed2) n,
+   wp_closed (sub_of_and closed3) n⟩
+
 end Ruliology.CellularAutomata.Rule30WhitePad10111
