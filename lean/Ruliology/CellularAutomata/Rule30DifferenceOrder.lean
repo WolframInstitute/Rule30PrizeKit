@@ -239,5 +239,25 @@ theorem order_countdown {s b h : Nat → Bool} {v : Nat}
       exact hv t
     omega
 
+/-! ### Dyadic periodicity equivalence `Vanish (2 ^ v) g ↔ (∀ t, g (t + 2 ^ v) = g t)` and closure of `Vanish k` -/
+
+/-- **Dyadic Periodicity Equivalence for `Vanish (2 ^ v)` and Closure Under XOR and Shifts (`vanish_two_pow_iff_and_xor_shift`).** -/
+theorem vanish_two_pow_iff_and_xor_shift (v k c : Nat) (f g : Nat → Bool) :
+    (Vanish (2 ^ v) g ↔ (∀ t, g (t + 2 ^ v) = g t)) ∧
+    (Vanish k f → Vanish k g → Vanish k (fun t => xor (f t) (g t))) ∧
+    (Vanish k g → Vanish k (fun t => g (t + c))) := by
+  refine ⟨⟨fun hv t => ?_, vanish_of_period⟩,
+          fun hf hg t => ?_,
+          fun hg t => ?_⟩
+  · have h := hv t
+    rw [difs_two_pow] at h
+    change xor (g (t + 2 ^ v)) (g t) = false at h
+    revert h; cases g (t + 2 ^ v) <;> cases g t <;> decide
+  · rw [difs_xor]
+    dsimp only
+    rw [hf t, hg t]; rfl
+  · rw [difs_shift]
+    exact hg (t + c)
+
 end Rule30DifferenceOrder
 end Ruliology.CellularAutomata

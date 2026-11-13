@@ -265,4 +265,26 @@ theorem alternating_even {m : Nat} {x : Int → Bool} (ha : ∀ i, x (i + 1) = !
   · exact h
   · simp [h] at h0
 
+/-! ### Multi-period return `orbit x (k * P) = x` and odd-ring period-two rigidity -/
+
+/-- **Multi-Period Return `orbit x (k * P) = x` and Odd-Ring Period-Two Rigidity (`orbit_mul_and_odd_ring_period_two_iff`).** -/
+theorem orbit_mul_and_odd_ring_period_two_iff
+    (P k m : Nat) (x : Int → Bool) :
+    (orbit x P = x → orbit x (k * P) = x) ∧
+    (m % 2 = 1 → Per m x → (orbit x 2 = x ↔ ∀ i, x i = false)) := by
+  refine ⟨fun hP => ?_, fun hodd hx => ?_⟩
+  · induction k with
+    | zero => rw [Nat.zero_mul]; rfl
+    | succ k ih =>
+      rw [Nat.succ_mul, orbit_add, ih, hP]
+  · have hm : 0 < m := by omega
+    rw [ring_period_two hm hx]
+    constructor
+    · rintro (hw | ha)
+      · exact hw
+      · have heven := alternating_even ha hx
+        omega
+    · intro hw
+      exact Or.inl hw
+
 end Ruliology.CellularAutomata.Rule30RingOrbits
