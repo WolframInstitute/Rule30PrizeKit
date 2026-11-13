@@ -197,4 +197,40 @@ theorem columns_injective {p q : Int} (h : ∀ t, cell t p = cell t q) : p=q := 
   · obtain ⟨t,_,ht⟩ := columns_distinguishable p q heq
     exact False.elim (ht (h t))
 
+/-! ### Exact first-arrival characterization `t = p.natAbs` and finite-horizon trace injectivity -/
+
+/-- **Exact Characterization of the First Black Arrival Time `t = p.natAbs` (`first_black_time_iff_natAbs_and_prefix_distance`).** -/
+theorem first_black_time_iff_natAbs_and_prefix_distance (p q : Int) (t : Nat) :
+    ((cell t p = true ∧ ∀ s, s < t → cell s p = false) ↔ t = p.natAbs) ∧
+    ((∀ s, s ≤ min p.natAbs q.natAbs → cell s p = cell s q) → p.natAbs = q.natAbs) := by
+  refine ⟨⟨fun ⟨hb, hw⟩ => ?_, fun h => ?_⟩, fun hagree => ?_⟩
+  · rcases Nat.lt_trichotomy t p.natAbs with hlt | heq | hgt
+    · rw [white_before_arrival t p hlt] at hb; cases hb
+    · exact heq
+    · have := hw p.natAbs hgt
+      rw [first_arrival_black p] at this; cases this
+  · subst h
+    exact ⟨first_arrival_black p, fun s hs => white_before_arrival s p hs⟩
+  · rcases Nat.lt_trichotomy p.natAbs q.natAbs with hlt | heq | hgt
+    · have h1 := hagree p.natAbs (by omega)
+      rw [first_arrival_black p, white_before_arrival p.natAbs q hlt] at h1
+      cases h1
+    · exact heq
+    · have h1 := hagree q.natAbs (by omega)
+      rw [white_before_arrival q.natAbs p hgt, first_arrival_black q] at h1
+      cases h1
+
+/-- **Finite-Horizon Trace Injectivity Equivalence (`columns_eq_iff_bounded_agree`):**
+two spatial columns `p, q : Int` of the single-seed pattern coincide (`p = q`) if and only if
+their traces agree through time `max p.natAbs q.natAbs + 18`. -/
+theorem columns_eq_iff_bounded_agree (p q : Int) :
+    p = q ↔ ∀ t, t ≤ max p.natAbs q.natAbs + 18 → cell t p = cell t q := by
+  constructor
+  · rintro rfl _ _; rfl
+  · intro h
+    by_cases heq : p = q
+    · exact heq
+    · obtain ⟨t, ht, hne⟩ := columns_distinguishable p q heq
+      exact False.elim (hne (h t ht))
+
 end Ruliology.CellularAutomata.Rule30ColumnSeparation
