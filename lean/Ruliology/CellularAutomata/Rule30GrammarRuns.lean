@@ -211,4 +211,41 @@ theorem not_eventually_grammar (as : List (Nat × Nat)) (hne : as ≠ [])
   exact no_word_ranked 14 E 4 rank (blocks as) (outputs as) hw
     (blocks_warm as hne hgood) (ranked_blocks as hgood)
 
+/-! ## Single-block and two-block four-category grammar exclusions and multi-period `iterW` stability -/
+
+/-- **Single-Block and Two-Block Grammar Exclusions and Multi-Period `iterW` Envelope Stability (`grammar_single_and_two_block_and_iterW_E`).** -/
+theorem grammar_single_and_two_block_and_iterW_E
+    (as : List (Nat × Nat)) (ha : ∀ a ∈ as, Good a) (m r1 q1 r2 q2 : Nat)
+    (hg1 : Admissible r1 q1) (hg2 : Admissible r2 q2) :
+    Sub (iterW 14 (blocks as) m E) E ∧
+    ¬ EventuallyWord (List.replicate r1 true ++ List.replicate q1 false) ∧
+    ¬ EventuallyWord ((List.replicate r1 true ++ List.replicate q1 false) ++
+                      (List.replicate r2 true ++ List.replicate q2 false)) := by
+  have hmono : ∀ (k : Nat) {X Y : Nat}, Sub X Y →
+      Sub (iterW 14 (blocks as) k X) (iterW 14 (blocks as) k Y) := by
+    intro k
+    induction k with
+    | zero => intro X Y h; exact h
+    | succ k ih => intro X Y h; exact ih (word_mono 14 h (blocks as))
+  have hiter : ∀ k : Nat, Sub (iterW 14 (blocks as) k E) E := by
+    intro k
+    induction k with
+    | zero => exact sub_refl E
+    | succ k ih =>
+      unfold iterW
+      exact sub_trans (hmono k (stable_blocks E stableE as ha)) ih
+  refine ⟨hiter m, ?_, ?_⟩
+  · have h1 := not_eventually_grammar [(r1, q1)] (by simp) (by
+      intro a hmem
+      have ha1 : a = (r1, q1) := by simpa using hmem
+      subst ha1; exact hg1)
+    simpa [List.flatMap] using h1
+  · have h2 := not_eventually_grammar [(r1, q1), (r2, q2)] (by simp) (by
+      intro a hmem
+      rcases List.mem_cons.mp hmem with rfl | hmem2
+      · exact hg1
+      · have ha2 : a = (r2, q2) := by simpa using hmem2
+        subst ha2; exact hg2)
+    simpa [List.flatMap] using h2
+
 end Ruliology.CellularAutomata.Rule30GrammarRuns

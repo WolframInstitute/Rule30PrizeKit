@@ -224,4 +224,36 @@ theorem not_eventually_black_white (r q : Nat) (hr : 1≤r) (hq : 17≤q) :
     ¬ EventuallyWord (List.replicate r true++List.replicate q false) := by
   simpa using not_eventually_long_white_runs [(r,q)] (by simp) (by simpa using And.intro hr hq)
 
+/-! ## Multi-period envelope stability `Sub (iterW 14 (blocks as) m E) E` and two-block `1^r1 0^q1 1^r2 0^q2` exclusion -/
+
+/-- **Multi-Period Envelope Stability and Two-Block `W(17)` Exclusion (`iterW_blocks_E_and_two_block_white17`).** -/
+theorem iterW_blocks_E_and_two_block_white17
+    (as : List (Nat × Nat)) (ha : ∀ a ∈ as, Good a) (m r1 q1 r2 q2 : Nat)
+    (hr1 : 1 ≤ r1) (hq1 : 17 ≤ q1) (hr2 : 1 ≤ r2) (hq2 : 17 ≤ q2) :
+    Sub (iterW 14 (blocks as) m E) E ∧
+    ¬ EventuallyWord ((List.replicate r1 true ++ List.replicate q1 false) ++
+                      (List.replicate r2 true ++ List.replicate q2 false)) := by
+  have hmono : ∀ (k : Nat) {X Y : Nat}, Sub X Y →
+      Sub (iterW 14 (blocks as) k X) (iterW 14 (blocks as) k Y) := by
+    intro k
+    induction k with
+    | zero => intro X Y h; exact h
+    | succ k ih => intro X Y h; exact ih (word_mono 14 h (blocks as))
+  have hiter : ∀ k : Nat, Sub (iterW 14 (blocks as) k E) E := by
+    intro k
+    induction k with
+    | zero => exact sub_refl E
+    | succ k ih =>
+      unfold iterW
+      exact sub_trans (hmono k (stable_blocks E stableE as ha)) ih
+  refine ⟨hiter m, ?_⟩
+  have htwo := not_eventually_long_white_runs [(r1, q1), (r2, q2)] (by simp) (by
+    intro a hmem
+    rcases List.mem_cons.mp hmem with rfl | hmem2
+    · exact ⟨hr1, hq1⟩
+    · have ha2 : a = (r2, q2) := by simpa using hmem2
+      subst ha2
+      exact ⟨hr2, hq2⟩)
+  simpa [List.flatMap] using htwo
+
 end Ruliology.CellularAutomata.Rule30White17Runs
