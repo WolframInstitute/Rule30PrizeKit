@@ -1028,4 +1028,42 @@ theorem eventually_stripe_iff_early (a b c : Nat)
     · exact ⟨0,h⟩
     · exact ⟨1,h⟩
 
+/-! ## Even-step all-time persistence of `StripeRelated` and unconditional joint trace/stripe equivalence -/
+
+/-- **Even-Step All-Time Persistence of `StripeRelated` and Unconditional Joint Trace/Stripe Equivalence (`stripe_related_even_and_joint_early_iff`).** -/
+theorem stripe_related_even_and_joint_early_iff (a b c : Nat) :
+    (StripeRelated a b c → ∀ k : Nat,
+      StripeRelated (phiRows a (2 * k)) (phiRows b (2 * k)) (c + 2 * k)) ∧
+    (((∀ t, (phiRows a t).testBit (c + t) = (phiRows b t).testBit (c + t)) ∧
+      (∃ t, StripeRelated (phiRows a t) (phiRows b t) (c + t))) ↔
+      (StripeRelated a b c ∨ (a.testBit c = b.testBit c ∧ StripeRelated (Phi a) (Phi b) (c + 1)))) := by
+  have heven : ∀ (x y z k : Nat), StripeRelated x y z →
+      StripeRelated (phiRows x (2 * k)) (phiRows y (2 * k)) (z + 2 * k) := by
+    intro x y z k
+    induction k generalizing x y z with
+    | zero => intro h; exact h
+    | succ k ih =>
+      intro h
+      have h2 := ih (Phi (Phi x)) (Phi (Phi y)) (z + 2) (stripe_related_preserves_two x y z h)
+      rw [phiRows_two_start, phiRows_two_start] at h2
+      simpa only [show 2 * k + 2 = 2 * (k + 1) by omega,
+                  show z + 2 + 2 * k = z + 2 * (k + 1) by omega] using h2
+  refine ⟨fun h k => heven a b c k h, ⟨fun ⟨ht, hex⟩ => ?_, fun h => ?_⟩⟩
+  · rcases (eventually_stripe_iff_early a b c ht).mp hex with h0 | h1
+    · exact Or.inl h0
+    · exact Or.inr ⟨ht 0, h1⟩
+  · rcases h with h0 | ⟨hc0, h1⟩
+    · exact ⟨stripe_related_same_trace a b c h0, ⟨0, h0⟩⟩
+    · refine ⟨fun t => ?_, ⟨1, h1⟩⟩
+      cases t with
+      | zero => exact hc0
+      | succ t =>
+        have htr := stripe_related_same_trace (Phi a) (Phi b) (c + 1) h1 t
+        have ha1 : phiRows (Phi a) t = phiRows a (t + 1) := by
+          simpa only [Nat.add_comm 1 t, phiRows] using (phiRows_add a 1 t).symm
+        have hb1 : phiRows (Phi b) t = phiRows b (t + 1) := by
+          simpa only [Nat.add_comm 1 t, phiRows] using (phiRows_add b 1 t).symm
+        rw [ha1, hb1, show c + 1 + t = c + (t + 1) by omega] at htr
+        exact htr
+
 end Ruliology.CellularAutomata.Rule30StripeMeeting

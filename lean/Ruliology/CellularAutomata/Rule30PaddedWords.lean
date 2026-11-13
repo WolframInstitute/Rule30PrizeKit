@@ -238,4 +238,27 @@ theorem no_padded_word (u : List Bool) (r : Nat) (hr : paddedBound u ≤ r) :
             simp [List.getD_eq_getElem?_getD, List.getElem?_eq_getElem hj, he]
           exact False.elim (hb ⟨j, hj, hget⟩)
 
+/-! ## Two-sided split and post-padded exclusions for `paddedBound u` -/
+
+/-- **Two-Sided Split and Post-Padded Word Exclusions for `paddedBound u` (`seven_le_paddedBound_and_no_split_padded_word`).** -/
+theorem seven_le_paddedBound_and_no_split_padded_word (u : List Bool) (a b : Nat)
+    (hpos : 1 ≤ a + b + u.length) (hab : paddedBound u ≤ a + b) :
+    ¬ EventuallyWord ((List.replicate a false ++ u) ++ List.replicate b false) ∧
+    ¬ EventuallyWord (u ++ List.replicate (a + b) false) := by
+  have hrep : ∀ m n : Nat, List.replicate m false ++ List.replicate n false = List.replicate (m + n) false := by
+    intro m n
+    induction m with
+    | zero => simp
+    | succ m ih => simp [List.replicate_succ, Nat.succ_add, ih]
+  refine ⟨fun hword => ?_, fun hword => ?_⟩
+  · have hlen : 0 < ((List.replicate a false ++ u) ++ List.replicate b false).length := by
+      simp only [List.length_append, List.length_replicate]; omega
+    have hrot := eventuallyWord_swap hlen hword
+    rw [← List.append_assoc, hrep b a] at hrot
+    exact no_padded_word u (b + a) (by omega) hrot
+  · have hlen : 0 < (u ++ List.replicate (a + b) false).length := by
+      simp only [List.length_append, List.length_replicate]; omega
+    have hrot := eventuallyWord_swap hlen hword
+    exact no_padded_word u (a + b) hab hrot
+
 end Ruliology.CellularAutomata.Rule30PaddedWords
