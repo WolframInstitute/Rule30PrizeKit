@@ -178,4 +178,29 @@ theorem eventual_finite_edge_iff : EventualFiniteEdgeObservable ↔ EdgeObservab
         exact he ((tx+ty)+t))
     omega
 
+/-! ## All-column agreement from step `1` onward and exact support at step `2` -/
+
+/-- **All-Column Agreement from Step `1` Onward and Exact Support at Step `2` (`same_all_columns_from_one_and_step_two_support`).** -/
+theorem same_all_columns_from_one_and_step_two_support (t : Nat) (p : Int) :
+    evol leftExample (t + 1) p = evol rightExample (t + 1) p ∧
+    (evol leftExample 2 p = true ↔ p = -5 ∨ p = -4 ∨ p = -1) ∧
+    (evol rightExample 2 p = true ↔ p = -5 ∨ p = -4 ∨ p = -1) := by
+  have hall : ∀ s : Nat, evol leftExample (s + 1) p = evol rightExample (s + 1) p := by
+    intro s
+    rw [show s + 1 = 1 + s by omega,
+        ← Rule30ZeroBoundaryBarriers.evol_restart leftExample 1 s p,
+        ← Rule30ZeroBoundaryBarriers.evol_restart rightExample 1 s p,
+        same_images]
+  have hl2 : evol leftExample 2 p = finiteImage p := by
+    rw [show (2 : Nat) = 1 + 1 from rfl,
+        ← Rule30ZeroBoundaryBarriers.evol_restart leftExample 1 1 p]
+    have hl1 : evol leftExample 1 = commonImage := funext fun q => (one_step_images q).1
+    rw [hl1]
+    exact common_second_image p
+  have hr2 : evol rightExample 2 p = finiteImage p := by
+    rw [← hall 1, hl2]
+  refine ⟨hall t, ?_, ?_⟩
+  · rw [hl2]; unfold finiteImage; exact decide_eq_true_iff
+  · rw [hr2]; unfold finiteImage; exact decide_eq_true_iff
+
 end Ruliology.CellularAutomata.Rule30TraceMerge

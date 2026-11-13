@@ -64,4 +64,21 @@ theorem packed_sound (B H : Nat) (b : Nat → Bool)
       rw [show 1+t=t+1 by omega, h1.2, h0.2, h0.1]
       exact (recon_two b k t).symm
 
+/-! ## Semigroup composition law for `advance` and bit-`0` initial row extraction -/
+
+/-- **Semigroup Composition Law for `advance` and Bit-`0` Initial Row Extraction (`advance_add_and_packedRun_initial_row`).** -/
+theorem advance_add_and_packedRun_initial_row (m n a b B H : Nat) (f : Nat → Bool)
+    (hf : ∀ t, t < H → B.testBit t = f t) :
+    advance (m + n) a b = advance n (advance m a b).1 (advance m a b).2 ∧
+    ∀ k, k < H →
+      (packedRun B k).1.testBit 0 = recon f k 0 ∧
+      (packedRun B k).2.testBit 0 = recon f (k + 1) 0 := by
+  refine ⟨?_, fun k hk => ?_⟩
+  · induction m generalizing a b with
+    | zero => rw [Nat.zero_add]; rfl
+    | succ m ih =>
+      rw [Nat.succ_add, advance_succ, advance_succ]
+      exact ih _ _
+  · exact packed_sound B H f hf k 0 (by omega)
+
 end Ruliology.CellularAutomata.Rule30PackedReconstruction
