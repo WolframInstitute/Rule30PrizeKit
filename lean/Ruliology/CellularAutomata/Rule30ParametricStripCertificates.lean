@@ -5,6 +5,7 @@ public import Ruliology.CellularAutomata.Rule30StripCertificateTable
 public import Ruliology.CellularAutomata.Rule30FiniteMaskedJen
 public import Ruliology.CellularAutomata.Rule30FiniteConfigs
 public import Ruliology.CellularAutomata.Rule30PeriodTwoSideways
+public import Ruliology.CellularAutomata.Rule30WordRotation
 
 /-!
 # Parametric Strip Certificates and Semigroup Saturation in Rule 30
@@ -706,5 +707,44 @@ theorem not_eventually_black_run_00010 (r : Nat) (hr : 8 ≤ r) :
     ¬ EventuallyWord (List.replicate r true ++ [false, false, false, true, false]) :=
   not_eventually_param_word true 8 [false, false, false, true, false] 5 1 (by decide) (by decide)
     (by decide +kernel) r hr
+
+/-! ## Two-sided split `a^r1 ++ u ++ a^r2` and post-padded `u ++ a^r` parametric certificate exclusions -/
+
+/-- **Two-Sided Split `a^r1 ++ u ++ a^r2` and Post-Padded `u ++ a^r` Parametric Exclusions (`not_eventually_param_word_split_and_post`).** -/
+theorem not_eventually_param_word_split_and_post
+    (a : Bool) (r0 r1 r2 : Nat) (u : List Bool) (K k : Nat)
+    (hK : 1 ≤ K) (hr0 : 1 ≤ r0) (hcert : paramStripCert a r0 u K k = true)
+    (hr : r0 ≤ r1 + r2) :
+    ¬ EventuallyWord ((List.replicate r1 a ++ u) ++ List.replicate r2 a) ∧
+    ¬ EventuallyWord (u ++ List.replicate (r1 + r2) a) ∧
+    (∀ {x : Int → Bool}, FinConfig x → (∃ p, x p = true) → ∀ j : Int,
+      ¬ EventuallyWordAt x j ((List.replicate r1 a ++ u) ++ List.replicate r2 a)) := by
+  have hrep : ∀ m n : Nat, List.replicate m a ++ List.replicate n a = List.replicate (m + n) a := by
+    intro m n
+    induction m with
+    | zero => simp
+    | succ m ih => simp [List.replicate_succ, Nat.succ_add, ih]
+  have hfin_split : ∀ {x : Int → Bool} {lo : Int},
+      x lo = true → (∀ p, p < lo → x p = false) → ∀ (j : Int) (m1 m2 : Nat),
+      r0 ≤ m1 + m2 →
+      ¬ EventuallyWordAt x j ((List.replicate m1 a ++ u) ++ List.replicate m2 a) := by
+    intro x lo hlo hzero j m1 m2 hm hword
+    have hword' : Rule30FiniteStrips.EventuallyWord x j
+        ((List.replicate m1 a ++ u) ++ List.replicate m2 a) := hword
+    have hrot : EventuallyWordAt x j
+        (List.replicate m2 a ++ (List.replicate m1 a ++ u)) :=
+      Rule30WordRotation.eventuallyWord_swap (by simp; omega) hword'
+    rw [← List.append_assoc, hrep m2 m1] at hrot
+    exact not_eventually_param_word_leftmost hlo hzero j a r0 u K k hK hr0 hcert (m2 + m1) (by omega) hrot
+  have hlo0 : seed0 0 = true := rfl
+  have hzero0 : ∀ p, p < 0 → seed0 p = false := fun p hp => by
+    unfold seed0; simp [show p ≠ 0 by omega]
+  refine ⟨fun hw => ?_, fun hw => ?_, fun hfin hne j hw => ?_⟩
+  · exact hfin_split hlo0 hzero0 0 r1 r2 hr ((eventuallyWordAt_seed0_iff _).2 hw)
+  · have hw0 : EventuallyWord ((List.replicate 0 a ++ u) ++ List.replicate (r1 + r2) a) := by
+      simpa using hw
+    exact hfin_split hlo0 hzero0 0 0 (r1 + r2) (by omega) ((eventuallyWordAt_seed0_iff _).2 hw0)
+  · obtain ⟨lo, hlo, hzero⟩ := exists_leftmost hfin hne
+    exact hfin_split hlo hzero j r1 r2 hr hw
 
 end Ruliology.CellularAutomata.Rule30ParametricStripCertificates
