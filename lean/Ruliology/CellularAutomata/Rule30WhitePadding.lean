@@ -125,4 +125,38 @@ theorem no_padding_word (u : List Bool) (K N S1 S2 : Nat)
   exact not_eventually_word_strip _ K 2 hK (by simp; omega)
     (padding_strip u K N S1 S2 hS1 hS2 h0 h1 h2 hret hpref htail r hr)
 
+/-! ## Fixed-point characterization of `zeros_stable`, vacuity of `Forces K 0`, and bit-0 agreement -/
+
+/-- **Fixed-Point Equivalence and Additive Shift Invariance for `zeros` (`zeros_zero_and_stable_fixed_point`).** -/
+theorem zeros_zero_and_stable_fixed_point (K N S : Nat) :
+    zeros K 0 S = S ∧
+    (zeros K (N + 1) S = zeros K N S ↔ image K false (zeros K N S) = zeros K N S) ∧
+    (zeros K (N + 1) S = zeros K N S → ∀ m : Nat, zeros K (N + m) S = zeros K N S) := by
+  refine ⟨rfl, ?_, fun h m => zeros_stable K N S h (N + m) (by omega)⟩
+  rw [zeros_succ]
+
+/-- **Empty-Set Vacuity of `Forces` and Bit-0 Agreement Across Forced States (`forces_zero_and_bit_agreement`).** -/
+theorem forces_zero_and_bit_agreement (K S s1 s2 : Nat) :
+    Forces K 0 = true ∧
+    (Forces K S = true → s1 < 2 ^ K → s2 < 2 ^ K →
+      S.testBit s1 = true → S.testBit s2 = true → s1.testBit 0 = s2.testBit 0) := by
+  have hcol0 : ∀ n, allBelow (fun s => !(0 : Nat).testBit s || (s.testBit 0 == false)) n = true := by
+    intro n; induction n with
+    | zero => rfl
+    | succ n ih => unfold allBelow; rw [ih]; simp
+  refine ⟨by unfold Forces colConst; rw [hcol0 (2 ^ K), Bool.true_or], ?_⟩
+  intro hf hs1 hs2 h1 h2
+  unfold Forces at hf
+  rcases Bool.or_eq_true_iff.mp hf with hc0 | hc1
+  · have a1 := allBelow_spec hc0 s1 hs1
+    have a2 := allBelow_spec hc0 s2 hs2
+    rw [h1, Bool.not_true, Bool.false_or, beq_iff_eq] at a1
+    rw [h2, Bool.not_true, Bool.false_or, beq_iff_eq] at a2
+    exact a1.trans a2.symm
+  · have a1 := allBelow_spec hc1 s1 hs1
+    have a2 := allBelow_spec hc1 s2 hs2
+    rw [h1, Bool.not_true, Bool.false_or, beq_iff_eq] at a1
+    rw [h2, Bool.not_true, Bool.false_or, beq_iff_eq] at a2
+    exact a1.trans a2.symm
+
 end Ruliology.CellularAutomata.Rule30WhitePadding
