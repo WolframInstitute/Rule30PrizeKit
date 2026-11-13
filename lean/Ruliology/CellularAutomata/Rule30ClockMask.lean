@@ -157,4 +157,32 @@ theorem orbit_onset_not_constant_OR (x : State) (k n : Nat)
   · intro t
     simpa only [Nat.add_assoc] using iterate_column_step x (k+2) t
 
+/-! ## Triangular-orbit specializations of `OR_not_half_period` and `predecessor_not_half_period` -/
+
+/-- **Triangular-Orbit Specializations of `OR_not_half_period` and `predecessor_not_half_period` (`orbit_onset_OR_and_predecessor_not_half_period`).** -/
+theorem orbit_onset_OR_and_predecessor_not_half_period (x : State) (k n : Nat)
+    (ha : ∀ t, iterate x (t + 2 * (2 * n)) (k + 1) = iterate x t (k + 1))
+    (hb : ∀ t, iterate x (t + 2 * n) (k + 2) = !iterate x t (k + 2))
+    (hc : ∀ t, iterate x (t + 2 * n) (k + 3) = iterate x t (k + 3))
+    (hd : ∀ t, iterate x (t + 2 * n) (k + 4) = iterate x t (k + 4)) :
+    (¬ ∀ t, (iterate x (t + 2 * n) (k + 1) || iterate x (t + 2 * n) (k + 2)) =
+            (iterate x t (k + 1) || iterate x t (k + 2))) ∧
+    (¬ ∀ t, iterate x (t + 2 * n) k = iterate x t k) := by
+  have hstep1 : ∀ t, iterate x (t + 1) (k + 1) =
+      xor (iterate x t (k + 1)) (iterate x t (k + 2) || iterate x t (k + 3)) :=
+    fun t => by simpa only [Nat.add_assoc] using iterate_column_step x (k + 1) t
+  have hstep2 : ∀ t, iterate x (t + 1) (k + 2) =
+      xor (iterate x t (k + 2)) (iterate x t (k + 3) || iterate x t (k + 4)) :=
+    fun t => by simpa only [Nat.add_assoc] using iterate_column_step x (k + 2) t
+  have hstep3 : ∀ t, iterate x (t + 1) (k + 3) =
+      xor (iterate x t (k + 3)) (iterate x t (k + 4) || iterate x t (k + 5)) :=
+    fun t => by simpa only [Nat.add_assoc] using iterate_column_step x (k + 3) t
+  exact ⟨OR_not_half_period (fun t => iterate x t (k + 1)) (fun t => iterate x t (k + 2))
+           (fun t => iterate x t (k + 3)) (fun t => iterate x t (k + 4))
+           (fun t => iterate x t (k + 5)) n hstep1 hstep2 hstep3 ha hb hc hd,
+         predecessor_not_half_period (fun t => iterate x t k) (fun t => iterate x t (k + 1))
+           (fun t => iterate x t (k + 2)) (fun t => iterate x t (k + 3))
+           (fun t => iterate x t (k + 4)) (fun t => iterate x t (k + 5)) n
+           (iterate_column_step x k) hstep1 hstep2 hstep3 ha hb hc hd⟩
+
 end Ruliology.CellularAutomata.Rule30ClockMask

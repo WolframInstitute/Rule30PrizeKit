@@ -278,4 +278,23 @@ theorem finite_state_eventual_clock_detected (P H : Nat) (hP : 0<P) (pool : List
   exact eventual_period_is_period P H T hP (fun t => iterate x t 0)
     (fun t => congrFun (iterate_period_of_return x P hfull t) 0) hhead
 
+/-! ## Multi-period shift invariance of `pat` and XOR-linearity of `accum` -/
+
+/-- **Multi-Period Shift Invariance of `pat P a` and XOR-Linearity of `accum` (`pat_periodic_mul_and_accum_xor`).** -/
+theorem pat_periodic_mul_and_accum_xor (P a t m : Nat) (u v : Nat → Bool) :
+    pat P a (t + m * P) = pat P a t ∧
+    accum (fun _ => false) t = false ∧
+    accum (fun s => xor (u s) (v s)) t = xor (accum u t) (accum v t) := by
+  refine ⟨?_, ?_, ?_⟩
+  · unfold pat
+    rw [Nat.add_mul_mod_self_right]
+  · induction t with
+    | zero => rfl
+    | succ t ih => simp [accum, ih]
+  · induction t with
+    | zero => rfl
+    | succ t ih =>
+      simp only [accum, ih]
+      cases accum u t <;> cases accum v t <;> cases u t <;> cases v t <;> rfl
+
 end Ruliology.CellularAutomata.Rule30FiniteClockCertificate
