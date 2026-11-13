@@ -305,4 +305,21 @@ theorem no_black_white_of_envelope (K r G d S k : Nat) (hK : 1≤K) (hr : 1≤r)
     have hh := white_profile (by omega : 0<K) profile (i-r) s hs hm
     simpa [hir] using hh
 
+/-! ## Antisymmetry of `Sub` and exact equivalence `Const K S b ↔ colConst K S b = true` -/
+
+/-- **Antisymmetry of `Sub` and Exact Equivalence `Const K S b ↔ colConst K S b = true` (`sub_antisymm_and_const_iff_colConst`).** -/
+theorem sub_antisymm_and_const_iff_colConst (K A B S : Nat) (b : Bool) :
+    (Sub A B → Sub B A → A = B) ∧
+    (Const K S b ↔ colConst K S b = true) := by
+  refine ⟨fun hab hba => Nat.eq_of_testBit_eq fun i => ?_,
+          ⟨colConst_of_forall, fun h s hs hm => ?_⟩⟩
+  · cases ha : A.testBit i <;> cases hb : B.testBit i
+    · rfl
+    · have := hba i hb; rw [ha] at this; cases this
+    · have := hab i ha; rw [hb] at this; cases this
+    · rfl
+  · have hall := allBelow_spec h s hs
+    rw [hm, Bool.not_true, Bool.false_or, beq_iff_eq] at hall
+    exact hall
+
 end Ruliology.CellularAutomata.Rule30RunEnvelopes

@@ -289,4 +289,42 @@ theorem sharpness_two_rows : FinSupp (pairAt 1) ∧ pairAt 1 1=true ∧
     rw [eq]
     exact pair_avoid 2
 
+/-! ## Exact equivalence for three-row reset-free `FinSupp` starts and forced reset at `t = 2` for `pairAt 1` -/
+
+/-- **Exact Equivalence for Three-Row Reset-Free `FinSupp` Starts and Forced Reset at `t = 2` for `pairAt 1` (`finSupp_three_avoid_iff_zero_and_pairAt_reset_two`).** -/
+theorem finSupp_three_avoid_iff_zero_and_pairAt_reset_two
+    (L : Nat → Bool) (finite : FinSupp L) :
+    ((∀ t : Fin 3, AvoidReset (zrow L t.val)) ↔ (∀ p, 1 ≤ p → L p = false)) ∧
+    ¬ AvoidReset (zrow (pairAt 1) 2) := by
+  have hzero_zrow : (∀ p, 1 ≤ p → L p = false) → ∀ t p, zrow L t p = false := by
+    intro hL t
+    induction t with
+    | zero =>
+      intro p
+      cases p with
+      | zero => rfl
+      | succ k => exact hL (k + 1) (by omega)
+    | succ t ih =>
+      intro p
+      cases p with
+      | zero => rfl
+      | succ k => simp [zrow, ih]
+  refine ⟨⟨finite_three_avoid_zero L finite, fun hL t i n hi hn hones => ?_⟩, fun h2 => ?_⟩
+  · cases n with
+    | zero => decide
+    | succ n =>
+      have h0 := hones 0 (by omega)
+      rw [hzero_zrow hL t.val (i + 0 + 1)] at h0
+      cases h0
+  · obtain ⟨hfin, h1, ha0, ha1⟩ := sharpness_two_rows
+    have hall : ∀ t : Fin 3, AvoidReset (zrow (pairAt 1) t.val) := by
+      intro ⟨t, ht⟩
+      rcases (show t = 0 ∨ t = 1 ∨ t = 2 by omega) with rfl | rfl | rfl
+      · exact ha0
+      · exact ha1
+      · exact h2
+    have hfalse := finite_three_avoid_zero (pairAt 1) hfin hall 1 (by decide)
+    rw [h1] at hfalse
+    cases hfalse
+
 end Ruliology.CellularAutomata.Rule30ResetFreeThree
