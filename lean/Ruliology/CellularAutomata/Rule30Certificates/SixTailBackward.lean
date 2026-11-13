@@ -1344,4 +1344,16 @@ theorem no_padding {x : Int → Bool} {lo : Int}
     ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ tail) := by
   exact no_padding_of_backward_certificate hlo hzero i tail K N Q (by rfl) (by rfl) pre
     r (by simp [N]; omega) (by simp [tail]; omega) (by simp [K, tail]; omega)
+/-! ## Predecessor-chain boundary states and `71 + d` white-padding exclusion for `111111` -/
+
+/-- **Predecessor-Chain Boundary States and `71 + d` White-Padding Exclusion for `111111` (`c111111_endpoints_and_no_padding_at_71_plus`).** -/
+theorem c111111_endpoints_and_no_padding_at_71_plus
+    {x : Int → Bool} {lo : Int}
+    (hlo : x lo = true) (hzero : ∀ p, p < lo → x p = false)
+    (i : Int) (d : Nat) :
+    Q 0 = 0 ∧
+    Q 8 = 1 ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate (71 + d) false ++ tail) :=
+  ⟨rfl, rfl, no_padding hlo hzero i (71 + d) (by omega)⟩
+
 end Ruliology.CellularAutomata.Rule30Certificates.SixTailBackward.C111111

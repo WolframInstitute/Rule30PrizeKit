@@ -1235,4 +1235,22 @@ theorem no_padding11101 {x : Int → Bool} {lo : Int}
     ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate r false ++ [true,true,true,false,true]) := by
   exact W9.no_padding11101 hlo hzero i r (by omega)
 
+/-! ## Unified `65 + d` white-padding exclusion across all five vacuum-avoidance 5-bit tails -/
+
+/-- **Unified `65 + d` White-Padding Exclusion Across All Five Vacuum-Avoidance 5-Bit Tails (`no_padding_five_vacuum_cores_at_65_plus`).** -/
+theorem no_padding_five_vacuum_cores_at_65_plus
+    {x : Int → Bool} {lo : Int}
+    (hlo : x lo = true) (hzero : ∀ p, p < lo → x p = false)
+    (i : Int) (d : Nat) :
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate (65 + d) false ++ [true,false,false,false,true]) ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate (65 + d) false ++ [true,false,true,true,true]) ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate (65 + d) false ++ [true,true,false,false,true]) ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate (65 + d) false ++ [true,true,true,true,true]) ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate (65 + d) false ++ [true,true,true,false,true]) :=
+  ⟨no_padding10001 hlo hzero i (65 + d) (by omega),
+   no_padding10111 hlo hzero i (65 + d) (by omega),
+   no_padding11001 hlo hzero i (65 + d) (by omega),
+   no_padding11111 hlo hzero i (65 + d) (by omega),
+   no_padding11101 hlo hzero i (65 + d) (by omega)⟩
+
 end Ruliology.CellularAutomata.Rule30Certificates.FiveTailTube.Vacuum

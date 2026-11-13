@@ -1133,4 +1133,12 @@ theorem no_padding (r : Nat) (hr : 49 ≤ r) :
   · decide
   · exact hr
 
+/-! ## Combined strip-certificate validity and `49 + d` white-padding exclusion for `Heavy111` -/
+
+/-- **Combined Strip-Certificate Validity and `49 + d` White-Padding Exclusion for `Heavy111` (`heavy111_strip_cert_and_no_padding_at_49_plus`).** -/
+theorem heavy111_strip_cert_and_no_padding_at_49_plus (d : Nat) :
+    stripCert (List.replicate (49 + d) false ++ tail) 14 2 = true ∧
+    ¬ EventuallyWord (List.replicate (49 + d) false ++ tail) :=
+  ⟨strip_certificate (49 + d) (by omega), no_padding (49 + d) (by omega)⟩
+
 end Ruliology.CellularAutomata.Rule30Certificates.WhitePaddingFamilies.Heavy111
