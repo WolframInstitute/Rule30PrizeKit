@@ -75,4 +75,38 @@ theorem colConst_inter_of_sparse {K Z Q : Nat} {b : Bool} {L : List Nat}
     have h := List.all_eq_true.mp hcheck s hmem
     simpa [hS] using h
 
+/-! ## Append homomorphism laws and exact `↔` equivalences between sparse and bitmask checks -/
+
+/-- **Append Homomorphism Laws for `stateMask`, `sparsePreCheck`, and `sparseColConst` (`stateMask_and_sparse_append`).** -/
+theorem stateMask_and_sparse_append (K : Nat) (a b : Bool) (Q R : Nat) (L1 L2 : List Nat) :
+    stateMask (L1 ++ L2) = (stateMask L1 ||| stateMask L2) ∧
+    sparsePreCheck K a Q R (L1 ++ L2) = (sparsePreCheck K a Q R L1 && sparsePreCheck K a Q R L2) ∧
+    sparseColConst Q b (L1 ++ L2) = (sparseColConst Q b L1 && sparseColConst Q b L2) := by
+  refine ⟨?_, List.all_append, List.all_append⟩
+  induction L1 with
+  | nil => simp [stateMask]
+  | cons s L1 ih =>
+    simp only [List.cons_append, stateMask, ih]
+    exact (Nat.or_assoc _ _ _).symm
+
+/-- **Exact Bidirectional Equivalence Between Sparse and Bitmask Checks (`restrictedPreCheck_and_colConst_iff_sparse`).** -/
+theorem restrictedPreCheck_and_colConst_iff_sparse {K Q R : Nat} {a b : Bool} {L : List Nat}
+    (hL : ∀ s ∈ L, s < 2 ^ K) :
+    (Rule30SparsePreimage.restrictedPreCheck K a (stateMask L) Q R = true ↔
+      sparsePreCheck K a Q R L = true) ∧
+    (colConst K (stateMask L &&& Q) b = true ↔
+      sparseColConst Q b L = true) := by
+  refine ⟨⟨fun h => ?_, restricted_of_sparse rfl⟩, ⟨fun h => ?_, colConst_inter_of_sparse rfl⟩⟩
+  · apply List.all_eq_true.mpr
+    intro s hs
+    have hbit : (stateMask L).testBit s = true := (mem_stateMask L s).mpr hs
+    have hall := allBelow_spec h s (hL s hs)
+    simpa [hbit] using hall
+  · apply List.all_eq_true.mpr
+    intro s hs
+    have hbit : (stateMask L).testBit s = true := (mem_stateMask L s).mpr hs
+    have hall := allBelow_spec h s (hL s hs)
+    rw [Nat.testBit_and, hbit, Bool.true_and] at hall
+    exact hall
+
 end Ruliology.CellularAutomata.Rule30SparsePreimage
