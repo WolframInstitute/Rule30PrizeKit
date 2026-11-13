@@ -647,4 +647,56 @@ theorem universal_start_finite (x : Int → Bool) (h0 : x 0 = true) (hr : ∀ i 
       rw [hl _ (by omega), hl _ (by omega)]⟩
   exact ⟨m, hm, universal_start x h0 hr m hm heq hfirst⟩
 
+/-! ## Uniqueness of `LeastPer`, forward-shift invariance of `Per`, contextual distinction beyond every horizon, and period-`≥ 2` reduction of `Problem1` -/
+
+/-- **Uniqueness of `LeastPer` and Forward-Shift Invariance of `Per` (`leastPer_unique_and_per_shift`).** -/
+theorem leastPer_unique_and_per_shift
+    (f : Nat → Bool) (P Q d : Nat) :
+    (LeastPer f P → LeastPer f Q → 0 < P → 0 < Q → P = Q) ∧
+    (Per f P → Per (fun t => f (t + d)) P) := by
+  refine ⟨fun hP hQ hP0 hQ0 => ?_, fun h t => ?_⟩
+  · rcases Nat.lt_trichotomy P Q with hlt | rfl | hgt
+    · exact False.elim (hQ.2 P hP0 hlt hP.1)
+    · rfl
+    · exact False.elim (hP.2 Q hQ0 hgt hQ.1)
+  · dsimp only
+    rw [show t + P + d = (t + d) + P by omega, h (t + d)]
+
+/-! ### Contextual distinction beyond every horizon and exact period-`≥ 2` reduction of `Problem1` -/
+
+open Rule30Jen Rule30Prize in
+/-- **Contextual Distinction Beyond Every Horizon and Exact Period-`≥ 2` Reduction of `Problem1` (`contextual_distinction_and_problem1_iff_ge_two`).** -/
+theorem contextual_distinction_and_problem1_iff_ge_two (i : Int) (T : Nat) :
+    (∃ t1 t2 : Nat, T ≤ t1 ∧ T ≤ t2 ∧ cell t1 i = true ∧ cell t2 i = false ∧ cell t1 i ≠ cell t2 i) ∧
+    (Problem1 ↔ ∀ N P : Nat, 2 ≤ P → ¬ (∀ t, N ≤ t → center (t + P) = center t)) := by
+  refine ⟨?_, ⟨fun hP1 N P hP hper => hP1 ⟨N, P, by omega, hper⟩, fun hge ⟨N, P, hP0, hper⟩ => ?_⟩⟩
+  · have hnot_false : ¬ ∀ t, T ≤ t → cell t i = false :=
+      fun hall => no_column_eventually_constant i ⟨T, false, hall⟩
+    have hnot_true : ¬ ∀ t, T ≤ t → cell t i = true :=
+      fun hall => no_column_eventually_constant i ⟨T, true, hall⟩
+    have hex1 : ∃ t1, T ≤ t1 ∧ cell t1 i = true := by
+      apply Classical.byContradiction
+      intro hno
+      apply hnot_false
+      intro t ht
+      cases hc : cell t i
+      · rfl
+      · exact False.elim (hno ⟨t, ht, hc⟩)
+    have hex2 : ∃ t2, T ≤ t2 ∧ cell t2 i = false := by
+      apply Classical.byContradiction
+      intro hno
+      apply hnot_true
+      intro t ht
+      cases hc : cell t i
+      · exact False.elim (hno ⟨t, ht, hc⟩)
+      · rfl
+    obtain ⟨t1, ht1, hc1⟩ := hex1
+    obtain ⟨t2, ht2, hc2⟩ := hex2
+    refine ⟨t1, t2, ht1, ht2, hc1, hc2, ?_⟩
+    rw [hc1, hc2]
+    decide
+  · rcases (show P = 1 ∨ 2 ≤ P by omega) with rfl | hP2
+    · exact center_not_eventually_period_one ⟨N, hper⟩
+    · exact hge N P hP2 hper
+
 end Ruliology.CellularAutomata.Rule30UniversalStart

@@ -564,4 +564,19 @@ theorem rooted_chain_returns {q : Nat} (hq : 0 < q) (w : Nat → Nat → Bool)
   obtain ⟨k, hk, _, hw⟩ := rooted_chain_returns_bounded hq w hper h0 hchild
   exact ⟨k, hk, hw⟩
 
+/-! ## Involution law for `source` and exact unique characterization of `childOf` -/
+
+/-- **Involution Law for `source` and Exact Unique Characterization of `childOf` (`source_involutive_and_child_eq_childOf_iff`).** -/
+theorem source_involutive_and_child_eq_childOf_iff
+    (a pulse current : Bool) {q t0 : Nat} (hq : 0 < q)
+    {A B C : Nat → Bool} (hA : Periodic q A) (hB : Periodic q B) (hb : B t0 = true) :
+    source (source a pulse current) pulse current = a ∧
+    ((Periodic q C ∧ Child (· + 1) A B C) ↔ C = childOf A B q t0) := by
+  refine ⟨by cases a <;> cases pulse <;> cases current <;> rfl,
+          ⟨fun ⟨hC, hch⟩ => ?_, fun hEq => ?_⟩⟩
+  · obtain ⟨hper0, hch0⟩ := child_exists hq hA hB hb
+    exact child_unique hq hC hper0 hch hch0 hb
+  · subst hEq
+    exact child_exists hq hA hB hb
+
 end Ruliology.CellularAutomata.Rule30TemporalProfiles
