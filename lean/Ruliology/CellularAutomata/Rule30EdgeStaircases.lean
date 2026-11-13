@@ -296,4 +296,32 @@ theorem rain_row_eternal (n : Nat) (hn : 1 ≤ n) (t : Nat) :
   have := agree_rain_eternal (rainRow n) 0 he hr (2 * n) (rainRow_code n) t
   simpa using this
 
+/-! ## Closed form of `iter t rainB`, bitwise complementarity for `k ≥ 1`, and period-2 invariance -/
+
+/-- **Closed Form of `iter t rainB`, Complementarity `rainB (k + 1) = !rainA (k + 1)`, and Period-2 Orbit Laws (`iter_rainB_and_complement_succ`).** -/
+theorem iter_rainB_and_complement_succ (t k : Nat) :
+    rainB (k + 1) = !rainA (k + 1) ∧
+    iter t rainB = (if t % 2 = 0 then rainB else rainA) ∧
+    iter (t + 2) rainA = iter t rainA ∧
+    iter (t + 2) rainB = iter t rainB := by
+  have hcomp : rainB (k + 1) = !rainA (k + 1) := by
+    simp only [rainA, rainB]
+    rcases Nat.mod_two_eq_zero_or_one (k + 1) with h0 | h1
+    · simp [h0]
+    · simp [h1]
+  have hiterB : ∀ s : Nat, iter s rainB = (if s % 2 = 0 then rainB else rainA) := by
+    intro s
+    induction s with
+    | zero => rfl
+    | succ s ih =>
+      show T (iter s rainB) = _
+      rw [ih]
+      by_cases hs : s % 2 = 0
+      · simp [hs, T_rainB, show (s + 1) % 2 ≠ 0 by omega]
+      · simp [hs, T_rainA, show (s + 1) % 2 = 0 by omega]
+  have hmod2 : (t + 2) % 2 = t % 2 := Nat.add_mod_right t 2
+  refine ⟨hcomp, hiterB t, ?_, ?_⟩
+  · rw [iter_rainA (t + 2), iter_rainA t, hmod2]
+  · rw [hiterB (t + 2), hiterB t, hmod2]
+
 end Ruliology.CellularAutomata.Rule30EdgeStaircases
