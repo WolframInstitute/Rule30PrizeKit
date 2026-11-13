@@ -46,4 +46,24 @@ theorem joint_capture {K G A U B : Nat}
   rw [apply_append]
   exact sub_trans (word_mono K hb _) whites
 
+/-! ## Exact bitwise characterizations `Sub A B ↔ A &&& B = A` and `Sub A B ↔ A ||| B = B` -/
+
+/-- **Exact Bitwise Characterizations of `Sub A B` (`sub_iff_and_eq_left_and_or_eq_right`).** -/
+theorem sub_iff_and_eq_left_and_or_eq_right (A B : Nat) :
+    (Sub A B ↔ A &&& B = A) ∧
+    (Sub A B ↔ A ||| B = B) := by
+  refine ⟨⟨fun h => Nat.eq_of_testBit_eq fun i => ?_, sub_of_and⟩,
+          ⟨fun h => Nat.eq_of_testBit_eq fun i => ?_, fun h s hs => ?_⟩⟩
+  · rw [Nat.testBit_and]
+    cases ha : A.testBit i
+    · simp
+    · simp [h i ha]
+  · rw [Nat.testBit_or]
+    cases ha : A.testBit i
+    · simp
+    · simp [h i ha]
+  · have hbit := congrArg (fun n : Nat => n.testBit s) h
+    rw [Nat.testBit_or, hs, Bool.true_or] at hbit
+    exact hbit.symm
+
 end Ruliology.CellularAutomata.Rule30LongWhiteSupport

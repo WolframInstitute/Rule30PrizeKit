@@ -127,4 +127,29 @@ theorem exists_coloring (f : Nat → Bool) (avoid : AvoidReset f) :
     · rw [allone];intro h;cases h
     · simp [allone,Nat.add_mod]
 
+/-! ## Shift invariance of `AvoidReset`, constant-row satisfaction, and uniqueness of `ColoredFrom` after any zero -/
+
+/-- **Shift Invariance of `AvoidReset`, Constant-Row Satisfaction, and Uniqueness of `ColoredFrom` After Any Zero (`avoidReset_shift_and_coloredFrom_unique_after_zero`).** -/
+theorem avoidReset_shift_and_coloredFrom_unique_after_zero
+    (f : Nat → Bool) (d K z m : Nat) (b : Bool) (r1 r2 : Nat → Nat) :
+    (AvoidReset f → AvoidReset (fun i => f (d + i))) ∧
+    AvoidReset (fun _ => b) ∧
+    (ColoredFrom f K r1 → ColoredFrom f K r2 → K ≤ z → f z = false →
+      r1 (z + m) = r2 (z + m)) := by
+  refine ⟨fun hav i n hi hn hones => ?_, fun i n hi hn hones => ?_, fun hc1 hc2 hKz hfz => ?_⟩
+  · exact hav (d + i) n hi (by simpa only [Nat.add_assoc] using hn)
+      (fun j hj => by simpa only [Nat.add_assoc] using hones j hj)
+  · cases b
+    · cases n with
+      | zero => decide
+      | succ n => have h0 := hones 0 (by omega); cases h0
+    · cases hi
+  · induction m with
+    | zero =>
+      rw [Nat.add_zero, (hc1 z hKz).2.1 hfz, (hc2 z hKz).2.1 hfz]
+    | succ m ih =>
+      rw [show z + (m + 1) = (z + m) + 1 by omega,
+          (hc1 (z + m) (by omega)).2.2.2.2,
+          (hc2 (z + m) (by omega)).2.2.2.2, ih]
+
 end Ruliology.CellularAutomata.Rule30ResetFreeRuns

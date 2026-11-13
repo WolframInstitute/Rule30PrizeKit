@@ -122,4 +122,21 @@ theorem no_word_ranked (K E k : Nat) (rank : Nat→Nat) (w : List Bool) (g : Nat
   rw [hform t ht,hform (t+w.length) (by omega),
     show t+w.length-T=(t-T)+w.length by omega,Nat.add_mod_right]
 
+/-! ## Exact concatenation equivalence `Reads t (u ++ v) ↔ Reads t u ∧ Reads (t + u.length) v` -/
+
+/-- **Exact Concatenation Equivalence for `Reads` (`reads_nil_and_append_iff`).** -/
+theorem reads_nil_and_append_iff (t : Nat) (u v : List Bool) :
+    Reads t [] ∧
+    (Reads t (u ++ v) ↔ Reads t u ∧ Reads (t + u.length) v) := by
+  refine ⟨fun i hi => (Nat.not_lt_zero _ hi).elim,
+          ⟨fun h => ⟨reads_left h, reads_right h⟩, fun ⟨hu, hv⟩ i hi => ?_⟩⟩
+  by_cases hiu : i < u.length
+  · have h1 := hu i hiu
+    simpa [List.getD_eq_getElem?_getD, List.getElem?_append, hiu] using h1
+  · have hiv : i - u.length < v.length := by
+      simp only [List.length_append] at hi; omega
+    have h2 := hv (i - u.length) hiv
+    rw [show t + u.length + (i - u.length) = t + i by omega] at h2
+    simpa [List.getD_eq_getElem?_getD, List.getElem?_append, hiu] using h2
+
 end Ruliology.CellularAutomata.Rule30RankedWords

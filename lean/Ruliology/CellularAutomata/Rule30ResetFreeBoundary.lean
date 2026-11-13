@@ -70,4 +70,18 @@ theorem arbitrarily_far_resets_in_five (L : Nat → Bool) (T : Nat)
   obtain ⟨t,ht⟩ := one_phase_has_unbounded_resets L T notFive
   exact ⟨t,not_eventual_avoid _ ht⟩
 
+/-! ## Multi-period spatial tail invariance (`p + 5 * k`) under five reset-free tails -/
+
+/-- **Multi-Period Spatial Tail Invariance Under Five Reset-Free Tails (`zrow_five_reset_free_tails_mul`).** -/
+theorem zrow_five_reset_free_tails_mul (L : Nat → Bool) (T : Nat)
+    (avoid : ∀ t : Fin 5, EventuallyAvoidReset (zrow L (T + t.val))) :
+    ∃ M, ∀ p k, M ≤ p → zrow L T (p + 5 * k) = zrow L T p := by
+  obtain ⟨M, hM⟩ := zrow_five_reset_free_tails L T avoid
+  refine ⟨M, fun p k hp => ?_⟩
+  induction k with
+  | zero => simp
+  | succ k ih =>
+    rw [show p + 5 * (k + 1) = (p + 5 * k) + 5 by omega,
+        hM (p + 5 * k) (by omega), ih]
+
 end Ruliology.CellularAutomata.Rule30ResetFreeBoundary

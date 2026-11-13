@@ -197,4 +197,22 @@ theorem zero_path : Path graph (fun _ => 0) (fun _ => false) := by
   dsimp only [graph]
   exact ⟨by decide,by rfl⟩
 
+/-! ## Semigroup law for `iterate`, multi-period `5 * k` output invariance, and period-`15` return on `coreStates` -/
+
+/-- **Semigroup Law for `iterate`, Multi-Period `5 * k` Output Invariance, and Period-`15` Return on `coreStates` (`iterate_add_and_encoded_path_five_mul_and_core15`).** -/
+theorem iterate_add_and_encoded_path_five_mul_and_core15
+    (g : Nat → Nat) (s m n k : Nat) (v : Nat → Nat) (b : Nat → Bool) :
+    iterate g s (m + n) = iterate g (iterate g s m) n ∧
+    (Path graph v b → 7 ≤ n → graph.output (v (n + 5 * k)) = graph.output (v n)) ∧
+    (∀ c ∈ coreStates, iterate successor c 15 = c) := by
+  refine ⟨?_, fun hpath hn => ?_, by decide⟩
+  · induction n with
+    | zero => rfl
+    | succ n ih => rw [Nat.add_succ, iterate, iterate, ih]
+  · induction k with
+    | zero => simp
+    | succ k ih =>
+      rw [show n + 5 * (k + 1) = (n + 5 * k) + 5 by omega,
+          encoded_path_five_from_seven v b hpath (n + 5 * k) (by omega), ih]
+
 end Ruliology.CellularAutomata.Rule30ResetFreeCore
