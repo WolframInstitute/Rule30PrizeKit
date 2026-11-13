@@ -361,5 +361,52 @@ theorem no_leftFinite_period_two_of_Q01 (hQ : Rule30ZeroBoundary.Q01) {x : Int �
   rw [Rule30ZeroBoundaryBarriers.evol_restart x T' t 0]
   exact hT' t
 
+/-! ### All-column spatial translation equivariance and all-column period-2 reductions for `Q01` and `CQ01` -/
+
+/-- Spatially shift a configuration `x` by `i` cells (`p ↦ x (p + i)`). -/
+def shiftConfig (x : Int → Bool) (i : Int) : Int → Bool := fun p => x (p + i)
+
+/-- **Spatial Translation Equivariance of `evol` (`evol_shiftConfig`).** -/
+theorem evol_shiftConfig (x : Int → Bool) (i : Int) :
+    ∀ (t : Nat) (p : Int), evol (shiftConfig x i) t p = evol x t (p + i)
+  | 0, _ => rfl
+  | t + 1, p => by
+    show rule (evol (shiftConfig x i) t (p - 1)) (evol (shiftConfig x i) t p)
+      (evol (shiftConfig x i) t (p + 1)) =
+      rule (evol x t (p + i - 1)) (evol x t (p + i)) (evol x t (p + i + 1))
+    rw [evol_shiftConfig x i t (p - 1), evol_shiftConfig x i t p, evol_shiftConfig x i t (p + 1),
+      evol_congr (show p - 1 + i = p + i - 1 by omega),
+      evol_congr (show p + 1 + i = p + i + 1 by omega)]
+
+/-- **`Q01` Settles Period 2 at Every Integer Column `i` of Every Left-Finite Configuration (`no_leftFinite_period_two_any_col_of_Q01`).** -/
+theorem no_leftFinite_period_two_any_col_of_Q01 (hQ : Rule30ZeroBoundary.Q01)
+    {x : Int → Bool} {lo : Int} (hlo : x lo = true) (hzero : ∀ p, p < lo → x p = false) (i : Int) :
+    ¬ ∃ T, ∀ t, T ≤ t → evol x (t + 2) i = evol x t i := by
+  rintro ⟨T, hT⟩
+  have hlo' : shiftConfig x i (lo - i) = true := by
+    unfold shiftConfig; rw [show lo - i + i = lo by omega]; exact hlo
+  have hzero' : ∀ p, p < lo - i → shiftConfig x i p = false := fun p hp =>
+    hzero (p + i) (by omega)
+  refine no_leftFinite_period_two_of_Q01 hQ hlo' hzero' ⟨T, fun t ht => ?_⟩
+  rw [evol_shiftConfig, evol_shiftConfig, show (0 : Int) + i = i by omega]
+  exact hT t ht
+
+/-- **`CQ01` Is Equivalent to Exclusion of Eventual Period 2 at Every Column `i` of Every Non-Zero Finite Configuration (`CQ01_iff_no_finite_period_two_any_col`).** -/
+theorem CQ01_iff_no_finite_period_two_any_col : CQ01 ↔
+    ∀ (x : Int → Bool), FinConfig x → (∃ p, x p = true) → ∀ (i : Int),
+      ¬ ∃ T, ∀ t, T ≤ t → evol x (t + 2) i = evol x t i := by
+  rw [CQ01_iff_no_finite_period_two]
+  constructor
+  · intro hC x ⟨W, hW⟩ ⟨p0, hp0⟩ i ⟨T, hT⟩
+    have hfin' : FinConfig (shiftConfig x i) :=
+      ⟨W + i.natAbs, fun p hp => hW (p + i) (by omega)⟩
+    have hne' : ∃ p, shiftConfig x i p = true :=
+      ⟨p0 - i, by unfold shiftConfig; rw [show p0 - i + i = p0 by omega]; exact hp0⟩
+    refine hC (shiftConfig x i) hfin' hne' ⟨T, fun t ht => ?_⟩
+    rw [evol_shiftConfig, evol_shiftConfig, show (0 : Int) + i = i by omega]
+    exact hT t ht
+  · intro hall x hfin hne
+    exact hall x hfin hne 0
+
 end Rule30FiniteConfigs
 end Ruliology.CellularAutomata

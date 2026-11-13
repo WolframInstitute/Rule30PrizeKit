@@ -553,5 +553,25 @@ theorem no_finite_abstract_ranking_coupled {A : Type} (Ls : List A) (α : (Int �
   rw [show m + (m' - m - 1) + 1 = m' by omega] at this
   exact Nat.lt_irrefl _ (heq ▸ this)
 
+/-! ### Iterated `2k`-step backward propagation for `R2` and `Psi` -/
+
+/-- The right half `2 * k` steps later under `R2`. -/
+def R2n : Nat → (Nat → Bool) → (Nat → Bool)
+  | 0, R => R
+  | k + 1, R => R2 (R2n k R)
+
+/-- **Iterated `2k`-Step Shift of `u R` and Backward Propagation of `¬ FinSupp (Psi R)` (`u_R2n_and_not_finSupp_Psi_of_R2n`).** -/
+theorem u_R2n_and_not_finSupp_Psi_of_R2n (k : Nat) (R : Nat → Bool) :
+    (∀ s : Nat, u (R2n k R) s = u R (s + k)) ∧
+    (¬ FinSupp (Psi (R2n k R)) → ¬ FinSupp (Psi R)) := by
+  induction k generalizing R with
+  | zero => exact ⟨fun _ => rfl, fun h => h⟩
+  | succ k ih =>
+    refine ⟨fun s => ?_, fun h => ?_⟩
+    · unfold R2n
+      rw [u_R2, (ih R).1 (s + 1), show s + 1 + k = s + (k + 1) by omega]
+    · unfold R2n at h
+      exact (ih R).2 (not_finSupp_Psi_of_R2 (R2n k R) h)
+
 end Rule30PeriodTwoSideways
 end Ruliology.CellularAutomata
