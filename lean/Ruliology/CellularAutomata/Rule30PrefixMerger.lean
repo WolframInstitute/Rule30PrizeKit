@@ -291,4 +291,24 @@ theorem theta_truncate_merge (f g : Nat → Bool) (hrest : ∀ j, 1 ≤ j → f 
   · exact (mergePrefix_truncate _ W hW).symm
   · rfl
 
+/-! ## Uniqueness of `LastBlack` and all-future-time equality (`2 + t`) for truncated mergers -/
+
+/-- **Uniqueness of `LastBlack` and All-Future-Time Equality for Truncated Mergers (`lastBlack_unique_and_truncate_future_merge`).** -/
+theorem lastBlack_unique_and_truncate_future_merge
+    (L : Nat → Bool) (m n : Nat) (tail f g : Nat → Bool) (W t : Nat) (hW : 7 ≤ W) :
+    (LastBlack L m → LastBlack L n → m = n) ∧
+    zrow (truncate (mergePrefix false tail) W) (2 + t) =
+      zrow (truncate (mergePrefix true tail) W) (2 + t) ∧
+    ((∀ j, 1 ≤ j → f j = g j) → f 1 = true → f 2 = true →
+      zrow (truncate (Theta f) W) (2 + t) = zrow (truncate (Theta g) W) (2 + t)) := by
+  refine ⟨fun hm hn => ?_, ?_, fun hrest h1 h2 => ?_⟩
+  · rcases Nat.lt_trichotomy m n with hlt | heq | hgt
+    · have := hm.2.2 n hlt; rw [hn.2.1] at this; cases this
+    · exact heq
+    · have := hn.2.2 m hgt; rw [hm.2.1] at this; cases this
+  · funext k
+    rw [zrow_shift, zrow_shift, mergePrefix_truncate tail W hW]
+  · funext k
+    rw [zrow_shift, zrow_shift, theta_truncate_merge f g hrest h1 h2 W hW]
+
 end Ruliology.CellularAutomata.Rule30PrefixMerger

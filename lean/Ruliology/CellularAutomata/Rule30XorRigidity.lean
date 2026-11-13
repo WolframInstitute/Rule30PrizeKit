@@ -1,6 +1,7 @@
 module
 
 public import Ruliology.CellularAutomata.Rule30Prize
+public import Ruliology.CellularAutomata.Rule30Realization
 
 /-!
 # Exact XOR superposition rigidity for ordinary Rule 30
@@ -322,5 +323,40 @@ theorem xor_history_iff (A B : Nat → Int → Bool)
    (A t (x-1) ^^ B t (x-1)) (A t x ^^ B t x) (A t (x+1) ^^ B t (x+1))) ↔
  A = (fun _ _ => false) ∨ B = (fun _ _ => false) ∨ A = B :=
  standard_full_classification A B ha hb
+
+/-! ## F_2 vector-space laws of `add`, self-cancellation, and official `evol` XOR rigidity -/
+
+/-- **F_2 Vector-Space Laws of `add`, Self-Cancellation `add A B = zero ↔ A = B`, and `evol` XOR Rigidity (`add_f2_laws_and_evol_xor_iff`).** -/
+theorem add_f2_laws_and_evol_xor_iff (A B C : Nat → Int → Bool) (x y : Int → Bool) :
+    add A B = add B A ∧
+    add (add A B) C = add A (add B C) ∧
+    (add A B = zero ↔ A = B) ∧
+    (Standard (add (Rule30Realization.evol x) (Rule30Realization.evol y)) ↔
+      (∀ p, x p = false) ∨ (∀ p, y p = false) ∨ x = y) := by
+  have hcomm : add A B = add B A := by
+    funext t i; unfold add; exact Bool.xor_comm (A t i) (B t i)
+  have hassoc : add (add A B) C = add A (add B C) := by
+    funext t i; unfold add; exact Bool.xor_assoc (A t i) (B t i) (C t i)
+  have hcancel : add A B = zero ↔ A = B := by
+    constructor
+    · intro h
+      funext t i
+      have hti : xor (A t i) (B t i) = false := congrFun (congrFun h t) i
+      revert hti; cases A t i <;> cases B t i <;> decide
+    · rintro rfl
+      funext t i; unfold add zero; cases A t i <;> rfl
+  have hstd_x : Standard (Rule30Realization.evol x) := fun _ _ => rfl
+  have hstd_y : Standard (Rule30Realization.evol y) := fun _ _ => rfl
+  refine ⟨hcomm, hassoc, hcancel, ?_⟩
+  rw [standard_add_classification (Rule30Realization.evol x) (Rule30Realization.evol y) hstd_x hstd_y]
+  constructor
+  · rintro (hx | hy | hxy)
+    · exact Or.inl hx
+    · exact Or.inr (Or.inl hy)
+    · exact Or.inr (Or.inr (funext hxy))
+  · rintro (hx | hy | rfl)
+    · exact Or.inl hx
+    · exact Or.inr (Or.inl hy)
+    · exact Or.inr (Or.inr (fun _ => rfl))
 
 end Ruliology.CellularAutomata.Rule30XorRigidity

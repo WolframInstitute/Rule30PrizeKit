@@ -338,4 +338,25 @@ theorem depth_dichotomy (c : Nat → Bool) (h0 : c 0 = true) :
       last_level (fun k => ∃ s, AgreeBelow k (orbit s) c) h2 K hK2 hK
     exact ⟨k, s₀, hk2, hs, fun s hs' => hk1 ⟨s, hs'⟩⟩
 
+/-! ## Uniqueness of ruler depth `k` and equivalence laws of `AgreeBelow` -/
+
+/-- **Uniqueness of Ruler Depth `k` and Equivalence/Monotonicity Laws of `AgreeBelow` (`hasDepth_unique_k_and_agreeBelow_laws`).** -/
+theorem hasDepth_unique_k_and_agreeBelow_laws (R₀ c d e : Nat → Bool) (m k k1 k2 s1 s2 : Nat) :
+    AgreeBelow k c c ∧
+    (AgreeBelow k c d → AgreeBelow k d c) ∧
+    (AgreeBelow k c d → AgreeBelow k d e → AgreeBelow k c e) ∧
+    (m ≤ k → AgreeBelow k c d → AgreeBelow m c d) ∧
+    (HasDepth R₀ k1 s1 → HasDepth R₀ k2 s2 → k1 = k2) := by
+  refine ⟨fun _ _ => rfl,
+          fun h i hi => (h i hi).symm,
+          fun h1 h2 i hi => (h1 i hi).trans (h2 i hi),
+          fun hmk h i hi => h i (by omega),
+          fun hd1 hd2 => ?_⟩
+  rcases Nat.lt_trichotomy k1 k2 with hlt | heq | hgt
+  · exfalso
+    exact hd1.2 s2 (fun i hi => hd2.1 i (by omega))
+  · exact heq
+  · exfalso
+    exact hd2.2 s1 (fun i hi => hd1.1 i (by omega))
+
 end Ruliology.CellularAutomata.Rule30FrozenRuler
