@@ -91,4 +91,20 @@ theorem left_neighbor_rigid_at_depth_two {x y : Int → Bool}
   rw [recover_left_neighbor_at_depth_two hx,recover_left_neighbor_at_depth_two hy,
       htrace 0 (by decide),htrace 1 (by decide),htrace 2 (by decide),htrace 3 (by decide)]
 
+/-! ## Complete non-positive half-line rigidity (`p ≤ 0`) at depth two -/
+
+/-- **Complete Non-Positive Half-Line Rigidity from Four Center Observations at Depth Two (`nonpositive_half_rigid_at_depth_two`).** -/
+theorem nonpositive_half_rigid_at_depth_two {x y : Int → Bool}
+    (hx : HasLeftEdge x (-2)) (hy : HasLeftEdge y (-2))
+    (htrace : ∀ t, t < 4 → evol x t 0 = evol y t 0) :
+    ∀ p : Int, p ≤ 0 → x p = y p := by
+  intro p hp
+  by_cases hlt : p < -2
+  · rw [hx.2 p hlt, hy.2 p hlt]
+  · have hcases : p = -2 ∨ p = -1 ∨ p = 0 := by omega
+    rcases hcases with rfl | rfl | rfl
+    · rw [hx.1, hy.1]
+    · exact left_neighbor_rigid_at_depth_two hx hy htrace
+    · exact htrace 0 (by decide)
+
 end Ruliology.CellularAutomata.Rule30TraceAmbiguity

@@ -212,5 +212,65 @@ theorem no_white_run_11_ge8 (T r t0 : Nat) (hr : 8 ≤ r)
   have h0 : EventuallyPeriodic (fun t => cell t 0) := ⟨T, Q, hQ, hper⟩
   exact not_adjacent 0 h0 h1
 
+/-! ## Word-form exclusions of `0^r 1 1` and `1 1 0^r` on the center column for `r ≥ 8` -/
+
+/-- **Word-Form Exclusions of `0^r 1 1` and `1 1 0^r` on the Center Column for `r ≥ 8` (`no_white_run_11_word_and_post_ge8`).** -/
+theorem no_white_run_11_word_and_post_ge8 (T r : Nat) (hr : 8 ≤ r) :
+    (¬ ∀ t, T ≤ t → center t = (List.replicate r false ++ [true, true]).getD ((t - T) % (r + 2)) false) ∧
+    (¬ ∀ t, T ≤ t → center t = (true :: true :: List.replicate r false).getD ((t - T) % (r + 2)) false) := by
+  have hget1 : ∀ (m k : Nat),
+      (List.replicate m false ++ [true, true]).getD k false = decide (k = m ∨ k = m + 1) := by
+    intro m
+    induction m with
+    | zero => rintro (_ | _ | k) <;> rfl
+    | succ m ih =>
+      rintro (_ | k)
+      · rfl
+      · rw [List.replicate_succ, List.cons_append, List.getD_cons_succ, ih k]
+        exact decide_eq_decide.mpr ⟨fun h => by omega, fun h => by omega⟩
+  have hget2 : ∀ (m k : Nat), k < m + 2 →
+      (true :: true :: List.replicate m false).getD k false = decide (k = 0 ∨ k = 1) := by
+    intro m
+    rintro (_ | _ | k) hk
+    · rfl
+    · rfl
+    · simp only [List.getD_cons_succ]
+      have hrep : ∀ (n j : Nat), (List.replicate n false).getD j false = false := by
+        intro n; induction n with
+        | zero => intro _; rfl
+        | succ n ih =>
+          intro j
+          cases j with
+          | zero => rfl
+          | succ j => rw [List.replicate_succ, List.getD_cons_succ]; exact ih j
+      rw [hrep]
+      exact (decide_eq_false (by omega)).symm
+  refine ⟨fun hT => ?_, fun hT => ?_⟩
+  · have hper : ∀ t, T ≤ t → center (t + (r + 2)) = center t := by
+      intro t ht
+      rw [hT (t + (r + 2)) (by omega), hT t ht,
+          show t + (r + 2) - T = (t - T) + (r + 2) by omega, Nat.add_mod_right]
+    refine no_white_run_11_ge8 T r T hr hper (Nat.le_refl T) (fun i hi => ?_) ?_ ?_
+    · rw [hT (T + i) (by omega), show T + i - T = i by omega, Nat.mod_eq_of_lt (by omega), hget1]
+      exact decide_eq_false (by omega)
+    · rw [hT (T + r) (by omega), show T + r - T = r by omega, Nat.mod_eq_of_lt (by omega), hget1]
+      exact decide_eq_true (by omega)
+    · rw [hT (T + r + 1) (by omega), show T + r + 1 - T = r + 1 by omega, Nat.mod_eq_of_lt (by omega), hget1]
+      exact decide_eq_true (by omega)
+  · have hper : ∀ t, T ≤ t → center (t + (r + 2)) = center t := by
+      intro t ht
+      rw [hT (t + (r + 2)) (by omega), hT t ht,
+          show t + (r + 2) - T = (t - T) + (r + 2) by omega, Nat.add_mod_right]
+    refine no_white_run_11_ge8 T r (T + 2) hr hper (by omega) (fun i hi => ?_) ?_ ?_
+    · rw [hT (T + 2 + i) (by omega), show T + 2 + i - T = i + 2 by omega,
+          Nat.mod_eq_of_lt (by omega), hget2 r (i + 2) (by omega)]
+      exact decide_eq_false (by omega)
+    · rw [hT (T + 2 + r) (by omega), show T + 2 + r - T = 0 + 1 * (r + 2) by omega,
+          Nat.add_mul_mod_self_right, Nat.mod_eq_of_lt (by omega), hget2 r 0 (by omega)]
+      rfl
+    · rw [hT (T + 2 + r + 1) (by omega), show T + 2 + r + 1 - T = 1 + 1 * (r + 2) by omega,
+          Nat.add_mul_mod_self_right, Nat.mod_eq_of_lt (by omega), hget2 r 1 (by omega)]
+      rfl
+
 end Rule30WhiteRunEight
 end Ruliology.CellularAutomata
