@@ -506,4 +506,15 @@ theorem no_padding {x : Int → Bool} {lo : Int}
   · simp [tail]; omega
   · simp [K, tail]; omega
   · simp [L]; omega
+/-! ## Target vacuum state and `72 + d` white-padding exclusion for endpoint tube `111101` -/
+
+/-- **Target Vacuum State and `72 + d` White-Padding Exclusion for Endpoint Tube `111101` (`c111101_target_and_no_padding_at_72_plus`).** -/
+theorem c111101_target_and_no_padding_at_72_plus
+    {x : Int → Bool} {lo : Int}
+    (hlo : x lo = true) (hzero : ∀ p, p < lo → x p = false)
+    (i : Int) (d : Nat) :
+    P 6 = 1 ∧
+    ¬ Rule30FiniteStrips.EventuallyWord x i (List.replicate (72 + d) false ++ tail) :=
+  ⟨rfl, no_padding hlo hzero i (72 + d) (by omega)⟩
+
 end Ruliology.CellularAutomata.Rule30Certificates.SixTailEndpoints.C111101
