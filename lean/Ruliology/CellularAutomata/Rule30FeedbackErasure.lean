@@ -162,4 +162,30 @@ theorem finite_feedback_counterexample :
     same_actual_right_head,center_not_eventually_constant,right_head_not_eventually_constant,
     initial_rights_not_sameResponse⟩
 
+/-! ## Unified all-time agreement on `p ≤ 1`, sharpness at `p = 2`, and `p ≤ 1` agreement for `tail_011` splices -/
+
+/-- **Unified All-Time Agreement on `p ≤ 1` and Sharpness at `p = 2` (`same_actual_up_to_col_one_and_sharp_at_two`).** -/
+theorem same_actual_up_to_col_one_and_sharp_at_two (left : Int → Bool) (bs : List Bool) (t : Nat) :
+    (∀ p : Int, p ≤ 1 → evol single t p = evol double t p) ∧
+    evol single 0 2 ≠ evol double 0 2 ∧
+    (∀ p : Int, p ≤ 1 →
+      evol (splice left (word (bs ++ [false, true, true]))) t p =
+      evol (splice left (word (bs ++ [false, true]))) t p) := by
+  refine ⟨fun p hp => ?_, by decide, fun p hp => ?_⟩
+  · by_cases hp0 : p ≤ 0
+    · exact same_actual_left t p hp0
+    · have hp1 : p = 1 := by omega
+      subst hp1
+      exact same_actual_right_head t
+  · have hfb := feedback_left_equal
+      (x := splice left (word (bs ++ [false, true, true])))
+      (y := splice left (word (bs ++ [false, true])))
+      (fun q hq => by simp [splice, hq])
+      (by rw [rightPart_splice, rightPart_splice]; exact tail_011_response bs) t
+    by_cases hp0 : p ≤ 0
+    · exact hfb.1 p hp0
+    · have hp1 : p = 1 := by omega
+      subst hp1
+      exact (sameResponse_observe hfb.2).1
+
 end Ruliology.CellularAutomata.Rule30FeedbackErasure

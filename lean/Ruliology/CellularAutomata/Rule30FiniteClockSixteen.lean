@@ -148,4 +148,16 @@ theorem period_loss_requires_infinite_tail (x : State) (H T : Nat)
     | true => exact False.elim (hnone ⟨k,hk,hb⟩)
   exact hloss (eventual_period_detected x W H T hfin hfull hhead)
 
+/-! ## Exact equivalence between eventual head period `H` and full-state period `H` for period-16 finite-width orbits -/
+
+/-- **Exact Equivalence Between Eventual Head Period `H`, Full-State Return `iterate x H = x`, and All-Column Period `H` (`head_period_iff_full_period_of_period16`).** -/
+theorem head_period_iff_full_period_of_period16 (x : State) (W H : Nat)
+    (hx : ∀ k, W ≤ k → x k = false) (hfull : iterate x 16 = x) :
+    ((∃ T, ∀ t, T ≤ t → iterate x (t + H) 0 = iterate x t 0) ↔ iterate x H = x) ∧
+    (iterate x H = x ↔ ∀ k t, iterate x (t + H) k = iterate x t k) := by
+  refine ⟨⟨fun ⟨T, hT⟩ => eventual_period_detected x W H T hx hfull hT,
+           fun hret => ⟨0, fun t _ => congrFun (iterate_period_of_return x H hret t) 0⟩⟩,
+          ⟨fun hret k t => congrFun (iterate_period_of_return x H hret t) k,
+           fun hall => funext fun k => by simpa only [Nat.zero_add, iterate] using hall k 0⟩⟩
+
 end Ruliology.CellularAutomata.Rule30FiniteClockSixteen
