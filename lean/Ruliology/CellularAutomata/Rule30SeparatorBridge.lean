@@ -288,5 +288,33 @@ theorem no_pull_without_hard_core_control :
     exact (by decide : (1 : Sym)≠2) (h N (by omega))
 
 
+/-! ### Semigroup laws for `shiftN`, `liftWord`, and `prependTwos`, and constant-inverse exclusion -/
+
+/-- **Semigroup Laws for `shiftN`, `liftWord`, and `prependTwos`, and Constant-Inverse Exclusion (`shiftN_liftWord_append_and_separator_iff`).** -/
+theorem shiftN_liftWord_append_and_separator_iff
+    (e : Stream) (m n : Nat) (u w : List Sym) (v : Stream) :
+    shiftN (shiftN e m) n = shiftN e (m + n) ∧
+    liftWord (u ++ w) v = liftWord w (liftWord u v) ∧
+    prependTwos (prependTwos e m) n = prependTwos e (n + m) ∧
+    (OrbitSeparator → ∀ c, constantTail c → ∀ d, HardCore d → (fun _ => c) ≠ inverse d) := by
+  have hshift : shiftN (shiftN e m) n = shiftN e (m + n) := by
+    funext t; simp [shiftN, Nat.add_assoc, Nat.add_comm m n]
+  have hlift : ∀ (l1 l2 : List Sym) (st : Stream),
+      liftWord (l1 ++ l2) st = liftWord l2 (liftWord l1 st) := by
+    intro l1
+    induction l1 with
+    | nil => intro l2 st; rfl
+    | cons a l1 ih => intro l2 st; exact ih l2 (lift a st)
+  have hprep : prependTwos (prependTwos e m) n = prependTwos e (n + m) := by
+    funext i
+    unfold prependTwos
+    by_cases h1 : i < n
+    · simp [h1, show i < n + m by omega]
+    · by_cases h2 : i - n < m
+      · simp [h1, h2, show i < n + m by omega]
+      · simp [h1, h2, show ¬ i < n + m by omega, show i - n - m = i - (n + m) by omega]
+  refine ⟨hshift, hlift u w v, hprep, fun horb c hc d hh => ?_⟩
+  exact horb c hc [] (by simp) d hh
+
 end Rule30SeparatorBridge
 end Ruliology.CellularAutomata
