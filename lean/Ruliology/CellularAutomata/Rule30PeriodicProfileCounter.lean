@@ -167,4 +167,36 @@ theorem loss_infinite : ¬Rule30ZeroBoundary.FinSupp lossInitial := by
   rw [hk] at h
   contradiction
 
+/-! ## Multi-period temporal invariance (`8 * m`) and spatial period-`4` tail (`k ≥ 4`) for all three counterexamples -/
+
+/-- **Multi-Period Temporal Invariance and Spatial Period-`4` Tail (`k ≥ 4`) for `initial` and `lossInitial` (`counterexamples_temporal_and_spatial_periods`).** -/
+theorem counterexamples_temporal_and_spatial_periods (which : Bool) (t m k : Nat) (hk : 4 ≤ k) :
+    iterate (initial which) (t + m * 8) = iterate (initial which) t ∧
+    iterate lossInitial (t + m * 8) = iterate lossInitial t ∧
+    iterate (initial which) t (k + 4) = iterate (initial which) t k ∧
+    iterate lossInitial t (k + 4) = iterate lossInitial t k := by
+  have hkey : key (k + 4) = key k := by
+    unfold key
+    rw [ite_eq_right (by omega), ite_eq_right (by omega)]
+    have hm : (k + 4 - 4) % 4 = (k - 4) % 4 := by
+      rw [show k + 4 - 4 = (k - 4) + 4 by omega, Nat.add_mod_right]
+    rw [hm]
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · induction m with
+    | zero => simp
+    | succ m ih =>
+      rw [show t + (m + 1) * 8 = (t + m * 8) + 8 by rw [Nat.succ_mul]; omega,
+          full_period_eight, ih]
+  · induction m with
+    | zero => simp
+    | succ m ih =>
+      rw [show t + (m + 1) * 8 = (t + m * 8) + 8 by rw [Nat.succ_mul]; omega,
+          loss_full_period_eight, ih]
+  · rw [iterate_frame]
+    unfold frame
+    rw [hkey]
+  · rw [loss_iterate_frame]
+    unfold lossFrame
+    rw [hkey]
+
 end Ruliology.CellularAutomata.Rule30PeriodicProfileCounter

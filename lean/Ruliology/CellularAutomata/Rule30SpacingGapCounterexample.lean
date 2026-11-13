@@ -79,4 +79,22 @@ theorem no_uniform_gap_bound_sixteen :
   rw [seventeen_white j (by omega)] at hb
   exact Bool.noConfusion hb
 
+/-! ## Multi-period shift invariance of `gate31` and non-spacing of `transform gate31` -/
+
+/-- **Multi-Period Shift Invariance of `gate31` and Non-Spacing of `transform gate31` (`gate31_period_mul_and_not_transform_spaced`).** -/
+theorem gate31_period_mul_and_not_transform_spaced (r m : Nat) :
+    gate31 (r + m * 31) = gate31 r ∧
+    ¬ Spaced (transform gate31) := by
+  refine ⟨?_, fun h => ?_⟩
+  · induction m with
+    | zero => simp
+    | succ m ih =>
+      rw [show r + (m + 1) * 31 = (r + m * 31) + 31 by rw [Nat.succ_mul]; omega,
+          gate31_periodic, ih]
+  · have h6 : gate31 (2 + 4) = false :=
+      (transform_spaced_iff gate31 gate31_spaced).mp h 2
+    have h6_true : gate31 (2 + 4) = true := by decide
+    rw [h6_true] at h6
+    exact Bool.noConfusion h6
+
 end Ruliology.CellularAutomata.Rule30SpacingGapCounterexample

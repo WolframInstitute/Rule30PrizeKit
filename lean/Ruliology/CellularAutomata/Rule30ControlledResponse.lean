@@ -423,4 +423,28 @@ theorem tail_101_center (left : Int → Bool) (bs : List Bool) (t : Nat) :
       evol (splice left (word (bs++[true,true]))) t 0 :=
   splice_same_center left (tail_101_response bs) t
 
+/-! ## Additivity of `iterate` and 4-bit terminal response reductions (`0101 → 01` and `1011 → 11`) -/
+
+/-- **Additivity of `iterate` and 4-Bit Terminal Response Reductions (`iterate_add_and_tail_four_bit_reductions`).** -/
+theorem iterate_add_and_tail_four_bit_reductions (x : State) (a b : Nat) (bs : List Bool) :
+    iterate x (a + b) = iterate (iterate x a) b ∧
+    SameResponse (word (bs ++ [false, true, false, true])) (word (bs ++ [false, true])) ∧
+    SameResponse (word (bs ++ [true, false, true, true])) (word (bs ++ [true, true])) := by
+  refine ⟨?_, ?_, ?_⟩
+  · induction b with
+    | zero => rfl
+    | succ b ih => rw [Nat.add_succ, iterate, iterate, ih]
+  · have h1 : bs ++ [false, true, false, true] = (bs ++ [false]) ++ [true, false, true] := by simp
+    have h2 : (bs ++ [false]) ++ [true, true] = bs ++ [false, true, true] := by simp
+    rw [h1]
+    apply sameResponse_trans (tail_101_response (bs ++ [false]))
+    rw [h2]
+    exact tail_011_response bs
+  · have h1 : bs ++ [true, false, true, true] = (bs ++ [true]) ++ [false, true, true] := by simp
+    have h2 : (bs ++ [true]) ++ [false, true] = bs ++ [true, false, true] := by simp
+    rw [h1]
+    apply sameResponse_trans (tail_011_response (bs ++ [true]))
+    rw [h2]
+    exact tail_101_response bs
+
 end Ruliology.CellularAutomata.Rule30ControlledResponse
