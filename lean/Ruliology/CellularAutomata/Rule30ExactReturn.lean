@@ -158,4 +158,28 @@ theorem lastAllowed_transformed_not_spaced : ¬ Spaced (transform lastAllowed) :
   change true=false at hz
   contradiction
 
+/-! ## Exact decomposition of `Spaced` via `NearSpaced` and positive-shift spacing -/
+
+/-- **Exact Decomposition `Spaced G ↔ NearSpaced G ∧ (G 0 && G 2) = false` and Positive-Shift Spacing (`spaced_iff_nearSpaced_and_shift_spaced`).** -/
+theorem spaced_iff_nearSpaced_and_shift_spaced (G : Nat → Bool) :
+    (Spaced G ↔ NearSpaced G ∧ (G 0 && G 2) = false) ∧
+    (NearSpaced G → ∀ d : Nat, 1 ≤ d → Spaced (fun r => G (d + r))) := by
+  refine ⟨⟨fun hs => ⟨⟨fun r => (hs r).1, fun r => ?_⟩, (hs 0).2⟩,
+           fun ⟨hn, h02⟩ r => ⟨hn.1 r, ?_⟩⟩,
+          fun hn d hd r => ⟨?_, ?_⟩⟩
+  · have h2 := (hs (r + 1)).2
+    simpa only [Nat.add_assoc] using h2
+  · cases r with
+    | zero => simpa using h02
+    | succ r =>
+      have h2 := hn.2 r
+      simpa only [Nat.add_assoc] using h2
+  · show (G (d + r) && G (d + (r + 1))) = false
+    rw [show d + (r + 1) = (d + r) + 1 by omega]
+    exact hn.1 (d + r)
+  · show (G (d + r) && G (d + (r + 2))) = false
+    have h2 := hn.2 (d - 1 + r)
+    rw [show d - 1 + r + 1 = d + r by omega, show d - 1 + r + 3 = d + (r + 2) by omega] at h2
+    exact h2
+
 end Ruliology.CellularAutomata.Rule30ExactReturn
