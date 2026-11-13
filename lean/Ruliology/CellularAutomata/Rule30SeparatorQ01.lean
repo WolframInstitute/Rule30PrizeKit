@@ -737,5 +737,18 @@ theorem bwh_Q01 (hb : BWH) : Q01 := by
   rw [hX s] at hs
   exact Bool.noConfusion hs
 
+/-! ## Unrestricted-width death bound under `DeathBounds` and direct bridge to `Q01` and `ConstantTailSeparator` -/
+
+/-- **Unrestricted-Width Death Bound Under `DeathBounds` and Direct Bridge to `Q01` and `ConstantTailSeparator` (`deathBounds_unrestricted_width_and_q01_sep`).** -/
+theorem deathBounds_unrestricted_width_and_q01_sep
+    (hd : DeathBounds) (W : Nat) (L : Nat → Bool) (hL : ∀ k, W < k → L k = false) :
+    (∃ s, s ≤ max W 16 + 2 ∧ zrow L (2 * s) 1 = false) ∧
+    Q01 ∧
+    Rule30SeparatorBridge.ConstantTailSeparator := by
+  have hb : BWH := bwh_iff_deathBounds.2 hd
+  have hQ : Q01 := bwh_Q01 hb
+  refine ⟨?_, hQ, Q01_sep hQ⟩
+  exact bwh_death hb (max W 16) (by omega) L (fun k hk => hL k (by omega))
+
 end Rule30SeparatorQ01
 end Ruliology.CellularAutomata

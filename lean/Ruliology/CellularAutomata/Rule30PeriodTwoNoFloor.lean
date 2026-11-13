@@ -624,5 +624,23 @@ theorem no_uniform_floor (q d : Nat) (hq : q < 14) :
   intro h
   exact no_floor_c14 q d hq (h c14 ⟨1428, by decide, c14_period⟩)
 
+/-! ## Multi-period spatial invariance and exact block weights for `row9` and `row14` -/
+
+/-- **Multi-Period Spatial Invariance and Exact Block Weights for `row9` and `row14` (`row9_row14_period_mul_and_exact_block_weights`).** -/
+theorem row9_row14_period_mul_and_exact_block_weights (i k : Nat) :
+    row9 (i + 9 * k) = row9 i ∧
+    row14 (i + 14 * k) = row14 i ∧
+    A (trunc row9 (9 * k)) (9 * k) = k ∧
+    A (trunc row14 (14 * k)) (14 * k) = k := by
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · unfold row9
+    rw [show i + 9 * k = i + k * 9 by omega, Nat.add_mul_mod_self_right]
+  · unfold row14
+    rw [show i + 14 * k = i + k * 14 by omega, Nat.add_mul_mod_self_right]
+  · rw [weight_row9]
+    omega
+  · rw [weight_row14]
+    omega
+
 end Rule30PeriodTwoNoFloor
 end Ruliology.CellularAutomata
