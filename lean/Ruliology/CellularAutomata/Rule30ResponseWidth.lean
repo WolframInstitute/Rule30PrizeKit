@@ -165,4 +165,16 @@ theorem actual_response_width_exact (a t W : Nat) :
     · intro n
       exact (responseEq_iff_runs n _ _).mpr (by intro c t ht; rfl)
 
+/-! ## Exact age equivalence `SameResponse (centerTail (cell a)) (centerTail (cell b)) ↔ a = b` and no periodic response return -/
+
+/-- **Exact Age Equivalence for `centerTail` Responses and Absence of Positive-Period Returns (`sameResponse_centerTail_iff_eq_and_no_pos_period`).** -/
+theorem sameResponse_centerTail_iff_eq_and_no_pos_period (a b t P : Nat) :
+    (SameResponse (centerTail (cell a)) (centerTail (cell b)) ↔ a = b) ∧
+    (0 < P → ¬ SameResponse (centerTail (cell (t + P))) (centerTail (cell t))) := by
+  refine ⟨⟨actual_response_age_injective, ?_⟩, fun hP hresp => ?_⟩
+  · rintro rfl
+    exact sameResponse_refl (centerTail (cell a))
+  · have heq := actual_response_age_injective hresp
+    omega
+
 end Ruliology.CellularAutomata.Rule30ResponseWidth

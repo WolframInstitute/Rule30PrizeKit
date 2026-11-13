@@ -427,5 +427,20 @@ theorem log_eight_fifths_le_blackCount (j N : Nat) (h : 20 * 8 ^ j ≤ 5 ^ j * (
   have h3 : blackTime j + 20 ≤ N + 19 := Nat.le_of_mul_le_mul_left h2 (Nat.pow_pos (by decide))
   exact Nat.le_trans (blackCount_blackTime j) (blackCount_mono _ _ (by omega))
 
+/-! ## Exclusion of consecutive bad gaps `> 6` and good-step bound prior to any bad gap -/
+
+/-- **No Consecutive Bad Gaps `> 6` and Good-Step Bound Prior to Any Bad Gap (`no_consecutive_bad_gaps_and_good_before_bad`).** -/
+theorem no_consecutive_bad_gaps_and_good_before_bad (j : Nat) :
+    (g j ≤ 6 ∨ g (j + 1) ≤ 6) ∧
+    (6 < g (j + 1) → g j ≤ 5 ∧ blackTime (j + 1) ≤ blackTime j + 14 ∧
+      5 * blackTime (j + 1) ≤ 8 * blackTime j + 36) := by
+  refine ⟨?_, fun hbad => ?_⟩
+  · by_cases h1 : g (j + 1) ≤ 6
+    · exact Or.inr h1
+    · have hb := (bad_gap j (by omega)).1
+      exact Or.inl (by omega)
+  · obtain ⟨hg5, hle14⟩ := bad_gap j hbad
+    exact ⟨hg5, hle14, good_step j (by omega)⟩
+
 end Rule30BlackTimeGrowth
 end Ruliology.CellularAutomata
