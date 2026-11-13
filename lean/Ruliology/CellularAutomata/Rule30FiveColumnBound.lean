@@ -153,5 +153,26 @@ theorem sharp_rate (T : Nat) : count (evol alternating) 0 T = 3 * (T : Int) := b
 /-- The additive constant `2` is needed already at horizon `1`, on an actual row. -/
 theorem sharp_constant : count (evol (fun _ => true)) 0 1 = 5 := by decide
 
+/-! ## Shifted `evol` and `cell` five-column white lower bounds and exact alternating white rate -/
+
+/-- **Five-Column White Lower Bounds for `evol` and `cell`, and Exact Alternating White Rate (`evol_and_cell_white_column_bound_and_sharp_white_rate`).** -/
+theorem evol_and_cell_white_column_bound_and_sharp_white_rate
+    (y : Int → Bool) (A : Nat) (p : Int) (T : Nat) :
+    2 * (T : Int) - 2 ≤ whiteCount (fun t => evol y (A + t)) p T ∧
+    2 * (T : Int) - 2 ≤ whiteCount (fun t => cell (A + t)) p T ∧
+    whiteCount (evol alternating) 0 T = 2 * (T : Int) := by
+  refine ⟨?_, ?_, ?_⟩
+  · apply white_column_bound
+    intro t i
+    rw [show A + (t + 1) = (A + t) + 1 by omega]
+    rfl
+  · apply white_column_bound
+    intro t i
+    rw [show A + (t + 1) = (A + t) + 1 by omega]
+    rfl
+  · have hp := count_partition (evol alternating) 0 T
+    have hr := sharp_rate T
+    omega
+
 end Rule30FiveColumnBound
 end Ruliology.CellularAutomata

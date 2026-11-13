@@ -508,4 +508,25 @@ theorem finite_feedback_ancestry {x y : Row} {loX hiX loY hiY : Int}
     (trace_forward trace t) response (n+t)
 
 
+/-! ## Uniqueness of `FiniteEdges` endpoints and uniqueness of finite-edge depth-`n` ancestors -/
+
+/-- **Uniqueness of `FiniteEdges` Endpoints and Uniqueness of Finite-Edge Depth-`n` Ancestors (`finiteEdges_unique_and_ancestor_unique`).** -/
+theorem finiteEdges_unique_and_ancestor_unique
+    {x z1 z2 : Row} {lo1 hi1 lo2 hi2 : Int} (n : Nat) :
+    (FiniteEdges x lo1 hi1 → FiniteEdges x lo2 hi2 → lo1 = lo2 ∧ hi1 = hi2) ∧
+    (FiniteEdges z1 lo1 hi1 → FiniteEdges z2 lo2 hi2 →
+      (∀ p, evol z1 n p = x p) → (∀ p, evol z2 n p = x p) → z1 = z2) := by
+  refine ⟨fun h1 h2 => ⟨?_, ?_⟩, fun hz1 hz2 he1 he2 => ?_⟩
+  · rcases Int.lt_trichotomy lo1 lo2 with hlt | rfl | hgt
+    · have hf := h2.2.2.1 lo1 hlt; rw [h1.1] at hf; cases hf
+    · rfl
+    · have hf := h1.2.2.1 lo2 hgt; rw [h2.1] at hf; cases hf
+  · rcases Int.lt_trichotomy hi1 hi2 with hlt | rfl | hgt
+    · have hf := h1.2.2.2 hi2 hlt; rw [h2.2.1] at hf; cases hf
+    · rfl
+    · have hf := h2.2.2.2 hi1 hgt; rw [h1.2.1] at hf; cases hf
+  · apply evol_injective hz1 hz2 n
+    funext p
+    exact (he1 p).trans (he2 p).symm
+
 end Ruliology.CellularAutomata.Rule30ResponseAncestry

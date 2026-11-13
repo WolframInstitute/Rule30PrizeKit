@@ -250,5 +250,15 @@ theorem budget_iff_Q01 :
     (∀ r : Nat, Rule30SurvivalBridge.BudgetAt r) ↔ Rule30ZeroBoundary.Q01 :=
   Rule30SurvivalBridge.budget_iff_mortality.trans mortality_iff_Q01
 
+/-! ### Odd-step column-`1` scalar law for `zrow (start fr)` -/
+
+/-- **Odd-Step Column-`1` Scalar Law for `zrow (start fr)` (`zrow_chart_odd_col1`).** -/
+theorem zrow_chart_odd_col1 {fr : Nat → List Sym} {s : Nat → Bool}
+    (hZ : ∀ n, Z (fr n) = some (fr (n + 1), s n)) (h0 : fr 0 ≠ []) (k : Nat) :
+    Rule30ZeroBoundary.zrow (start fr) (2 * k + 1) 1 = !(s (k + 1)) := by
+  rw [zrow_chart hZ h0 (2 * k + 1) 0,
+      chart_lo fr (n := k + 2) (by omega),
+      (Z_depth _ _ _ (hZ (k + 1))).2.1]
+
 end Rule30FrontierChart
 end Ruliology.CellularAutomata

@@ -329,5 +329,24 @@ theorem sharp150 {L : Nat → Bool} {W : Nat} (hodd : ∀ k, k % 2 = 1 → k ≤
   rw [zr_cone h150 (2 * s) 1 agree]
   exact fwd150 hM s 0
 
+/-! ### Vacuum fixed-point law for `zr` and two-step wall vanishing for width-`2` Rule 150 starts -/
+
+/-- **Vacuum Fixed-Point Law for `zr` and Two-Step Wall Vanishing for Width-`2` Rule 150 Starts (`zr_zero_start_and_two_step150_width_two`).** -/
+theorem zr_zero_start_and_two_step150_width_two
+    (h : Bool → Bool → Bool) (hh : h false false = false) (t k : Nat)
+    (L : Nat → Bool) (hL3 : L 3 = false) :
+    zr h (fun _ => false) t k = false ∧
+    zr h150 L 2 1 = false := by
+  refine ⟨?_, ?_⟩
+  · induction t generalizing k with
+    | zero => cases k <;> rfl
+    | succ t ih =>
+      cases k with
+      | zero => rfl
+      | succ m =>
+        rw [zr_succ, ih (m + 2), ih (m + 1), ih m, hh]
+        rfl
+  · rw [(two_step150 L 0).1, zr_zero, hL3]
+
 end Rule30WallDeadlines
 end Ruliology.CellularAutomata
