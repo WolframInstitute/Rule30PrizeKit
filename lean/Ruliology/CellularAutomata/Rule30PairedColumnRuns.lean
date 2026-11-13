@@ -271,4 +271,22 @@ theorem odd_zero_run_le (x : Int → Bool) (P : Nat) (hP : 1 ≤ P) (h0 : PerAll
     rw [push_to_zero x c white_c white_c1 t] at ht
     exact absurd ht (by decide)
 
+/-! ## Multi-period scaling `PerAll x k (m * P)` and arbitrary-base leftward periodicity propagation -/
+
+/-- **Multi-Period Scaling of `PerAll` and Arbitrary-Base Leftward Propagation (`perAll_mul_and_left_periodic_from_any_col`).** -/
+theorem perAll_mul_and_left_periodic_from_any_col
+    (x : Int → Bool) (k : Int) (P m j : Nat) :
+    (PerAll x k P → PerAll x k (m * P)) ∧
+    (PerAll x k P → PerAll x (k + 1) P →
+      PerAll x (k - (j : Int)) P ∧ PerAll x (k - (j : Int) + 1) P) := by
+  refine ⟨fun h t => (per_mod x k P h m t).symm, fun h0 h1 => ?_⟩
+  induction j with
+  | zero => exact ⟨by simpa using h0, by simpa using h1⟩
+  | succ j ih =>
+    refine ⟨?_, ?_⟩
+    · have hl := left_periodic x (k - (j : Int)) P ih.1 ih.2
+      rwa [show k - (j : Int) - 1 = k - ((j + 1 : Nat) : Int) by omega] at hl
+    · rw [show k - ((j + 1 : Nat) : Int) + 1 = k - (j : Int) by omega]
+      exact ih.1
+
 end Ruliology.CellularAutomata.Rule30PairedColumnRuns
