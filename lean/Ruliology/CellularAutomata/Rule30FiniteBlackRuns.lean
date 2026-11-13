@@ -557,5 +557,30 @@ theorem no_black_white_run_finite (i : Int) (T P s r t1 : Nat)
 
 end Finite
 
+/-! ### Finite-configuration (`FinConfig`) exclusion of `0 1^k` (`k ≥ 9`) and post-shield white-run persistence -/
+
+/-- **The words `0 1^k`, `k ≥ 9`, are excluded for every nonzero finite configuration (`not_eventually_zero_ones_finite`).** -/
+theorem not_eventually_zero_ones_finite {x : Int → Bool}
+    (hfin : Rule30PeriodTwoSideways.FinConfig x) (hne : ∃ p, x p = true)
+    (i : Int) (k : Nat) (hk : 9 ≤ k) (T : Nat) :
+    ¬ ∀ t, T ≤ t → evol x t i = decide ((t - T) % (k + 1) ≠ 0) := by
+  obtain ⟨lo, hlo, hzero⟩ := exists_leftmost hfin hne
+  exact not_eventually_zero_ones hlo hzero i k hk T
+
+/-- **Post-Shield White-to-Black Transition on Column `i + 1` (`nine_black_then_white_run_col1`):**
+if column `i` is black for `9` steps from `u` and then white through `u + 9 + r`, column `i + 1`
+is white at `u + 9`, column `i + 2` is black at `u + 9`, and column `i + 1` is black for all `1 ≤ k ≤ r`. -/
+theorem nine_black_then_white_run_col1 (x : Int → Bool) (i : Int) (u r : Nat)
+    (h9 : ∀ s, s < 9 → evol x (u + s) i = true)
+    (hw : ∀ j, j ≤ r → evol x (u + 9 + j) i = false) :
+    evol x (u + 9) (i + 1) = false ∧
+    evol x (u + 9) (i + 2) = true ∧
+    ∀ k, 1 ≤ k → k ≤ r → evol x (u + 9 + k) (i + 1) = true := by
+  have hbase := col_in_white_run' x i 0 u h9 (fun j hj => hw j (by omega))
+  refine ⟨hbase.1, by simpa [show i + 1 + 1 = i + 2 by omega] using hbase.2 rfl, fun k hk1 hkr => ?_⟩
+  have hk := (col_in_white_run' x i k u h9 (fun j hj => hw j (by omega))).1
+  rw [hk]
+  exact decide_eq_true (by omega)
+
 end Rule30FiniteBlackRuns
 end Ruliology.CellularAutomata

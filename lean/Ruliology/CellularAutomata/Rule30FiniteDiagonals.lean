@@ -265,5 +265,39 @@ theorem evol_eq_Ld (x : Int → Bool) (lo : Int) (i t : Nat) :
     evol x t (lo + i) = Ld x lo (t + i) t :=
   evol_congr (by omega)
 
+/-! ### Multi-period shift invariance for `Ld`, edge-diagonal constancy, and simultaneous two-sided `FinConfig` periodicity -/
+
+/-- **Multi-Period Shift Invariance for `Ld` and Constancy of `Rd x hi 0` and `Ld x lo 0` (`Ld_uniform_period_mul_and_zero_const`).** -/
+theorem Ld_uniform_period_mul_and_zero_const {x : Int → Bool} {lo hi : Int}
+    (hleft : ∀ p, p < lo → x p = false) (hright : ∀ p, hi < p → x p = false) :
+    (∀ t : Nat, Ld x lo 0 t = x lo ∧ Rd x hi 0 t = x hi) ∧
+    ∀ (i k t : Nat), 2 ^ i - 1 ≤ t → Ld x lo i (t + k * 2 ^ i) = Ld x lo i t := by
+  have hconst : ∀ t : Nat, Ld x lo 0 t = x lo ∧ Rd x hi 0 t = x hi := by
+    intro t
+    induction t with
+    | zero =>
+      refine ⟨?_, ?_⟩
+      · show x (lo - 0 + 0) = x lo; congr 1; omega
+      · show x (hi + 0 - 0) = x hi; congr 1; omega
+    | succ t ih =>
+      exact ⟨(Ld_zero_succ hleft t).trans ih.1, (Rd_zero_succ hright t).trans ih.2⟩
+  refine ⟨hconst, fun i k => ?_⟩
+  induction k with
+  | zero => intro t _; simp
+  | succ k ih =>
+    intro t ht
+    rw [show t + (k + 1) * 2 ^ i = (t + k * 2 ^ i) + 2 ^ i by rw [Nat.succ_mul]; omega,
+        Ld_uniform_period hleft i (t + k * 2 ^ i) (by omega), ih t ht]
+
+/-- **Simultaneous Two-Sided Dyadic Diagonal Periodicity for Every `FinConfig x` (`finConfig_both_diagonals_periodic`).** -/
+theorem finConfig_both_diagonals_periodic {x : Int → Bool} {W : Nat}
+    (hW : ∀ p : Int, W < p.natAbs → x p = false) (i k t : Nat) :
+    Rd x (W : Int) i (t + k * 2 ^ i) = Rd x (W : Int) i t ∧
+    (2 ^ i - 1 ≤ t → Ld x (-(W : Int)) i (t + k * 2 ^ i) = Ld x (-(W : Int)) i t) := by
+  have hright : ∀ p : Int, (W : Int) < p → x p = false := fun p hp => hW p (by omega)
+  have hleft : ∀ p : Int, p < -(W : Int) → x p = false := fun p hp => hW p (by omega)
+  exact ⟨Rd_periodic_mul hright i k t,
+         fun ht => (Ld_uniform_period_mul_and_zero_const hleft hright).2 i k t ht⟩
+
 end Rule30FiniteDiagonals
 end Ruliology.CellularAutomata
