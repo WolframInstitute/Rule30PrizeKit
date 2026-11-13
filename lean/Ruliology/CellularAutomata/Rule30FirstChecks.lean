@@ -582,5 +582,19 @@ theorem first_check_balanced {n : Nat} (h : ¬ Bad n) :
   generalize 2 ^ n = N at *
   omega
 
+/-! ## Symmetric balance bounds for `ones n` and `firstCheck n` under `¬ Bad n` and cube-sum complementarity -/
+
+/-- **Symmetric Balance Bounds for `ones n` and `firstCheck n` Under `¬ Bad n` (`ones_balanced_and_complement_of_not_bad`).** -/
+theorem ones_balanced_and_complement_of_not_bad (n : Nat) :
+    firstCheck n = 2 ^ n - ones n ∧
+    ones n = 2 ^ n - firstCheck n ∧
+    (¬ Bad n →
+      2 ^ n ≤ 40 * ones n ∧ 40 * ones n ≤ 39 * 2 ^ n ∧
+      2 ^ n ≤ 40 * firstCheck n ∧ 40 * firstCheck n ≤ 39 * 2 ^ n) := by
+  have hc := first_check_count n
+  refine ⟨by omega, by omega, fun h => ?_⟩
+  have hb := first_check_balanced h
+  omega
+
 end Rule30FirstChecks
 end Ruliology.CellularAutomata

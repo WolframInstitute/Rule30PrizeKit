@@ -416,5 +416,14 @@ theorem no_eventual_period_three_of_C3g (h001 : C3g001) (h011 : C3r011) :
   · exact not_eventually_001_of_C3g h001 ⟨T, h1⟩
   · exact not_eventually_011_of_C3r h011 ⟨T, h2⟩
 
+/-! ## Mixed skeleton/language period-`3` exclusion bridges -/
+
+/-- **Mixed Skeleton/Language Period-`3` Exclusion Bridges (`no_eventual_period_three_of_mixed_C3`).** -/
+theorem no_eventual_period_three_of_mixed_C3 :
+    (C3s001 → C3r011 → ¬ ∃ T0, ∀ t, T0 ≤ t → Rule30Prize.center (t + 3) = Rule30Prize.center t) ∧
+    (C3g001 → C3w w011 → ¬ ∃ T0, ∀ t, T0 ≤ t → Rule30Prize.center (t + 3) = Rule30Prize.center t) := by
+  refine ⟨fun h001 h011 => no_eventual_period_three_of_C3g (C3g001_of_C3s h001) h011,
+          fun h001 h011 => no_eventual_period_three_of_C3g h001 (C3r011_of_C3w h011)⟩
+
 end Rule30PeriodThreeLanguage
 end Ruliology.CellularAutomata
