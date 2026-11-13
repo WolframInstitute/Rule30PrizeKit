@@ -877,4 +877,17 @@ theorem not_finSupp_Psi_of_Q01GapCore (hQ : Q01GapCore) (R : Nat → Bool) {t0 :
 theorem CQ01Empty_of_Q01GapCore (hQ : Q01GapCore) : Rule30PeriodTwoSideways.CQ01Empty :=
   not_finSupp_Psi_of_Q01GapCore hQ _ (t0 := 293) (by decide) entry_empty
 
+/-! ## Direct `Q01` and `Q01GapWords` bridges to `Q01GapCore` and `CQ01Empty`, and 18-column window properties -/
+
+/-- **Direct `Q01` and `Q01GapWords` Bridges to `Q01GapCore` and `CQ01Empty`, and 18-Column Window Properties (`q01_and_gapWords_imp_q01GapCore_and_win18_props`).** -/
+theorem q01_and_gapWords_imp_q01GapCore_and_win18_props (R : Nat → Bool) (t : Nat) :
+    (Q01 → Q01GapCore) ∧
+    (Q01GapWords → Q01GapCore) ∧
+    (win18 R t).length = 18 ∧
+    (win18 R t).headD false = drv altCol R t 1 := by
+  refine ⟨fun hQ L hf hX _ => hQ L hf hX,
+          Q01GapCore_of_Q01GapWords,
+          win18_length R t,
+          win18_head R t⟩
+
 end Ruliology.CellularAutomata.Rule30GateTrapLift
