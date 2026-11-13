@@ -528,4 +528,36 @@ theorem black_run_le_evol (i : Int) (a L : Nat) (ha : 1 ≤ a) (hd : lo - i < a)
 
 end General
 
+/-! ### Exact partition identity `blackCount n + whiteCount n = n`, two-sided logarithmic bounds, and `FinConfig` black-run bound -/
+
+/-- **Exact Partition Identity `blackCount n + whiteCount n = n` and Two-Sided Logarithmic Bounds (`blackCount_add_whiteCount_and_two_sided_bounds`).** -/
+theorem blackCount_add_whiteCount_and_two_sided_bounds (n : Nat) :
+    blackCount n + whiteCount n = n ∧
+    (1 ≤ n → Nat.log2 n + 1 ≤ blackCount n ∧ blackCount n + Nat.log2 n / 2 ≤ n) ∧
+    (1 ≤ n → Nat.log2 n / 2 ≤ whiteCount n ∧ whiteCount n + (Nat.log2 n + 1) ≤ n) := by
+  have hsum : ∀ m : Nat, blackCount m + whiteCount m = m := by
+    intro m
+    induction m with
+    | zero => rfl
+    | succ m ih =>
+      rw [blackCount_succ, whiteCount_succ]
+      cases center m <;> simp <;> omega
+  have hsum_n := hsum n
+  have hlog_w := log_le_whiteCount n
+  refine ⟨hsum_n, fun hn => ?_, fun hn => ?_⟩
+  · have hlog_b := log_two_succ_le_blackCount n hn
+    exact ⟨hlog_b, by omega⟩
+  · have hlog_b := log_two_succ_le_blackCount n hn
+    exact ⟨hlog_w, by omega⟩
+
+/-- **Finite-Configuration (`FinConfig`) Linear Black-Run Bound (`black_run_le_finConfig`).** -/
+theorem black_run_le_finConfig {x : Int → Bool}
+    (hfin : Rule30PeriodTwoSideways.FinConfig x) (hne : ∃ p, x p = true) :
+    ∃ lo : Int, x lo = true ∧ (∀ p, p < lo → x p = false) ∧
+      ∀ (i : Int) (a L : Nat), 1 ≤ a → lo - i < a →
+        (∀ j, j < L → Rule30Realization.evol x (a + j) i = true) →
+        (L : Int) ≤ a + i - lo := by
+  obtain ⟨lo, hlo, hzero⟩ := Rule30FiniteConfigs.exists_leftmost hfin hne
+  exact ⟨lo, hlo, hzero, fun i a L ha hd h => black_run_le_evol hlo hzero i a L ha hd h⟩
+
 end Ruliology.CellularAutomata.Rule30CenterRuns

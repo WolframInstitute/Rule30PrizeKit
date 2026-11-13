@@ -2,6 +2,7 @@ module
 
 public import Ruliology.CellularAutomata.Rule30Prize
 public import Ruliology.CellularAutomata.Rule30EtherThreeErosion
+public import Ruliology.CellularAutomata.Rule30ZeroBoundary
 
 /-!
 # Period-three ether erosion with a white right tail
@@ -174,5 +175,26 @@ theorem white_tail_often_departs {F : Nat → Nat → Bool} (hF : IsR30 F)
   have heq : p = 1 := by omega
   subst heq
   exact ⟨t, by omega, hne⟩
+
+/-! ### Finitely supported `drv` orbits under `ether3` depart from `eth` arbitrarily late -/
+
+/-- **Finitely Supported Right Halves Driven by `ether3` Depart from the Matching Ether Arbitrarily Late (`finSupp_drv_often_departs`).** -/
+theorem finSupp_drv_often_departs (x : Nat → Bool) (j0 s : Nat)
+    (hfin : Rule30ZeroBoundary.FinSupp x) (T : Nat) :
+    ∃ t, T ≤ t ∧
+      drv (fun n => ether3 j0 (n + s)) x t 1 ≠ eth j0 s 1 t := by
+  obtain ⟨W, hW⟩ := hfin
+  have hF : IsR30 (drv (fun n => ether3 j0 (n + s)) x) :=
+    drv_isR30 (fun n => ether3 j0 (n + s)) x
+  have h0 : ∀ t, 0 ≤ t → drv (fun n => ether3 j0 (n + s)) x t 0 = eth j0 s 0 t := by
+    intro t _
+    rw [drv_col0]
+    unfold eth
+    rw [Nat.add_zero]
+  have hW0 : ∀ p, W < p → drv (fun n => ether3 j0 (n + s)) x 0 p = false := by
+    intro p hp
+    rw [drv_init _ _ p (by omega)]
+    exact hW p hp
+  exact white_tail_often_departs hF j0 s 0 W h0 hW0 T
 
 end Ruliology.CellularAutomata.Rule30WhiteTailErosion
