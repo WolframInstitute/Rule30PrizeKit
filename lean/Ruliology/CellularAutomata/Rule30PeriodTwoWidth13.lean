@@ -1555,5 +1555,255 @@ theorem no_eventual_period_two_of_RD_of_Q01GapWords (hRD : RD)
 
 end CQSplitWords
 
+/-! ## Hierarchical 12-bit (`m = 6`), 18-bit (`m = 9`), and 24-bit (`m = 12`) `GE2` seed classifications, strict mass-excess ladder (`Zc + 2, 3, 4 ≤ wtH`), and unconditional single-seed `AltFrom` corollaries -/
+
+section GE2HierarchicalLadder
+
+open Rule30Jen Rule30Prize Rule30PeriodTwo
+
+/-- Monotonicity of `GValid`: if `0 < m1`, `m1 ≤ m2`, and `GValid b m2`, then `GValid b m1`. -/
+theorem gvalid_mono {b : Nat → Bool} {m1 m2 : Nat} (hm1 : 0 < m1) (hle : m1 ≤ m2) (h : GValid b m2) :
+    GValid b m1 := by
+  refine ⟨fun _ => h.1 (by omega), fun j hj => h.2.1 j (by omega), fun j hj => h.2.2 j (by omega)⟩
+
+/-- Monotonicity of `E2Run`: if `m1 ≤ m2` and `E2Run b m2`, then `E2Run b m1`. -/
+theorem e2run_mono {b : Nat → Bool} {m1 m2 : Nat} (hle : m1 ≤ m2) (h : E2Run b m2) :
+    E2Run b m1 := fun j hj => h j (by omega)
+
+/-- Monotonicity of `GE2`: if `0 < m1`, `m1 ≤ m2`, and `GE2 b m2`, then `GE2 b m1`. -/
+theorem ge2_mono {b : Nat → Bool} {m1 m2 : Nat} (hm1 : 0 < m1) (hle : m1 ≤ m2) (h : GE2 b m2) :
+    GE2 b m1 := ⟨gvalid_mono hm1 hle h.1, e2run_mono hle h.2⟩
+
+/-- Executable Boolean check of `GValid (tr Y) m` for a finite seed `Y` and horizon `m ≥ 1`. -/
+def gvalidB (m Y : Nat) : Bool :=
+  !tr Y 0 &&
+  (List.range m).all (fun j => tr Y (2 * j + 1)) &&
+  (List.range (m - 1)).all (fun j => tr Y (2 * j) || tr Y (2 * j + 2))
+
+/-- Executable Boolean check of `E2Run (tr Y) m` for a finite seed `Y`. -/
+def e2runB (m Y : Nat) : Bool :=
+  (List.range (2 * m)).all (fun j => (run 1 (fun s => s % 2 == 0 && !tr Y s) 10 j).isSome)
+
+/-- Executable Boolean check of `GE2 (tr Y) m`. -/
+def ge2B (m Y : Nat) : Bool := gvalidB m Y && e2runB m Y
+
+theorem ge2B_true_of_GE2 {m Y : Nat} (hm : 0 < m) (h : GE2 (tr Y) m) : ge2B m Y = true := by
+  unfold ge2B gvalidB e2runB
+  rw [Bool.and_eq_true, Bool.and_eq_true, Bool.and_eq_true]
+  refine ⟨⟨⟨?_, ?_⟩, ?_⟩, ?_⟩
+  · rw [h.1.1 hm]; rfl
+  · rw [List.all_eq_true]; intro j hj
+    exact h.1.2.1 j (List.mem_range.mp hj)
+  · rw [List.all_eq_true]; intro j hj
+    have hjm : j < m - 1 := List.mem_range.mp hj
+    exact h.1.2.2 j (by omega)
+  · rw [List.all_eq_true]; intro j hj
+    exact h.2 j (List.mem_range.mp hj)
+
+/-- The 5 canonical 12-bit seeds (`Y < 4096`) satisfying `GE2 (tr Y) 6`. -/
+def seeds6 : List Nat := [278, 342, 806, 1574, 1622]
+
+/-- The 12 canonical 18-bit seeds (`Y < 262144`) satisfying `GE2 (tr Y) 9`. -/
+def seeds9 : List Nat :=
+  [33110, 37670, 49958, 71206, 94486, 103206, 140886, 147734, 180566, 206374, 229718, 246566]
+
+/-- The 26 canonical 24-bit seeds (`Y < 16777216`) satisfying `GE2 (tr Y) 12`. -/
+def seeds12 : List Nat :=
+  [857638, 1676070, 2692646, 4112726, 5280550, 6886950, 7110998, 8594982, 9617750, 10011430,
+   10453334, 11628822, 11944214, 12043046, 12199510, 12620582, 12992790, 13210406, 13812054,
+   14205734, 14647638, 15560982, 16138518, 16393814, 16586278, 16695638]
+
+theorem ge2_6_kernel_check :
+    (List.range 4096).all (fun Y =>
+      !ge2B 6 Y ||
+      (decide (Y ∈ seeds6) && decide (256 ≤ Y) &&
+       !Y.testBit 0 && Y.testBit 1 && Y.testBit 2 && !Y.testBit 3 &&
+       !Y.testBit 7 && (Y.testBit 8 || Y.testBit 9) && !Y.testBit 11 &&
+       decide (4 ≤ wtH 12 Y) && decide (Zc (tr Y) 6 + 2 ≤ wtH 12 Y))) = true := by decide +kernel
+
+/-- **Exact 5-Seed 12-Bit Classification, Forced Active Bit in `{8, 9}`, and Strict Mass Excess `Zc + 2 ≤ wtH 12`
+under `GE2 (tr X) 6` (`ge2_six_five_seeds_and_mass_excess`).** -/
+theorem ge2_six_five_seeds_and_mass_excess (X : Nat) (h : GE2 (tr X) 6) :
+    X % 4096 ∈ seeds6 ∧ 256 ≤ X % 4096 ∧
+    (X.testBit 0 = false ∧ X.testBit 1 = true ∧ X.testBit 2 = true ∧ X.testBit 3 = false ∧
+     X.testBit 7 = false ∧ (X.testBit 8 = true ∨ X.testBit 9 = true) ∧ X.testBit 11 = false) ∧
+    4 ≤ wtH 12 X ∧ Zc (tr X) 6 + 2 ≤ wtH 12 X := by
+  let Y := X % 4096
+  have hpow : (2 ^ (2 * 6) : Nat) = 4096 := rfl
+  have hYlt : Y < 4096 := Nat.mod_lt X (by decide)
+  have htr : ∀ t, t < 2 * 6 → tr Y t = tr X t := fun t ht => by
+    dsimp [Y]; rw [← hpow]; exact tr_mod X (2 * 6) t ht
+  have hGE2Y : GE2 (tr Y) 6 := prefixDet_GE2 (tr X) (tr Y) 6 (fun t ht => (htr t ht).symm) h
+  have hB : ge2B 6 Y = true := ge2B_true_of_GE2 (by decide) hGE2Y
+  have hall := List.all_eq_true.mp ge2_6_kernel_check Y (List.mem_range.mpr hYlt)
+  rw [hB] at hall
+  simp only [Bool.not_true, Bool.false_or, Bool.and_eq_true, Bool.or_eq_true,
+    Bool.not_eq_true', decide_eq_true_eq] at hall
+  rcases hall with ⟨⟨⟨⟨⟨⟨⟨⟨⟨⟨hseed, h256⟩, b0⟩, b1⟩, b2⟩, b3⟩, b7⟩, b89⟩, b11⟩, hw4⟩, hzc⟩
+  have hbit : ∀ i, i < 12 → Y.testBit i = X.testBit i := fun i hi => by
+    dsimp [Y]; rw [← hpow, Nat.testBit_mod_two_pow]; simp [hi]
+  rw [hbit 0 (by omega)] at b0
+  rw [hbit 1 (by omega)] at b1
+  rw [hbit 2 (by omega)] at b2
+  rw [hbit 3 (by omega)] at b3
+  rw [hbit 7 (by omega)] at b7
+  rw [hbit 8 (by omega), hbit 9 (by omega)] at b89
+  rw [hbit 11 (by omega)] at b11
+  have hwt : wtH 12 Y = wtH 12 X := by dsimp [Y]; rw [← hpow]; exact wtH_mod X 12
+  have hZ : Zc (tr Y) 6 = Zc (tr X) 6 := Zc_congr 6 (fun j hj => htr (2 * j) (by omega))
+  rw [hwt] at hw4 hzc
+  rw [hZ] at hzc
+  exact ⟨hseed, h256, ⟨b0, b1, b2, b3, b7, b89, b11⟩, hw4, hzc⟩
+
+theorem ge2_9_kernel_check :
+    seeds6.all (fun y0 =>
+      (List.range 64).all (fun hi =>
+        let Y := y0 + 4096 * hi
+        !ge2B 9 Y ||
+        (decide (Y ∈ seeds9) && decide (32768 ≤ Y) &&
+         decide (6 ≤ wtH 18 Y) && decide (Zc (tr Y) 9 + 3 ≤ wtH 18 Y)))) = true := by decide +kernel
+
+/-- **Exact 12-Seed 18-Bit Classification, Support Bound `32768 ≤ X % 262144`, and Strict Mass Excess
+`Zc + 3 ≤ wtH 18` under `GE2 (tr X) 9` (`ge2_nine_twelve_seeds_and_mass_excess`).** -/
+theorem ge2_nine_twelve_seeds_and_mass_excess (X : Nat) (h : GE2 (tr X) 9) :
+    X % 262144 ∈ seeds9 ∧ 32768 ≤ X % 262144 ∧
+    6 ≤ wtH 18 X ∧ Zc (tr X) 9 + 3 ≤ wtH 18 X := by
+  have h6 : GE2 (tr X) 6 := ge2_mono (by decide) (by decide) h
+  have hy0_mem : X % 4096 ∈ seeds6 := (ge2_six_five_seeds_and_mass_excess X h6).1
+  let Y := X % 262144
+  have hpow : (2 ^ (2 * 9) : Nat) = 262144 := rfl
+  have hYlt : Y < 262144 := Nat.mod_lt X (by decide)
+  have htr : ∀ t, t < 2 * 9 → tr Y t = tr X t := fun t ht => by
+    dsimp [Y]; rw [← hpow]; exact tr_mod X (2 * 9) t ht
+  have hGE2Y : GE2 (tr Y) 9 := prefixDet_GE2 (tr X) (tr Y) 9 (fun t ht => (htr t ht).symm) h
+  have hB : ge2B 9 Y = true := ge2B_true_of_GE2 (by decide) hGE2Y
+  let y0 := X % 4096
+  let hi := Y / 4096
+  have hhi : hi < 64 := by dsimp [hi]; omega
+  have hYeq : y0 + 4096 * hi = Y := by dsimp [y0, hi, Y]; omega
+  have hall1 := List.all_eq_true.mp ge2_9_kernel_check y0 hy0_mem
+  have hall2 := List.all_eq_true.mp hall1 hi (List.mem_range.mpr hhi)
+  dsimp only at hall2
+  rw [hYeq, hB] at hall2
+  simp only [Bool.not_true, Bool.false_or, Bool.and_eq_true, decide_eq_true_eq] at hall2
+  rcases hall2 with ⟨⟨⟨hseed, h32k⟩, hw6⟩, hzc⟩
+  have hwt : wtH 18 Y = wtH 18 X := by dsimp [Y]; rw [← hpow]; exact wtH_mod X 18
+  have hZ : Zc (tr Y) 9 = Zc (tr X) 9 := Zc_congr 9 (fun j hj => htr (2 * j) (by omega))
+  rw [hwt] at hw6 hzc
+  rw [hZ] at hzc
+  exact ⟨hseed, h32k, hw6, hzc⟩
+
+theorem ge2_12_kernel_check :
+    seeds9.all (fun y0 =>
+      (List.range 64).all (fun hi =>
+        let Y := y0 + 262144 * hi
+        !ge2B 12 Y ||
+        (decide (Y ∈ seeds12) && decide (524288 ≤ Y) &&
+         decide (9 ≤ wtH 24 Y) && decide (Zc (tr Y) 12 + 4 ≤ wtH 24 Y)))) = true := by decide +kernel
+
+/-- **Exact 26-Seed 24-Bit Classification, Support Bound `524288 ≤ X % 16777216`, and Strict Mass Excess
+`Zc + 4 ≤ wtH 24` under `GE2 (tr X) 12` (`ge2_twelve_twenty_six_seeds_and_mass_excess`).** -/
+theorem ge2_twelve_twenty_six_seeds_and_mass_excess (X : Nat) (h : GE2 (tr X) 12) :
+    X % 16777216 ∈ seeds12 ∧ 524288 ≤ X % 16777216 ∧
+    9 ≤ wtH 24 X ∧ Zc (tr X) 12 + 4 ≤ wtH 24 X := by
+  have h9 : GE2 (tr X) 9 := ge2_mono (by decide) (by decide) h
+  have hy0_mem : X % 262144 ∈ seeds9 := (ge2_nine_twelve_seeds_and_mass_excess X h9).1
+  let Y := X % 16777216
+  have hpow : (2 ^ (2 * 12) : Nat) = 16777216 := rfl
+  have hYlt : Y < 16777216 := Nat.mod_lt X (by decide)
+  have htr : ∀ t, t < 2 * 12 → tr Y t = tr X t := fun t ht => by
+    dsimp [Y]; rw [← hpow]; exact tr_mod X (2 * 12) t ht
+  have hGE2Y : GE2 (tr Y) 12 := prefixDet_GE2 (tr X) (tr Y) 12 (fun t ht => (htr t ht).symm) h
+  have hB : ge2B 12 Y = true := ge2B_true_of_GE2 (by decide) hGE2Y
+  let y0 := X % 262144
+  let hi := Y / 262144
+  have hhi : hi < 64 := by dsimp [hi]; omega
+  have hYeq : y0 + 262144 * hi = Y := by dsimp [y0, hi, Y]; omega
+  have hall1 := List.all_eq_true.mp ge2_12_kernel_check y0 hy0_mem
+  have hall2 := List.all_eq_true.mp hall1 hi (List.mem_range.mpr hhi)
+  dsimp only at hall2
+  rw [hYeq, hB] at hall2
+  simp only [Bool.not_true, Bool.false_or, Bool.and_eq_true, decide_eq_true_eq] at hall2
+  rcases hall2 with ⟨⟨⟨hseed, h524k⟩, hw9⟩, hzc⟩
+  have hwt : wtH 24 Y = wtH 24 X := by dsimp [Y]; rw [← hpow]; exact wtH_mod X 24
+  have hZ : Zc (tr Y) 12 = Zc (tr X) 12 := Zc_congr 12 (fun j hj => htr (2 * j) (by omega))
+  rw [hwt] at hw9 hzc
+  rw [hZ] at hzc
+  exact ⟨hseed, h524k, hw9, hzc⟩
+
+/-- **Universal Infinite-Horizon `GE2` 24-Bit Seed Ladder (`ge2_all_horizons_twenty_four_bit_ladder`):**
+for any seed `X : Nat` whose trace stays in `GE2` at all horizons (`∀ m, GE2 (tr X) m`, the target of `NoSeedGE2`),
+`X` simultaneously satisfies the 12-bit (`seeds6`), 18-bit (`seeds9`), and 24-bit (`seeds12`) classifications,
+pinned bits at `0, 1, 2, 3, 7, {8, 9}, 11`, support lower bound `524288 ≤ X % 16777216`, weight lower bounds
+`4 ≤ wtH 12 X`, `6 ≤ wtH 18 X`, `9 ≤ wtH 24 X`, and strict mass-excess bounds `Zc + 2, 3, 4 ≤ wtH`. -/
+theorem ge2_all_horizons_twenty_four_bit_ladder (X : Nat) (h : ∀ m, GE2 (tr X) m) :
+    (X.testBit 0 = false ∧ X.testBit 1 = true ∧ X.testBit 2 = true ∧ X.testBit 3 = false ∧
+     X.testBit 7 = false ∧ (X.testBit 8 = true ∨ X.testBit 9 = true) ∧ X.testBit 11 = false) ∧
+    X % 4096 ∈ seeds6 ∧ X % 262144 ∈ seeds9 ∧ X % 16777216 ∈ seeds12 ∧
+    524288 ≤ X % 16777216 ∧
+    4 ≤ wtH 12 X ∧ 6 ≤ wtH 18 X ∧ 9 ≤ wtH 24 X ∧
+    Zc (tr X) 6 + 2 ≤ wtH 12 X ∧ Zc (tr X) 9 + 3 ≤ wtH 18 X ∧ Zc (tr X) 12 + 4 ≤ wtH 24 X := by
+  rcases ge2_six_five_seeds_and_mass_excess X (h 6) with ⟨hs6, _, hbits, hw4, hzc6⟩
+  rcases ge2_nine_twelve_seeds_and_mass_excess X (h 9) with ⟨hs9, _, hw6, hzc9⟩
+  rcases ge2_twelve_twenty_six_seeds_and_mass_excess X (h 12) with ⟨hs12, h524k, hw9, hzc12⟩
+  exact ⟨hbits, hs6, hs9, hs12, h524k, hw4, hw6, hw9, hzc6, hzc9, hzc12⟩
+
+/-- **Unconditional Single-Seed 24-Bit Support and Mass-Excess Ladder Under an Alternating Center
+(`altFrom_late_white_twenty_four_bit_mass_and_support_bounds`).**
+Under `AltFrom T` (with no `RD` hypothesis), from some `K` onward, at every odd time `t = T + 2 * k0 + 1`
+(`K ≤ k0`) where `cell t (-1) = false`:
+1. `cell t (-8) = false`, `cell t (-12) = false`, and `cell t (-9) = true ∨ cell t (-10) = true`,
+2. `rowNat t % 4096 ∈ seeds6`, `rowNat t % 262144 ∈ seeds9`, and `rowNat t % 16777216 ∈ seeds12`,
+3. `524288 ≤ rowNat t % 16777216`, `9 ≤ wtH 24 (rowNat t)`, and `Zc (tr (rowNat t)) 12 + 4 ≤ wtH 24 (rowNat t)`. -/
+theorem altFrom_late_white_twenty_four_bit_mass_and_support_bounds {T : Nat} (hT : AltFrom T) :
+    ∃ K, ∀ k0, K ≤ k0 → cell (T + 2 * k0 + 1) (-1) = false →
+      cell (T + 2 * k0 + 1) (-8) = false ∧
+      (cell (T + 2 * k0 + 1) (-9) = true ∨ cell (T + 2 * k0 + 1) (-10) = true) ∧
+      cell (T + 2 * k0 + 1) (-12) = false ∧
+      rowNat (T + 2 * k0 + 1) % 4096 ∈ seeds6 ∧
+      rowNat (T + 2 * k0 + 1) % 262144 ∈ seeds9 ∧
+      rowNat (T + 2 * k0 + 1) % 16777216 ∈ seeds12 ∧
+      524288 ≤ rowNat (T + 2 * k0 + 1) % 16777216 ∧
+      9 ≤ wtH 24 (rowNat (T + 2 * k0 + 1)) ∧
+      Zc (tr (rowNat (T + 2 * k0 + 1))) 12 + 4 ≤ wtH 24 (rowNat (T + 2 * k0 + 1)) := by
+  obtain ⟨K, hK⟩ := lang_GE2 T hT
+  refine ⟨K, fun k0 hk0 hw => ?_⟩
+  let t := T + 2 * k0 + 1
+  have htr : tr (rowNat t) = fun s => cell (t + s) (-1) :=
+    funext (tr_rowNat t (alt_guard hT k0))
+  have hGE6 : GE2 (tr (rowNat t)) 6 := by rw [htr]; exact hK k0 hk0 hw 6
+  have hGE9 : GE2 (tr (rowNat t)) 9 := by rw [htr]; exact hK k0 hk0 hw 9
+  have hGE12 : GE2 (tr (rowNat t)) 12 := by rw [htr]; exact hK k0 hk0 hw 12
+  rcases ge2_six_five_seeds_and_mass_excess (rowNat t) hGE6 with
+    ⟨hs6, _, ⟨_, _, _, _, b7, b89, b11⟩, _, _⟩
+  rcases ge2_nine_twelve_seeds_and_mass_excess (rowNat t) hGE9 with ⟨hs9, _, _, _⟩
+  rcases ge2_twelve_twenty_six_seeds_and_mass_excess (rowNat t) hGE12 with ⟨hs12, h524k, hw9, hzc12⟩
+  rw [testBit_rowNat t 7] at b7
+  rw [testBit_rowNat t 8, testBit_rowNat t 9] at b89
+  rw [testBit_rowNat t 11] at b11
+  exact ⟨b7, b89, b11, hs6, hs9, hs12, h524k, hw9, hzc12⟩
+
+end GE2HierarchicalLadder
+
+section CQSplitTwoWords
+
+/-- **`RD` and the 2-word condition `Q01TwoWords` give `CQ01` and exclude eventual period 2
+(`CQ01_and_no_eventual_period_two_of_RD_of_Q01TwoWords`).** -/
+theorem CQ01_and_no_eventual_period_two_of_RD_of_Q01TwoWords (hRD : RD)
+    (hQ : Rule30GateTrapWords.Q01TwoWords) :
+    Rule30PeriodTwoCoupled.CQ01 ∧
+    ¬ ∃ T0, ∀ t, T0 ≤ t → Rule30Prize.center (t + 2) = Rule30Prize.center t := by
+  have hGapW : Rule30GateTrapWords.Q01GapWords :=
+    Rule30GateTrapWords.Q01TwoWords_iff_Q01GapWords.mp hQ
+  have hCQ : Rule30PeriodTwoCoupled.CQ01 := by
+    rw [Rule30PeriodTwoSideways.CQ01_iff_Psi]
+    intro R hR
+    rcases hRD R hR with ⟨t0, h0, hw⟩ | hp
+    · exact Rule30GateTrapWords.not_finSupp_Psi_of_Q01GapWords hGapW R h0 hw
+    · exact Rule30PeriodTwoSideways.not_finSupp_Psi_of_eventuallyPeriodic R hp
+  exact ⟨hCQ, Rule30PeriodTwoCoupled.no_eventual_period_two_of_CQ01 hCQ⟩
+
+end CQSplitTwoWords
+
 end Rule30PeriodTwoWidth13
 end Ruliology.CellularAutomata
