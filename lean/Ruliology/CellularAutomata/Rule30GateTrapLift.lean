@@ -1585,4 +1585,474 @@ theorem zrow_even_pulse_depth_20_21_white_and_29_or_32_black (L : Nat → Bool) 
   have h := twoWordsOK_depth_20_21_white_and_support_ge_29 (zrow L (2 * b)) (inX_zrow_even hX b) hanch' hall'
   exact ⟨h.1, h.2.1, h.2.2.1⟩
 
+set_option maxRecDepth 200000
+set_option maxHeartbeats 800000
+
+/-! ## Depth-32 cumulative weight floor (`≥ 18`), 11-branch Depth-48 classification (`46 ≤ W`, weight `≥ 25`), and the `TwoCoreThetaUnbounded` closing equivalence -/
+
+theorem theta_pulse16_weight_ge_18 :
+    18 ≤ ((List.range 32).map (fun i => if Theta pulse16Word1 (i + 1) then 1 else 0)).sum ∧
+    18 ≤ ((List.range 32).map (fun i => if Theta pulse16Word2 (i + 1) then 1 else 0)).sum ∧
+    18 ≤ ((List.range 32).map (fun i => if Theta pulse16Word3 (i + 1) then 1 else 0)).sum ∧
+    18 ≤ ((List.range 32).map (fun i => if Theta pulse16Word4 (i + 1) then 1 else 0)).sum ∧
+    18 ≤ ((List.range 32).map (fun i => if Theta pulse16Word5 (i + 1) then 1 else 0)).sum := by decide +kernel
+
+theorem map_range_congr {α : Type} (f g : Nat → α) (n : Nat) (h : ∀ i, i < n → f i = g i) :
+    (List.range n).map f = (List.range n).map g := by
+  apply List.map_congr_left
+  intro i hi
+  exact h i (List.mem_range.mp hi)
+
+/-- **Recurrent Depth-32 Cumulative Hamming-Weight Floor (`18 ≤ weight(1..32)`) at Every Black Pulse
+(`zrow_even_pulse_thirty_two_depth_weight_ge_18`).** -/
+theorem zrow_even_pulse_thirty_two_depth_weight_ge_18 (L : Nat → Bool) (hX : InX L) (b : Nat)
+    (hanchor : zrow L (2 * b + 1) 1 = false)
+    (hall : ∀ s, TwoWordsOK (fun s => !zrow L (2 * s + 1) 1) s) :
+    18 ≤ ((List.range 32).map (fun i => if zrow L (2 * b) (i + 1) then 1 else 0)).sum := by
+  let L' := zrow L (2 * b)
+  have hX' : InX L' := inX_zrow_even hX b
+  have hanch' : zrow L' 1 1 = false := by dsimp [L']; rw [← zrow_shift]; exact hanchor
+  have hall' : ∀ s, TwoWordsOK (fun s => !zrow L' (2 * s + 1) 1) s := fun s => by
+    dsimp [L']; rw [zrow_even_free_comp]
+    exact (twoWordsOK_shift (fun n => !zrow L (2 * n + 1) 1) b s).mpr (hall (b + s))
+  have hth : ∀ k, 1 ≤ k → L' k = Theta (fun s => zrow L' (2 * s + 1) 1) k := by
+    intro k hk
+    rw [← zrow_zero_of_pos L' hk, Theta_unique hX' (fun _ => rfl)]
+  have hw := theta_pulse16_weight_ge_18
+  rcases twoWordsOK_sixteen_step_five_branches (fun s => zrow L' (2 * s + 1) 1) hanch' hall' with
+    h1 | h2 | h3 | h4 | h5
+  · have hmap : (List.range 32).map (fun i => if L' (i + 1) then 1 else 0) =
+        (List.range 32).map (fun i => if Theta pulse16Word1 (i + 1) then 1 else 0) := by
+      apply map_range_congr; intro i hi
+      have hd : L' (i + 1) = Theta pulse16Word1 (i + 1) := by
+        rw [hth (i + 1) (by omega)]
+        exact Theta_dep _ _ (i + 1) (fun s hs => h1 s (by omega))
+      rw [hd]
+    dsimp [L'] at hmap; rw [hmap]; exact hw.1
+  · have hmap : (List.range 32).map (fun i => if L' (i + 1) then 1 else 0) =
+        (List.range 32).map (fun i => if Theta pulse16Word2 (i + 1) then 1 else 0) := by
+      apply map_range_congr; intro i hi
+      have hd : L' (i + 1) = Theta pulse16Word2 (i + 1) := by
+        rw [hth (i + 1) (by omega)]
+        exact Theta_dep _ _ (i + 1) (fun s hs => h2 s (by omega))
+      rw [hd]
+    dsimp [L'] at hmap; rw [hmap]; exact hw.2.1
+  · have hmap : (List.range 32).map (fun i => if L' (i + 1) then 1 else 0) =
+        (List.range 32).map (fun i => if Theta pulse16Word3 (i + 1) then 1 else 0) := by
+      apply map_range_congr; intro i hi
+      have hd : L' (i + 1) = Theta pulse16Word3 (i + 1) := by
+        rw [hth (i + 1) (by omega)]
+        exact Theta_dep _ _ (i + 1) (fun s hs => h3 s (by omega))
+      rw [hd]
+    dsimp [L'] at hmap; rw [hmap]; exact hw.2.2.1
+  · have hmap : (List.range 32).map (fun i => if L' (i + 1) then 1 else 0) =
+        (List.range 32).map (fun i => if Theta pulse16Word4 (i + 1) then 1 else 0) := by
+      apply map_range_congr; intro i hi
+      have hd : L' (i + 1) = Theta pulse16Word4 (i + 1) := by
+        rw [hth (i + 1) (by omega)]
+        exact Theta_dep _ _ (i + 1) (fun s hs => h4 s (by omega))
+      rw [hd]
+    dsimp [L'] at hmap; rw [hmap]; exact hw.2.2.2.1
+  · have hmap : (List.range 32).map (fun i => if L' (i + 1) then 1 else 0) =
+        (List.range 32).map (fun i => if Theta pulse16Word5 (i + 1) then 1 else 0) := by
+      apply map_range_congr; intro i hi
+      have hd : L' (i + 1) = Theta pulse16Word5 (i + 1) := by
+        rw [hth (i + 1) (by omega)]
+        exact Theta_dep _ _ (i + 1) (fun s hs => h5 s (by omega))
+      rw [hd]
+    dsimp [L'] at hmap; rw [hmap]; exact hw.2.2.2.2
+
+/-- The 11 canonical 24-bit free-word templates at an anchored black pulse (`g 0 = true`) under `TwoWordsOK`. -/
+def pulse24Word1 (s : Nat) : Bool :=
+  [false, true, true, true, true, false, true, true, true, true, false, true, true, true, true, false,
+   true, true, true, true, false, true, true, true].getD s false
+
+def pulse24Word2 (s : Nat) : Bool :=
+  [false, true, true, true, true, false, true, true, true, true, false, true, true, true, true, false,
+   true, true, true, true, false, true, true, false].getD s false
+
+def pulse24Word3 (s : Nat) : Bool :=
+  [false, true, true, true, true, false, true, true, true, true, false, true, true, true, true, false,
+   true, true, false, true, true, true, true, false].getD s false
+
+def pulse24Word4 (s : Nat) : Bool :=
+  [false, true, true, true, true, false, true, true, true, true, false, true, true, false, true, true,
+   true, true, false, true, true, true, true, false].getD s false
+
+def pulse24Word5 (s : Nat) : Bool :=
+  [false, true, true, true, true, false, true, true, true, true, false, true, true, false, true, true,
+   true, true, false, true, true, false, true, true].getD s false
+
+def pulse24Word6 (s : Nat) : Bool :=
+  [false, true, true, true, true, false, true, true, false, true, true, true, true, false, true, true,
+   true, true, false, true, true, true, true, false].getD s false
+
+def pulse24Word7 (s : Nat) : Bool :=
+  [false, true, true, true, true, false, true, true, false, true, true, true, true, false, true, true,
+   false, true, true, true, true, false, true, true].getD s false
+
+def pulse24Word8 (s : Nat) : Bool :=
+  [false, true, true, false, true, true, true, true, false, true, true, true, true, false, true, true,
+   true, true, false, true, true, true, true, false].getD s false
+
+def pulse24Word9 (s : Nat) : Bool :=
+  [false, true, true, false, true, true, true, true, false, true, true, true, true, false, true, true,
+   true, true, false, true, true, false, true, true].getD s false
+
+def pulse24Word10 (s : Nat) : Bool :=
+  [false, true, true, false, true, true, true, true, false, true, true, false, true, true, true, true,
+   false, true, true, false, true, true, true, true].getD s false
+
+def pulse24Word11 (s : Nat) : Bool :=
+  [false, true, true, false, true, true, true, true, false, true, true, false, true, true, true, true,
+   false, true, true, true, true, false, true, true].getD s false
+
+/-- **Eleven-Branch Classification of the First 24 Free Bits Under Anchored `TwoWordsOK` (`twoWordsOK_twenty_four_step_eleven_branches`).** -/
+theorem twoWordsOK_twenty_four_step_eleven_branches (f : Nat → Bool)
+    (hf0 : f 0 = false) (hall : ∀ s, TwoWordsOK (fun s => !f s) s) :
+    (∀ s, s < 24 → f s = pulse24Word1 s) ∨
+    (∀ s, s < 24 → f s = pulse24Word2 s) ∨
+    (∀ s, s < 24 → f s = pulse24Word3 s) ∨
+    (∀ s, s < 24 → f s = pulse24Word4 s) ∨
+    (∀ s, s < 24 → f s = pulse24Word5 s) ∨
+    (∀ s, s < 24 → f s = pulse24Word6 s) ∨
+    (∀ s, s < 24 → f s = pulse24Word7 s) ∨
+    (∀ s, s < 24 → f s = pulse24Word8 s) ∨
+    (∀ s, s < 24 → f s = pulse24Word9 s) ∨
+    (∀ s, s < 24 → f s = pulse24Word10 s) ∨
+    (∀ s, s < 24 → f s = pulse24Word11 s) := by
+  let g : Nat → Bool := fun s => !f s
+  have bval : ∀ {x : Bool}, (!x) = false → x = true := by intro x h; cases x <;> cases h <;> rfl
+  have bval_t : ∀ {x : Bool}, (!x) = true → x = false := by intro x h; cases x <;> cases h <;> rfl
+  rcases twoWordsOK_sixteen_step_five_branches f hf0 hall with h1 | h2 | h3 | h4 | h5
+  · -- Branch 1: pulses at 0, 5, 10, 15 (f 15 = false)
+    have hf15 : f 15 = false := h1 15 (by omega)
+    have hg15 : g 15 = true := by dsimp [g]; rw [hf15]; rfl
+    rcases twoWordsOK_eight_step_one_bit_law g 15 (hall 15) (hall 18).1 (hall 20).1 hg15 with
+      ⟨hg16, hg17, hg19, hg20, hg21, hg22⟩
+    have hf16 : f 16 = true := bval hg16
+    have hf17 : f 17 = true := bval hg17
+    have hf19 : f 19 = true := bval hg19
+    have hf21 : f 21 = true := bval hg21
+    have hf22 : f 22 = true := bval hg22
+    cases hf18 : f 18
+    · -- f 18 = false -> g 18 = true -> g 23 = true (f 23 = false) -> Word 3
+      have hg18 : g 18 = true := by dsimp [g]; rw [hf18]; rfl
+      have hf20 : f 20 = true := by dsimp [g] at hg20; rw [hf18] at hg20; exact bval hg20
+      have hg23 : g 23 = true := twoWordsOK_pulse_at_three_forces_eight g 15 (hall 15) (hall 18).1 hg15 hg18
+      have hf23 : f 23 = false := bval_t hg23
+      right; right; left
+      intro s hs
+      by_cases hs16 : s < 16
+      · rw [h1 s hs16]
+        have e : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+            s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+      · have e : s = 16 ∨ s = 17 ∨ s = 18 ∨ s = 19 ∨ s = 20 ∨ s = 21 ∨ s = 22 ∨ s = 23 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+          first | exact hf16 | exact hf17 | exact hf18 | exact hf19 | exact hf20 | exact hf21 | exact hf22 | exact hf23
+    · -- f 18 = true -> f 20 = false -> split on f 23 (Word 1 or Word 2)
+      have hf20 : f 20 = false := by dsimp [g] at hg20; rw [hf18] at hg20; exact bval_t hg20
+      cases hf23 : f 23
+      · -- f 23 = false -> Word 2
+        right; left
+        intro s hs
+        by_cases hs16 : s < 16
+        · rw [h1 s hs16]
+          have e : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+              s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+          rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+              rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+        · have e : s = 16 ∨ s = 17 ∨ s = 18 ∨ s = 19 ∨ s = 20 ∨ s = 21 ∨ s = 22 ∨ s = 23 := by omega
+          rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+            first | exact hf16 | exact hf17 | exact hf18 | exact hf19 | exact hf20 | exact hf21 | exact hf22 | exact hf23
+      · -- f 23 = true -> Word 1
+        left
+        intro s hs
+        by_cases hs16 : s < 16
+        · rw [h1 s hs16]
+          have e : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+              s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+          rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+              rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+        · have e : s = 16 ∨ s = 17 ∨ s = 18 ∨ s = 19 ∨ s = 20 ∨ s = 21 ∨ s = 22 ∨ s = 23 := by omega
+          rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+            first | exact hf16 | exact hf17 | exact hf18 | exact hf19 | exact hf20 | exact hf21 | exact hf22 | exact hf23
+  · -- Branch 2: pulses at 0, 5, 10, 13 -> forced pulse at 18 -> Word 4 or Word 5
+    have hf10 : f 10 = false := h2 10 (by omega)
+    have hf13 : f 13 = false := h2 13 (by omega)
+    have hg10 : g 10 = true := by dsimp [g]; rw [hf10]; rfl
+    have hg13 : g 13 = true := by dsimp [g]; rw [hf13]; rfl
+    have hg18 : g 18 = true := twoWordsOK_pulse_at_three_forces_eight g 10 (hall 10) (hall 13).1 hg10 hg13
+    have hf18 : f 18 = false := bval_t hg18
+    rcases twoWordsOK_eight_step_one_bit_law g 13 (hall 13) (hall 16).1 (hall 18).1 hg13 with
+      ⟨_, _, hg17, hg18_eq, _, _⟩
+    have hf17 : f 17 = true := bval hg17
+    have hf16 : f 16 = true := by
+      dsimp [g] at hg18_eq; rw [hf18] at hg18_eq
+      cases h : f 16 <;> rw [h] at hg18_eq <;> cases hg18_eq <;> rfl
+    rcases twoWordsOK_eight_step_one_bit_law g 18 (hall 18) (hall 21).1 (hall 23).1 hg18 with
+      ⟨hg19, hg20, hg22, hg23_eq, _, _⟩
+    have hf19 : f 19 = true := bval hg19
+    have hf20 : f 20 = true := bval hg20
+    have hf22 : f 22 = true := bval hg22
+    cases hf21 : f 21
+    · -- f 21 = false -> f 23 = true -> Word 5
+      have hf23 : f 23 = true := by dsimp [g] at hg23_eq; rw [hf21] at hg23_eq; exact bval hg23_eq
+      right; right; right; right; left
+      intro s hs
+      by_cases hs16 : s < 16
+      · rw [h2 s hs16]
+        have e : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+            s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+      · have e : s = 16 ∨ s = 17 ∨ s = 18 ∨ s = 19 ∨ s = 20 ∨ s = 21 ∨ s = 22 ∨ s = 23 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+          first | exact hf16 | exact hf17 | exact hf18 | exact hf19 | exact hf20 | exact hf21 | exact hf22 | exact hf23
+    · -- f 21 = true -> f 23 = false -> Word 4
+      have hf23 : f 23 = false := by dsimp [g] at hg23_eq; rw [hf21] at hg23_eq; exact bval_t hg23_eq
+      right; right; right; left
+      intro s hs
+      by_cases hs16 : s < 16
+      · rw [h2 s hs16]
+        have e : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+            s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+      · have e : s = 16 ∨ s = 17 ∨ s = 18 ∨ s = 19 ∨ s = 20 ∨ s = 21 ∨ s = 22 ∨ s = 23 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+          first | exact hf16 | exact hf17 | exact hf18 | exact hf19 | exact hf20 | exact hf21 | exact hf22 | exact hf23
+  · -- Branch 3: pulses at 0, 5, 8, 13 -> Word 6 or Word 7
+    have hf5 : f 5 = false := h3 5 (by omega)
+    have hf8 : f 8 = false := h3 8 (by omega)
+    have hf13 : f 13 = false := h3 13 (by omega)
+    have hg5 : g 5 = true := by dsimp [g]; rw [hf5]; rfl
+    have hg8 : g 8 = true := by dsimp [g]; rw [hf8]; rfl
+    have hg13 : g 13 = true := by dsimp [g]; rw [hf13]; rfl
+    rcases twoWordsOK_eight_step_one_bit_law g 13 (hall 13) (hall 16).1 (hall 18).1 hg13 with
+      ⟨_, _, hg17, hg18_eq, hg19, hg20⟩
+    have hf17 : f 17 = true := bval hg17
+    have hf19 : f 19 = true := bval hg19
+    have hf20 : f 20 = true := bval hg20
+    cases hf16 : f 16
+    · -- f 16 = false -> g 16 = true -> pulse at 21 -> Word 7
+      have hg16 : g 16 = true := by dsimp [g]; rw [hf16]; rfl
+      have hf18 : f 18 = true := by dsimp [g] at hg18_eq; rw [hf16] at hg18_eq; exact bval hg18_eq
+      have hg21 : g 21 = true := twoWordsOK_pulse_at_three_forces_eight g 13 (hall 13) (hall 16).1 hg13 hg16
+      have hf21 : f 21 = false := bval_t hg21
+      rcases twoWordsOK_eight_step_one_bit_law g 21 (hall 21) (hall 24).1 (hall 26).1 hg21 with
+        ⟨hg22, hg23, _, _, _, _⟩
+      have hf22 : f 22 = true := bval hg22
+      have hf23 : f 23 = true := bval hg23
+      right; right; right; right; right; right; left
+      intro s hs
+      by_cases hs16 : s < 16
+      · rw [h3 s hs16]
+        have e : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+            s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+      · have e : s = 16 ∨ s = 17 ∨ s = 18 ∨ s = 19 ∨ s = 20 ∨ s = 21 ∨ s = 22 ∨ s = 23 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+          first | exact hf16 | exact hf17 | exact hf18 | exact hf19 | exact hf20 | exact hf21 | exact hf22 | exact hf23
+    · -- f 16 = true -> f 18 = false (g 18 = true) -> pulses at 5, 8, 13, 18 -> no 3553 forces g 21 = false, g 23 = true -> Word 6
+      have hf18 : f 18 = false := by dsimp [g] at hg18_eq; rw [hf16] at hg18_eq; exact bval_t hg18_eq
+      have hg18 : g 18 = true := by dsimp [g]; rw [hf18]; rfl
+      have h355 := twoWordsOK_no_3553_forces_five_after_355 g 5 (hall 5) (hall 8).1 (hall 10).1
+        (hall 13) (hall 16).1 (hall 18).1 hg5 hg8 hg13 hg18
+      have hf21 : f 21 = true := bval h355.1
+      have hf23 : f 23 = false := bval_t h355.2
+      rcases twoWordsOK_eight_step_one_bit_law g 18 (hall 18) (hall 21).1 (hall 23).1 hg18 with
+        ⟨_, _, hg22, _, _, _⟩
+      have hf22 : f 22 = true := bval hg22
+      right; right; right; right; right; left
+      intro s hs
+      by_cases hs16 : s < 16
+      · rw [h3 s hs16]
+        have e : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+            s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+      · have e : s = 16 ∨ s = 17 ∨ s = 18 ∨ s = 19 ∨ s = 20 ∨ s = 21 ∨ s = 22 ∨ s = 23 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+          first | exact hf16 | exact hf17 | exact hf18 | exact hf19 | exact hf20 | exact hf21 | exact hf22 | exact hf23
+  · -- Branch 4: pulses at 0, 3, 8, 13 -> no 3553 at 0 forces g 16 = false, g 18 = true -> Word 8 or Word 9
+    have hf3 : f 3 = false := h4 3 (by omega)
+    have hf8 : f 8 = false := h4 8 (by omega)
+    have hf13 : f 13 = false := h4 13 (by omega)
+    have hg0 : g 0 = true := by dsimp [g]; rw [hf0]; rfl
+    have hg3 : g 3 = true := by dsimp [g]; rw [hf3]; rfl
+    have hg8 : g 8 = true := by dsimp [g]; rw [hf8]; rfl
+    have hg13 : g 13 = true := by dsimp [g]; rw [hf13]; rfl
+    have h355 := twoWordsOK_no_3553_forces_five_after_355 g 0 (hall 0) (hall 3).1 (hall 5).1
+      (hall 8) (hall 11).1 (hall 13).1 hg0 hg3 hg8 hg13
+    have hf16 : f 16 = true := bval h355.1
+    have hf18 : f 18 = false := bval_t h355.2
+    have hg18 : g 18 = true := by dsimp [g]; rw [hf18]; rfl
+    rcases twoWordsOK_eight_step_one_bit_law g 13 (hall 13) (hall 16).1 (hall 18).1 hg13 with
+      ⟨_, _, hg17, _, _, _⟩
+    have hf17 : f 17 = true := bval hg17
+    rcases twoWordsOK_eight_step_one_bit_law g 18 (hall 18) (hall 21).1 (hall 23).1 hg18 with
+      ⟨hg19, hg20, hg22, hg23_eq, _, _⟩
+    have hf19 : f 19 = true := bval hg19
+    have hf20 : f 20 = true := bval hg20
+    have hf22 : f 22 = true := bval hg22
+    cases hf21 : f 21
+    · -- f 21 = false -> f 23 = true -> Word 9
+      have hf23 : f 23 = true := by dsimp [g] at hg23_eq; rw [hf21] at hg23_eq; exact bval hg23_eq
+      right; right; right; right; right; right; right; right; left
+      intro s hs
+      by_cases hs16 : s < 16
+      · rw [h4 s hs16]
+        have e : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+            s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+      · have e : s = 16 ∨ s = 17 ∨ s = 18 ∨ s = 19 ∨ s = 20 ∨ s = 21 ∨ s = 22 ∨ s = 23 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+          first | exact hf16 | exact hf17 | exact hf18 | exact hf19 | exact hf20 | exact hf21 | exact hf22 | exact hf23
+    · -- f 21 = true -> f 23 = false -> Word 8
+      have hf23 : f 23 = false := by dsimp [g] at hg23_eq; rw [hf21] at hg23_eq; exact bval_t hg23_eq
+      right; right; right; right; right; right; right; left
+      intro s hs
+      by_cases hs16 : s < 16
+      · rw [h4 s hs16]
+        have e : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+            s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+      · have e : s = 16 ∨ s = 17 ∨ s = 18 ∨ s = 19 ∨ s = 20 ∨ s = 21 ∨ s = 22 ∨ s = 23 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+          first | exact hf16 | exact hf17 | exact hf18 | exact hf19 | exact hf20 | exact hf21 | exact hf22 | exact hf23
+  · -- Branch 5: pulses at 0, 3, 8, 11 -> forced pulse at 16 -> Word 10 or Word 11
+    have hf8 : f 8 = false := h5 8 (by omega)
+    have hf11 : f 11 = false := h5 11 (by omega)
+    have hg8 : g 8 = true := by dsimp [g]; rw [hf8]; rfl
+    have hg11 : g 11 = true := by dsimp [g]; rw [hf11]; rfl
+    have hg16 : g 16 = true := twoWordsOK_pulse_at_three_forces_eight g 8 (hall 8) (hall 11).1 hg8 hg11
+    have hf16 : f 16 = false := bval_t hg16
+    rcases twoWordsOK_eight_step_one_bit_law g 16 (hall 16) (hall 19).1 (hall 21).1 hg16 with
+      ⟨hg17, hg18, hg20, hg21_eq, hg22, hg23⟩
+    have hf17 : f 17 = true := bval hg17
+    have hf18 : f 18 = true := bval hg18
+    have hf20 : f 20 = true := bval hg20
+    have hf22 : f 22 = true := bval hg22
+    have hf23 : f 23 = true := bval hg23
+    cases hf19 : f 19
+    · -- f 19 = false -> f 21 = true -> Word 10
+      have hf21 : f 21 = true := by dsimp [g] at hg21_eq; rw [hf19] at hg21_eq; exact bval hg21_eq
+      right; right; right; right; right; right; right; right; right; left
+      intro s hs
+      by_cases hs16 : s < 16
+      · rw [h5 s hs16]
+        have e : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+            s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+      · have e : s = 16 ∨ s = 17 ∨ s = 18 ∨ s = 19 ∨ s = 20 ∨ s = 21 ∨ s = 22 ∨ s = 23 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+          first | exact hf16 | exact hf17 | exact hf18 | exact hf19 | exact hf20 | exact hf21 | exact hf22 | exact hf23
+    · -- f 19 = true -> f 21 = false -> Word 11
+      have hf21 : f 21 = false := by dsimp [g] at hg21_eq; rw [hf19] at hg21_eq; exact bval_t hg21_eq
+      right; right; right; right; right; right; right; right; right; right
+      intro s hs
+      by_cases hs16 : s < 16
+      · rw [h5 s hs16]
+        have e : s = 0 ∨ s = 1 ∨ s = 2 ∨ s = 3 ∨ s = 4 ∨ s = 5 ∨ s = 6 ∨ s = 7 ∨
+            s = 8 ∨ s = 9 ∨ s = 10 ∨ s = 11 ∨ s = 12 ∨ s = 13 ∨ s = 14 ∨ s = 15 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+            rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> rfl
+      · have e : s = 16 ∨ s = 17 ∨ s = 18 ∨ s = 19 ∨ s = 20 ∨ s = 21 ∨ s = 22 ∨ s = 23 := by omega
+        rcases e with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;>
+          first | exact hf16 | exact hf17 | exact hf18 | exact hf19 | exact hf20 | exact hf21 | exact hf22 | exact hf23
+
+theorem theta_pulse24_frontier_laws :
+    Theta pulse24Word1 48 = true ∧
+    Theta pulse24Word2 47 = true ∧
+    Theta pulse24Word3 48 = true ∧
+    Theta pulse24Word4 48 = true ∧
+    Theta pulse24Word5 46 = true ∧
+    Theta pulse24Word6 47 = true ∧
+    Theta pulse24Word7 47 = true ∧
+    Theta pulse24Word8 48 = true ∧
+    Theta pulse24Word9 47 = true ∧
+    Theta pulse24Word10 48 = true ∧
+    Theta pulse24Word11 46 = true := by decide +kernel
+
+/-- **Active Depth-48 Frontier in `{46, 47, 48}` and Support Lower Bound `46 ≤ W`
+Under Anchored `TwoWordsOK` (`twoWordsOK_depth_46_47_48_black_and_support_ge_46`).** -/
+theorem twoWordsOK_depth_46_47_48_black_and_support_ge_46 (L : Nat → Bool) (hX : InX L)
+    (hanchor : zrow L 1 1 = false)
+    (hall : ∀ s, TwoWordsOK (fun s => !zrow L (2 * s + 1) 1) s) :
+    (L 46 = true ∨ L 47 = true ∨ L 48 = true) ∧
+    (∀ W, (∀ k, W < k → L k = false) → 46 ≤ W) := by
+  have hth : ∀ k, 1 ≤ k → L k = Theta (fun s => zrow L (2 * s + 1) 1) k := by
+    intro k hk
+    rw [← zrow_zero_of_pos L hk, Theta_unique hX (fun _ => rfl)]
+  have hlaws := theta_pulse24_frontier_laws
+  have hcore : L 46 = true ∨ L 47 = true ∨ L 48 = true := by
+    rcases twoWordsOK_twenty_four_step_eleven_branches (fun s => zrow L (2 * s + 1) 1) hanchor hall with
+      h1 | h2 | h3 | h4 | h5 | h6 | h7 | h8 | h9 | h10 | h11
+    · right; right; rw [hth 48 (by omega), Theta_dep _ pulse24Word1 48 (fun s hs => h1 s (by omega))]; exact hlaws.1
+    · right; left; rw [hth 47 (by omega), Theta_dep _ pulse24Word2 47 (fun s hs => h2 s (by omega))]; exact hlaws.2.1
+    · right; right; rw [hth 48 (by omega), Theta_dep _ pulse24Word3 48 (fun s hs => h3 s (by omega))]; exact hlaws.2.2.1
+    · right; right; rw [hth 48 (by omega), Theta_dep _ pulse24Word4 48 (fun s hs => h4 s (by omega))]; exact hlaws.2.2.2.1
+    · left; rw [hth 46 (by omega), Theta_dep _ pulse24Word5 46 (fun s hs => h5 s (by omega))]; exact hlaws.2.2.2.2.1
+    · right; left; rw [hth 47 (by omega), Theta_dep _ pulse24Word6 47 (fun s hs => h6 s (by omega))]; exact hlaws.2.2.2.2.2.1
+    · right; left; rw [hth 47 (by omega), Theta_dep _ pulse24Word7 47 (fun s hs => h7 s (by omega))]; exact hlaws.2.2.2.2.2.2.1
+    · right; right; rw [hth 48 (by omega), Theta_dep _ pulse24Word8 48 (fun s hs => h8 s (by omega))]; exact hlaws.2.2.2.2.2.2.2.1
+    · right; left; rw [hth 47 (by omega), Theta_dep _ pulse24Word9 47 (fun s hs => h9 s (by omega))]; exact hlaws.2.2.2.2.2.2.2.2.1
+    · right; right; rw [hth 48 (by omega), Theta_dep _ pulse24Word10 48 (fun s hs => h10 s (by omega))]; exact hlaws.2.2.2.2.2.2.2.2.2.1
+    · left; rw [hth 46 (by omega), Theta_dep _ pulse24Word11 46 (fun s hs => h11 s (by omega))]; exact hlaws.2.2.2.2.2.2.2.2.2.2
+  refine ⟨hcore, fun W hW => ?_⟩
+  rcases hcore with h46 | h47 | h48
+  · refine Nat.le_of_not_lt fun hlt => ?_; have := hW 46 (by omega); rw [h46] at this; cases this
+  · refine Nat.le_of_not_lt fun hlt => ?_; have := hW 47 (by omega); rw [h47] at this; cases this
+  · refine Nat.le_of_not_lt fun hlt => ?_; have := hW 48 (by omega); rw [h48] at this; cases this
+
+/-- Every anchored `TwoCoreOK` free-bit sequence `f` (`f 0 = false` and `∀ s, TwoCoreOK (fun n => !f n) s`)
+reconstructs via `Theta f` to a row with unbounded support (`∀ W, ∃ k, W < k ∧ Theta f k = true`). -/
+def TwoCoreThetaUnbounded : Prop :=
+  ∀ f : Nat → Bool, f 0 = false → (∀ s, TwoCoreOK (fun n => !f n) s) →
+    ∀ W : Nat, ∃ k : Nat, W < k ∧ Theta f k = true
+
+/-- **Exact Equivalence of `TwoCoreThetaUnbounded` with `Q01TwoCoreAnchored` and `Q01GapCore`,
+and Direct Bridge to `CQ01Empty` (`twoCoreThetaUnbounded_iff_q01GapCore_and_imp_cq01Empty`).** -/
+theorem twoCoreThetaUnbounded_iff_q01GapCore_and_imp_cq01Empty :
+    (TwoCoreThetaUnbounded ↔ Q01TwoCoreAnchored) ∧
+    (TwoCoreThetaUnbounded ↔ Q01GapCore) := by
+  have h1 : TwoCoreThetaUnbounded ↔ Q01TwoCoreAnchored := by
+    constructor
+    · intro hunb L ⟨W, hW⟩ hX hanch hall
+      let f : Nat → Bool := fun s => zrow L (2 * s + 1) 1
+      obtain ⟨k, hkW, hth⟩ := hunb f hanch hall W
+      have hk1 : 1 ≤ k := by omega
+      have hLk : L k = Theta f k := by
+        rw [← zrow_zero_of_pos L hk1, Theta_unique hX (fun _ => rfl)]
+      have hfalse := hW k hkW
+      rw [hLk, hth] at hfalse
+      cases hfalse
+    · intro hQ f hf0 hall W
+      refine Classical.byContradiction fun hno => ?_
+      have hfin : FinSupp (Theta f) := by
+        refine ⟨W, fun k hk => ?_⟩
+        cases h : Theta f k
+        · rfl
+        · exfalso; exact hno ⟨k, hk, h⟩
+      have hX : InX (Theta f) := Theta_inX f
+      have hanch : zrow (Theta f) 1 1 = false := by
+        have := Theta_free f 0
+        simpa using this.trans hf0
+      have hall' : ∀ s, TwoCoreOK (fun s => !zrow (Theta f) (2 * s + 1) 1) s := by
+        have hfun : (fun s => !zrow (Theta f) (2 * s + 1) 1) = (fun s => !f s) := by
+          funext s; rw [Theta_free f s]
+        rw [hfun]; exact hall
+      exact hQ (Theta f) hfin hX hanch hall'
+  have heq := q01_three_word_time_shift_and_phase_anchored_equivalences
+  have h2 : TwoCoreThetaUnbounded ↔ Q01GapCore := by
+    rw [h1, ← heq.2.2.2.2.1, ← heq.2.2.2.1, heq.2.2.2.2.2]
+  exact ⟨h1, h2⟩
+
 end Ruliology.CellularAutomata.Rule30GateTrapLift
