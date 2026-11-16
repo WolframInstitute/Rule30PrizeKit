@@ -225,6 +225,7 @@ public import Ruliology.CellularAutomata.Rule30PeriodTwoNoFloor
 public import Ruliology.CellularAutomata.Rule30ConeTip
 public import Ruliology.CellularAutomata.Rule30PeriodTwoLadder
 public import Ruliology.CellularAutomata.Rule30PeriodTwoWidth13
+public import Ruliology.CellularAutomata.Rule30ZeroCoastBridge
 
 /-!
 # Rule 30 Prize: Lean snapshot
