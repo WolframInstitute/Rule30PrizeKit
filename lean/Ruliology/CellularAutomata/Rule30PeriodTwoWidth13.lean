@@ -1805,5 +1805,270 @@ theorem CQ01_and_no_eventual_period_two_of_RD_of_Q01TwoWords (hRD : RD)
 
 end CQSplitTwoWords
 
+/-! ## Exact closed-form retrodiction of depths `j = 4..9` under `GValid`, `GE2` shift-re-anchoring at every even-time zero (`ge2_shift_at_even_zero`), and recurrent 24-bit kick invariants -/
+
+section GE2ShiftAndDeepRetrodiction
+
+open Rule30ZeroBoundary.IntegerForm (F iter)
+open Rule30Jen Rule30Prize Rule30PeriodTwo
+
+/-- **Exact Closed-Form Retrodiction of Depths `j = 4` and `j = 5` at All Times under `GValid`
+(`x_four_five_even_odd`).**
+If `GValid (tr X) m` holds, then for every `r` with `r + 3 < m`:
+1. `x X 4 (2 * r) = (tr X (2 * r + 2) && tr X (2 * r + 4))` and `x X 4 (2 * r + 1) = tr X (2 * r + 2)`,
+2. `x X 5 (2 * r) = (tr X (2 * r + 2) && !tr X (2 * r + 4))` and
+   `x X 5 (2 * r + 1) = (tr X (2 * r + 2) ^^ (tr X (2 * r + 4) && tr X (2 * r + 6)))`. -/
+theorem x_four_five_even_odd {X m r : Nat} (hr : r + 3 < m) (hG : GValid (tr X) m) :
+    x X 4 (2 * r) = (tr X (2 * r + 2) && tr X (2 * r + 4)) ∧
+    x X 4 (2 * r + 1) = tr X (2 * r + 2) ∧
+    x X 5 (2 * r) = (tr X (2 * r + 2) && !tr X (2 * r + 4)) ∧
+    x X 5 (2 * r + 1) = (tr X (2 * r + 2) ^^ (tr X (2 * r + 4) && tr X (2 * r + 6))) := by
+  rcases x_two_even_odd (by omega : r + 1 < m) hG with ⟨h2e, h2o⟩
+  rcases x_three_even_odd (by omega : r + 2 < m) hG with ⟨h3e, h3o⟩
+  rcases x_three_even_odd (r := r + 1) hr hG with ⟨h3e1, h3o1⟩
+  have e2 : 2 * (r + 1) = 2 * r + 2 := by omega
+  have e3 : 2 * (r + 1) + 1 = 2 * r + 3 := by omega
+  have e4 : 2 * (r + 1) + 2 = 2 * r + 4 := by omega
+  have e6 : 2 * (r + 1) + 4 = 2 * r + 6 := by omega
+  rw [e2] at h3e1
+  rw [e6, e3] at h3o1
+  have hgold12 : (tr X (2 * r + 2) || tr X (2 * r + 4)) = true := by
+    have h := hG.2.2 (r + 1) (by omega)
+    rw [show 2 * (r + 1) + 2 = 2 * r + 4 by omega, show 2 * (r + 1) = 2 * r + 2 by omega] at h
+    exact h
+  have hgold23 : (tr X (2 * r + 4) || tr X (2 * r + 6)) = true := by
+    have h := hG.2.2 (r + 2) (by omega)
+    rw [show 2 * (r + 2) + 2 = 2 * r + 6 by omega, show 2 * (r + 2) = 2 * r + 4 by omega] at h
+    exact h
+  have hx4e : x X 4 (2 * r) = (tr X (2 * r + 2) && tr X (2 * r + 4)) := by
+    rw [x_rec X 2 (2 * r), h3o, h3e, h2e]
+    revert hgold12
+    cases tr X (2 * r + 2) <;> cases tr X (2 * r + 4) <;> decide
+  have hx4o : x X 4 (2 * r + 1) = tr X (2 * r + 2) := by
+    rw [x_rec X 2 (2 * r + 1), show 2 * r + 1 + 1 = 2 * r + 2 by omega, h3e1, h3o, h2o]
+    revert hgold12
+    cases tr X (2 * r + 2) <;> cases tr X (2 * r + 4) <;> decide
+  have hx4e1 : x X 4 (2 * r + 2) = (tr X (2 * r + 4) && tr X (2 * r + 6)) := by
+    rcases x_two_even_odd (r := r + 1) (by omega : r + 2 < m) hG with ⟨h2e1, _⟩
+    rw [e4, e2] at h2e1
+    rw [x_rec X 2 (2 * r + 2), show 2 * r + 2 + 1 = 2 * r + 3 by omega, h3o1, h3e1, h2e1]
+    revert hgold23
+    cases tr X (2 * r + 4) <;> cases tr X (2 * r + 6) <;> decide
+  have hx5e : x X 5 (2 * r) = (tr X (2 * r + 2) && !tr X (2 * r + 4)) := by
+    rw [x_rec X 3 (2 * r), hx4o, hx4e, h3e]
+    cases tr X (2 * r + 2) <;> cases tr X (2 * r + 4) <;> rfl
+  have hx5o : x X 5 (2 * r + 1) = (tr X (2 * r + 2) ^^ (tr X (2 * r + 4) && tr X (2 * r + 6))) := by
+    rw [x_rec X 3 (2 * r + 1), show 2 * r + 1 + 1 = 2 * r + 2 by omega, hx4e1, hx4o, h3o]
+    revert hgold12 hgold23
+    cases tr X (2 * r + 2) <;> cases tr X (2 * r + 4) <;> cases tr X (2 * r + 6) <;> decide
+  exact ⟨hx4e, hx4o, hx5e, hx5o⟩
+
+/-- **Exact Closed-Form Retrodiction of Depths `j = 6` and `j = 7`, Gap-`2` Indicator
+`x X 7 (2*r) = (!tr X (2*r+2) && !tr X (2*r+6))`, and Universal Odd-Time Disjunction
+`x X 6 (2*r+1) || x X 7 (2*r+1) = true` under `GValid` (`x_six_seven_even_odd`).** -/
+theorem x_six_seven_even_odd {X m r : Nat} (hr : r + 4 < m) (hG : GValid (tr X) m) :
+    x X 6 (2 * r) = (tr X (2 * r + 4) && tr X (2 * r + 6)) ∧
+    x X 6 (2 * r + 1) = !(tr X (2 * r + 2) && tr X (2 * r + 4) && !tr X (2 * r + 6)) ∧
+    x X 7 (2 * r) = (!tr X (2 * r + 2) && !tr X (2 * r + 6)) ∧
+    x X 7 (2 * r + 1) = !(tr X (2 * r + 6) && tr X (2 * r + 8)) ∧
+    (x X 6 (2 * r + 1) || x X 7 (2 * r + 1)) = true := by
+  rcases x_four_five_even_odd (by omega : r + 3 < m) hG with ⟨h4e, h4o, h5e, h5o⟩
+  rcases x_four_five_even_odd (r := r + 1) hr hG with ⟨h4e1, h4o1, h5e1, h5o1⟩
+  have e2 : 2 * (r + 1) = 2 * r + 2 := by omega
+  have e3 : 2 * (r + 1) + 1 = 2 * r + 3 := by omega
+  have e4 : 2 * (r + 1) + 2 = 2 * r + 4 := by omega
+  have e6 : 2 * (r + 1) + 4 = 2 * r + 6 := by omega
+  have e8 : 2 * (r + 1) + 6 = 2 * r + 8 := by omega
+  rw [e6, e4, e2] at h4e1 h5e1
+  rw [e4, e3] at h4o1
+  rw [e8, e6, e4, e3] at h5o1
+  have hgold12 : (tr X (2 * r + 2) || tr X (2 * r + 4)) = true := by
+    have h := hG.2.2 (r + 1) (by omega)
+    rw [show 2 * (r + 1) + 2 = 2 * r + 4 by omega, show 2 * (r + 1) = 2 * r + 2 by omega] at h
+    exact h
+  have hgold23 : (tr X (2 * r + 4) || tr X (2 * r + 6)) = true := by
+    have h := hG.2.2 (r + 2) (by omega)
+    rw [show 2 * (r + 2) + 2 = 2 * r + 6 by omega, show 2 * (r + 2) = 2 * r + 4 by omega] at h
+    exact h
+  have hgold34 : (tr X (2 * r + 6) || tr X (2 * r + 8)) = true := by
+    have h := hG.2.2 (r + 3) (by omega)
+    rw [show 2 * (r + 3) + 2 = 2 * r + 8 by omega, show 2 * (r + 3) = 2 * r + 6 by omega] at h
+    exact h
+  have hx6e : x X 6 (2 * r) = (tr X (2 * r + 4) && tr X (2 * r + 6)) := by
+    rw [x_rec X 4 (2 * r), h5o, h5e, h4e]
+    revert hgold12
+    cases tr X (2 * r + 2) <;> cases tr X (2 * r + 4) <;> cases tr X (2 * r + 6) <;> decide
+  have hx6o : x X 6 (2 * r + 1) = !(tr X (2 * r + 2) && tr X (2 * r + 4) && !tr X (2 * r + 6)) := by
+    rw [x_rec X 4 (2 * r + 1), show 2 * r + 1 + 1 = 2 * r + 2 by omega, h5e1, h5o, h4o]
+    revert hgold12 hgold23
+    cases tr X (2 * r + 2) <;> cases tr X (2 * r + 4) <;> cases tr X (2 * r + 6) <;> decide
+  have hx6e1 : x X 6 (2 * r + 2) = (tr X (2 * r + 6) && tr X (2 * r + 8)) := by
+    rw [x_rec X 4 (2 * r + 2), show 2 * r + 2 + 1 = 2 * r + 3 by omega, h5o1, h5e1, h4e1]
+    revert hgold23
+    cases tr X (2 * r + 4) <;> cases tr X (2 * r + 6) <;> cases tr X (2 * r + 8) <;> decide
+  have hx7e : x X 7 (2 * r) = (!tr X (2 * r + 2) && !tr X (2 * r + 6)) := by
+    rw [x_rec X 5 (2 * r), hx6o, hx6e, h5e]
+    revert hgold12 hgold23
+    cases tr X (2 * r + 2) <;> cases tr X (2 * r + 4) <;> cases tr X (2 * r + 6) <;> decide
+  have hx7o : x X 7 (2 * r + 1) = !(tr X (2 * r + 6) && tr X (2 * r + 8)) := by
+    rw [x_rec X 5 (2 * r + 1), show 2 * r + 1 + 1 = 2 * r + 2 by omega, hx6e1, hx6o, h5o]
+    revert hgold12 hgold23 hgold34
+    cases tr X (2 * r + 2) <;> cases tr X (2 * r + 4) <;>
+      cases tr X (2 * r + 6) <;> cases tr X (2 * r + 8) <;> decide
+  have hdisj : (x X 6 (2 * r + 1) || x X 7 (2 * r + 1)) = true := by
+    rw [hx6o, hx7o]
+    cases tr X (2 * r + 2) <;> cases tr X (2 * r + 4) <;>
+      cases tr X (2 * r + 6) <;> cases tr X (2 * r + 8) <;> rfl
+  exact ⟨hx6e, hx6o, hx7e, hx7o, hdisj⟩
+
+/-- **Exact Odd-Time Retrodiction of Depth `j = 8` (`x X 8 (2*r+1) = (tr X (2*r+4) || tr X (2*r+8))`)
+and Forced Active Pair `(x X 8 (2*r) || x X 9 (2*r)) = true` under `GValid`
+(`x_eight_nine_odd_and_active_pair`).** -/
+theorem x_eight_nine_odd_and_active_pair {X m r : Nat} (hr : r + 5 < m) (hG : GValid (tr X) m) :
+    x X 8 (2 * r + 1) = (tr X (2 * r + 4) || tr X (2 * r + 8)) ∧
+    (tr X (2 * r + 2) = true →
+      x X 7 (2 * r) = false ∧ (x X 8 (2 * r) = true ∨ x X 9 (2 * r) = true)) := by
+  rcases x_six_seven_even_odd (by omega : r + 4 < m) hG with ⟨h6e, _, h7e, h7o, hdisj⟩
+  rcases x_six_seven_even_odd (r := r + 1) hr hG with ⟨_, _, h7e1, _, _⟩
+  have e2 : 2 * (r + 1) = 2 * r + 2 := by omega
+  have e4 : 2 * (r + 1) + 2 = 2 * r + 4 := by omega
+  have e6 : 2 * (r + 1) + 4 = 2 * r + 6 := by omega
+  have e8 : 2 * (r + 1) + 6 = 2 * r + 8 := by omega
+  rw [e8, e4, e2] at h7e1
+  have hgold23 : (tr X (2 * r + 4) || tr X (2 * r + 6)) = true := by
+    have h := hG.2.2 (r + 2) (by omega)
+    rw [show 2 * (r + 2) + 2 = 2 * r + 6 by omega, show 2 * (r + 2) = 2 * r + 4 by omega] at h
+    exact h
+  have hx8o : x X 8 (2 * r + 1) = (tr X (2 * r + 4) || tr X (2 * r + 8)) := by
+    rw [x_rec X 6 (2 * r + 1), show 2 * r + 1 + 1 = 2 * r + 2 by omega, Bool.or_comm, hdisj, h7e1]
+    cases tr X (2 * r + 4) <;> cases tr X (2 * r + 8) <;> rfl
+  refine ⟨hx8o, fun hb1 => ?_⟩
+  have hx7_false : x X 7 (2 * r) = false := by
+    rw [h7e, hb1]; rfl
+  have hx8e : x X 8 (2 * r) = (!(tr X (2 * r + 6) && tr X (2 * r + 8)) ^^ (tr X (2 * r + 4) && tr X (2 * r + 6))) := by
+    rw [x_rec X 6 (2 * r), h7o, hx7_false, h6e, Bool.false_or]
+  have hx9e : x X 9 (2 * r) = ((tr X (2 * r + 4) || tr X (2 * r + 8)) ^^ x X 8 (2 * r)) := by
+    rw [x_rec X 7 (2 * r), hx8o, hx7_false, Bool.or_false]
+  refine ⟨hx7_false, ?_⟩
+  rw [hx9e, hx8e]
+  revert hgold23
+  cases tr X (2 * r + 4) <;> cases tr X (2 * r + 6) <;> cases tr X (2 * r + 8) <;> decide
+
+/-- Iterating `iter F` adds time steps: `iter F (a + b) X = iter F b (iter F a X)`. -/
+theorem iter_add (a b X : Nat) : iter F (a + b) X = iter F b (iter F a X) := by
+  induction b with
+  | zero => rfl
+  | succ b ih => rw [Nat.add_succ, iter_succ, iter_succ, ih]
+
+/-- The trace of `iter F (2 * r) X` is the trace of `X` shifted by `2 * r`. -/
+theorem tr_iter_two_mul (X r s : Nat) : tr (iter F (2 * r) X) s = tr X (2 * r + s) := by
+  unfold tr
+  rw [← iter_add]
+
+/-- **Shift-Re-Anchoring of `GE2` at Every Even-Time Zero (`ge2_shift_at_even_zero`).**
+If `GE2 (tr X) (r + m)` holds and `tr X (2 * r) = false`, then the evolved seed
+`iter F (2 * r) X` satisfies `GE2 (tr (iter F (2 * r) X)) m`. -/
+theorem ge2_shift_at_even_zero {X r m : Nat} (h : GE2 (tr X) (r + m)) (hz : tr X (2 * r) = false) :
+    GE2 (tr (iter F (2 * r) X)) m := by
+  rcases Nat.eq_zero_or_pos r with rfl | hrpos
+  · simpa [iter] using h
+  · rcases Nat.eq_zero_or_pos m with rfl | hmpos
+    · refine ⟨⟨fun hm => absurd hm (by omega), fun j hj => absurd hj (by omega), fun j hj => absurd hj (by omega)⟩,
+              fun j hj => absurd hj (by omega)⟩
+    · refine ⟨⟨fun _ => by rw [tr_iter_two_mul]; simpa using hz, fun j hj => ?_, fun j hj => ?_⟩, ?_⟩
+      · rw [tr_iter_two_mul, show 2 * r + (2 * j + 1) = 2 * (r + j) + 1 by omega]
+        exact h.1.2.1 (r + j) (by omega)
+      · rw [tr_iter_two_mul, tr_iter_two_mul,
+            show 2 * r + 2 * j = 2 * (r + j) by omega,
+            show 2 * r + (2 * j + 2) = 2 * (r + j) + 2 by omega]
+        exact h.1.2.2 (r + j) (by omega)
+      · let k := fun s => s % 2 == 0 && !tr X s
+        have hlt_all : ∀ u, u < 2 * (r + m) → ∃ q, run 1 k 10 u = some q ∧ q < 60 := by
+          intro u hu
+          induction u with
+          | zero => exact ⟨10, rfl, by decide⟩
+          | succ u ih =>
+            obtain ⟨q, hq, hq60⟩ := ih (by omega)
+            have his : (run 1 k 10 (u + 1)).isSome = true := h.2 (u + 1) hu
+            rw [run_succ, hq] at his
+            simp only [Option.bind_some] at his
+            cases hd : delta 1 q (k (u + 1)) with
+            | none => rw [hd] at his; exact absurd his (by decide)
+            | some q' =>
+              refine ⟨q', ?_, delta_lt 1 q (k (u + 1)) q' hd⟩
+              rw [run_succ, hq]; exact hd
+        obtain ⟨q_prev, hq_prev, hq_prev60⟩ := hlt_all (2 * r - 1) (by omega)
+        obtain ⟨q_at, hq_at, hq_at60⟩ := hlt_all (2 * r) (by omega)
+        have hstep_at : delta 1 q_prev true = some q_at := by
+          have heq := hq_at
+          rw [show 2 * r = (2 * r - 1) + 1 by omega, run_succ, hq_prev] at heq
+          simp only [Option.bind_some] at heq
+          have hk_true : k (2 * r - 1 + 1) = true := by
+            dsimp [k]
+            rw [show 2 * r - 1 + 1 = 2 * r by omega, hz]
+            simp
+          rw [hk_true] at heq
+          exact heq
+        have hform : 10 ≤ q_at ∧ (q_at - 10) % 10 = 0 := kick_result q_prev hq_prev60 q_at hstep_at
+        let k_shift := fun s => s % 2 == 0 && !tr (iter F (2 * r) X) s
+        have hk_eq : ∀ s, k_shift s = k (2 * r + s) := by
+          intro s
+          dsimp [k_shift, k]
+          rw [tr_iter_two_mul]
+          have : (s % 2 == 0) = ((2 * r + s) % 2 == 0) := by
+            rcases Nat.mod_two_eq_zero_or_one s with hs | hs <;> simp [hs] <;> omega
+          rw [this]
+        have hsim : ∀ j, j < 2 * m →
+            ∃ p q, run 1 k 10 (2 * r + j) = some q ∧ q < 60 ∧
+              run 1 k_shift 10 j = some p ∧ Sim p q := by
+          intro j hj
+          induction j with
+          | zero =>
+            exact ⟨10, q_at, by simpa using hq_at, hq_at60, rfl, Or.inr ⟨hform.1, hq_at60, by omega⟩⟩
+          | succ j ih =>
+            obtain ⟨p, q, hrun_q, hq60, hrun_p, hsp⟩ := ih (by omega)
+            obtain ⟨q', hrun_q', hq'60⟩ := hlt_all (2 * r + (j + 1)) (by omega)
+            have hstep_q : delta 1 q (k (2 * r + j + 1)) = some q' := by
+              have e := hrun_q'
+              rw [show 2 * r + (j + 1) = (2 * r + j) + 1 by omega, run_succ, hrun_q] at e
+              simpa using e
+            obtain ⟨p', hp', hsp'⟩ := sim_step hsp (k (2 * r + j + 1)) hstep_q hq60
+            refine ⟨p', q', hrun_q', hq'60, ?_, hsp'⟩
+            rw [run_succ, hrun_p, hk_eq (j + 1), show 2 * r + (j + 1) = 2 * r + j + 1 by omega]
+            simpa using hp'
+        intro j hj
+        obtain ⟨p, _, _, _, hp, _⟩ := hsim j hj
+        show (run 1 k_shift 10 j).isSome = true
+        rw [hp]; rfl
+
+/-- **Recurrent 24-Bit Seed Classification and Mass-Excess Laws at Every Even-Time Zero of a `GE2` Trajectory
+(`ge2_recurrent_even_zero_twenty_four_bit_laws`).**
+If `GE2 (tr X) (r + 12)` holds and `tr X (2 * r) = false`, then at time `2 * r`:
+1. `x X 0 (2 * r) = false`, `x X 1 (2 * r) = true`, `x X 2 (2 * r) = true`, `x X 3 (2 * r) = false`,
+   `x X 7 (2 * r) = false`, `(x X 8 (2 * r) = true ∨ x X 9 (2 * r) = true)`, and `x X 11 (2 * r) = false`,
+2. `(iter F (2 * r) X) % 4096 ∈ seeds6`, `(iter F (2 * r) X) % 262144 ∈ seeds9`, and
+   `(iter F (2 * r) X) % 16777216 ∈ seeds12`,
+3. `524288 ≤ (iter F (2 * r) X) % 16777216`, `9 ≤ wtH 24 (iter F (2 * r) X)`, and
+   `Zc (tr (iter F (2 * r) X)) 12 + 4 ≤ wtH 24 (iter F (2 * r) X)`. -/
+theorem ge2_recurrent_even_zero_twenty_four_bit_laws {X r : Nat}
+    (h : GE2 (tr X) (r + 12)) (hz : tr X (2 * r) = false) :
+    (x X 0 (2 * r) = false ∧ x X 1 (2 * r) = true ∧ x X 2 (2 * r) = true ∧ x X 3 (2 * r) = false ∧
+     x X 7 (2 * r) = false ∧ (x X 8 (2 * r) = true ∨ x X 9 (2 * r) = true) ∧ x X 11 (2 * r) = false) ∧
+    iter F (2 * r) X % 4096 ∈ seeds6 ∧
+    iter F (2 * r) X % 262144 ∈ seeds9 ∧
+    iter F (2 * r) X % 16777216 ∈ seeds12 ∧
+    524288 ≤ iter F (2 * r) X % 16777216 ∧
+    9 ≤ wtH 24 (iter F (2 * r) X) ∧
+    Zc (tr (iter F (2 * r) X)) 12 + 4 ≤ wtH 24 (iter F (2 * r) X) := by
+  have h12 : GE2 (tr (iter F (2 * r) X)) 12 := ge2_shift_at_even_zero h hz
+  have h9 : GE2 (tr (iter F (2 * r) X)) 9 := ge2_mono (by decide) (by decide) h12
+  have h6 : GE2 (tr (iter F (2 * r) X)) 6 := ge2_mono (by decide) (by decide) h12
+  rcases ge2_six_five_seeds_and_mass_excess (iter F (2 * r) X) h6 with ⟨hs6, _, hbits, _, _⟩
+  rcases ge2_nine_twelve_seeds_and_mass_excess (iter F (2 * r) X) h9 with ⟨hs9, _, _, _⟩
+  rcases ge2_twelve_twenty_six_seeds_and_mass_excess (iter F (2 * r) X) h12 with ⟨hs12, h524k, hw9, hzc12⟩
+  exact ⟨hbits, hs6, hs9, hs12, h524k, hw9, hzc12⟩
+
+end GE2ShiftAndDeepRetrodiction
+
 end Rule30PeriodTwoWidth13
 end Ruliology.CellularAutomata
