@@ -6,6 +6,8 @@ public import Ruliology.CellularAutomata.Rule30ZeroBoundary
 public import Ruliology.CellularAutomata.Rule30GateTrap
 public import Ruliology.CellularAutomata.Rule30PeriodTwo
 public import Ruliology.CellularAutomata.Rule30PeriodTwoSideways
+public import Ruliology.CellularAutomata.Rule30GateTrapLift
+public import Ruliology.CellularAutomata.Rule30PeriodTwoWidth13
 
 /-!
 # Zero-Coast Physical Transition, Mass Divergence, and Equivalence with `Rule30GateTrap.Q01Gap`
@@ -2042,6 +2044,511 @@ theorem CQ01Empty_of_massDiverges (hM : MassDiverges) :
   Ruliology.CellularAutomata.Rule30GateTrap.CQ01Empty_of_Q01Gap
     (massDiverges_iff_Q01Gap.mp hM)
 
+/-! ## 9. Unified Equivalence and Period-2 Closure Bridge Across `Rule30ZeroCoastBridge`, `Rule30GateTrapLift`, and `Rule30PeriodTwoWidth13` -/
+
+/-- **Unified Equivalence and Period-2 Closure Bridge Across `Rule30ZeroCoastBridge`,
+`Rule30GateTrapLift`, and `Rule30PeriodTwoWidth13`
+(`massDiverges_equiv_anchored_two_core_and_period_two_bridge`).**
+1. `MassDiverges ↔ ZeroCoastBoxTerminationHypothesis`,
+2. `MassDiverges ↔ FiniteSeedsTerminate`,
+3. `MassDiverges ↔ Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap`,
+4. `(Ruliology.CellularAutomata.Rule30GateTrapLift.TwoCoreThetaUnbounded ↔ Ruliology.CellularAutomata.Rule30GateTrapLift.Q01TwoCoreAnchored) ∧ (Ruliology.CellularAutomata.Rule30GateTrapLift.TwoCoreThetaUnbounded ↔ Ruliology.CellularAutomata.Rule30GateTrapLift.Q01GapCore)`,
+5. If `Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.RD` and `MassDiverges` hold, then `Ruliology.CellularAutomata.Rule30PeriodTwoSideways.CQ01Empty` holds
+   and the center column of Rule 30 from a single black cell is never eventually period 2. -/
+theorem massDiverges_equiv_anchored_two_core_and_period_two_bridge :
+    (MassDiverges ↔ ZeroCoastBoxTerminationHypothesis) ∧
+    (MassDiverges ↔ FiniteSeedsTerminate) ∧
+    (MassDiverges ↔ Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap) ∧
+    ((Ruliology.CellularAutomata.Rule30GateTrapLift.TwoCoreThetaUnbounded ↔ Ruliology.CellularAutomata.Rule30GateTrapLift.Q01TwoCoreAnchored) ∧
+     (Ruliology.CellularAutomata.Rule30GateTrapLift.TwoCoreThetaUnbounded ↔ Ruliology.CellularAutomata.Rule30GateTrapLift.Q01GapCore)) ∧
+    (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.RD → MassDiverges →
+      Ruliology.CellularAutomata.Rule30PeriodTwoSideways.CQ01Empty ∧
+      ¬ ∃ T0, ∀ t, T0 ≤ t → Rule30Prize.center (t + 2) = Rule30Prize.center t) := by
+  refine ⟨massDiverges_iff_zeroCoastBoxTermination,
+          finite_seeds_terminate_iff_mass_diverges.symm,
+          massDiverges_iff_Q01Gap,
+          Ruliology.CellularAutomata.Rule30GateTrapLift.twoCoreThetaUnbounded_iff_q01GapCore_and_imp_cq01Empty,
+          fun hRD hM => ⟨CQ01Empty_of_massDiverges hM,
+            Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.no_eventual_period_two_of_RD_of_Q01Gap hRD (massDiverges_iff_Q01Gap.mp hM)⟩⟩
+
+/-! ## 10. Universal Trace-to-Seed Bijection (`seedOfTrace`), Canonical Horizon Seed Family (`survivingSeeds H`), and Exact `{6, 10}` Horizon Seed-Count Law (`∀ H ≥ 1`) -/
+
+section UniversalSeedBijectionAndCountLaw
+open Rule30ZeroBoundary.IntegerForm
+
+/-- One-step antidiagonal seed extension: given `y < 2^H` with `trace y H = w` and a target
+next trace bit `b : Bool`, appends bit `H` to `y` so that `(iter F H y').testBit 0 = b`. -/
+def extendSeedForBit (y H : Nat) (b : Bool) : Nat :=
+  if H = 0 then
+    if b then 1 else 0
+  else
+    let sig := sigmaList (antidiag y (H - 1)) (false :: (if H = 1 then [] else antidiag y (H - 2)))
+    let bit := xor b (piParity sig)
+    y + (if bit then 2 ^ H else 0)
+
+/-- Accumulator reconstructing the unique seed `< 2^(H + bs.length)` extending `y < 2^H`
+along the remaining trace suffix `bs`. -/
+def seedOfTraceAux (y H : Nat) : List Bool → Nat
+  | [] => y
+  | b :: bs => seedOfTraceAux (extendSeedForBit y H b) (H + 1) bs
+
+/-- Explicit constructive inverse of `trace · H`: maps any boolean word `w : List Bool`
+to the unique canonical seed `y < 2^w.length` whose length-`w.length` trace is `w`. -/
+def seedOfTrace (w : List Bool) : Nat :=
+  seedOfTraceAux 0 0 w
+
+theorem antidiag_congr_mod_pow2 (y1 y2 H : Nat) (hmod : y1 % 2 ^ H = y2 % 2 ^ H) :
+    ∀ k < H, antidiag y1 k = antidiag y2 k := by
+  intro k hk
+  unfold antidiag
+  refine List.map_congr_left fun j hj => ?_
+  rw [List.mem_range] at hj
+  have hpow : j + 1 + (k - j) ≤ H := by omega
+  have hdvd : 2 ^ (j + 1 + (k - j)) ∣ 2 ^ H := Nat.pow_dvd_pow 2 hpow
+  have heq1 := congrArg (fun z => z.testBit j) (iter_F_mod_pow2 (k - j) y1 (j + 1))
+  have heq2 := congrArg (fun z => z.testBit j) (iter_F_mod_pow2 (k - j) y2 (j + 1))
+  rw [Nat.testBit_mod_two_pow, decide_eq_true (by omega), Bool.true_and] at heq1 heq2
+  have hsub1 := Nat.mod_mod_of_dvd y1 hdvd
+  have hsub2 := Nat.mod_mod_of_dvd y2 hdvd
+  rw [hmod] at hsub1
+  rw [heq1, heq2, ← hsub1, hsub2]
+
+theorem extendSeedForBit_spec (y H : Nat) (hy : y < 2 ^ H) (b : Bool) :
+    let y' := extendSeedForBit y H b
+    y' < 2 ^ (H + 1) ∧ y' % 2 ^ H = y ∧ trace y' (H + 1) = trace y H ++ [b] := by
+  by_cases hH0 : H = 0
+  · subst hH0
+    have hy0 : y = 0 := by omega
+    subst hy0
+    cases b <;> decide
+  · have hH1 : 1 ≤ H := by omega
+    dsimp only [extendSeedForBit]
+    simp only [hH0, ↓reduceIte]
+    let sig := sigmaList (antidiag y (H - 1)) (false :: (if H = 1 then [] else antidiag y (H - 2)))
+    let bit := xor b (piParity sig)
+    let y' := y + (if bit then 2 ^ H else 0)
+    have hy'Lt : y' < 2 ^ (H + 1) := by
+      have hpow : 2 ^ (H + 1) = 2 ^ H + 2 ^ H := by rw [Nat.pow_succ]; omega
+      dsimp only [y']
+      cases bit <;> simp only [Bool.false_eq_true, ↓reduceIte] <;> omega
+    have hy'Mod : y' % 2 ^ H = y := by
+      dsimp only [y']
+      cases bit
+      · simpa using Nat.mod_eq_of_lt hy
+      · simp [Nat.mod_eq_of_lt hy]
+    have hy'BitH : y'.testBit H = bit := by
+      dsimp only [y']
+      rw [Nat.testBit, Nat.shiftRight_eq_div_pow]
+      cases bit
+      · simp only [Bool.false_eq_true, ↓reduceIte, Nat.add_zero]
+        rw [Nat.div_eq_of_lt hy]
+        decide
+      · simp only [↓reduceIte]
+        have hd : (y + 2 ^ H) / 2 ^ H = 1 := by
+          have hpos : 0 < 2 ^ H := Nat.pow_pos (by decide)
+          have hadd : y + 2 ^ H = 2 ^ H * 1 + y := by omega
+          rw [hadd, Nat.mul_add_div hpos, Nat.div_eq_of_lt hy]
+        rw [hd]
+        decide
+    have hy'ModEq : y' % 2 ^ H = y % 2 ^ H := hy'Mod.trans (Nat.mod_eq_of_lt hy).symm
+    have had1 : antidiag y' (H - 1) = antidiag y (H - 1) :=
+      antidiag_congr_mod_pow2 y' y H hy'ModEq (H - 1) (by omega)
+    have had2 : (if H = 1 then [] else antidiag y' (H - 2)) = (if H = 1 then [] else antidiag y (H - 2)) := by
+      by_cases h1 : H = 1
+      · simp [h1]
+      · simp only [h1, ↓reduceIte]
+        exact antidiag_congr_mod_pow2 y' y H hy'ModEq (H - 2) (by omega)
+    have had := antidiag_step_spec y' H hH1
+    dsimp only at had
+    rw [had1, had2, scanXor_snd_eq_xor_piParity, hy'BitH] at had
+    have hb_eq : (iter F H y').testBit 0 = b := by
+      have hx : xor ((iter F H y').testBit 0) (piParity sig) = xor b (piParity sig) := had.2
+      cases h0 : (iter F H y').testBit 0 <;> cases b <;> cases piParity sig <;> simp_all
+    have htr : trace y' (H + 1) = trace y H ++ [b] := by
+      rw [trace_succ_right y' H, ← trace_mod_pow2 y' H, hy'Mod, hb_eq]
+    exact ⟨hy'Lt, hy'Mod, htr⟩
+
+theorem seedOfTraceAux_spec (bs : List Bool) (y H : Nat) (hy : y < 2 ^ H) :
+    seedOfTraceAux y H bs < 2 ^ (H + bs.length) ∧
+    trace (seedOfTraceAux y H bs) (H + bs.length) = trace y H ++ bs := by
+  induction bs generalizing y H with
+  | nil =>
+    simp [seedOfTraceAux, hy]
+  | cons b bs ih =>
+    simp only [seedOfTraceAux, List.length_cons]
+    obtain ⟨hy', _, htr'⟩ := extendSeedForBit_spec y H hy b
+    obtain ⟨h1, h2⟩ := ih (extendSeedForBit y H b) (H + 1) hy'
+    rw [show H + 1 + bs.length = H + (bs.length + 1) by omega] at h1 h2
+    rw [htr', List.append_assoc, List.singleton_append] at h2
+    exact ⟨h1, h2⟩
+
+theorem seedOfTrace_spec (w : List Bool) :
+    seedOfTrace w < 2 ^ w.length ∧ trace (seedOfTrace w) w.length = w := by
+  have h := seedOfTraceAux_spec w 0 0 (by decide)
+  simpa [seedOfTrace, trace] using h
+
+theorem antidiag_and_bits_eq_of_trace_eq (y1 y2 H : Nat) (htr : trace y1 H = trace y2 H) :
+    ∀ n < H, antidiag y1 n = antidiag y2 n ∧ y1.testBit n = y2.testBit n := by
+  intro n
+  induction n using Nat.strongRecOn with
+  | ind n ih =>
+    intro hn
+    have hb0 : (iter F n y1).testBit 0 = (iter F n y2).testBit 0 := by
+      simp only [← trace_getElem y1 H n hn, ← trace_getElem y2 H n hn, htr]
+    by_cases hn0 : n = 0
+    · subst hn0
+      have hbit0 : y1.testBit 0 = y2.testBit 0 := by simpa [iter] using hb0
+      refine ⟨?_, hbit0⟩
+      simp [antidiag, iter, hbit0]
+    · have hn1 : 1 ≤ n := by omega
+      have had1 : antidiag y1 (n - 1) = antidiag y2 (n - 1) := (ih (n - 1) (by omega) (by omega)).1
+      have had2 : (if n = 1 then [] else antidiag y1 (n - 2)) = (if n = 1 then [] else antidiag y2 (n - 2)) := by
+        by_cases h1 : n = 1
+        · simp [h1]
+        · simp only [h1, ↓reduceIte]
+          exact (ih (n - 2) (by omega) (by omega)).1
+      have hs1 := antidiag_step_spec y1 n hn1
+      have hs2 := antidiag_step_spec y2 n hn1
+      dsimp only at hs1 hs2
+      rw [hb0, had1, had2] at hs1
+      exact ⟨hs1.1.symm.trans hs2.1, hs1.2.symm.trans hs2.2⟩
+
+/-- **Universal Trace-to-Seed Bijection (`trace_eq_iff_mod_pow2_eq_and_seedOfTrace_bijection`).**
+For every horizon `H : Nat`, `trace · H` and `seedOfTrace` form a constructive bijection between
+canonical seed prefixes `y < 2^H` and length-`H` boolean trace words `w : List Bool`:
+1. `trace y1 H = trace y2 H ↔ y1 % 2^H = y2 % 2^H`,
+2. `seedOfTrace w < 2^w.length ∧ trace (seedOfTrace w) w.length = w`,
+3. `seedOfTrace (trace y H) = y % 2^H` (and `= y` whenever `y < 2^H`). -/
+theorem trace_eq_iff_mod_pow2_eq_and_seedOfTrace_bijection (H y1 y2 : Nat) (w : List Bool) :
+    (trace y1 H = trace y2 H ↔ y1 % 2 ^ H = y2 % 2 ^ H) ∧
+    (seedOfTrace w < 2 ^ w.length ∧ trace (seedOfTrace w) w.length = w) ∧
+    seedOfTrace (trace y1 H) = y1 % 2 ^ H := by
+  have hinj : ∀ z1 z2 : Nat, trace z1 H = trace z2 H ↔ z1 % 2 ^ H = z2 % 2 ^ H := by
+    intro z1 z2
+    constructor
+    · intro htr
+      apply Nat.eq_of_testBit_eq
+      intro n
+      rw [Nat.testBit_mod_two_pow, Nat.testBit_mod_two_pow]
+      by_cases hn : n < H
+      · simp [hn, (antidiag_and_bits_eq_of_trace_eq z1 z2 H htr n hn).2]
+      · simp [hn]
+    · intro hmod
+      rw [← trace_mod_pow2 z1 H, ← trace_mod_pow2 z2 H, hmod]
+  refine ⟨hinj y1 y2, seedOfTrace_spec w, ?_⟩
+  obtain ⟨hlt1, htr1⟩ := seedOfTrace_spec (trace y1 H)
+  rw [trace_length] at hlt1 htr1
+  have hmod_eq : seedOfTrace (trace y1 H) % 2 ^ H = y1 % 2 ^ H := (hinj _ _).mp htr1
+  rw [Nat.mod_eq_of_lt hlt1] at hmod_eq
+  exact hmod_eq
+
+/-- Recursive generator of all trace suffixes of length `k` accepted by `acceptRest isOdd age`. -/
+def acceptRestWords : Bool → Nat → Nat → List (List Bool)
+  | _, _, 0 => [[]]
+  | true, a, k + 1 => (acceptRestWords false a k).map (true :: ·)
+  | false, 0, k + 1 => (acceptRestWords true 1 k).map (true :: ·)
+  | false, 1, k + 1 => (acceptRestWords true 2 k).map (true :: ·)
+  | false, 2, k + 1 =>
+      (acceptRestWords true 3 k).map (true :: ·) ++
+      (acceptRestWords true 0 k).map (false :: ·)
+  | false, 3, k + 1 => (acceptRestWords true 4 k).map (true :: ·)
+  | false, 4, k + 1 => (acceptRestWords true 0 k).map (false :: ·)
+  | false, _ + 5, _ + 1 => []
+
+/-- Recursive generator of all accepted trace words of length `H` (`accept w = true`). -/
+def acceptedWords : Nat → List (List Bool)
+  | 0 => [[]]
+  | k + 1 => (acceptRestWords true 0 k).map (false :: ·)
+
+/-- Universal canonical surviving-seed list at horizon `H : Nat`. -/
+def survivingSeeds (H : Nat) : List Nat :=
+  (acceptedWords H).map seedOfTrace
+
+theorem mem_acceptRestWords_iff (k : Nat) :
+    ∀ (isOdd : Bool) (a : Nat) (_ha : a < 5) (w : List Bool),
+      w ∈ acceptRestWords isOdd a k ↔ (w.length = k ∧ acceptRest isOdd a w = true) := by
+  induction k with
+  | zero =>
+    intro isOdd a _ w
+    simp only [acceptRestWords, List.mem_singleton]
+    constructor
+    · rintro rfl; exact ⟨rfl, rfl⟩
+    · rintro ⟨hlen, _⟩; exact List.eq_nil_of_length_eq_zero hlen
+  | succ k ih =>
+    intro isOdd a _ha w
+    cases isOdd with
+    | true =>
+      simp only [acceptRestWords, List.mem_map]
+      constructor
+      · rintro ⟨w', hw', rfl⟩
+        obtain ⟨hl, hacc⟩ := (ih false a _ha w').mp hw'
+        exact ⟨by simp [hl], by simp [acceptRest, hacc]⟩
+      · rintro ⟨hlen, hacc⟩
+        cases w with
+        | nil => simp at hlen
+        | cons b w' =>
+          simp only [acceptRest, Bool.and_eq_true] at hacc
+          rcases hacc with ⟨rfl, hacc'⟩
+          refine ⟨w', (ih false a _ha w').mpr ⟨by simp at hlen; omega, hacc'⟩, rfl⟩
+    | false =>
+      match a, _ha with
+      | 0, _ =>
+        simp only [acceptRestWords, List.mem_map]
+        constructor
+        · rintro ⟨w', hw', rfl⟩
+          obtain ⟨hl, hacc⟩ := (ih true 1 (by decide) w').mp hw'
+          exact ⟨by simp [hl], by simp [acceptRest, gateNext, hacc]⟩
+        · rintro ⟨hlen, hacc⟩
+          cases w with
+          | nil => simp at hlen
+          | cons b w' =>
+            cases b
+            · simp [acceptRest, gateNext] at hacc
+            · simp only [acceptRest, gateNext] at hacc
+              exact ⟨w', (ih true 1 (by decide) w').mpr ⟨by simp at hlen; omega, hacc⟩, rfl⟩
+      | 1, _ =>
+        simp only [acceptRestWords, List.mem_map]
+        constructor
+        · rintro ⟨w', hw', rfl⟩
+          obtain ⟨hl, hacc⟩ := (ih true 2 (by decide) w').mp hw'
+          exact ⟨by simp [hl], by simp [acceptRest, gateNext, hacc]⟩
+        · rintro ⟨hlen, hacc⟩
+          cases w with
+          | nil => simp at hlen
+          | cons b w' =>
+            cases b
+            · simp [acceptRest, gateNext] at hacc
+            · simp only [acceptRest, gateNext] at hacc
+              exact ⟨w', (ih true 2 (by decide) w').mpr ⟨by simp at hlen; omega, hacc⟩, rfl⟩
+      | 2, _ =>
+        simp only [acceptRestWords, List.mem_append, List.mem_map]
+        constructor
+        · rintro (⟨w', hw', rfl⟩ | ⟨w', hw', rfl⟩)
+          · obtain ⟨hl, hacc⟩ := (ih true 3 (by decide) w').mp hw'
+            exact ⟨by simp [hl], by simp [acceptRest, gateNext, hacc]⟩
+          · obtain ⟨hl, hacc⟩ := (ih true 0 (by decide) w').mp hw'
+            exact ⟨by simp [hl], by simp [acceptRest, gateNext, hacc]⟩
+        · rintro ⟨hlen, hacc⟩
+          cases w with
+          | nil => simp at hlen
+          | cons b w' =>
+            cases b
+            · simp only [acceptRest, gateNext] at hacc
+              exact Or.inr ⟨w', (ih true 0 (by decide) w').mpr ⟨by simp at hlen; omega, hacc⟩, rfl⟩
+            · simp only [acceptRest, gateNext] at hacc
+              exact Or.inl ⟨w', (ih true 3 (by decide) w').mpr ⟨by simp at hlen; omega, hacc⟩, rfl⟩
+      | 3, _ =>
+        simp only [acceptRestWords, List.mem_map]
+        constructor
+        · rintro ⟨w', hw', rfl⟩
+          obtain ⟨hl, hacc⟩ := (ih true 4 (by decide) w').mp hw'
+          exact ⟨by simp [hl], by simp [acceptRest, gateNext, hacc]⟩
+        · rintro ⟨hlen, hacc⟩
+          cases w with
+          | nil => simp at hlen
+          | cons b w' =>
+            cases b
+            · simp [acceptRest, gateNext] at hacc
+            · simp only [acceptRest, gateNext] at hacc
+              exact ⟨w', (ih true 4 (by decide) w').mpr ⟨by simp at hlen; omega, hacc⟩, rfl⟩
+      | 4, _ =>
+        simp only [acceptRestWords, List.mem_map]
+        constructor
+        · rintro ⟨w', hw', rfl⟩
+          obtain ⟨hl, hacc⟩ := (ih true 0 (by decide) w').mp hw'
+          exact ⟨by simp [hl], by simp [acceptRest, gateNext, hacc]⟩
+        · rintro ⟨hlen, hacc⟩
+          cases w with
+          | nil => simp at hlen
+          | cons b w' =>
+            cases b
+            · simp only [acceptRest, gateNext] at hacc
+              exact ⟨w', (ih true 0 (by decide) w').mpr ⟨by simp at hlen; omega, hacc⟩, rfl⟩
+            · simp [acceptRest, gateNext] at hacc
+      | _ + 5, _ha => omega
+
+theorem mem_acceptedWords_iff (H : Nat) (w : List Bool) :
+    w ∈ acceptedWords H ↔ (w.length = H ∧ accept w = true) := by
+  cases H with
+  | zero =>
+    simp only [acceptedWords, List.mem_singleton]
+    constructor
+    · rintro rfl; exact ⟨rfl, rfl⟩
+    · rintro ⟨hlen, _⟩; exact List.eq_nil_of_length_eq_zero hlen
+  | succ k =>
+    simp only [acceptedWords, List.mem_map]
+    constructor
+    · rintro ⟨w', hw', rfl⟩
+      obtain ⟨hl, hacc⟩ := (mem_acceptRestWords_iff k true 0 (by decide) w').mp hw'
+      exact ⟨by simp [hl], by simp [accept, hacc]⟩
+    · rintro ⟨hlen, hacc⟩
+      cases w with
+      | nil => simp at hlen
+      | cons b w' =>
+        cases b
+        · simp only [accept, Bool.not_false, Bool.true_and] at hacc
+          exact ⟨w', (mem_acceptRestWords_iff k true 0 (by decide) w').mpr ⟨by simp at hlen; omega, hacc⟩, rfl⟩
+        · simp [accept] at hacc
+
+/-- **Universal Canonical Seed Characterization at Every Horizon `H`
+(`mem_survivingSeeds_iff_and_survivesTo_iff`).**
+For every horizon `H : Nat` and every seed `y : Nat`:
+1. `y ∈ survivingSeeds H ↔ (y < 2 ^ H ∧ SurvivesTo y H)`,
+2. `SurvivesTo y H ↔ y % 2 ^ H ∈ survivingSeeds H`. -/
+theorem mem_survivingSeeds_iff_and_survivesTo_iff (H y : Nat) :
+    (y ∈ survivingSeeds H ↔ (y < 2 ^ H ∧ SurvivesTo y H)) ∧
+    (SurvivesTo y H ↔ y % 2 ^ H ∈ survivingSeeds H) := by
+  have h1 : ∀ z : Nat, z ∈ survivingSeeds H ↔ (z < 2 ^ H ∧ SurvivesTo z H) := by
+    intro z
+    unfold survivingSeeds SurvivesTo
+    simp only [List.mem_map]
+    constructor
+    · rintro ⟨w, hw, rfl⟩
+      obtain ⟨hlen, hacc⟩ := (mem_acceptedWords_iff H w).mp hw
+      obtain ⟨hlt, htr⟩ := seedOfTrace_spec w
+      rw [hlen] at hlt htr
+      rw [htr]
+      exact ⟨hlt, hacc⟩
+    · rintro ⟨hlt, hacc⟩
+      refine ⟨trace z H, (mem_acceptedWords_iff H (trace z H)).mpr ⟨trace_length z H, hacc⟩, ?_⟩
+      have hbij := (trace_eq_iff_mod_pow2_eq_and_seedOfTrace_bijection H z z []).2.2
+      rw [Nat.mod_eq_of_lt hlt] at hbij
+      exact hbij
+  refine ⟨h1 y, ?_⟩
+  rw [h1 (y % 2 ^ H)]
+  have hlt : y % 2 ^ H < 2 ^ H := Nat.mod_lt y (Nat.pow_pos (by decide))
+  rw [← survivesTo_mod_pow2 y H]
+  exact ⟨fun hs => ⟨hlt, hs⟩, fun ⟨_, hs⟩ => hs⟩
+
+theorem acceptRestWords_zero_add_ten (k : Nat) :
+    (acceptRestWords true 0 (k + 10)).length =
+      (acceptRestWords true 0 (k + 4)).length + (acceptRestWords true 0 k).length := by
+  have hstep1 : ∀ m, (acceptRestWords true 0 (m + 1)).length = (acceptRestWords false 0 m).length := by
+    intro m; simp [acceptRestWords]
+  have hstep2 : ∀ m, (acceptRestWords false 0 (m + 1)).length = (acceptRestWords true 1 m).length := by
+    intro m; simp [acceptRestWords]
+  have hstep3 : ∀ m, (acceptRestWords true 1 (m + 1)).length = (acceptRestWords false 1 m).length := by
+    intro m; simp [acceptRestWords]
+  have hstep4 : ∀ m, (acceptRestWords false 1 (m + 1)).length = (acceptRestWords true 2 m).length := by
+    intro m; simp [acceptRestWords]
+  have hstep5 : ∀ m, (acceptRestWords true 2 (m + 1)).length = (acceptRestWords false 2 m).length := by
+    intro m; simp [acceptRestWords]
+  have hstep6 : ∀ m, (acceptRestWords false 2 (m + 1)).length =
+      (acceptRestWords true 3 m).length + (acceptRestWords true 0 m).length := by
+    intro m; simp [acceptRestWords]
+  have hstep7 : ∀ m, (acceptRestWords true 3 (m + 1)).length = (acceptRestWords false 3 m).length := by
+    intro m; simp [acceptRestWords]
+  have hstep8 : ∀ m, (acceptRestWords false 3 (m + 1)).length = (acceptRestWords true 4 m).length := by
+    intro m; simp [acceptRestWords]
+  have hstep9 : ∀ m, (acceptRestWords true 4 (m + 1)).length = (acceptRestWords false 4 m).length := by
+    intro m; simp [acceptRestWords]
+  have hstep10 : ∀ m, (acceptRestWords false 4 (m + 1)).length = (acceptRestWords true 0 m).length := by
+    intro m; simp [acceptRestWords]
+  rw [show k + 10 = (k + 9) + 1 by omega, hstep1 (k + 9),
+      show k + 9 = (k + 8) + 1 by omega, hstep2 (k + 8),
+      show k + 8 = (k + 7) + 1 by omega, hstep3 (k + 7),
+      show k + 7 = (k + 6) + 1 by omega, hstep4 (k + 6),
+      show k + 6 = (k + 5) + 1 by omega, hstep5 (k + 5),
+      show k + 5 = (k + 4) + 1 by omega, hstep6 (k + 4),
+      show k + 4 = (k + 3) + 1 by omega, hstep7 (k + 3),
+      show k + 3 = (k + 2) + 1 by omega, hstep8 (k + 2),
+      show k + 2 = (k + 1) + 1 by omega, hstep9 (k + 1),
+      hstep10 k, Nat.add_comm]
+
+/-- **Universal `{6, 10}` Horizon Seed-Count Law (`survivingSeeds_length_add_ten_and_initial_counts`).**
+For every positive horizon `H ≥ 1`, the number of canonical surviving seeds `(survivingSeeds H).length`
+satisfies the exact delay recurrence:
+`(survivingSeeds (H + 10)).length = (survivingSeeds (H + 4)).length + (survivingSeeds H).length`,
+with initial values `[1, 1, 1, 1, 1, 2, 2, 2, 2, 3]` on `H = 1..10` (yielding `1, 2, 4, 7, 12, 20, 33`
+at `H = 6, 12, 18, 24, 30, 36, 42` and `55` at `H = 48`). -/
+theorem survivingSeeds_length_add_ten_and_initial_counts :
+    (∀ H : Nat, 1 ≤ H →
+      (survivingSeeds (H + 10)).length = (survivingSeeds (H + 4)).length + (survivingSeeds H).length) ∧
+    ([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map (fun H => (survivingSeeds H).length) =
+      [1, 1, 1, 1, 1, 1, 2, 2, 2, 2]) ∧
+    ([6, 12, 18, 24, 30, 36, 42, 48].map (fun H => (survivingSeeds H).length) =
+      [1, 2, 4, 7, 12, 20, 33, 55]) := by
+  refine ⟨fun H hH => ?_, by decide, by decide⟩
+  obtain ⟨k, rfl⟩ : ∃ k, H = k + 1 := ⟨H - 1, by omega⟩
+  have h10 : k + 1 + 10 = (k + 10) + 1 := by omega
+  have h4 : k + 1 + 4 = (k + 4) + 1 := by omega
+  rw [h10, h4]
+  simp only [survivingSeeds, acceptedWords, List.length_map]
+  exact acceptRestWords_zero_add_ten k
+
+theorem nodup_map_cons (b : Bool) {xs : List (List Bool)} (h : xs.Nodup) :
+    (xs.map (b :: ·)).Nodup := by
+  induction h with
+  | nil => exact List.Pairwise.nil
+  | @cons w ws hw hnodup ih =>
+    simp only [List.map_cons, List.nodup_cons, List.mem_map]
+    refine ⟨?_, ih⟩
+    rintro ⟨w', hw', hcons⟩
+    injection hcons with _ heq
+    subst heq
+    exact hw w' hw' rfl
+
+theorem nodup_acceptRestWords (k : Nat) :
+    ∀ (isOdd : Bool) (a : Nat), (acceptRestWords isOdd a k).Nodup := by
+  induction k with
+  | zero =>
+    intro isOdd a
+    simp [acceptRestWords]
+  | succ k ih =>
+    intro isOdd a
+    cases isOdd with
+    | true =>
+      exact nodup_map_cons true (ih false a)
+    | false =>
+      match a with
+      | 0 => exact nodup_map_cons true (ih true 1)
+      | 1 => exact nodup_map_cons true (ih true 2)
+      | 2 =>
+        simp only [acceptRestWords]
+        refine List.nodup_append.mpr ⟨nodup_map_cons true (ih true 3), nodup_map_cons false (ih true 0), ?_⟩
+        intro w1 hw1 w2 hw2 heq
+        simp only [List.mem_map] at hw1 hw2
+        rcases hw1 with ⟨u1, _, rfl⟩
+        rcases hw2 with ⟨u2, _, rfl⟩
+        cases heq
+      | 3 => exact nodup_map_cons true (ih true 4)
+      | 4 => exact nodup_map_cons false (ih true 0)
+      | _ + 5 => simp [acceptRestWords]
+
+theorem nodup_acceptedWords (H : Nat) : (acceptedWords H).Nodup := by
+  cases H with
+  | zero => simp [acceptedWords]
+  | succ k => exact nodup_map_cons false (nodup_acceptRestWords k true 0)
+
+theorem nodup_map_on {α β : Type} (f : α → β) {xs : List α}
+    (h : xs.Nodup) (hinj : ∀ x ∈ xs, ∀ y ∈ xs, f x = f y → x = y) :
+    (xs.map f).Nodup := by
+  induction h with
+  | nil => exact List.Pairwise.nil
+  | @cons x xs hx hnodup ih =>
+    simp only [List.map_cons, List.nodup_cons, List.mem_map]
+    refine ⟨?_, ih (fun a ha b hb hab => hinj a (List.mem_cons_of_mem x ha) b (List.mem_cons_of_mem x hb) hab)⟩
+    rintro ⟨y, hy, hfy⟩
+    have heq : y = x := hinj y (List.mem_cons_of_mem x hy) x (List.mem_cons_self) hfy
+    subst heq
+    exact hx y hy rfl
+
+/-- **Universal Duplicate-Freeness of `survivingSeeds H` (`nodup_survivingSeeds`).**
+For every horizon `H : Nat`, `survivingSeeds H` is duplicate-free (`(survivingSeeds H).Nodup`),
+so `(survivingSeeds H).length` is the exact cardinality of `{y < 2 ^ H | SurvivesTo y H}`. -/
+theorem nodup_survivingSeeds (H : Nat) : (survivingSeeds H).Nodup := by
+  unfold survivingSeeds
+  refine nodup_map_on seedOfTrace (nodup_acceptedWords H) ?_
+  intro w1 hw1 w2 hw2 heq
+  obtain ⟨hlen1, _⟩ := (mem_acceptedWords_iff H w1).mp hw1
+  obtain ⟨hlen2, _⟩ := (mem_acceptedWords_iff H w2).mp hw2
+  have htr1 := (seedOfTrace_spec w1).2
+  have htr2 := (seedOfTrace_spec w2).2
+  rw [hlen1] at htr1
+  rw [hlen2] at htr2
+  rw [← htr1, ← htr2, heq]
+
+end UniversalSeedBijectionAndCountLaw
 
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
