@@ -2550,5 +2550,501 @@ theorem nodup_survivingSeeds (H : Nat) : (survivingSeeds H).Nodup := by
 
 end UniversalSeedBijectionAndCountLaw
 
+/-! ## 11. Universal Deterministic Odd-to-Even Seed Extension, Reset-Gate Shift Invariance, 5-Even-Step Reset Window, and `SurvivesTo → GE2` Embedding -/
+
+section UniversalResetShiftAndGE2Bridge
+open Rule30ZeroBoundary.IntegerForm
+
+theorem acceptRestWords_odd_succ (k : Nat) :
+    ∀ a : Nat, acceptRestWords true a (2 * k + 1) =
+      (acceptRestWords true a (2 * k)).map (· ++ [true]) := by
+  have ht : ∀ a m, acceptRestWords true a (m + 1) = (acceptRestWords false a m).map (true :: ·) :=
+    fun _ _ => rfl
+  have hf0 : ∀ m, acceptRestWords false 0 (m + 1) = (acceptRestWords true 1 m).map (true :: ·) :=
+    fun _ => rfl
+  have hf1 : ∀ m, acceptRestWords false 1 (m + 1) = (acceptRestWords true 2 m).map (true :: ·) :=
+    fun _ => rfl
+  have hf2 : ∀ m, acceptRestWords false 2 (m + 1) =
+      (acceptRestWords true 3 m).map (true :: ·) ++ (acceptRestWords true 0 m).map (false :: ·) :=
+    fun _ => rfl
+  have hf3 : ∀ m, acceptRestWords false 3 (m + 1) = (acceptRestWords true 4 m).map (true :: ·) :=
+    fun _ => rfl
+  have hf4 : ∀ m, acceptRestWords false 4 (m + 1) = (acceptRestWords true 0 m).map (false :: ·) :=
+    fun _ => rfl
+  induction k with
+  | zero =>
+    intro a
+    simp [acceptRestWords]
+  | succ k ih =>
+    intro a
+    have h1 : 2 * (k + 1) + 1 = (2 * k + 1) + 1 + 1 := by omega
+    have h2 : 2 * (k + 1) = (2 * k) + 1 + 1 := by omega
+    rw [h1, h2]
+    match a with
+    | 0 =>
+      rw [ht 0 (2 * k + 1 + 1), hf0 (2 * k + 1), ht 0 (2 * k + 1), hf0 (2 * k), ih 1]
+      simp [List.map_map]
+    | 1 =>
+      rw [ht 1 (2 * k + 1 + 1), hf1 (2 * k + 1), ht 1 (2 * k + 1), hf1 (2 * k), ih 2]
+      simp [List.map_map]
+    | 2 =>
+      rw [ht 2 (2 * k + 1 + 1), hf2 (2 * k + 1), ht 2 (2 * k + 1), hf2 (2 * k), ih 3, ih 0]
+      simp only [List.map_append, List.map_map]
+      rfl
+    | 3 =>
+      rw [ht 3 (2 * k + 1 + 1), hf3 (2 * k + 1), ht 3 (2 * k + 1), hf3 (2 * k), ih 4]
+      simp [List.map_map]
+    | 4 =>
+      rw [ht 4 (2 * k + 1 + 1), hf4 (2 * k + 1), ht 4 (2 * k + 1), hf4 (2 * k), ih 0]
+      simp [List.map_map]
+    | _ + 5 =>
+      simp [acceptRestWords]
+
+theorem seedOfTraceAux_append (bs1 bs2 : List Bool) (y H : Nat) :
+    seedOfTraceAux y H (bs1 ++ bs2) =
+      seedOfTraceAux (seedOfTraceAux y H bs1) (H + bs1.length) bs2 := by
+  induction bs1 generalizing y H with
+  | nil => simp [seedOfTraceAux]
+  | cons b bs1 ih =>
+    simp only [List.cons_append, seedOfTraceAux, List.length_cons]
+    rw [ih (extendSeedForBit y H b) (H + 1)]
+    congr 1
+    omega
+
+theorem seedOfTrace_append_singleton (w : List Bool) (b : Bool) :
+    seedOfTrace (w ++ [b]) = extendSeedForBit (seedOfTrace w) w.length b := by
+  unfold seedOfTrace
+  rw [seedOfTraceAux_append w [b] 0 0]
+  simp [seedOfTraceAux]
+
+/-- **Universal Deterministic Odd-to-Even Horizon Extension (`survivingSeeds_two_mul_add_two`).**
+For every `m : Nat`, passing from odd horizon `2 * m + 1` to even horizon `2 * m + 2`
+branches no traces and no seeds:
+1. `acceptedWords (2 * m + 2) = (acceptedWords (2 * m + 1)).map (· ++ [true])`,
+2. `survivingSeeds (2 * m + 2) = (survivingSeeds (2 * m + 1)).map (fun y => extendSeedForBit y (2 * m + 1) true)`,
+3. `(survivingSeeds (2 * m + 2)).length = (survivingSeeds (2 * m + 1)).length`. -/
+theorem survivingSeeds_two_mul_add_two (m : Nat) :
+    acceptedWords (2 * m + 2) = (acceptedWords (2 * m + 1)).map (· ++ [true]) ∧
+    survivingSeeds (2 * m + 2) =
+      (survivingSeeds (2 * m + 1)).map (fun y => extendSeedForBit y (2 * m + 1) true) ∧
+    (survivingSeeds (2 * m + 2)).length = (survivingSeeds (2 * m + 1)).length := by
+  have hacc : acceptedWords (2 * m + 2) = (acceptedWords (2 * m + 1)).map (· ++ [true]) := by
+    change (acceptRestWords true 0 (2 * m + 1)).map (false :: ·) =
+      ((acceptRestWords true 0 (2 * m)).map (false :: ·)).map (· ++ [true])
+    rw [acceptRestWords_odd_succ m 0, List.map_map, List.map_map]
+    rfl
+  have hseeds : survivingSeeds (2 * m + 2) =
+      (survivingSeeds (2 * m + 1)).map (fun y => extendSeedForBit y (2 * m + 1) true) := by
+    unfold survivingSeeds
+    rw [hacc, List.map_map, List.map_map]
+    refine List.map_congr_left fun w hw => ?_
+    obtain ⟨hlen, _⟩ := (mem_acceptedWords_iff (2 * m + 1) w).mp hw
+    rw [Function.comp_apply, Function.comp_apply, seedOfTrace_append_singleton, hlen]
+  refine ⟨hacc, hseeds, ?_⟩
+  rw [hseeds, List.length_map]
+
+theorem acceptRest_odd_prefix (m : Nat) :
+    ∀ (u v : List Bool) (a : Nat),
+      u.length = 2 * m + 1 →
+      a < 5 →
+      acceptRest true a (u ++ v) = true →
+      ∃ a' < 5, acceptRest false a' v = true := by
+  induction m with
+  | zero =>
+    intro u v a hlen ha hacc
+    cases u with
+    | nil => simp at hlen
+    | cons b1 u1 =>
+      cases u1 with
+      | cons _ _ => simp at hlen
+      | nil =>
+        simp only [List.singleton_append, acceptRest, Bool.and_eq_true] at hacc
+        exact ⟨a, ha, hacc.2⟩
+  | succ m ih =>
+    intro u v a hlen ha hacc
+    cases u with
+    | nil => simp at hlen
+    | cons b1 u1 =>
+      cases u1 with
+      | nil => simp at hlen
+      | cons b2 u2 =>
+        have hlen2 : u2.length = 2 * m + 1 := by simp at hlen; omega
+        simp only [List.cons_append, acceptRest, Bool.and_eq_true] at hacc
+        rcases hacc with ⟨_, hacc2⟩
+        match a, ha, b2 with
+        | 0, _, true => exact ih u2 v 1 hlen2 (by decide) (by simpa [gateNext] using hacc2)
+        | 0, _, false => simp [gateNext] at hacc2
+        | 1, _, true => exact ih u2 v 2 hlen2 (by decide) (by simpa [gateNext] using hacc2)
+        | 1, _, false => simp [gateNext] at hacc2
+        | 2, _, true => exact ih u2 v 3 hlen2 (by decide) (by simpa [gateNext] using hacc2)
+        | 2, _, false => exact ih u2 v 0 hlen2 (by decide) (by simpa [gateNext] using hacc2)
+        | 3, _, true => exact ih u2 v 4 hlen2 (by decide) (by simpa [gateNext] using hacc2)
+        | 3, _, false => simp [gateNext] at hacc2
+        | 4, _, true => simp [gateNext] at hacc2
+        | 4, _, false => exact ih u2 v 0 hlen2 (by decide) (by simpa [gateNext] using hacc2)
+        | _ + 5, ha, _ => omega
+
+theorem iter_F_succ_right (A y : Nat) : iter F A (F y) = iter F (A + 1) y := by
+  induction A generalizing y with
+  | zero => rfl
+  | succ A ih => simp [iter, ih y]
+
+theorem iter_F_add (A B y : Nat) : iter F (A + B) y = iter F B (iter F A y) := by
+  induction B with
+  | zero => simp [iter]
+  | succ B ih => simp [iter, ih]
+
+theorem trace_add (y A B : Nat) :
+    trace y (A + B) = trace y A ++ trace (iter F A y) B := by
+  induction B with
+  | zero => simp [trace]
+  | succ B ih =>
+    rw [Nat.add_succ, trace_succ_right, ih, trace_succ_right, List.append_assoc, iter_F_add]
+
+theorem trace_succ_left_eq (y k : Nat) :
+    trace y (k + 1) = y.testBit 0 :: trace (F y) k := by
+  rw [show k + 1 = 1 + k by omega, trace_add y 1 k]; rfl
+
+/-- **Universal Reset-Gate Shift Invariance (`survivesTo_shift_at_even_zero`).**
+For every seed `y : Nat`, every even step `2 * r`, and every remaining horizon `K : Nat`:
+if `SurvivesTo y (2 * r + K)` holds and `(iter F (2 * r) y).testBit 0 = false`, then
+`SurvivesTo (iter F (2 * r) y) K` holds and `(iter F (2 * r) y) % 2^K ∈ survivingSeeds K`. -/
+theorem survivesTo_shift_at_even_zero (y r K : Nat)
+    (hsurv : SurvivesTo y (2 * r + K))
+    (hzero : (iter F (2 * r) y).testBit 0 = false) :
+    SurvivesTo (iter F (2 * r) y) K ∧ (iter F (2 * r) y) % 2 ^ K ∈ survivingSeeds K := by
+  have hmain : SurvivesTo (iter F (2 * r) y) K := by
+    cases K with
+    | zero => rfl
+    | succ k =>
+      rcases Nat.eq_zero_or_pos r with rfl | hr
+      · simpa [iter] using hsurv
+      · unfold SurvivesTo at hsurv ⊢
+        have hsplit : 2 * r + (k + 1) = 1 + (2 * r - 1) + (k + 1) := by omega
+        rw [hsplit, trace_add y (1 + (2 * r - 1)) (k + 1), trace_add y 1 (2 * r - 1), List.append_assoc] at hsurv
+        have htr1 : trace y 1 = [y.testBit 0] := rfl
+        have htr2 : trace (iter F (1 + (2 * r - 1)) y) (k + 1) =
+            false :: trace (F (iter F (2 * r) y)) k := by
+          rw [show 1 + (2 * r - 1) = 2 * r by omega, trace_succ_left_eq, hzero]
+        rw [htr1, htr2, List.singleton_append] at hsurv
+        simp only [accept, Bool.and_eq_true, Bool.not_eq_true'] at hsurv
+        rcases hsurv with ⟨_, hrest⟩
+        have hlen_u : (trace (iter F 1 y) (2 * r - 1)).length = 2 * (r - 1) + 1 := by
+          rw [trace_length]; omega
+        obtain ⟨a', ha', hv⟩ := acceptRest_odd_prefix (r - 1)
+          (trace (iter F 1 y) (2 * r - 1)) (false :: trace (F (iter F (2 * r) y)) k) 0 hlen_u (by decide) hrest
+        have hv0 : acceptRest true 0 (trace (F (iter F (2 * r) y)) k) = true := by
+          match a', ha' with
+          | 0, _ => simp [acceptRest, gateNext] at hv
+          | 1, _ => simp [acceptRest, gateNext] at hv
+          | 2, _ => simpa [acceptRest, gateNext] using hv
+          | 3, _ => simp [acceptRest, gateNext] at hv
+          | 4, _ => simpa [acceptRest, gateNext] using hv
+          | _ + 5, ha' => omega
+        rw [trace_succ_left_eq, hzero]
+        simp [accept, hv0]
+  exact ⟨hmain, (mem_survivingSeeds_iff_and_survivesTo_iff K (iter F (2 * r) y)).2.mp hmain⟩
+
+theorem acceptRest_false_five_even_steps (a : Nat) (ha : a < 5)
+    (b0 b1 b2 b3 b4 b5 b6 b7 b8 : Bool) (rest : List Bool)
+    (h : acceptRest false a (b0 :: b1 :: b2 :: b3 :: b4 :: b5 :: b6 :: b7 :: b8 :: rest) = true) :
+    b0 = false ∨ b2 = false ∨ b4 = false ∨ b6 = false ∨ b8 = false := by
+  cases b0
+  · exact Or.inl rfl
+  · cases b2
+    · exact Or.inr (Or.inl rfl)
+    · cases b4
+      · exact Or.inr (Or.inr (Or.inl rfl))
+      · cases b6
+        · exact Or.inr (Or.inr (Or.inr (Or.inl rfl)))
+        · cases b8
+          · exact Or.inr (Or.inr (Or.inr (Or.inr rfl)))
+          · exfalso
+            revert h
+            match a, ha with
+            | 0, _ | 1, _ | 2, _ | 3, _ | 4, _ =>
+              cases b1 <;> cases b3 <;> cases b5 <;> cases b7 <;> simp [acceptRest, gateNext]
+            | _ + 5, ha => omega
+
+/-- **Universal 5-Even-Step (10-Step) Reset Window (`survivesTo_exists_reset_in_five_even_steps`).**
+Along every surviving trajectory `SurvivesTo y (2 * r + 8 + K)` with `1 ≤ K`, at least one of the
+5 consecutive even steps `2 * (r + d)` (`d ∈ {0, 1, 2, 3, 4}`) is a reset gate where
+`(iter F (2 * (r + d)) y).testBit 0 = false`, `SurvivesTo (iter F (2 * (r + d)) y) (8 - 2 * d + K)` holds,
+and `(iter F (2 * (r + d)) y) % 2^K ∈ survivingSeeds K`. -/
+theorem survivesTo_exists_reset_in_five_even_steps (y r K : Nat) (hK : 1 ≤ K)
+    (hsurv : SurvivesTo y (2 * r + 8 + K)) :
+    ∃ d < 5,
+      (iter F (2 * (r + d)) y).testBit 0 = false ∧
+      SurvivesTo (iter F (2 * (r + d)) y) K ∧
+      (iter F (2 * (r + d)) y) % 2 ^ K ∈ survivingSeeds K := by
+  by_cases hz0 : (iter F (2 * r) y).testBit 0 = false
+  · have hsurv0 : SurvivesTo y (2 * r + K) :=
+      survivesTo_mono (by omega : 2 * r + K ≤ 2 * r + 8 + K) hsurv
+    obtain ⟨hs, hm⟩ := survivesTo_shift_at_even_zero y r K hsurv0 hz0
+    exact ⟨0, by decide, by simpa using hz0, by simpa using hs, by simpa using hm⟩
+  · have hr : 0 < r := by
+      rcases Nat.eq_zero_or_pos r with rfl | hr
+      · exfalso
+        have h1 : SurvivesTo y 1 := survivesTo_mono (by omega : 1 ≤ 2 * 0 + 8 + K) hsurv
+        unfold SurvivesTo trace at h1
+        simp [accept, iter] at h1 hz0
+        omega
+      · exact hr
+    have hsplit : 2 * r + 8 + K = 1 + (2 * r - 1) + (8 + K) := by omega
+    have hsurv' := hsurv
+    unfold SurvivesTo at hsurv'
+    rw [hsplit, trace_add y (1 + (2 * r - 1)) (8 + K), trace_add y 1 (2 * r - 1), List.append_assoc] at hsurv'
+    have htr1 : trace y 1 = [y.testBit 0] := rfl
+    rw [htr1, List.singleton_append] at hsurv'
+    simp only [accept, Bool.and_eq_true, Bool.not_eq_true'] at hsurv'
+    rcases hsurv' with ⟨_, hrest⟩
+    have hlen_u : (trace (iter F 1 y) (2 * r - 1)).length = 2 * (r - 1) + 1 := by
+      rw [trace_length]; omega
+    rw [show 1 + (2 * r - 1) = 2 * r by omega] at hrest
+    obtain ⟨a', ha', hv⟩ := acceptRest_odd_prefix (r - 1)
+      (trace (iter F 1 y) (2 * r - 1)) (trace (iter F (2 * r) y) (8 + K)) 0 hlen_u (by decide) hrest
+    obtain ⟨k, rfl⟩ : ∃ k, K = 1 + k := ⟨K - 1, by omega⟩
+    have h9 : 8 + (1 + k) = 9 + k := by omega
+    rw [h9, trace_add (iter F (2 * r) y) 9 k] at hv
+    let z := iter F (2 * r) y
+    have htr9 : trace z 9 =
+        [z.testBit 0, (iter F 1 z).testBit 0, (iter F 2 z).testBit 0,
+         (iter F 3 z).testBit 0, (iter F 4 z).testBit 0, (iter F 5 z).testBit 0,
+         (iter F 6 z).testBit 0, (iter F 7 z).testBit 0, (iter F 8 z).testBit 0] := rfl
+    change acceptRest false a' (trace z 9 ++ trace (iter F 9 z) k) = true at hv
+    rw [htr9] at hv
+    simp only [List.cons_append, List.nil_append] at hv
+    have hdisj := acceptRest_false_five_even_steps a' ha'
+      (z.testBit 0) ((iter F 1 z).testBit 0) ((iter F 2 z).testBit 0)
+      ((iter F 3 z).testBit 0) ((iter F 4 z).testBit 0) ((iter F 5 z).testBit 0)
+      ((iter F 6 z).testBit 0) ((iter F 7 z).testBit 0) ((iter F 8 z).testBit 0)
+      (trace (iter F 9 z) k) hv
+    rcases hdisj with h0 | h2 | h4 | h6 | h8
+    · exact absurd h0 hz0
+    · have hz2 : (iter F (2 * (r + 1)) y).testBit 0 = false := by
+        rw [show 2 * (r + 1) = 2 * r + 2 by omega, iter_F_add]; exact h2
+      have hsurv2 : SurvivesTo y (2 * (r + 1) + (1 + k)) :=
+        survivesTo_mono (by omega : 2 * (r + 1) + (1 + k) ≤ 2 * r + 8 + (1 + k)) hsurv
+      obtain ⟨hs, hm⟩ := survivesTo_shift_at_even_zero y (r + 1) (1 + k) hsurv2 hz2
+      exact ⟨1, by decide, hz2, hs, hm⟩
+    · have hz4 : (iter F (2 * (r + 2)) y).testBit 0 = false := by
+        rw [show 2 * (r + 2) = 2 * r + 4 by omega, iter_F_add]; exact h4
+      have hsurv4 : SurvivesTo y (2 * (r + 2) + (1 + k)) :=
+        survivesTo_mono (by omega : 2 * (r + 2) + (1 + k) ≤ 2 * r + 8 + (1 + k)) hsurv
+      obtain ⟨hs, hm⟩ := survivesTo_shift_at_even_zero y (r + 2) (1 + k) hsurv4 hz4
+      exact ⟨2, by decide, hz4, hs, hm⟩
+    · have hz6 : (iter F (2 * (r + 3)) y).testBit 0 = false := by
+        rw [show 2 * (r + 3) = 2 * r + 6 by omega, iter_F_add]; exact h6
+      have hsurv6 : SurvivesTo y (2 * (r + 3) + (1 + k)) :=
+        survivesTo_mono (by omega : 2 * (r + 3) + (1 + k) ≤ 2 * r + 8 + (1 + k)) hsurv
+      obtain ⟨hs, hm⟩ := survivesTo_shift_at_even_zero y (r + 3) (1 + k) hsurv6 hz6
+      exact ⟨3, by decide, hz6, hs, hm⟩
+    · have hz8 : (iter F (2 * (r + 4)) y).testBit 0 = false := by
+        rw [show 2 * (r + 4) = 2 * r + 8 by omega, iter_F_add]; exact h8
+      have hsurv8 : SurvivesTo y (2 * (r + 4) + (1 + k)) :=
+        survivesTo_mono (by omega : 2 * (r + 4) + (1 + k) ≤ 2 * r + 8 + (1 + k)) hsurv
+      obtain ⟨hs, hm⟩ := survivesTo_shift_at_even_zero y (r + 4) (1 + k) hsurv8 hz8
+      exact ⟨4, by decide, hz8, hs, hm⟩
+
+def e2StateInv (o : Bool) (a q : Nat) : Prop :=
+  let r := 2 * a + (if o then 0 else 1)
+  q = 10 + r ∨ q = 30 + r ∨ q = 50 + r
+
+instance (o : Bool) (a q : Nat) : Decidable (e2StateInv o a q) := by
+  unfold e2StateInv; infer_instance
+
+theorem b35_to_e2_step (o : Bool) (a : Nat) (ha : a < 5) (b : Bool) (a' : Nat)
+    (hna : nextAge o a b = some a') (q : Nat) (_hq_lt : q < 60)
+    (hq : e2StateInv o a q) :
+    a' < 5 ∧
+    (o = true → b = true) ∧
+    (o = false → a = 0 → b = true) ∧
+    (o = false → b = false → a' = 0) ∧
+    ∃ q' : Nat, q' < 60 ∧
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.delta 1 q ((!o) && (!b)) = some q' ∧
+      e2StateInv (!o) a' q' := by
+  match a, ha with
+  | 0, _ | 1, _ | 2, _ | 3, _ | 4, _ =>
+    cases o <;> cases b <;> simp [nextAge, gateNext] at hna
+    all_goals
+      subst hna
+      rcases hq with rfl | rfl | rfl <;>
+        exact ⟨by decide, by decide, by decide, by decide, _, by decide, rfl, by decide⟩
+  | _ + 5, ha => omega
+
+theorem acceptFinal_simulates_e2 (y t : Nat) (hy0 : y.testBit 0 = false) :
+    ∀ (o : Bool) (a : Nat),
+      acceptFinal true 0 (trace (F y) t) = some (o, a) →
+      o = decide (t % 2 = 0) ∧
+      a < 5 ∧
+      (o = true → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y t = false → a = 0) ∧
+      ∃ q : Nat, q < 60 ∧
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run 1
+          (fun s => s % 2 == 0 && !Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y s) 10 t = some q ∧
+        e2StateInv o a q := by
+  induction t with
+  | zero =>
+    intro o a hacc
+    simp only [trace, acceptFinal, Option.some.injEq, Prod.mk.injEq] at hacc
+    rcases hacc with ⟨rfl, rfl⟩
+    have _ := hy0
+    exact ⟨rfl, by decide, fun _ _ => rfl, 10, by decide, rfl, by decide⟩
+  | succ t ih =>
+    intro o' a' hacc
+    rw [trace_succ_right (F y) t, acceptFinal_append] at hacc
+    cases hprev : acceptFinal true 0 (trace (F y) t) with
+    | none => simp [hprev] at hacc
+    | some pa =>
+      rcases pa with ⟨o, a⟩
+      simp only [hprev, acceptFinal] at hacc
+      have hbit_eq : (iter F t (F y)).testBit 0 = Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (t + 1) := by
+        rw [iter_F_succ_right]; rfl
+      rw [hbit_eq] at hacc
+      cases hna : nextAge o a (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (t + 1)) with
+      | none => simp [hna] at hacc
+      | some na =>
+        simp only [hna, Option.some.injEq, Prod.mk.injEq] at hacc
+        rcases hacc with ⟨rfl, rfl⟩
+        obtain ⟨ho, ha, _, q, hq_lt, hrun, hq⟩ := ih o a hprev
+        obtain ⟨hna_lt, _, _, hfalse_a0, q', hq'_lt, hdelta, hq'⟩ :=
+          b35_to_e2_step o a ha (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (t + 1)) na hna q hq_lt hq
+        have ho' : (!o) = decide ((t + 1) % 2 = 0) := by
+          rw [ho]
+          by_cases hmod : t % 2 = 0
+          · have hmod1 : (t + 1) % 2 ≠ 0 := by omega
+            simp [hmod, hmod1]
+          · have hmod1 : (t + 1) % 2 = 0 := by omega
+            simp [hmod, hmod1]
+        have heven_eq : ((t + 1) % 2 == 0) = (!o) := by
+          rw [ho']
+          by_cases hmod1 : (t + 1) % 2 = 0
+          · simp [hmod1]
+          · have hne : ((t + 1) % 2 == 0) = false := beq_false_of_ne hmod1
+            simp [hmod1, hne]
+        refine ⟨ho', hna_lt, ?_, q', hq'_lt, ?_, hq'⟩
+        · intro hno htr
+          have hof : o = false := by cases o <;> simp_all
+          exact hfalse_a0 hof htr
+        · rw [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run_succ, hrun, Option.bind_some, heven_eq]
+          exact hdelta
+
+/-- **Universal `SurvivesTo → GE2` Horizon Embedding and `NoSeedGE2 → MassDiverges` Bridge
+(`survivesTo_two_mul_imp_ge2_and_noSeedGE2_imp_massDiverges`).**
+1. For every horizon `m : Nat` and every seed `y : Nat`, `SurvivesTo y (2 * m)` implies
+   `Rule30PeriodTwoWidth13.GE2 (Rule30PeriodTwoWidth13.tr y) m`.
+2. Every canonical surviving seed `y ∈ survivingSeeds (2 * m)` satisfies
+   `y < 2 ^ (2 * m) ∧ Rule30PeriodTwoWidth13.GE2 (Rule30PeriodTwoWidth13.tr y) m`.
+3. `Rule30PeriodTwoWidth13.NoSeedGE2` (and hence `MassBoundFunP GE2 g` for any `g : Nat → Nat`)
+   implies `FiniteSeedsTerminate`, `MassDiverges`, `ZeroCoastBoxTerminationHypothesis`, and
+   `Rule30GateTrap.Q01Gap`. -/
+theorem survivesTo_two_mul_imp_ge2_and_noSeedGE2_imp_massDiverges :
+    (∀ m y : Nat, SurvivesTo y (2 * m) →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m) ∧
+    (∀ m y : Nat, y ∈ survivingSeeds (2 * m) →
+      y < 2 ^ (2 * m) ∧
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m) ∧
+    (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 →
+      FiniteSeedsTerminate ∧ MassDiverges ∧ ZeroCoastBoxTerminationHypothesis ∧
+      Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap) ∧
+    (∀ g : Nat → Nat,
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.MassBoundFunP
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2 g →
+      MassDiverges ∧ Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap) := by
+  have hmain : ∀ m y : Nat, SurvivesTo y (2 * m) →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m := by
+    intro m y hsurv
+    rcases Nat.eq_zero_or_pos m with rfl | hm
+    · refine ⟨⟨fun h => absurd h (Nat.lt_irrefl 0), fun j hj => absurd hj (Nat.not_lt_zero j),
+        fun j hj => by omega⟩, fun j hj => absurd hj (Nat.not_lt_zero j)⟩
+    · have h1 : SurvivesTo y 1 := survivesTo_mono (by omega : 1 ≤ 2 * m) hsurv
+      have hy0 : y.testBit 0 = false := by
+        unfold SurvivesTo trace at h1
+        simp only [accept, Bool.and_eq_true, Bool.not_eq_true'] at h1
+        exact h1.1
+      have hstate : ∀ t < 2 * m, ∃ o a, acceptFinal true 0 (trace (F y) t) = some (o, a) := by
+        intro t ht
+        have hst : SurvivesTo y (t + 1) := survivesTo_mono (by omega : t + 1 ≤ 2 * m) hsurv
+        unfold SurvivesTo at hst
+        rw [trace_succ_left_eq, hy0] at hst
+        simp only [accept, Bool.not_false, Bool.true_and, ← acceptFinal_isSome_eq_acceptRest] at hst
+        obtain ⟨⟨o, a⟩, hpa⟩ := Option.isSome_iff_exists.mp hst
+        exact ⟨o, a, hpa⟩
+      refine ⟨⟨fun _ => by simpa [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr, iter] using hy0,
+        fun j hj => ?_, fun j hj => ?_⟩, fun j hj => ?_⟩
+      · obtain ⟨o1, a1, hacc1⟩ := hstate (2 * j + 1) (by omega)
+        rw [trace_succ_right (F y) (2 * j), acceptFinal_append] at hacc1
+        obtain ⟨o0, a0, hacc0⟩ := hstate (2 * j) (by omega)
+        rw [hacc0] at hacc1
+        simp only [acceptFinal] at hacc1
+        have hbit_eq : (iter F (2 * j) (F y)).testBit 0 =
+            Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * j + 1) := by
+          rw [iter_F_succ_right]; rfl
+        rw [hbit_eq] at hacc1
+        obtain ⟨ho0, ha0, _, q0, hq0_lt, _, hq0⟩ := acceptFinal_simulates_e2 y (2 * j) hy0 o0 a0 hacc0
+        have ho0_true : o0 = true := by simp [ho0]
+        cases hna : nextAge o0 a0 (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * j + 1)) with
+        | none => simp [hna] at hacc1
+        | some na =>
+          exact (b35_to_e2_step o0 a0 ha0 _ na hna q0 hq0_lt hq0).2.1 ho0_true
+      · cases htr0 : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * j)
+        · simp only [Bool.false_or]
+          obtain ⟨o0, a0, hacc0⟩ := hstate (2 * j) (by omega)
+          obtain ⟨ho0, ha0, hzero0, q0, _, _, _⟩ := acceptFinal_simulates_e2 y (2 * j) hy0 o0 a0 hacc0
+          have ho0_true : o0 = true := by simp [ho0]
+          have ha0_eq : a0 = 0 := hzero0 ho0_true htr0
+          obtain ⟨o1, a1, hacc1⟩ := hstate (2 * j + 1) (by omega)
+          have hacc1' := hacc1
+          rw [trace_succ_right (F y) (2 * j), acceptFinal_append, hacc0] at hacc1'
+          simp only [acceptFinal, ho0_true, nextAge, ↓reduceIte] at hacc1'
+          cases htr1 : (iter F (2 * j) (F y)).testBit 0
+          · simp [htr1] at hacc1'
+          · simp only [htr1, ↓reduceIte, Option.some.injEq, Prod.mk.injEq] at hacc1'
+            rcases hacc1' with ⟨rfl, rfl⟩
+            obtain ⟨o2, a2, hacc2⟩ := hstate (2 * j + 2) (by omega)
+            rw [show 2 * j + 2 = (2 * j + 1) + 1 by omega, trace_succ_right (F y) (2 * j + 1),
+                acceptFinal_append, hacc1] at hacc2
+            simp only [acceptFinal] at hacc2
+            have hbit2 : (iter F (2 * j + 1) (F y)).testBit 0 =
+                Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * j + 2) := by
+              rw [iter_F_succ_right]; rfl
+            rw [hbit2] at hacc2
+            obtain ⟨_, ha1, _, q1, hq1_lt, _, hq1⟩ := acceptFinal_simulates_e2 y (2 * j + 1) hy0 false a0 hacc1
+            cases hna2 : nextAge false a0 (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * j + 2)) with
+            | none => simp [hna2] at hacc2
+            | some na2 =>
+              exact (b35_to_e2_step false a0 ha1 _ na2 hna2 q1 hq1_lt hq1).2.2.1 rfl ha0_eq
+        · simp
+      · obtain ⟨o, a, hacc⟩ := hstate j hj
+        obtain ⟨_, _, _, q, _, hrun, _⟩ := acceptFinal_simulates_e2 y j hy0 o a hacc
+        rw [hrun]; rfl
+  have hseeds : ∀ m y : Nat, y ∈ survivingSeeds (2 * m) →
+      y < 2 ^ (2 * m) ∧
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m := by
+    intro m y hy
+    obtain ⟨hlt, hs⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff (2 * m) y).1.mp hy
+    exact ⟨hlt, hmain m y hs⟩
+  have hnoSeed : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 →
+      FiniteSeedsTerminate ∧ MassDiverges ∧ ZeroCoastBoxTerminationHypothesis ∧
+      Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap := by
+    intro hno
+    have hfin : FiniteSeedsTerminate := by
+      intro y
+      have hy := hno y
+      obtain ⟨m, hm⟩ : ∃ m, ¬ Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+          (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m :=
+        Classical.not_forall.mp hy
+      exact ⟨2 * m, fun hs => hm (hmain m y hs)⟩
+    have hM : MassDiverges := finite_seeds_terminate_iff_mass_diverges.mp hfin
+    exact ⟨hfin, hM, massDiverges_iff_zeroCoastBoxTermination.mp hM, massDiverges_iff_Q01Gap.mp hM⟩
+  refine ⟨hmain, hseeds, hnoSeed, fun g hg => ?_⟩
+  have hno := Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.noSeed_GE2_of_massBoundFun g hg
+  exact ⟨(hnoSeed hno).2.1, (hnoSeed hno).2.2.2⟩
+
+end UniversalResetShiftAndGE2Bridge
+
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
