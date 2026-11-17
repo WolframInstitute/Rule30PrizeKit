@@ -3046,5 +3046,404 @@ theorem survivesTo_two_mul_imp_ge2_and_noSeedGE2_imp_massDiverges :
 
 end UniversalResetShiftAndGE2Bridge
 
+/-! ## 12. Universal `Zc` Even-Time Zero-Density Laws (`m ≤ 5 * Zc b m` for `GE2`, and `m ≤ 5 * Zc (tr y) m ∧ 3 * Zc (tr y) m ≤ m + 2` for `SurvivesTo`) -/
+
+section UniversalZcDensityLaws
+open Rule30ZeroBoundary.IntegerForm
+
+def iterDelta1False : Nat → Option Nat → Option Nat
+  | 0, oq => oq
+  | n + 1, oq => iterDelta1False n (oq.bind (fun q => Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.delta 1 q false))
+
+theorem delta1_ten_steps_needs_kick (q : Nat) (hq : q < 60) :
+    iterDelta1False 10 (some q) = none := by
+  revert q hq
+  decide
+
+theorem run1_lt_60 (k : Nat → Bool) :
+    ∀ (j q : Nat),
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run 1 k 10 j = some q → q < 60 := by
+  intro j
+  induction j with
+  | zero =>
+    intro q h
+    simp only [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run, Option.some.injEq] at h
+    omega
+  | succ j ih =>
+    intro q h
+    rw [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run_succ] at h
+    cases hr : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run 1 k 10 j with
+    | none => simp [hr] at h
+    | some q0 =>
+      simp only [hr, Option.bind_some] at h
+      exact Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.delta_lt 1 q0 (k (j + 1)) q h
+
+theorem run1_add_false (k : Nat → Bool) (j : Nat) :
+    ∀ (n : Nat),
+      (∀ d, 1 ≤ d → d ≤ n → k (j + d) = false) →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run 1 k 10 (j + n) =
+        iterDelta1False n (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run 1 k 10 j) := by
+  intro n
+  induction n generalizing j with
+  | zero => intro _; rfl
+  | succ n ih =>
+    intro hfalse
+    have h1 : k (j + 1) = false := hfalse 1 (by omega) (by omega)
+    have hstep : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run 1 k 10 (j + 1) =
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run 1 k 10 j).bind
+          (fun q => Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.delta 1 q false) := by
+      rw [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run_succ, h1]
+    rw [show j + (n + 1) = (j + 1) + n by omega,
+        ih (j + 1) (fun d hd1 hdn => by
+          rw [show j + 1 + d = j + (d + 1) by omega]
+          exact hfalse (d + 1) (by omega) (by omega)),
+        hstep]
+    rfl
+
+theorem ge2_five_even_steps_has_zero (b : Nat → Bool) (m : Nat)
+    (hge : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2 b (m + 5)) :
+    b (2 * m) = false ∨ b (2 * (m + 1)) = false ∨ b (2 * (m + 2)) = false ∨
+      b (2 * (m + 3)) = false ∨ b (2 * (m + 4)) = false := by
+  rcases Nat.eq_zero_or_pos m with rfl | hmpos
+  · exact Or.inl (hge.1.1 (by omega))
+  · cases hb0 : b (2 * m)
+    · exact Or.inl rfl
+    · cases hb1 : b (2 * (m + 1))
+      · exact Or.inr (Or.inl rfl)
+      · cases hb2 : b (2 * (m + 2))
+        · exact Or.inr (Or.inr (Or.inl rfl))
+        · cases hb3 : b (2 * (m + 3))
+          · exact Or.inr (Or.inr (Or.inr (Or.inl rfl)))
+          · cases hb4 : b (2 * (m + 4))
+            · exact Or.inr (Or.inr (Or.inr (Or.inr rfl)))
+            · exfalso
+              let k : Nat → Bool := fun s => s % 2 == 0 && !b s
+              have hfalse : ∀ d, 1 ≤ d → d ≤ 10 → k ((2 * m - 1) + d) = false := by
+                intro d hd1 hd10
+                by_cases hev : ((2 * m - 1) + d) % 2 = 0
+                · have hd_cases : d = 1 ∨ d = 3 ∨ d = 5 ∨ d = 7 ∨ d = 9 := by omega
+                  rcases hd_cases with rfl | rfl | rfl | rfl | rfl
+                  · rw [show 2 * m - 1 + 1 = 2 * m by omega]; simp [k, hb0]
+                  · rw [show 2 * m - 1 + 3 = 2 * (m + 1) by omega]; simp [k, hb1]
+                  · rw [show 2 * m - 1 + 5 = 2 * (m + 2) by omega]; simp [k, hb2]
+                  · rw [show 2 * m - 1 + 7 = 2 * (m + 3) by omega]; simp [k, hb3]
+                  · rw [show 2 * m - 1 + 9 = 2 * (m + 4) by omega]; simp [k, hb4]
+                · have hbeq : (((2 * m - 1) + d) % 2 == 0) = false := beq_false_of_ne hev
+                  simp [k, hbeq]
+              have his0 := hge.2 (2 * m - 1) (by omega)
+              change (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run 1 k 10 (2 * m - 1)).isSome = true at his0
+              obtain ⟨q, hq⟩ := Option.isSome_iff_exists.mp his0
+              have hq_lt : q < 60 := run1_lt_60 k (2 * m - 1) q hq
+              have his10 := hge.2 ((2 * m - 1) + 10) (by omega)
+              change (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run 1 k 10 ((2 * m - 1) + 10)).isSome = true at his10
+              rw [run1_add_false k (2 * m - 1) 10 hfalse, hq, delta1_ten_steps_needs_kick q hq_lt] at his10
+              simp at his10
+
+theorem ge2_mono (b : Nat → Bool) {m1 m2 : Nat} (hle : m1 ≤ m2)
+    (h : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2 b m2) :
+    Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2 b m1 := by
+  refine ⟨⟨fun hm1 => h.1.1 (by omega), fun j hj => h.1.2.1 j (by omega),
+    fun j hj => h.1.2.2 j (by omega)⟩, fun j hj => h.2 j (by omega)⟩
+
+theorem zc_succ (b : Nat → Bool) (m : Nat) :
+    Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b (m + 1) =
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b m + (if b (2 * m) = false then 1 else 0) := rfl
+
+theorem zc_mono (b : Nat → Bool) {k1 k2 : Nat} (hle : k1 ≤ k2) :
+    Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b k1 ≤
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b k2 := by
+  obtain ⟨d, rfl⟩ := Nat.exists_eq_add_of_le hle
+  induction d with
+  | zero => exact Nat.le_refl _
+  | succ d ih =>
+    rw [Nat.add_succ, zc_succ]
+    omega
+
+/-- **Universal `GE2` Even-Time Zero-Density Law and Explicit Finite-Horizon Cutoff
+(`ge2_zc_step_five_and_lower_bound`).**
+1. For every horizon `m : Nat` and every trace `b : Nat → Bool`, `GE2 b (m + 5)` implies
+   `Zc b m + 1 ≤ Zc b (m + 5)`.
+2. For every `m : Nat` and every `b : Nat → Bool`, `GE2 b m` implies `m ≤ 5 * Zc b m`.
+3. Under `MassBoundFunP GE2 g`, for every `m : Nat` and `Y < 2 ^ (2 * m)`, if
+   `5 * g (wtH (2 * m) Y) < m`, then `¬ GE2 (tr Y) m`. -/
+theorem ge2_zc_step_five_and_lower_bound :
+    (∀ (b : Nat → Bool) (m : Nat),
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2 b (m + 5) →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b m + 1 ≤
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b (m + 5)) ∧
+    (∀ (b : Nat → Bool) (m : Nat),
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2 b m →
+      m ≤ 5 * Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b m) ∧
+    (∀ (g : Nat → Nat)
+      (_hg : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.MassBoundFunP
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2 g)
+      (m Y : Nat), Y < 2 ^ (2 * m) →
+      5 * g (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m) Y) < m →
+      ¬ Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+          (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m) := by
+  have hstep : ∀ (b : Nat → Bool) (m : Nat),
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2 b (m + 5) →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b m + 1 ≤
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b (m + 5) := by
+    intro b m hge
+    have hdisj := ge2_five_even_steps_has_zero b m hge
+    have h5 : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b (m + 5) =
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b m +
+        (if b (2 * m) = false then 1 else 0) +
+        (if b (2 * (m + 1)) = false then 1 else 0) +
+        (if b (2 * (m + 2)) = false then 1 else 0) +
+        (if b (2 * (m + 3)) = false then 1 else 0) +
+        (if b (2 * (m + 4)) = false then 1 else 0) := by
+      rw [show m + 5 = m + 4 + 1 by omega, zc_succ,
+          show m + 4 = m + 3 + 1 by omega, zc_succ,
+          show m + 3 = m + 2 + 1 by omega, zc_succ,
+          show m + 2 = m + 1 + 1 by omega, zc_succ, zc_succ]
+    rw [h5]
+    rcases hdisj with h' | h' | h' | h' | h' <;> simp [h'] <;> try omega
+  have hlow : ∀ (b : Nat → Bool) (m : Nat),
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2 b m →
+      m ≤ 5 * Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b m := by
+    intro b m
+    induction m using Nat.strongRecOn with
+    | ind m ih =>
+      intro hge
+      rcases Nat.eq_zero_or_pos m with rfl | hmpos
+      · omega
+      · have hb0 : b 0 = false := hge.1.1 hmpos
+        have hzc1 : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b 1 = 1 := by
+          rw [zc_succ]; simp [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc, hb0]
+        by_cases hle5 : m ≤ 5
+        · have h1m : 1 ≤ Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b m := by
+            rw [← hzc1]; exact zc_mono b hmpos
+          omega
+        · obtain ⟨m', rfl⟩ : ∃ m', m = m' + 5 := ⟨m - 5, by omega⟩
+          have hge' : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2 b m' :=
+            ge2_mono b (by omega) hge
+          have ih_m' := ih m' (by omega) hge'
+          have hst := hstep b m' hge
+          omega
+  refine ⟨hstep, hlow, fun g hg m Y hY hlt hge => ?_⟩
+  have h1 := hlow (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m hge
+  have h2 := hg m Y hY hge
+  omega
+
+theorem acceptRest_false_three_even_steps (a : Nat) (ha : a < 5)
+    (b0 b1 b2 b3 b4 : Bool) (rest : List Bool)
+    (h : acceptRest false a (b0 :: b1 :: b2 :: b3 :: b4 :: rest) = true) :
+    (if b0 = false then 1 else 0) + (if b2 = false then 1 else 0) + (if b4 = false then 1 else 0) ≤ 1 := by
+  revert b0 b1 b2 b3 b4 h
+  match a, ha with
+  | 0, _ | 1, _ | 2, _ | 3, _ | 4, _ =>
+    intro b0 b1 b2 b3 b4 h
+    cases b0 <;> cases b1 <;> cases b2 <;> cases b3 <;> cases b4 <;>
+      simp [acceptRest, gateNext] at h ⊢ <;> try decide
+  | _ + 5, ha => omega
+
+/-- **Universal Two-Sided Even-Time Zero-Density Pinch for `SurvivesTo` (`survivesTo_zc_two_sided_density_pinch`).**
+1. For every seed `y : Nat` and horizon `m : Nat`, `SurvivesTo y (2 * (m + 5))` implies
+   `Zc (tr y) m + 1 ≤ Zc (tr y) (m + 5)`.
+2. For every seed `y : Nat` and horizon `m : Nat`, `SurvivesTo y (2 * (m + 3))` implies
+   `Zc (tr y) (m + 3) ≤ Zc (tr y) m + 1`.
+3. For every seed `y : Nat` and horizon `m : Nat`, `SurvivesTo y (2 * m)` implies the universal
+   two-sided density pinch:
+   `m ≤ 5 * Zc (tr y) m ∧ 3 * Zc (tr y) m ≤ m + 2`. -/
+theorem survivesTo_zc_two_sided_density_pinch :
+    (∀ y m : Nat, SurvivesTo y (2 * (m + 5)) →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m + 1 ≤
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + 5)) ∧
+    (∀ y m : Nat, SurvivesTo y (2 * (m + 3)) →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + 3) ≤
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m + 1) ∧
+    (∀ y m : Nat, SurvivesTo y (2 * m) →
+      m ≤ 5 * Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m ∧
+      3 * Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m ≤ m + 2) := by
+  have hstep5 : ∀ y m : Nat, SurvivesTo y (2 * (m + 5)) →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m + 1 ≤
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + 5) := by
+    intro y m hs
+    exact ge2_zc_step_five_and_lower_bound.1 _ m
+      (survivesTo_two_mul_imp_ge2_and_noSeedGE2_imp_massDiverges.1 (m + 5) y hs)
+  have hstep3 : ∀ y m : Nat, SurvivesTo y (2 * (m + 3)) →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + 3) ≤
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m + 1 := by
+    intro y m hsurv
+    have h3 : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + 3) =
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+          (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m +
+        (if Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * m) = false then 1 else 0) +
+        (if Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * (m + 1)) = false then 1 else 0) +
+        (if Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * (m + 2)) = false then 1 else 0) := by
+      rw [show m + 3 = m + 2 + 1 by omega, zc_succ,
+          show m + 2 = m + 1 + 1 by omega, zc_succ, zc_succ]
+    rw [h3]
+    rcases Nat.eq_zero_or_pos m with rfl | hmpos
+    · have hs5 : SurvivesTo y 5 := survivesTo_mono (by omega : 5 ≤ 2 * (0 + 3)) hsurv
+      have hmem5 : trace y 5 ∈ acceptedWords 5 :=
+        (mem_acceptedWords_iff 5 (trace y 5)).mpr ⟨trace_length y 5, hs5⟩
+      have haw5 : acceptedWords 5 = [[false, true, true, true, true]] := rfl
+      rw [haw5, List.mem_singleton] at hmem5
+      have htr5 : trace y 5 =
+          [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y 0,
+           Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y 1,
+           Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y 2,
+           Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y 3,
+           Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y 4] := rfl
+      rw [htr5] at hmem5
+      injection hmem5 with h0 htl1
+      injection htl1 with _ htl2
+      injection htl2 with h2 htl3
+      injection htl3 with _ htl4
+      injection htl4 with h4 _
+      simp [h0, h2, h4]
+    · have hs5 : SurvivesTo y (1 + (2 * m - 1) + 5) :=
+        survivesTo_mono (by omega : 1 + (2 * m - 1) + 5 ≤ 2 * (m + 3)) hsurv
+      unfold SurvivesTo at hs5
+      rw [trace_add y (1 + (2 * m - 1)) 5, trace_add y 1 (2 * m - 1), List.append_assoc] at hs5
+      have htr1 : trace y 1 = [y.testBit 0] := rfl
+      rw [htr1, List.singleton_append] at hs5
+      simp only [accept, Bool.and_eq_true, Bool.not_eq_true'] at hs5
+      rcases hs5 with ⟨_, hrest⟩
+      have hlen_u : (trace (iter F 1 y) (2 * m - 1)).length = 2 * (m - 1) + 1 := by
+        rw [trace_length]; omega
+      rw [show 1 + (2 * m - 1) = 2 * m by omega] at hrest
+      obtain ⟨a', ha', hv⟩ := acceptRest_odd_prefix (m - 1)
+        (trace (iter F 1 y) (2 * m - 1)) (trace (iter F (2 * m) y) 5) 0 hlen_u (by decide) hrest
+      let z := iter F (2 * m) y
+      have htr5 : trace z 5 =
+          [z.testBit 0, (iter F 1 z).testBit 0, (iter F 2 z).testBit 0,
+           (iter F 3 z).testBit 0, (iter F 4 z).testBit 0] := rfl
+      change acceptRest false a' (trace z 5) = true at hv
+      rw [htr5] at hv
+      have hle1 := acceptRest_false_three_even_steps a' ha'
+        (z.testBit 0) ((iter F 1 z).testBit 0) ((iter F 2 z).testBit 0)
+        ((iter F 3 z).testBit 0) ((iter F 4 z).testBit 0) [] hv
+      have heq0 : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * m) = z.testBit 0 := rfl
+      have heq2 : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * (m + 1)) = (iter F 2 z).testBit 0 := by
+        change (iter F (2 * m + 2) y).testBit 0 = (iter F 2 (iter F (2 * m) y)).testBit 0
+        rw [iter_F_add]
+      have heq4 : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * (m + 2)) = (iter F 4 z).testBit 0 := by
+        change (iter F (2 * m + 4) y).testBit 0 = (iter F 4 (iter F (2 * m) y)).testBit 0
+        rw [iter_F_add]
+      rw [heq0, heq2, heq4]
+      omega
+  refine ⟨hstep5, hstep3, fun y m => ?_⟩
+  induction m using Nat.strongRecOn with
+  | ind m ih =>
+    intro hsurv
+    have hlow : m ≤ 5 * Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m :=
+      ge2_zc_step_five_and_lower_bound.2.1 _ m
+        (survivesTo_two_mul_imp_ge2_and_noSeedGE2_imp_massDiverges.1 m y hsurv)
+    refine ⟨hlow, ?_⟩
+    rcases Nat.eq_zero_or_pos m with rfl | hmpos
+    · simp [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc]
+    · by_cases h1 : m = 1
+      · subst h1
+        rw [zc_succ]
+        change 3 * (0 + (if Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y 0 = false then 1 else 0)) ≤ 3
+        split <;> omega
+      · by_cases h2 : m = 2
+        · subst h2
+          have hge2 := survivesTo_two_mul_imp_ge2_and_noSeedGE2_imp_massDiverges.1 2 y hsurv
+          have hb0 : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y 0 = false := hge2.1.1 (by decide)
+          have hb02 : (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y 0 ||
+              Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y 2) = true := hge2.1.2.2 0 (by decide)
+          rw [hb0, Bool.false_or] at hb02
+          rw [show (2 : Nat) = 1 + 1 from rfl, zc_succ, zc_succ]
+          change 3 * (0 + (if Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y 0 = false then 1 else 0) +
+            (if Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y 2 = false then 1 else 0)) ≤ 4
+          simp [hb0, hb02]
+        · obtain ⟨m', rfl⟩ : ∃ m', m = m' + 3 := ⟨m - 3, by omega⟩
+          have hs' : SurvivesTo y (2 * m') := survivesTo_mono (by omega : 2 * m' ≤ 2 * (m' + 3)) hsurv
+          have ih_m' := (ih m' (by omega) hs').2
+          have hst3 := hstep3 y m' hsurv
+          omega
+
+/-- **Universal Non-Emptiness, Horizon Monotonicity, and Exponential Growth Bound for
+`survivingSeeds` and `GE2` (`survivingSeeds_universal_pos_mono_and_exp_lower_bound`).**
+1. For every horizon `H : Nat`, `1 ≤ (survivingSeeds H).length`, and there exists `y < 2 ^ H`
+   with `SurvivesTo y H`.
+2. For every `m : Nat`, there exists a canonical seed `y < 2 ^ (2 * m)` satisfying
+   `Rule30PeriodTwoWidth13.GE2 (tr y) m`.
+3. For all horizons `H1 ≤ H2`, `(survivingSeeds H1).length ≤ (survivingSeeds H2).length`.
+4. For every `k r : Nat`, `2 ^ k ≤ (survivingSeeds (10 * k + r)).length`. -/
+theorem survivingSeeds_universal_pos_mono_and_exp_lower_bound :
+    (∀ H : Nat, 1 ≤ (survivingSeeds H).length ∧ ∃ y < 2 ^ H, SurvivesTo y H) ∧
+    (∀ m : Nat, ∃ y < 2 ^ (2 * m),
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m) ∧
+    (∀ H1 H2 : Nat, H1 ≤ H2 → (survivingSeeds H1).length ≤ (survivingSeeds H2).length) ∧
+    (∀ k r : Nat, 2 ^ k ≤ (survivingSeeds (10 * k + r)).length) := by
+  have hpos_step : ∀ H : Nat, 1 ≤ (survivingSeeds H).length ∧
+      (survivingSeeds H).length ≤ (survivingSeeds (H + 1)).length := by
+    intro H
+    induction H using Nat.strongRecOn with
+    | ind H ih =>
+      match H with
+      | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 => decide
+      | H' + 11 =>
+        have hrec0 := survivingSeeds_length_add_ten_and_initial_counts.1 (H' + 1) (by omega)
+        have hrec1 := survivingSeeds_length_add_ten_and_initial_counts.1 (H' + 2) (by omega)
+        have ih1 := ih (H' + 1) (by omega)
+        have ih5 := ih (H' + 5) (by omega)
+        rw [show H' + 11 + 1 = (H' + 2) + 10 by omega,
+            show H' + 11 = (H' + 1) + 10 by omega,
+            hrec0, hrec1,
+            show H' + 1 + 4 = H' + 5 by omega,
+            show H' + 2 + 4 = H' + 5 + 1 by omega,
+            show H' + 2 = H' + 1 + 1 by omega]
+        omega
+  have hmono : ∀ H1 H2 : Nat, H1 ≤ H2 → (survivingSeeds H1).length ≤ (survivingSeeds H2).length := by
+    intro H1 H2 hle
+    obtain ⟨d, rfl⟩ := Nat.exists_eq_add_of_le hle
+    induction d with
+    | zero => exact Nat.le_refl _
+    | succ d ih =>
+      exact Nat.le_trans (ih (by omega)) (hpos_step (H1 + d)).2
+  have hpos : ∀ H : Nat, 1 ≤ (survivingSeeds H).length ∧ ∃ y < 2 ^ H, SurvivesTo y H := by
+    intro H
+    have hp := (hpos_step H).1
+    refine ⟨hp, ?_⟩
+    cases hlist : survivingSeeds H with
+    | nil => rw [hlist] at hp; simp at hp
+    | cons y ys =>
+      have hy : y ∈ survivingSeeds H := by rw [hlist]; simp
+      exact ⟨y, (mem_survivingSeeds_iff_and_survivesTo_iff H y).1.mp hy⟩
+  have hge2_ex : ∀ m : Nat, ∃ y < 2 ^ (2 * m),
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) m := by
+    intro m
+    obtain ⟨y, hlt, hs⟩ := (hpos (2 * m)).2
+    exact ⟨y, hlt, survivesTo_two_mul_imp_ge2_and_noSeedGE2_imp_massDiverges.1 m y hs⟩
+  have hexp0 : ∀ k : Nat, 2 ^ k ≤ (survivingSeeds (10 * k)).length := by
+    intro k
+    induction k with
+    | zero => decide
+    | succ k ih =>
+      rcases Nat.eq_zero_or_pos k with rfl | hk
+      · decide
+      · have hrec := survivingSeeds_length_add_ten_and_initial_counts.1 (10 * k) (by omega)
+        rw [show 10 * (k + 1) = 10 * k + 10 by omega, hrec]
+        have hmono4 := hmono (10 * k) (10 * k + 4) (by omega)
+        rw [Nat.pow_succ]
+        omega
+  have hexp : ∀ k r : Nat, 2 ^ k ≤ (survivingSeeds (10 * k + r)).length := by
+    intro k r
+    exact Nat.le_trans (hexp0 k) (hmono (10 * k) (10 * k + r) (by omega))
+  exact ⟨hpos, hge2_ex, hmono, hexp⟩
+
+end UniversalZcDensityLaws
+
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
