@@ -3445,5 +3445,982 @@ theorem survivingSeeds_universal_pos_mono_and_exp_lower_bound :
 
 end UniversalZcDensityLaws
 
+/-! ## 13. Elementary Weight-Budget Kőnig Equivalence (`NoSeedGE2 ↔ ∃ g, MassBoundFunP GE2 g`) and Finite-List Closure Equivalences for `survivingSeeds`, `MassDiverges`, and `Q01Gap` -/
+
+section UniversalKonigEquivalence
+open Rule30ZeroBoundary.IntegerForm
+
+theorem popcount_mod_pow2_eq_wtH (y : Nat) :
+    ∀ H : Nat, popcount (y % 2 ^ H) = Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H y
+  | 0 => by simp [Nat.mod_one, popcount_zero, Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH]
+  | H + 1 => by
+    rw [popcount_mod_pow2_succ, Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH,
+        popcount_mod_pow2_eq_wtH y H]
+
+theorem popcount_eq_wtH_of_lt {y H : Nat} (hlt : y < 2 ^ H) :
+    popcount y = Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H y := by
+  rw [← popcount_mod_pow2_eq_wtH y H, Nat.mod_eq_of_lt hlt]
+
+theorem testBit_false_of_wtH_le (Y : Nat) :
+    ∀ {H1 H2 : Nat}, H1 ≤ H2 →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H2 Y ≤
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H1 Y →
+      ∀ i, H1 ≤ i → i < H2 → Y.testBit i = false := by
+  intro H1 H2 hle hw
+  obtain ⟨d, rfl⟩ := Nat.exists_eq_add_of_le hle
+  induction d with
+  | zero =>
+    intro i hi1 hi2
+    omega
+  | succ d ih =>
+    have hstep : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (H1 + d + 1) Y =
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (H1 + d) Y +
+          (if Y.testBit (H1 + d) = true then 1 else 0) := rfl
+    rw [Nat.add_succ, hstep] at hw
+    have hle_d : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H1 Y ≤
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (H1 + d) Y :=
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH_mono Y (by omega)
+    have hbit_top : Y.testBit (H1 + d) = false := by
+      cases htb : Y.testBit (H1 + d)
+      · rfl
+      · simp [htb] at hw
+        omega
+    have hw_d : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (H1 + d) Y ≤
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H1 Y := by omega
+    intro i hi1 hi2
+    rcases Nat.lt_or_eq_of_le (Nat.le_of_lt_succ hi2) with hlt | rfl
+    · exact ih (by omega) hw_d i hi1 hlt
+    · exact hbit_top
+
+theorem eq_of_mod_eq_of_wtH_le {H1 H2 Y X0 : Nat} (hle : H1 ≤ H2)
+    (hY : Y < 2 ^ H2) (hmod : Y % 2 ^ H1 = X0)
+    (hw : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H2 Y ≤
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H1 X0) :
+    Y = X0 := by
+  have hX0_lt : X0 < 2 ^ H1 := by
+    rw [← hmod]
+    exact Nat.mod_lt Y (Nat.two_pow_pos H1)
+  have hwt_eq : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H1 X0 =
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H1 Y := by
+    rw [← hmod, Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH_mod]
+  rw [hwt_eq] at hw
+  have hzero_mid := testBit_false_of_wtH_le Y hle hw
+  apply Nat.eq_of_testBit_eq
+  intro i
+  by_cases hi1 : i < H1
+  · rw [← hmod, Nat.testBit_mod_two_pow, decide_eq_true hi1, Bool.true_and]
+  · have hX0_false : X0.testBit i = false := by
+      apply Nat.testBit_lt_two_pow
+      exact Nat.lt_of_lt_of_le hX0_lt (Nat.pow_le_pow_right (by decide) (by omega))
+    rw [hX0_false]
+    by_cases hi2 : i < H2
+    · exact hzero_mid i (by omega) hi2
+    · apply Nat.testBit_lt_two_pow
+      exact Nat.lt_of_lt_of_le hY (Nat.pow_le_pow_right (by decide) (by omega))
+
+theorem mod_two_pow_mod_two_pow (Y a b : Nat) (hab : a ≤ b) :
+    (Y % 2 ^ b) % 2 ^ a = Y % 2 ^ a := by
+  apply Nat.eq_of_testBit_eq
+  intro i
+  rw [Nat.testBit_mod_two_pow, Nat.testBit_mod_two_pow, Nat.testBit_mod_two_pow]
+  by_cases hi : i < a
+  · have hib : i < b := Nat.lt_of_lt_of_le hi hab
+    simp [hi, hib]
+  · simp [hi]
+
+/-- Recursive weight-budget Kőnig horizon bound using `Rule30PeriodTwoWidth13.sumBelow`. -/
+def konigBound (stopH : Nat → Nat) : Nat → Nat → Nat → Nat
+  | 0, m0, X0 => m0 + stopH X0 + 1
+  | r + 1, m0, X0 =>
+    let M0 := m0 + stopH X0 + 1
+    M0 + Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.sumBelow
+      (fun X1 => konigBound stopH r M0 X1) (2 ^ (2 * M0))
+
+theorem konigBound_spec (P : (Nat → Bool) → Nat → Prop)
+    (hP : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.PrefixDet P)
+    (hmono : ∀ b {m1 m2 : Nat}, m1 ≤ m2 → P b m2 → P b m1)
+    (stopH : Nat → Nat) (hstop : ∀ X : Nat, ¬ P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X) (stopH X)) :
+    ∀ (r m0 X0 m Y : Nat),
+      m0 ≤ m → Y < 2 ^ (2 * m) → Y % 2 ^ (2 * m0) = X0 →
+      P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m) Y ≤
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m0) X0 + r →
+      m < konigBound stopH r m0 X0 := by
+  intro r
+  induction r with
+  | zero =>
+    intro m0 X0 m Y hm0 hY hmod hPY hw
+    simp only [konigBound, Nat.add_zero] at hw ⊢
+    refine Classical.byContradiction fun hge => ?_
+    have hle_m : m0 + stopH X0 + 1 ≤ m := by omega
+    have hY_eq : Y = X0 :=
+      eq_of_mod_eq_of_wtH_le (by omega : 2 * m0 ≤ 2 * m) hY hmod hw
+    subst hY_eq
+    have hstop_m : P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) (stopH Y) :=
+      hmono _ (by omega) hPY
+    exact hstop Y hstop_m
+  | succ r ih =>
+    intro m0 X0 m Y hm0 hY hmod hPY hw
+    simp only [konigBound]
+    let M0 := m0 + stopH X0 + 1
+    refine Classical.byContradiction fun hge => ?_
+    have hM0_le_m : M0 ≤ m := by omega
+    let X1 := Y % 2 ^ (2 * M0)
+    have hX1_lt : X1 < 2 ^ (2 * M0) := Nat.mod_lt Y (Nat.two_pow_pos (2 * M0))
+    have hX1_mod : X1 % 2 ^ (2 * m0) = X0 := by
+      dsimp [X1]
+      rw [mod_two_pow_mod_two_pow Y (2 * m0) (2 * M0) (by omega)]
+      exact hmod
+    have hPY_M0 : P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) M0 :=
+      hmono _ hM0_le_m hPY
+    have hPX1_M0 : P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X1) M0 := by
+      apply hP (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y)
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X1) M0
+      · intro t ht
+        exact (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr_mod Y (2 * M0) t ht).symm
+      · exact hPY_M0
+    have hwt_gt : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m0) X0 + 1 ≤
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * M0) X1 := by
+      refine Classical.byContradiction fun hle_wt => ?_
+      have hX1_eq : X1 = X0 :=
+        eq_of_mod_eq_of_wtH_le (by omega : 2 * m0 ≤ 2 * M0) hX1_lt hX1_mod (by omega)
+      rw [hX1_eq] at hPX1_M0
+      exact hstop X0 (hmono _ (by omega : stopH X0 ≤ M0) hPX1_M0)
+    have hw_X1 : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m) Y ≤
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * M0) X1 + r := by omega
+    have hm_lt : m < konigBound stopH r M0 X1 :=
+      ih M0 X1 m Y hM0_le_m hY rfl hPY hw_X1
+    have hsum_le : konigBound stopH r M0 X1 ≤
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.sumBelow
+          (fun X1 => konigBound stopH r M0 X1) (2 ^ (2 * M0)) :=
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.le_sumBelow
+        (fun X1 => konigBound stopH r M0 X1) (2 ^ (2 * M0)) X1 hX1_lt
+    dsimp [M0] at hsum_le hm_lt
+    omega
+
+theorem zc_le_horizon (b : Nat → Bool) :
+    ∀ m : Nat, Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc b m ≤ m
+  | 0 => by simp [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc]
+  | m + 1 => by
+    rw [zc_succ]
+    have ih := zc_le_horizon b m
+    split <;> omega
+
+/-- **Language-Generic Kőnig Equivalence (`no_finite_seed_iff_massBoundFun`).**
+For any prefix-determined, monotone language `P` inside `GValid`, the absence of an infinite
+finite-weight seed (`∀ X : Nat, ¬ ∀ m : Nat, P (tr X) m`) is equivalent to the existence of a
+bounding function `g : Nat → Nat` satisfying `MassBoundFunP P g`, and also to a direct horizon
+bound `m ≤ g (wtH (2 * m) Y)`. -/
+theorem no_finite_seed_iff_massBoundFun (P : (Nat → Bool) → Nat → Prop)
+    (hP : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.PrefixDet P)
+    (hPG : ∀ b m, P b m → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GValid b m)
+    (hmono : ∀ b {m1 m2 : Nat}, m1 ≤ m2 → P b m2 → P b m1) :
+    ((∀ X : Nat, ¬ ∀ m : Nat, P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X) m) ↔
+      ∃ g : Nat → Nat, Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.MassBoundFunP P g) ∧
+    ((∀ X : Nat, ¬ ∀ m : Nat, P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X) m) ↔
+      ∃ g : Nat → Nat, ∀ m Y : Nat, Y < 2 ^ (2 * m) →
+        P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m →
+        m ≤ g (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m) Y)) := by
+  have h_to_hbound :
+      (∀ X : Nat, ¬ ∀ m : Nat, P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X) m) →
+      ∃ g : Nat → Nat, ∀ m Y : Nat, Y < 2 ^ (2 * m) →
+        P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m →
+        m ≤ g (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m) Y) := by
+    intro hno
+    have hex : ∀ X : Nat, ∃ m : Nat, ¬ P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X) m :=
+      fun X => Classical.not_forall.mp (hno X)
+    let stopH : Nat → Nat := fun X => Classical.choose (hex X)
+    have hstop : ∀ X : Nat, ¬ P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X) (stopH X) :=
+      fun X => Classical.choose_spec (hex X)
+    refine ⟨fun w => konigBound stopH w 0 0, fun m Y hY hPY => ?_⟩
+    have hlt := konigBound_spec P hP hmono stopH hstop
+      (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m) Y) 0 0 m Y
+      (Nat.zero_le m) hY (Nat.mod_one Y) hPY (by simp [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH])
+    dsimp only
+    omega
+  have hbound_to_mass :
+      (∃ g : Nat → Nat, ∀ m Y : Nat, Y < 2 ^ (2 * m) →
+        P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m →
+        m ≤ g (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m) Y)) →
+      ∃ g : Nat → Nat, Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.MassBoundFunP P g := by
+    rintro ⟨g, hg⟩
+    exact ⟨g, fun m Y hY hPY => Nat.le_trans (zc_le_horizon _ m) (hg m Y hY hPY)⟩
+  have hmass_to_no :
+      (∃ g : Nat → Nat, Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.MassBoundFunP P g) →
+      (∀ X : Nat, ¬ ∀ m : Nat, P (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X) m) := by
+    rintro ⟨g, hg⟩ X
+    exact Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.no_finite_seed_fun P hP hPG g hg X
+  exact ⟨⟨fun h => hbound_to_mass (h_to_hbound h), hmass_to_no⟩,
+    ⟨h_to_hbound, fun h => hmass_to_no (hbound_to_mass h)⟩⟩
+
+/-- **Complete Kőnig Equivalence and Period-2 Closure for `GE2`
+(`noSeed_GE2_iff_exists_massBoundFun_and_horizon_bound`).**
+Formalizes the Kőnig equivalence noted in `Rule30PeriodTwoWidth13`:
+1. `NoSeedGE2 ↔ (∃ g : Nat → Nat, MassBoundFunP GE2 g)`.
+2. `NoSeedGE2 ↔ (∃ g : Nat → Nat, ∀ m Y : Nat, Y < 2 ^ (2 * m) → GE2 (tr Y) m → m ≤ g (wtH (2 * m) Y))`.
+3. Any horizon-weight bound `∀ m Y, Y < 2 ^ (2 * m) → GE2 (tr Y) m → m ≤ g (wtH (2 * m) Y)`
+   simultaneously closes `NoSeedGE2`, `MassDiverges`, `Rule30GateTrap.Q01Gap`, and excludes
+   eventual period 2 of the official Rule 30 center column for every transient. -/
+theorem noSeed_GE2_iff_exists_massBoundFun_and_horizon_bound :
+    (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 ↔
+      ∃ g : Nat → Nat,
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.MassBoundFunP
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2 g) ∧
+    (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 ↔
+      ∃ g : Nat → Nat, ∀ m Y : Nat, Y < 2 ^ (2 * m) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+          (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m →
+        m ≤ g (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m) Y)) ∧
+    (∀ g : Nat → Nat,
+      (∀ m Y : Nat, Y < 2 ^ (2 * m) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+          (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m →
+        m ≤ g (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m) Y)) →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 ∧
+      MassDiverges ∧
+      Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap ∧
+      ¬ ∃ T0, ∀ t, T0 ≤ t →
+        Ruliology.CellularAutomata.Rule30Prize.center (t + 2) =
+          Ruliology.CellularAutomata.Rule30Prize.center t) := by
+  have hkonig := no_finite_seed_iff_massBoundFun
+    Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+    Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.prefixDet_GE2
+    (fun _ _ h => h.1)
+    (fun b _ _ hle h => ge2_mono b hle h)
+  refine ⟨hkonig.1, hkonig.2, fun g hg => ?_⟩
+  have hno : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 :=
+    hkonig.2.mpr ⟨g, hg⟩
+  have hbridge := survivesTo_two_mul_imp_ge2_and_noSeedGE2_imp_massDiverges.2.2.1 hno
+  exact ⟨hno, hbridge.2.1, hbridge.2.2.2,
+    Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.not_eventually_period_two_of_noSeed_GE2 hno⟩
+
+/-- **Complete Finite-List Kőnig Equivalence for `survivingSeeds`, `MassDiverges`, and `Q01Gap`
+(`massDiverges_and_q01Gap_iff_survivingSeeds_konig`).**
+1. For every seed `y : Nat` and horizon `H : Nat`,
+   `popcount (y % 2 ^ H) = Rule30PeriodTwoWidth13.wtH H y`, and for `y < 2 ^ H`,
+   `popcount y = Rule30PeriodTwoWidth13.wtH H y`.
+2. For every `M H : Nat`, `NoMass M H ↔ (∀ y ∈ survivingSeeds H, M < popcount y)`.
+3. `MassDiverges` and `Rule30GateTrap.Q01Gap` are equivalent to the finite-list weight-divergence
+   law on `survivingSeeds H`: `∀ M : Nat, ∃ H : Nat, ∀ y ∈ survivingSeeds H, M < popcount y`.
+4. `MassDiverges` and `Rule30GateTrap.Q01Gap` are equivalent to the functional Kőnig bound on
+   `survivingSeeds H`: `∃ g : Nat → Nat, ∀ H : Nat, ∀ y ∈ survivingSeeds H, H ≤ g (popcount y)`. -/
+theorem massDiverges_and_q01Gap_iff_survivingSeeds_konig :
+    (∀ y H : Nat, popcount (y % 2 ^ H) = Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H y) ∧
+    (∀ M H : Nat, NoMass M H ↔ (∀ y ∈ survivingSeeds H, M < popcount y)) ∧
+    (MassDiverges ↔
+      (∀ M : Nat, ∃ H : Nat, ∀ y ∈ survivingSeeds H, M < popcount y)) ∧
+    (Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap ↔
+      (∀ M : Nat, ∃ H : Nat, ∀ y ∈ survivingSeeds H, M < popcount y)) ∧
+    (MassDiverges ↔
+      (∃ g : Nat → Nat, ∀ H : Nat, ∀ y ∈ survivingSeeds H, H ≤ g (popcount y))) := by
+  have hnomass_iff : ∀ M H : Nat, NoMass M H ↔ (∀ y ∈ survivingSeeds H, M < popcount y) := by
+    intro M H
+    constructor
+    · intro hno y hy
+      obtain ⟨_, hs⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff H y).1.mp hy
+      refine Classical.byContradiction fun hle => ?_
+      exact hno y (by omega) hs
+    · intro hlist y hpc hs
+      have hmem : y % 2 ^ H ∈ survivingSeeds H :=
+        (mem_survivingSeeds_iff_and_survivesTo_iff H y).2.mp hs
+      have hgt := hlist (y % 2 ^ H) hmem
+      have hle_pc := popcount_mod_pow2_le y H
+      omega
+  have hfin_iff : MassDiverges ↔
+      (∀ M : Nat, ∃ H : Nat, ∀ y ∈ survivingSeeds H, M < popcount y) := by
+    unfold MassDiverges
+    constructor
+    · intro hM M
+      obtain ⟨H, hH⟩ := hM M
+      exact ⟨H, (hnomass_iff M H).mp hH⟩
+    · intro hlist M
+      obtain ⟨H, hH⟩ := hlist M
+      exact ⟨H, (hnomass_iff M H).mpr hH⟩
+  have hq01_iff : Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap ↔
+      (∀ M : Nat, ∃ H : Nat, ∀ y ∈ survivingSeeds H, M < popcount y) :=
+    Iff.trans massDiverges_iff_Q01Gap.symm hfin_iff
+  have hkonig_iff : MassDiverges ↔
+      (∃ g : Nat → Nat, ∀ H : Nat, ∀ y ∈ survivingSeeds H, H ≤ g (popcount y)) := by
+    rw [hfin_iff]
+    constructor
+    · intro hlist
+      let H_of : Nat → Nat := fun M => Classical.choose (hlist M)
+      have hH_of : ∀ M : Nat, ∀ y ∈ survivingSeeds (H_of M), M < popcount y :=
+        fun M => Classical.choose_spec (hlist M)
+      refine ⟨fun w => Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.sumBelow H_of (w + 1),
+        fun H y hy => ?_⟩
+      dsimp only
+      have hbound_le : H_of (popcount y) ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.sumBelow H_of (popcount y + 1) :=
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.le_sumBelow H_of (popcount y + 1)
+          (popcount y) (by omega)
+      refine Classical.byContradiction fun hgt => ?_
+      have hle_H : H_of (popcount y) ≤ H := by omega
+      obtain ⟨_, hs⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff H y).1.mp hy
+      have hs_sub : SurvivesTo y (H_of (popcount y)) := survivesTo_mono hle_H hs
+      have hmem_sub : y % 2 ^ (H_of (popcount y)) ∈ survivingSeeds (H_of (popcount y)) :=
+        (mem_survivingSeeds_iff_and_survivesTo_iff (H_of (popcount y)) y).2.mp hs_sub
+      have hwt_gt := hH_of (popcount y) (y % 2 ^ (H_of (popcount y))) hmem_sub
+      have hwt_le := popcount_mod_pow2_le y (H_of (popcount y))
+      omega
+    · rintro ⟨g, hg⟩ M
+      refine ⟨Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.sumBelow g (M + 1) + 1,
+        fun y hy => ?_⟩
+      refine Classical.byContradiction fun hle => ?_
+      have h_le_g : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.sumBelow g (M + 1) + 1 ≤
+          g (popcount y) := hg _ y hy
+      have hg_le_sum : g (popcount y) ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.sumBelow g (M + 1) :=
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.le_sumBelow g (M + 1)
+          (popcount y) (by omega)
+      omega
+  exact ⟨popcount_mod_pow2_eq_wtH, hnomass_iff, hfin_iff, hq01_iff, hkonig_iff⟩
+
+end UniversalKonigEquivalence
+
+/-! ## 14. Universal Inward Distinction Wavefront (`inward_distinction_wavefront_and_first_trace_diff`), 1D Deterministic Void-Collapse (`voidOrbit`), and Forced Weight-Step Equivalences -/
+
+section UniversalWavefrontAndVoidCollapse
+open Rule30ZeroBoundary.IntegerForm
+
+theorem f_step_agree_and_flip {x1 x2 m : Nat}
+    (hmod : x1 % 2 ^ (m + 1) = x2 % 2 ^ (m + 1))
+    (hdiff : x1.testBit (m + 1) ≠ x2.testBit (m + 1)) :
+    (F x1) % 2 ^ m = (F x2) % 2 ^ m ∧
+    (F x1).testBit m = !(F x2).testBit m := by
+  have hbit_lt : ∀ i < m + 1, x1.testBit i = x2.testBit i := by
+    intro i hi
+    have h1 : (x1 % 2 ^ (m + 1)).testBit i = x1.testBit i := by
+      rw [Nat.testBit_mod_two_pow, decide_eq_true hi, Bool.true_and]
+    have h2 : (x2 % 2 ^ (m + 1)).testBit i = x2.testBit i := by
+      rw [Nat.testBit_mod_two_pow, decide_eq_true hi, Bool.true_and]
+    rw [← h1, ← h2, hmod]
+  constructor
+  · apply Nat.eq_of_testBit_eq
+    intro i
+    rw [Nat.testBit_mod_two_pow, Nat.testBit_mod_two_pow]
+    by_cases hi : i < m
+    · simp only [decide_eq_true hi, Bool.true_and]
+      rw [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.testBit_F,
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.testBit_F,
+          hbit_lt (i + 1) (by omega), hbit_lt i (by omega), hbit_lt (i - 1) (by omega)]
+    · simp [hi]
+  · rw [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.testBit_F,
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.testBit_F,
+        hbit_lt m (by omega), hbit_lt (m - 1) (by omega)]
+    have htop : x1.testBit (m + 1) = !x2.testBit (m + 1) := by
+      cases h1 : x1.testBit (m + 1) <;> cases h2 : x2.testBit (m + 1) <;> simp_all
+    rw [htop]
+    cases x2.testBit (m + 1) <;>
+      cases (x2.testBit m || (decide (m ≥ 1) && x2.testBit (m - 1))) <;> rfl
+
+/-- **Universal Inward Distinction Wavefront and First Center-Trace Divergence
+(`inward_distinction_wavefront_and_first_trace_diff`).**
+For any two seeds `y1 y2 : Nat` and bit depth `k : Nat`, if `y1 % 2 ^ k = y2 % 2 ^ k` and
+`y1.testBit k ≠ y2.testBit k`, then:
+1. For every step `d ≤ k`, `(iter F d y1) % 2 ^ (k - d) = (iter F d y2) % 2 ^ (k - d)` and
+   `(iter F d y1).testBit (k - d) = !(iter F d y2).testBit (k - d)`.
+2. At `d = k`, `trace y1 k = trace y2 k` and `(iter F k y1).testBit 0 = !(iter F k y2).testBit 0`. -/
+theorem inward_distinction_wavefront_and_first_trace_diff (y1 y2 k : Nat)
+    (hmod : y1 % 2 ^ k = y2 % 2 ^ k) (hdiff : y1.testBit k ≠ y2.testBit k) :
+    (∀ d : Nat, d ≤ k →
+      (iter F d y1) % 2 ^ (k - d) = (iter F d y2) % 2 ^ (k - d) ∧
+      (iter F d y1).testBit (k - d) = !(iter F d y2).testBit (k - d)) ∧
+    (trace y1 k = trace y2 k ∧
+      (iter F k y1).testBit 0 = !(iter F k y2).testBit 0) := by
+  have hwave : ∀ d : Nat, d ≤ k →
+      (iter F d y1) % 2 ^ (k - d) = (iter F d y2) % 2 ^ (k - d) ∧
+      (iter F d y1).testBit (k - d) = !(iter F d y2).testBit (k - d) := by
+    intro d
+    induction d with
+    | zero =>
+      intro _
+      simp only [iter, Nat.sub_zero]
+      refine ⟨hmod, ?_⟩
+      cases h1 : y1.testBit k <;> cases h2 : y2.testBit k <;> simp_all
+    | succ d ih =>
+      intro hle
+      obtain ⟨hmod_d, hflip_d⟩ := ih (by omega)
+      have hsub : k - d = (k - (d + 1)) + 1 := by omega
+      rw [hsub] at hmod_d hflip_d
+      have hdiff_d : (iter F d y1).testBit ((k - (d + 1)) + 1) ≠
+          (iter F d y2).testBit ((k - (d + 1)) + 1) := by
+        rw [hflip_d]
+        cases (iter F d y2).testBit (k - (d + 1) + 1) <;> decide
+      have hstep := f_step_agree_and_flip hmod_d hdiff_d
+      exact hstep
+  have htr_eq : trace y1 k = trace y2 k := by
+    rw [← trace_mod_pow2 y1 k, ← trace_mod_pow2 y2 k, hmod]
+  have hk0 := (hwave k (Nat.le_refl k)).2
+  rw [Nat.sub_self] at hk0
+  exact ⟨hwave, htr_eq, hk0⟩
+
+def voidOrbit (y K L : Nat) : Option PhysState :=
+  (physStateOf y K).bind (fun s => iterZeroNext s L)
+
+/-- **1D Deterministic Void-Collapse and Forced Weight-Step Theorem
+(`survivingSeeds_void_crash_forces_weight_step`).**
+For every horizon `K ≥ 1`, every canonical seed `y ∈ survivingSeeds K`, and every lookahead `L : Nat`:
+1. `SurvivesTo y (K + L) ↔ (voidOrbit y K L).isSome = true`.
+2. If `voidOrbit y K L = none` (the deterministic 1D Zero-Void trajectory crashes in `L` steps),
+   then `¬ SurvivesTo y (K + L)`, and every surviving extension `z ∈ survivingSeeds (K + L)` with
+   `z % 2 ^ K = y` is forced to activate at least one new `1`-bit in `[K, K + L)`:
+   `popcount y + 1 ≤ popcount z ∧ Rule30PeriodTwoWidth13.wtH K y + 1 ≤ Rule30PeriodTwoWidth13.wtH (K + L) z`. -/
+theorem survivingSeeds_void_crash_forces_weight_step (K L y : Nat)
+    (hK : 1 ≤ K) (hy : y ∈ survivingSeeds K) :
+    (SurvivesTo y (K + L) ↔ (voidOrbit y K L).isSome = true) ∧
+    (voidOrbit y K L = none →
+      ¬ SurvivesTo y (K + L) ∧
+      ∀ z ∈ survivingSeeds (K + L), z % 2 ^ K = y →
+        popcount y + 1 ≤ popcount z ∧
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH K y + 1 ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (K + L) z) := by
+  obtain ⟨hlt_y, hsurv_y⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff K y).1.mp hy
+  obtain ⟨s, hps, hmatch, hn⟩ := physStateOf_isSome_of_survives hK hsurv_y
+  have hzeros : ∀ j < L, y.testBit (s.n + j) = false := by
+    intro j _
+    apply Nat.testBit_lt_two_pow
+    rw [hn]
+    exact Nat.lt_of_lt_of_le hlt_y (Nat.pow_le_pow_right (by decide) (by omega))
+  have hiff := iterZeroNext_isSome_iff_survives L hmatch hzeros
+  rw [hn] at hiff
+  have hvo : voidOrbit y K L = iterZeroNext s L := by
+    unfold voidOrbit
+    rw [hps]
+    rfl
+  rw [← hvo] at hiff
+  refine ⟨hiff.symm, fun hnone => ?_⟩
+  have hnot_surv : ¬ SurvivesTo y (K + L) := by
+    intro hs
+    have his := hiff.mpr hs
+    rw [hnone] at his
+    simp at his
+  refine ⟨hnot_surv, fun z hz hmod => ?_⟩
+  obtain ⟨hlt_z, hsurv_z⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff (K + L) z).1.mp hz
+  have hwt_y : popcount y = Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH K y :=
+    popcount_eq_wtH_of_lt hlt_y
+  have hwt_z : popcount z = Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (K + L) z :=
+    popcount_eq_wtH_of_lt hlt_z
+  have hgt : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH K y + 1 ≤
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (K + L) z := by
+    refine Classical.byContradiction fun hle => ?_
+    have hz_eq_y : z = y :=
+      eq_of_mod_eq_of_wtH_le (by omega : K ≤ K + L) hlt_z hmod (by omega)
+    rw [hz_eq_y] at hsurv_z
+    exact hnot_surv hsurv_z
+  rw [hwt_y, hwt_z]
+  exact ⟨hgt, hgt⟩
+
+/-- **Exact 1D Void-Crash Equivalence for `FiniteSeedsTerminate`, `MassDiverges`, and `Q01Gap`
+(`q01Gap_and_massDiverges_iff_survivingSeeds_void_crash`).**
+Proves unconditionally that `FiniteSeedsTerminate`, `MassDiverges`, and `Rule30GateTrap.Q01Gap`
+are equivalent to the statement that for every horizon `K ≥ 1` and every canonical seed
+`y ∈ survivingSeeds K`, its 1D deterministic Void orbit `voidOrbit y K L` eventually hits `none`. -/
+theorem q01Gap_and_massDiverges_iff_survivingSeeds_void_crash :
+    (FiniteSeedsTerminate ↔
+      (∀ K : Nat, 1 ≤ K → ∀ y ∈ survivingSeeds K, ∃ L : Nat, voidOrbit y K L = none)) ∧
+    (MassDiverges ↔
+      (∀ K : Nat, 1 ≤ K → ∀ y ∈ survivingSeeds K, ∃ L : Nat, voidOrbit y K L = none)) ∧
+    (Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap ↔
+      (∀ K : Nat, 1 ≤ K → ∀ y ∈ survivingSeeds K, ∃ L : Nat, voidOrbit y K L = none)) := by
+  have hfin_iff : FiniteSeedsTerminate ↔
+      (∀ K : Nat, 1 ≤ K → ∀ y ∈ survivingSeeds K, ∃ L : Nat, voidOrbit y K L = none) := by
+    constructor
+    · intro hfin K hK y hy
+      obtain ⟨H, hH⟩ := hfin y
+      refine ⟨H, ?_⟩
+      have hnot_KL : ¬ SurvivesTo y (K + H) := fun hs =>
+        hH (survivesTo_mono (by omega : H ≤ K + H) hs)
+      have hiff := (survivingSeeds_void_crash_forces_weight_step K H y hK hy).1
+      cases hvo : voidOrbit y K H with
+      | none => rfl
+      | some _ =>
+        exfalso
+        exact hnot_KL (hiff.mpr (by simp [hvo]))
+    · intro hcrash y
+      let K := y + 1
+      have hK : 1 ≤ K := by omega
+      have hlt : y < 2 ^ K :=
+        Nat.lt_of_lt_of_le Nat.lt_two_pow_self (Nat.pow_le_pow_right (by decide) (by omega))
+      by_cases hsK : SurvivesTo y K
+      · have hy : y ∈ survivingSeeds K :=
+          (mem_survivingSeeds_iff_and_survivesTo_iff K y).1.mpr ⟨hlt, hsK⟩
+        obtain ⟨L, hnone⟩ := hcrash K hK y hy
+        exact ⟨K + L, ((survivingSeeds_void_crash_forces_weight_step K L y hK hy).2 hnone).1⟩
+      · exact ⟨K, hsK⟩
+  have hmass_iff : MassDiverges ↔
+      (∀ K : Nat, 1 ≤ K → ∀ y ∈ survivingSeeds K, ∃ L : Nat, voidOrbit y K L = none) :=
+    Iff.trans finite_seeds_terminate_iff_mass_diverges.symm hfin_iff
+  have hq01_iff : Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap ↔
+      (∀ K : Nat, 1 ≤ K → ∀ y ∈ survivingSeeds K, ∃ L : Nat, voidOrbit y K L = none) :=
+    Iff.trans massDiverges_iff_Q01Gap.symm hmass_iff
+  exact ⟨hfin_iff, hmass_iff, hq01_iff⟩
+
+end UniversalWavefrontAndVoidCollapse
+
+/-! ## 15. Constructive All-Horizon `ge2Seeds m` Generator, Finite-List `NoSeedGE2` Kőnig Equivalence, and Variable-Step `{6, 10}` Void Return Map (`voidMacroStep`, `iterVoidMacro`) -/
+
+section GE2SeedsAndVoidMacroReturnMap
+open Rule30ZeroBoundary.IntegerForm
+
+def gValidDecide (b : Nat → Bool) (m : Nat) : Bool :=
+  (decide (m = 0) || !b 0) &&
+  (List.range m).all (fun j => b (2 * j + 1)) &&
+  (List.range (m - 1)).all (fun j => b (2 * j) || b (2 * j + 2))
+
+def e2RunDecide (b : Nat → Bool) (m : Nat) : Bool :=
+  (List.range (2 * m)).all (fun j =>
+    (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.run 1
+      (fun s => s % 2 == 0 && !b s) 10 j).isSome)
+
+def ge2Decide (m Y : Nat) : Bool :=
+  gValidDecide (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m &&
+  e2RunDecide (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m
+
+/-- Constructive all-horizon list of canonical seeds `Y < 2 ^ (2 * m)` satisfying `GE2 (tr Y) m`. -/
+def ge2Seeds (m : Nat) : List Nat :=
+  (List.range (2 ^ (2 * m))).filter (fun Y => ge2Decide m Y)
+
+theorem gValidDecide_eq_true_iff (b : Nat → Bool) (m : Nat) :
+    gValidDecide b m = true ↔ Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GValid b m := by
+  unfold gValidDecide Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GValid
+  simp only [Bool.and_eq_true, List.all_eq_true, List.mem_range]
+  constructor
+  · rintro ⟨⟨h0, hodd⟩, hpair⟩
+    refine ⟨?_, hodd, ?_⟩
+    · intro hm
+      cases hdec : decide (m = 0)
+      · simp [hdec] at h0
+        exact h0
+      · have hm0 : m = 0 := of_decide_eq_true hdec
+        omega
+    · intro j hj
+      exact hpair j (by omega)
+  · rintro ⟨h0, hodd, hpair⟩
+    refine ⟨⟨?_, hodd⟩, ?_⟩
+    · by_cases hm : m = 0
+      · simp [hm]
+      · have hpos : 0 < m := by omega
+        simp [hm, h0 hpos]
+    · intro j hj
+      exact hpair j (by omega)
+
+theorem e2RunDecide_eq_true_iff (b : Nat → Bool) (m : Nat) :
+    e2RunDecide b m = true ↔ Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.E2Run b m := by
+  unfold e2RunDecide Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.E2Run
+  simp [List.all_eq_true, List.mem_range]
+
+theorem ge2Decide_eq_true_iff (m Y : Nat) :
+    ge2Decide m Y = true ↔
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m := by
+  unfold ge2Decide Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+  rw [Bool.and_eq_true, gValidDecide_eq_true_iff, e2RunDecide_eq_true_iff]
+
+/-- **Universal `ge2Seeds m` Specification and Finite-List Kőnig Equivalence for `NoSeedGE2`
+(`mem_ge2Seeds_iff_and_noSeed_GE2_konig`).**
+1. For every `m Y : Nat`, `Y ∈ ge2Seeds m ↔ (Y < 2 ^ (2 * m) ∧ GE2 (tr Y) m)`.
+2. For every `m X : Nat`, `GE2 (tr X) m ↔ X % 2 ^ (2 * m) ∈ ge2Seeds m`.
+3. For every `m : Nat`, `∀ y ∈ survivingSeeds (2 * m), y ∈ ge2Seeds m`.
+4. `NoSeedGE2 ↔ (∀ M : Nat, ∃ m : Nat, ∀ Y ∈ ge2Seeds m, M < popcount Y)`.
+5. `NoSeedGE2 ↔ (∃ g : Nat → Nat, ∀ m : Nat, ∀ Y ∈ ge2Seeds m, m ≤ g (popcount Y))`. -/
+theorem mem_ge2Seeds_iff_and_noSeed_GE2_konig :
+    (∀ m Y : Nat,
+      Y ∈ ge2Seeds m ↔
+        (Y < 2 ^ (2 * m) ∧
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+            (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m)) ∧
+    (∀ m X : Nat,
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X) m ↔
+        X % 2 ^ (2 * m) ∈ ge2Seeds m) ∧
+    (∀ m : Nat, ∀ y ∈ survivingSeeds (2 * m), y ∈ ge2Seeds m) ∧
+    (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 ↔
+      (∀ M : Nat, ∃ m : Nat, ∀ Y ∈ ge2Seeds m, M < popcount Y)) ∧
+    (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 ↔
+      (∃ g : Nat → Nat, ∀ m : Nat, ∀ Y ∈ ge2Seeds m, m ≤ g (popcount Y))) := by
+  have hmem : ∀ m Y : Nat,
+      Y ∈ ge2Seeds m ↔
+        (Y < 2 ^ (2 * m) ∧
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+            (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) m) := by
+    intro m Y
+    simp [ge2Seeds, List.mem_filter, List.mem_range, ge2Decide_eq_true_iff]
+  have hmod : ∀ m X : Nat,
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X) m ↔
+        X % 2 ^ (2 * m) ∈ ge2Seeds m := by
+    intro m X
+    rw [hmem]
+    have hlt : X % 2 ^ (2 * m) < 2 ^ (2 * m) := Nat.mod_lt X (Nat.two_pow_pos (2 * m))
+    constructor
+    · intro hG
+      refine ⟨hlt, ?_⟩
+      apply Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.prefixDet_GE2
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X)
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr (X % 2 ^ (2 * m))) m
+      · intro t ht
+        exact (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr_mod X (2 * m) t ht).symm
+      · exact hG
+    · rintro ⟨_, hGY⟩
+      apply Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.prefixDet_GE2
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr (X % 2 ^ (2 * m)))
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X) m
+      · intro t ht
+        exact Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr_mod X (2 * m) t ht
+      · exact hGY
+  have hincl : ∀ m : Nat, ∀ y ∈ survivingSeeds (2 * m), y ∈ ge2Seeds m := by
+    intro m y hy
+    obtain ⟨hlt, hs⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff (2 * m) y).1.mp hy
+    have hge2 := survivesTo_two_mul_imp_ge2_and_noSeedGE2_imp_massDiverges.1 m y hs
+    exact (hmem m y).mpr ⟨hlt, hge2⟩
+  have hkonig_g : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 ↔
+      (∃ g : Nat → Nat, ∀ m : Nat, ∀ Y ∈ ge2Seeds m, m ≤ g (popcount Y)) := by
+    rw [noSeed_GE2_iff_exists_massBoundFun_and_horizon_bound.2.1]
+    constructor
+    · rintro ⟨g, hg⟩
+      refine ⟨g, fun m Y hY => ?_⟩
+      obtain ⟨hlt, hge2⟩ := (hmem m Y).mp hY
+      rw [popcount_eq_wtH_of_lt hlt]
+      exact hg m Y hlt hge2
+    · rintro ⟨g, hg⟩
+      refine ⟨g, fun m Y hlt hge2 => ?_⟩
+      have hY : Y ∈ ge2Seeds m := (hmem m Y).mpr ⟨hlt, hge2⟩
+      rw [← popcount_eq_wtH_of_lt hlt]
+      exact hg m Y hY
+  have hkonig_M : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 ↔
+      (∀ M : Nat, ∃ m : Nat, ∀ Y ∈ ge2Seeds m, M < popcount Y) := by
+    rw [hkonig_g]
+    constructor
+    · rintro ⟨g, hg⟩ M
+      refine ⟨Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.sumBelow g (M + 1) + 1,
+        fun Y hY => ?_⟩
+      refine Classical.byContradiction fun hle => ?_
+      have h_le_g := hg _ Y hY
+      have hg_le_sum :=
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.le_sumBelow g (M + 1)
+          (popcount Y) (by omega)
+      omega
+    · intro hlist
+      let m_of : Nat → Nat := fun M => Classical.choose (hlist M)
+      have hm_of : ∀ M : Nat, ∀ Y ∈ ge2Seeds (m_of M), M < popcount Y :=
+        fun M => Classical.choose_spec (hlist M)
+      refine ⟨fun w => Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.sumBelow m_of (w + 1),
+        fun m Y hY => ?_⟩
+      dsimp only
+      have hbound_le : m_of (popcount Y) ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.sumBelow m_of (popcount Y + 1) :=
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.le_sumBelow m_of (popcount Y + 1)
+          (popcount Y) (by omega)
+      refine Classical.byContradiction fun hgt => ?_
+      have hle_m : m_of (popcount Y) ≤ m := by omega
+      obtain ⟨_, hge2⟩ := (hmem m Y).mp hY
+      have hge2_sub : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+          (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr Y) (m_of (popcount Y)) :=
+        ge2_mono _ hle_m hge2
+      have hmem_sub : Y % 2 ^ (2 * m_of (popcount Y)) ∈ ge2Seeds (m_of (popcount Y)) :=
+        (hmod (m_of (popcount Y)) Y).mp hge2_sub
+      have hwt_gt := hm_of (popcount Y) (Y % 2 ^ (2 * m_of (popcount Y))) hmem_sub
+      have hwt_le := popcount_mod_pow2_le Y (2 * m_of (popcount Y))
+      omega
+  exact ⟨hmem, hmod, hincl, hkonig_M, hkonig_g⟩
+
+/-- Variable-step `{6, 10}` Void return map between ground-state resets (`isOdd = true ∧ age = 0`, matching `initPhysState`). -/
+def voidMacroStep (s : PhysState) : Option (PhysState × Nat) :=
+  match iterZeroNext s 6 with
+  | none => none
+  | some s6 =>
+    if s6.isOdd && s6.age == 0 then
+      some (s6, 6)
+    else
+      match iterZeroNext s 10 with
+      | none => none
+      | some s10 =>
+        if s10.isOdd && s10.age == 0 then
+          some (s10, 10)
+        else
+          none
+
+/-- `k`-cycle iteration of the variable-step `{6, 10}` Void return map. -/
+def iterVoidMacro (s : PhysState) : Nat → Option PhysState
+  | 0 => some s
+  | k + 1 =>
+    match voidMacroStep s with
+    | none => none
+    | some (s', _) => iterVoidMacro s' k
+
+theorem iterZeroNext_one (s : PhysState) : iterZeroNext s 1 = zeroNext s := by
+  unfold iterZeroNext
+  cases zeroNext s <;> rfl
+
+theorem iterZeroNext_add (s : PhysState) (a b : Nat) :
+    iterZeroNext s (a + b) = (iterZeroNext s a).bind (fun s' => iterZeroNext s' b) := by
+  induction a generalizing s with
+  | zero => simp [iterZeroNext]
+  | succ a ih =>
+    rw [Nat.succ_add]
+    simp only [iterZeroNext]
+    cases zeroNext s with
+    | none => rfl
+    | some s1 => exact ih s1
+
+theorem zeroNext_n_isOdd_and_age {s s' : PhysState} (h : zeroNext s = some s') :
+    s'.n = s.n + 1 ∧
+    s'.isOdd = !s.isOdd ∧
+    nextAge s.isOdd s.age (piParity (physSigma s)) = some s'.age := by
+  unfold zeroNext at h
+  cases hna : nextAge s.isOdd s.age (piParity (physSigma s)) with
+  | none => simp [hna] at h
+  | some na =>
+    simp only [hna, Option.some.injEq] at h
+    rw [← h]
+    exact ⟨rfl, rfl, rfl⟩
+
+theorem iterZeroNext_n_eq :
+    ∀ (L : Nat) {s s' : PhysState}, iterZeroNext s L = some s' → s'.n = s.n + L
+  | 0, s, s', h => by
+    simp only [iterZeroNext, Option.some.injEq] at h
+    rw [← h, Nat.add_zero]
+  | L + 1, s, s', h => by
+    simp only [iterZeroNext] at h
+    cases hz : zeroNext s with
+    | none => simp [hz] at h
+    | some s1 =>
+      rw [hz] at h
+      have hn1 := (zeroNext_n_isOdd_and_age hz).1
+      have ih := iterZeroNext_n_eq L h
+      omega
+
+theorem nextAge_step_from {o : Bool} {a a' : Nat} {b : Bool}
+    (h : nextAge o a b = some a') :
+    (o = true ∧ a = 0 → a' = 0) ∧
+    (o = false ∧ a = 0 → a' = 1) ∧
+    (o = true ∧ a = 1 → a' = 1) ∧
+    (o = false ∧ a = 1 → a' = 2) ∧
+    (o = true ∧ a = 2 → a' = 2) ∧
+    (o = false ∧ a = 2 → a' = 0 ∨ a' = 3) ∧
+    (o = true ∧ a = 3 → a' = 3) ∧
+    (o = false ∧ a = 3 → a' = 4) ∧
+    (o = true ∧ a = 4 → a' = 4) ∧
+    (o = false ∧ a = 4 → a' = 0) := by
+  refine ⟨?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · rintro ⟨rfl, rfl⟩; cases b <;> simp [nextAge] at h; exact h.symm
+  · rintro ⟨rfl, rfl⟩; cases b <;> simp [nextAge, gateNext] at h; exact h.symm
+  · rintro ⟨rfl, rfl⟩; cases b <;> simp [nextAge] at h; exact h.symm
+  · rintro ⟨rfl, rfl⟩; cases b <;> simp [nextAge, gateNext] at h; exact h.symm
+  · rintro ⟨rfl, rfl⟩; cases b <;> simp [nextAge] at h; exact h.symm
+  · rintro ⟨rfl, rfl⟩
+    cases b <;> simp [nextAge, gateNext] at h
+    · exact Or.inl h.symm
+    · exact Or.inr h.symm
+  · rintro ⟨rfl, rfl⟩; cases b <;> simp [nextAge] at h; exact h.symm
+  · rintro ⟨rfl, rfl⟩; cases b <;> simp [nextAge, gateNext] at h; exact h.symm
+  · rintro ⟨rfl, rfl⟩; cases b <;> simp [nextAge] at h; exact h.symm
+  · rintro ⟨rfl, rfl⟩; cases b <;> simp [nextAge, gateNext] at h; exact h.symm
+
+theorem voidMacroStep_complete_of_reset {s s10 : PhysState}
+    (ho : s.isOdd = true) (ha : s.age = 0)
+    (h10 : iterZeroNext s 10 = some s10) :
+    (voidMacroStep s).isSome = true := by
+  have hsplit : iterZeroNext s 10 = (iterZeroNext s 6).bind (fun s6 => iterZeroNext s6 4) :=
+    iterZeroNext_add s 6 4
+  rw [h10] at hsplit
+  cases h6 : iterZeroNext s 6 with
+  | none => rw [h6] at hsplit; cases hsplit
+  | some s6 =>
+    rw [h6] at hsplit
+    dsimp only [Option.bind] at hsplit
+    rcases s1_eq : zeroNext s with _ | s1
+    · simp [iterZeroNext, s1_eq] at h6
+    have h6_1 : iterZeroNext s1 5 = some s6 := by simpa [iterZeroNext, s1_eq] using h6
+    rcases s2_eq : zeroNext s1 with _ | s2
+    · simp [iterZeroNext, s2_eq] at h6_1
+    have h6_2 : iterZeroNext s2 4 = some s6 := by simpa [iterZeroNext, s2_eq] using h6_1
+    rcases s3_eq : zeroNext s2 with _ | s3
+    · simp [iterZeroNext, s3_eq] at h6_2
+    have h6_3 : iterZeroNext s3 3 = some s6 := by simpa [iterZeroNext, s3_eq] using h6_2
+    rcases s4_eq : zeroNext s3 with _ | s4
+    · simp [iterZeroNext, s4_eq] at h6_3
+    have h6_4 : iterZeroNext s4 2 = some s6 := by simpa [iterZeroNext, s4_eq] using h6_3
+    rcases s5_eq : zeroNext s4 with _ | s5
+    · simp [iterZeroNext, s5_eq] at h6_4
+    have h6_5 : zeroNext s5 = some s6 := by
+      rw [← iterZeroNext_one s5]
+      simpa [iterZeroNext, s5_eq] using h6_4
+    obtain ⟨_, ho1, hna1⟩ := zeroNext_n_isOdd_and_age s1_eq
+    obtain ⟨_, ho2, hna2⟩ := zeroNext_n_isOdd_and_age s2_eq
+    obtain ⟨_, ho3, hna3⟩ := zeroNext_n_isOdd_and_age s3_eq
+    obtain ⟨_, ho4, hna4⟩ := zeroNext_n_isOdd_and_age s4_eq
+    obtain ⟨_, ho5, hna5⟩ := zeroNext_n_isOdd_and_age s5_eq
+    obtain ⟨_, ho6, hna6⟩ := zeroNext_n_isOdd_and_age h6_5
+    have h_o1 : s1.isOdd = false := by rw [ho1, ho]; rfl
+    have h_o2 : s2.isOdd = true := by rw [ho2, h_o1]; rfl
+    have h_o3 : s3.isOdd = false := by rw [ho3, h_o2]; rfl
+    have h_o4 : s4.isOdd = true := by rw [ho4, h_o3]; rfl
+    have h_o5 : s5.isOdd = false := by rw [ho5, h_o4]; rfl
+    have h_o6 : s6.isOdd = true := by rw [ho6, h_o5]; rfl
+    have ha1 := (nextAge_step_from hna1).1 ⟨ho, ha⟩
+    have ha2 := (nextAge_step_from hna2).2.1 ⟨h_o1, ha1⟩
+    have ha3 := (nextAge_step_from hna3).2.2.1 ⟨h_o2, ha2⟩
+    have ha4 := (nextAge_step_from hna4).2.2.2.1 ⟨h_o3, ha3⟩
+    have ha5 := (nextAge_step_from hna5).2.2.2.2.1 ⟨h_o4, ha4⟩
+    have ha6 := (nextAge_step_from hna6).2.2.2.2.2.1 ⟨h_o5, ha5⟩
+    rcases ha6 with ha6 | ha6
+    · unfold voidMacroStep
+      rw [h6]
+      simp [h_o6, ha6]
+    · have hrem : iterZeroNext s6 4 = some s10 := hsplit.symm
+      rcases s7_eq : zeroNext s6 with _ | s7
+      · simp [iterZeroNext, s7_eq] at hrem
+      have hrem1 : iterZeroNext s7 3 = some s10 := by simpa [iterZeroNext, s7_eq] using hrem
+      rcases s8_eq : zeroNext s7 with _ | s8
+      · simp [iterZeroNext, s8_eq] at hrem1
+      have hrem2 : iterZeroNext s8 2 = some s10 := by simpa [iterZeroNext, s8_eq] using hrem1
+      rcases s9_eq : zeroNext s8 with _ | s9
+      · simp [iterZeroNext, s9_eq] at hrem2
+      have hrem3 : zeroNext s9 = some s10 := by
+        rw [← iterZeroNext_one s9]
+        simpa [iterZeroNext, s9_eq] using hrem2
+      obtain ⟨_, ho7, hna7⟩ := zeroNext_n_isOdd_and_age s7_eq
+      obtain ⟨_, ho8, hna8⟩ := zeroNext_n_isOdd_and_age s8_eq
+      obtain ⟨_, ho9, hna9⟩ := zeroNext_n_isOdd_and_age s9_eq
+      obtain ⟨_, ho10, hna10⟩ := zeroNext_n_isOdd_and_age hrem3
+      have h_o7 : s7.isOdd = false := by rw [ho7, h_o6]; rfl
+      have h_o8 : s8.isOdd = true := by rw [ho8, h_o7]; rfl
+      have h_o9 : s9.isOdd = false := by rw [ho9, h_o8]; rfl
+      have h_o10 : s10.isOdd = true := by rw [ho10, h_o9]; rfl
+      have ha7 := (nextAge_step_from hna7).2.2.2.2.2.2.1 ⟨h_o6, ha6⟩
+      have ha8 := (nextAge_step_from hna8).2.2.2.2.2.2.2.1 ⟨h_o7, ha7⟩
+      have ha9 := (nextAge_step_from hna9).2.2.2.2.2.2.2.2.1 ⟨h_o8, ha8⟩
+      have ha10 := (nextAge_step_from hna10).2.2.2.2.2.2.2.2.2 ⟨h_o9, ha9⟩
+      unfold voidMacroStep
+      rw [h6, h10]
+      simp [h_o6, ha6, h_o10, ha10]
+
+theorem voidMacroStep_spec {s s' : PhysState} {dt : Nat}
+    (h : voidMacroStep s = some (s', dt)) :
+    (dt = 6 ∨ dt = 10) ∧
+    iterZeroNext s dt = some s' ∧
+    s'.n = s.n + dt ∧
+    s'.isOdd = true ∧ s'.age = 0 := by
+  unfold voidMacroStep at h
+  cases h6 : iterZeroNext s 6 with
+  | none => simp [h6] at h
+  | some s6 =>
+    rw [h6] at h
+    dsimp only at h
+    split at h
+    · next hcond6 =>
+      simp only [Option.some.injEq, Prod.mk.injEq] at h
+      rcases h with ⟨rfl, rfl⟩
+      simp only [Bool.and_eq_true, beq_iff_eq] at hcond6
+      exact ⟨Or.inl rfl, h6, iterZeroNext_n_eq 6 h6, hcond6.1, hcond6.2⟩
+    · cases h10 : iterZeroNext s 10 with
+      | none => simp [h10] at h
+      | some s10 =>
+        rw [h10] at h
+        dsimp only at h
+        split at h
+        · next hcond10 =>
+          simp only [Option.some.injEq, Prod.mk.injEq] at h
+          rcases h with ⟨rfl, rfl⟩
+          simp only [Bool.and_eq_true, beq_iff_eq] at hcond10
+          exact ⟨Or.inr rfl, h10, iterZeroNext_n_eq 10 h10, hcond10.1, hcond10.2⟩
+        · simp at h
+
+/-- **Variable-Step `{6, 10}` Void Return Map and Two-Sided Time-Dilation Laws
+(`voidMacroStep_and_iterVoidMacro_dilation_laws`).**
+1. Every macro-step `voidMacroStep s = some (s', dt)` advances the inward horizon by a quantized
+   step `dt ∈ {6, 10}`, satisfies `iterZeroNext s dt = some s'`, `s'.n = s.n + dt`, and returns
+   to the post-reset ground state `s'.isOdd = true ∧ s'.age = 0` (matching `initPhysState`).
+2. From any post-reset ground state `s.isOdd = true ∧ s.age = 0`, `(iterZeroNext s 10).isSome = true`
+   implies `(voidMacroStep s).isSome = true` (so `voidMacroStep s = none → iterZeroNext s 10 = none`).
+3. Every `k`-cycle macro-orbit `iterVoidMacro s k = some s'` corresponds to a microscopic Void
+   orbit `iterZeroNext s L = some s'` with exact two-sided time-dilation bounds `6 * k ≤ L ≤ 10 * k`
+   and `s'.n = s.n + L`.
+4. From any post-reset ground state `s.isOdd = true ∧ s.age = 0`, `(iterZeroNext s (10 * k)).isSome = true`
+   implies `(iterVoidMacro s k).isSome = true`. -/
+theorem voidMacroStep_and_iterVoidMacro_dilation_laws :
+    (∀ s s' : PhysState, ∀ dt : Nat,
+      voidMacroStep s = some (s', dt) →
+        (dt = 6 ∨ dt = 10) ∧
+        iterZeroNext s dt = some s' ∧
+        s'.n = s.n + dt ∧
+        s'.isOdd = true ∧ s'.age = 0) ∧
+    (∀ s : PhysState, s.isOdd = true → s.age = 0 →
+      (iterZeroNext s 10).isSome = true → (voidMacroStep s).isSome = true) ∧
+    (∀ k : Nat, ∀ s s' : PhysState,
+      iterVoidMacro s k = some s' →
+        ∃ L : Nat, 6 * k ≤ L ∧ L ≤ 10 * k ∧
+          iterZeroNext s L = some s' ∧ s'.n = s.n + L) ∧
+    (∀ k : Nat, ∀ s : PhysState,
+      s.isOdd = true → s.age = 0 →
+      (iterZeroNext s (10 * k)).isSome = true →
+      (iterVoidMacro s k).isSome = true) := by
+  have hmacro_complete : ∀ s : PhysState, s.isOdd = true → s.age = 0 →
+      (iterZeroNext s 10).isSome = true → (voidMacroStep s).isSome = true := by
+    intro s ho ha his
+    obtain ⟨s10, h10⟩ := Option.isSome_iff_exists.mp his
+    exact voidMacroStep_complete_of_reset ho ha h10
+  have hiter_sound : ∀ k : Nat, ∀ s s' : PhysState,
+      iterVoidMacro s k = some s' →
+        ∃ L : Nat, 6 * k ≤ L ∧ L ≤ 10 * k ∧
+          iterZeroNext s L = some s' ∧ s'.n = s.n + L := by
+    intro k
+    induction k with
+    | zero =>
+      intro s s' h
+      simp only [iterVoidMacro, Option.some.injEq] at h
+      subst h
+      exact ⟨0, by omega, by omega, rfl, by omega⟩
+    | succ k ih =>
+      intro s s' h
+      simp only [iterVoidMacro] at h
+      cases hm : voidMacroStep s with
+      | none => simp [hm] at h
+      | some pr =>
+        rcases pr with ⟨s1, dt⟩
+        rw [hm] at h
+        obtain ⟨hdt, hstep1, hn1, _, _⟩ := voidMacroStep_spec hm
+        obtain ⟨L2, hL2_lo, hL2_hi, hstep2, hn2⟩ := ih s1 s' h
+        refine ⟨dt + L2, ?_, ?_, ?_, by omega⟩
+        · rcases hdt with rfl | rfl <;> omega
+        · rcases hdt with rfl | rfl <;> omega
+        · rw [iterZeroNext_add, hstep1]
+          exact hstep2
+  have hiter_complete : ∀ k : Nat, ∀ s : PhysState,
+      s.isOdd = true → s.age = 0 →
+      (iterZeroNext s (10 * k)).isSome = true →
+      (iterVoidMacro s k).isSome = true := by
+    intro k
+    induction k with
+    | zero =>
+      intro s _ _ _
+      rfl
+    | succ k ih =>
+      intro s ho ha his
+      have his0 := his
+      have h10k : 10 * (k + 1) = 10 + 10 * k := by omega
+      rw [h10k, iterZeroNext_add] at his
+      cases h10 : iterZeroNext s 10 with
+      | none => rw [h10] at his; simp at his
+      | some s10 =>
+        have hms_some := voidMacroStep_complete_of_reset ho ha h10
+        obtain ⟨⟨s1, dt⟩, hms⟩ := Option.isSome_iff_exists.mp hms_some
+        obtain ⟨hdt, hstep1, _, ho1, ha1⟩ := voidMacroStep_spec hms
+        simp only [iterVoidMacro, hms]
+        apply ih s1 ho1 ha1
+        have hle : dt + 10 * k ≤ 10 * (k + 1) := by
+          rcases hdt with rfl | rfl <;> omega
+        obtain ⟨d, hd⟩ := Nat.exists_eq_add_of_le hle
+        rw [hd, iterZeroNext_add, iterZeroNext_add, hstep1] at his0
+        dsimp only [Option.bind] at his0
+        cases hsub : iterZeroNext s1 (10 * k) with
+        | none => rw [hsub] at his0; simp at his0
+        | some _ => rfl
+  exact ⟨fun _ _ _ h => voidMacroStep_spec h, hmacro_complete, hiter_sound, hiter_complete⟩
+
+end GE2SeedsAndVoidMacroReturnMap
+
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
