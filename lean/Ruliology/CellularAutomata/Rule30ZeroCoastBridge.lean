@@ -5386,5 +5386,225 @@ theorem trace_bit_depends_on_seed_bit (k y : Nat)
 
 end TraceComplementAndBitDependence
 
+/-! ## 19. Stepwise Void-Crash ↔ Weight-Increment Equivalence, Uniform Horizon Lookahead, and Telescoping Void-Schedule Bridge (`voidOrbit_none_all_iff_wtH_step`, `q01Gap_and_massDiverges_iff_stepwise_wtH_increment`, `void_schedule_telescoping_weight_bound_and_q01Gap_iff`) -/
+
+section VoidScheduleWeightBridge
+open Rule30ZeroBoundary.IntegerForm
+
+/-- **Exact Stepwise Void-Crash ↔ Active-Weight Increment Equivalence
+(`voidOrbit_none_all_iff_wtH_step`).**
+For every horizon `H ≥ 1` and lookahead `L : Nat`, the following three conditions are equivalent:
+1. Every canonical surviving seed at horizon `H` crashes in the Zero Void within `L` steps:
+   `∀ y ∈ survivingSeeds H, voidOrbit y H L = none`.
+2. Every canonical surviving seed at horizon `H + L` has strictly larger Hamming weight than its
+   `H`-bit prefix: `∀ z ∈ survivingSeeds (H + L), popcount (z % 2 ^ H) + 1 ≤ popcount z`.
+3. Every seed `x : Nat` surviving to `H + L` increases its active weight `wtH` by at least `+1`
+   across `[H, H + L)`: `∀ x : Nat, SurvivesTo x (H + L) → wtH H x + 1 ≤ wtH (H + L) x`. -/
+theorem voidOrbit_none_all_iff_wtH_step (H L : Nat) (hH : 1 ≤ H) :
+    ((∀ y ∈ survivingSeeds H, voidOrbit y H L = none) ↔
+      (∀ z ∈ survivingSeeds (H + L), popcount (z % 2 ^ H) + 1 ≤ popcount z)) ∧
+    ((∀ y ∈ survivingSeeds H, voidOrbit y H L = none) ↔
+      (∀ x : Nat, SurvivesTo x (H + L) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H x + 1 ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (H + L) x)) := by
+  have h12 : (∀ y ∈ survivingSeeds H, voidOrbit y H L = none) ↔
+      (∀ z ∈ survivingSeeds (H + L), popcount (z % 2 ^ H) + 1 ≤ popcount z) := by
+    constructor
+    · intro hnone z hz
+      obtain ⟨_, hsurv_z⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff (H + L) z).1.mp hz
+      have hsurv_H : SurvivesTo z H := survivesTo_mono (by omega : H ≤ H + L) hsurv_z
+      have hy_mem : z % 2 ^ H ∈ survivingSeeds H :=
+        (mem_survivingSeeds_iff_and_survivesTo_iff H z).2.mp hsurv_H
+      have hstep := (survivingSeeds_void_crash_forces_weight_step H L (z % 2 ^ H) hH hy_mem).2
+        (hnone (z % 2 ^ H) hy_mem)
+      exact (hstep.2 z hz rfl).1
+    · intro hpop y hy
+      cases hvo : voidOrbit y H L with
+      | none => rfl
+      | some s' =>
+        exfalso
+        have hsurv_HL : SurvivesTo y (H + L) :=
+          (survivingSeeds_void_crash_forces_weight_step H L y hH hy).1.mpr (by simp [hvo])
+        obtain ⟨hlt_y, _⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff H y).1.mp hy
+        have hlt_HL : y < 2 ^ (H + L) :=
+          Nat.lt_of_lt_of_le hlt_y (Nat.pow_le_pow_right (by decide) (by omega))
+        have hy_HL : y ∈ survivingSeeds (H + L) :=
+          (mem_survivingSeeds_iff_and_survivesTo_iff (H + L) y).1.mpr ⟨hlt_HL, hsurv_HL⟩
+        have hstep := hpop y hy_HL
+        rw [Nat.mod_eq_of_lt hlt_y] at hstep
+        omega
+  have h23 : (∀ z ∈ survivingSeeds (H + L), popcount (z % 2 ^ H) + 1 ≤ popcount z) ↔
+      (∀ x : Nat, SurvivesTo x (H + L) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H x + 1 ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (H + L) x) := by
+    constructor
+    · intro hpop x hsurv
+      have hz_mem : x % 2 ^ (H + L) ∈ survivingSeeds (H + L) :=
+        (mem_survivingSeeds_iff_and_survivesTo_iff (H + L) x).2.mp hsurv
+      have hstep := hpop (x % 2 ^ (H + L)) hz_mem
+      have hmod_H : (x % 2 ^ (H + L)) % 2 ^ H = x % 2 ^ H :=
+        Nat.mod_mod_of_dvd x (Nat.pow_dvd_pow 2 (by omega : H ≤ H + L))
+      rw [hmod_H, popcount_mod_pow2_eq_wtH x H, popcount_mod_pow2_eq_wtH x (H + L)] at hstep
+      exact hstep
+    · intro hwt z hz
+      obtain ⟨hlt_z, hsurv_z⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff (H + L) z).1.mp hz
+      have hstep := hwt z hsurv_z
+      rw [← popcount_mod_pow2_eq_wtH z H, ← popcount_mod_pow2_eq_wtH z (H + L),
+        Nat.mod_eq_of_lt hlt_z] at hstep
+      exact hstep
+  exact ⟨h12, Iff.trans h12 h23⟩
+
+theorem voidOrbit_none_mono {y K L1 L2 : Nat} (hnone : voidOrbit y K L1 = none) (hle : L1 ≤ L2) :
+    voidOrbit y K L2 = none := by
+  obtain ⟨d, rfl⟩ := Nat.exists_eq_add_of_le hle
+  unfold voidOrbit at hnone ⊢
+  cases hps : physStateOf y K with
+  | none => rfl
+  | some s0 =>
+    rw [hps] at hnone
+    dsimp only [Option.bind] at hnone ⊢
+    rw [iterZeroNext_add, hnone]
+    rfl
+
+theorem list_forall_exists_voidOrbit_none_iff (K : Nat) (ys : List Nat) :
+    (∀ y ∈ ys, ∃ L : Nat, voidOrbit y K L = none) ↔
+    (∃ L : Nat, ∀ y ∈ ys, voidOrbit y K L = none) := by
+  constructor
+  · induction ys with
+    | nil =>
+      intro _
+      exact ⟨0, fun _ hy => nomatch hy⟩
+    | cons y0 ys ih =>
+      intro hall
+      obtain ⟨L0, h0⟩ := hall y0 (List.mem_cons_self)
+      obtain ⟨L1, h1⟩ := ih (fun y hy => hall y (List.mem_cons_of_mem y0 hy))
+      refine ⟨L0 + L1, fun y hy => ?_⟩
+      rcases List.mem_cons.mp hy with rfl | hmem
+      · exact voidOrbit_none_mono h0 (by omega)
+      · exact voidOrbit_none_mono (h1 y hmem) (by omega)
+  · rintro ⟨L, hL⟩ y hy
+    exact ⟨L, hL y hy⟩
+
+/-- **Stepwise Active-Weight Increment Equivalence for `FiniteSeedsTerminate`, `MassDiverges`, and `Q01Gap`
+(`q01Gap_and_massDiverges_iff_stepwise_wtH_increment`).**
+Proves unconditionally that `FiniteSeedsTerminate`, `MassDiverges`, and `Rule30GateTrap.Q01Gap` are
+equivalent to the statement that from every horizon `K ≥ 1`, there exists a finite step `L : Nat`
+across which every surviving seed increases its active weight `wtH` by at least `+1`:
+`∀ K ≥ 1, ∃ L : Nat, ∀ x : Nat, SurvivesTo x (K + L) → wtH K x + 1 ≤ wtH (K + L) x`. -/
+theorem q01Gap_and_massDiverges_iff_stepwise_wtH_increment :
+    (FiniteSeedsTerminate ↔
+      (∀ K : Nat, 1 ≤ K → ∃ L : Nat, ∀ x : Nat, SurvivesTo x (K + L) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH K x + 1 ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (K + L) x)) ∧
+    (MassDiverges ↔
+      (∀ K : Nat, 1 ≤ K → ∃ L : Nat, ∀ x : Nat, SurvivesTo x (K + L) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH K x + 1 ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (K + L) x)) ∧
+    (Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap ↔
+      (∀ K : Nat, 1 ≤ K → ∃ L : Nat, ∀ x : Nat, SurvivesTo x (K + L) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH K x + 1 ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (K + L) x)) := by
+  have hstep_iff : (∀ K : Nat, 1 ≤ K → ∀ y ∈ survivingSeeds K, ∃ L : Nat, voidOrbit y K L = none) ↔
+      (∀ K : Nat, 1 ≤ K → ∃ L : Nat, ∀ x : Nat, SurvivesTo x (K + L) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH K x + 1 ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (K + L) x) := by
+    constructor
+    · intro h K hK
+      obtain ⟨L, hL⟩ := (list_forall_exists_voidOrbit_none_iff K (survivingSeeds K)).mp (h K hK)
+      exact ⟨L, (voidOrbit_none_all_iff_wtH_step K L hK).2.mp hL⟩
+    · intro h K hK
+      obtain ⟨L, hL⟩ := h K hK
+      have hall := (voidOrbit_none_all_iff_wtH_step K L hK).2.mpr hL
+      exact (list_forall_exists_voidOrbit_none_iff K (survivingSeeds K)).mpr ⟨L, hall⟩
+  have hfin : FiniteSeedsTerminate ↔
+      (∀ K : Nat, 1 ≤ K → ∃ L : Nat, ∀ x : Nat, SurvivesTo x (K + L) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH K x + 1 ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (K + L) x) :=
+    Iff.trans q01Gap_and_massDiverges_iff_survivingSeeds_void_crash.1 hstep_iff
+  have hmass : MassDiverges ↔
+      (∀ K : Nat, 1 ≤ K → ∃ L : Nat, ∀ x : Nat, SurvivesTo x (K + L) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH K x + 1 ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (K + L) x) :=
+    Iff.trans q01Gap_and_massDiverges_iff_survivingSeeds_void_crash.2.1 hstep_iff
+  have hq01 : Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap ↔
+      (∀ K : Nat, 1 ≤ K → ∃ L : Nat, ∀ x : Nat, SurvivesTo x (K + L) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH K x + 1 ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (K + L) x) :=
+    Iff.trans q01Gap_and_massDiverges_iff_survivingSeeds_void_crash.2.2 hstep_iff
+  exact ⟨hfin, hmass, hq01⟩
+
+/-- **Telescoping Void-Schedule Weight Lower Bound and Linear Mass-Growth Bridge
+(`void_schedule_telescoping_weight_bound_and_q01Gap_iff`).**
+1. For any horizon schedule `H : Nat → Nat` and step sizes `L : Nat → Nat` with `1 ≤ H 0`,
+   `∀ i, H (i + 1) = H i + L i`, and `∀ i, ∀ y ∈ survivingSeeds (H i), voidOrbit y (H i) (L i) = none`,
+   every seed `x : Nat` surviving to `H M` satisfies `wtH (H 0) x + M ≤ wtH (H M) x` and `M ≤ popcount x`.
+2. Under a uniform Void crash lookahead `L : Nat` (`∀ K ≥ 1, ∀ y ∈ survivingSeeds K, voidOrbit y K L = none`),
+   every seed `x : Nat` surviving to `1 + L * M` satisfies `M ≤ wtH (1 + L * M) x`, and
+   `FiniteSeedsTerminate`, `MassDiverges`, and `Rule30GateTrap.Q01Gap` hold unconditionally. -/
+theorem void_schedule_telescoping_weight_bound_and_q01Gap_iff :
+    (∀ (H L : Nat → Nat),
+      1 ≤ H 0 →
+      (∀ i : Nat, H (i + 1) = H i + L i) →
+      (∀ i : Nat, ∀ y ∈ survivingSeeds (H i), voidOrbit y (H i) (L i) = none) →
+      ∀ M x : Nat, SurvivesTo x (H M) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (H 0) x + M ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (H M) x ∧
+        M ≤ popcount x) ∧
+    (∀ L : Nat,
+      (∀ K : Nat, 1 ≤ K → ∀ y ∈ survivingSeeds K, voidOrbit y K L = none) →
+      (∀ M x : Nat, SurvivesTo x (1 + L * M) →
+        M ≤ Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (1 + L * M) x) ∧
+      FiniteSeedsTerminate ∧ MassDiverges ∧ Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap) := by
+  have hsched : ∀ (H L : Nat → Nat),
+      1 ≤ H 0 →
+      (∀ i : Nat, H (i + 1) = H i + L i) →
+      (∀ i : Nat, ∀ y ∈ survivingSeeds (H i), voidOrbit y (H i) (L i) = none) →
+      ∀ M : Nat, 1 ≤ H M ∧ ∀ x : Nat, SurvivesTo x (H M) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (H 0) x + M ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (H M) x := by
+    intro H L hH0 hstep hnone M
+    induction M with
+    | zero =>
+      refine ⟨hH0, fun x _ => by omega⟩
+    | succ M ih =>
+      obtain ⟨hHM_pos, ih_wt⟩ := ih
+      have hHM1_pos : 1 ≤ H (M + 1) := by rw [hstep M]; omega
+      refine ⟨hHM1_pos, fun x hsurv => ?_⟩
+      rw [hstep M] at hsurv ⊢
+      have hsurv_M : SurvivesTo x (H M) :=
+        survivesTo_mono (by omega : H M ≤ H M + L M) hsurv
+      have hprev := ih_wt x hsurv_M
+      have hinc := (voidOrbit_none_all_iff_wtH_step (H M) (L M) hHM_pos).2.mp
+        (hnone M) x hsurv
+      omega
+  refine ⟨fun H L hH0 hstep hnone M x hsurv => ?_, fun L hunif => ?_⟩
+  · have hwt := (hsched H L hH0 hstep hnone M).2 x hsurv
+    have hpop : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (H M) x ≤ popcount x := by
+      rw [← popcount_mod_pow2_eq_wtH x (H M)]
+      exact popcount_mod_pow2_le x (H M)
+    exact ⟨hwt, by omega⟩
+  · let H : Nat → Nat := fun i => 1 + L * i
+    let Lfn : Nat → Nat := fun _ => L
+    have hH0 : 1 ≤ H 0 := by dsimp [H]; omega
+    have hstep : ∀ i : Nat, H (i + 1) = H i + Lfn i := by
+      intro i; dsimp [H, Lfn]; rw [Nat.mul_succ]; omega
+    have hH_pos : ∀ i : Nat, 1 ≤ H i := by intro i; dsimp [H]; omega
+    have hnone : ∀ i : Nat, ∀ y ∈ survivingSeeds (H i), voidOrbit y (H i) (Lfn i) = none :=
+      fun i y hy => hunif (H i) (hH_pos i) y hy
+    have hlin : ∀ M x : Nat, SurvivesTo x (1 + L * M) →
+        M ≤ Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (1 + L * M) x := by
+      intro M x hsurv
+      have hwt := (hsched H Lfn hH0 hstep hnone M).2 x hsurv
+      dsimp [H] at hwt
+      omega
+    have hall_crash : ∀ K : Nat, 1 ≤ K → ∀ y ∈ survivingSeeds K, ∃ L' : Nat, voidOrbit y K L' = none :=
+      fun K hK y hy => ⟨L, hunif K hK y hy⟩
+    have hfin := q01Gap_and_massDiverges_iff_survivingSeeds_void_crash.1.mpr hall_crash
+    have hmass := q01Gap_and_massDiverges_iff_survivingSeeds_void_crash.2.1.mpr hall_crash
+    have hq01 := q01Gap_and_massDiverges_iff_survivingSeeds_void_crash.2.2.mpr hall_crash
+    exact ⟨hlin, hfin, hmass, hq01⟩
+
+end VoidScheduleWeightBridge
+
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
