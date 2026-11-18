@@ -5161,5 +5161,230 @@ theorem q01Gap_and_massDiverges_iff_reset_iterVoidMacro_crash :
 
 end FirstActiveBitAndMacroClosure
 
+/-! ## 18. Active-Weight `NoMass` Equivalences, Trace-Complement Involution on `[0, 2 ^ H)`, and Dependence of Trace Step `k` on Seed Bit `k` (`noMass_iff_survivors_heavy`, `complementTraceSeed_involution_and_blackCount`, `trace_bit_depends_on_seed_bit`) -/
+
+section TraceComplementAndBitDependence
+open Rule30ZeroBoundary.IntegerForm
+
+/-- **Active-Weight Non-Survival Equivalence (`noMass_iff_survivors_heavy`).**
+1. For every weight threshold `M : Nat` and horizon `H : Nat`, `(∀ y ∈ survivingSeeds H, M < popcount y)`
+   is equivalent to `(∀ x : Nat, wtH H x ≤ M → ¬ SurvivesTo x H)`.
+2. Whenever `∀ y ∈ survivingSeeds H, M < popcount y`, no seed `x : Nat` with `popcount x ≤ M`
+   survives to any horizon `H' ≥ H` (`¬ SurvivesTo x H'`).
+3. `MassDiverges` and `Rule30GateTrap.Q01Gap` are equivalent to
+   `∀ M : Nat, ∃ H : Nat, ∀ x : Nat, wtH H x ≤ M → ¬ SurvivesTo x H`. -/
+theorem noMass_iff_survivors_heavy :
+    (∀ M H : Nat,
+      (∀ y ∈ survivingSeeds H, M < popcount y) ↔
+      (∀ x : Nat,
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H x ≤ M →
+        ¬ SurvivesTo x H)) ∧
+    (∀ M H H' : Nat, H ≤ H' →
+      (∀ y ∈ survivingSeeds H, M < popcount y) →
+      ∀ x : Nat, popcount x ≤ M → ¬ SurvivesTo x H') ∧
+    (MassDiverges ↔
+      (∀ M : Nat, ∃ H : Nat, ∀ x : Nat,
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H x ≤ M →
+        ¬ SurvivesTo x H)) ∧
+    (Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap ↔
+      (∀ M : Nat, ∃ H : Nat, ∀ x : Nat,
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H x ≤ M →
+        ¬ SurvivesTo x H)) := by
+  have hiff : ∀ M H : Nat,
+      (∀ y ∈ survivingSeeds H, M < popcount y) ↔
+      (∀ x : Nat,
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H x ≤ M →
+        ¬ SurvivesTo x H) := by
+    intro M H
+    rw [← (massDiverges_and_q01Gap_iff_survivingSeeds_konig.2.1 M H)]
+    unfold NoMass
+    constructor
+    · intro hnomass x hwt hsurv
+      rw [← popcount_mod_pow2_eq_wtH x H] at hwt
+      have hsurv_mod : SurvivesTo (x % 2 ^ H) H :=
+        (survivesTo_mod_pow2 x H).mpr hsurv
+      exact hnomass (x % 2 ^ H) hwt hsurv_mod
+    · intro hwt x hpop
+      have hle : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H x ≤ M := by
+        rw [← popcount_mod_pow2_eq_wtH x H]
+        exact Nat.le_trans (popcount_mod_pow2_le x H) hpop
+      exact hwt x hle
+  have hmono_cap : ∀ M H H' : Nat, H ≤ H' →
+      (∀ y ∈ survivingSeeds H, M < popcount y) →
+      ∀ x : Nat, popcount x ≤ M → ¬ SurvivesTo x H' := by
+    intro M H H' hle hcap x hpop hsurv'
+    have hsurv : SurvivesTo x H := survivesTo_mono hle hsurv'
+    have hwt : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H x ≤ M := by
+      rw [← popcount_mod_pow2_eq_wtH x H]
+      exact Nat.le_trans (popcount_mod_pow2_le x H) hpop
+    exact (hiff M H).mp hcap x hwt hsurv
+  have hmass : MassDiverges ↔
+      (∀ M : Nat, ∃ H : Nat, ∀ x : Nat,
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H x ≤ M →
+        ¬ SurvivesTo x H) := by
+    rw [massDiverges_and_q01Gap_iff_survivingSeeds_konig.2.2.1]
+    constructor
+    · intro h M
+      obtain ⟨H, hH⟩ := h M
+      exact ⟨H, (hiff M H).mp hH⟩
+    · intro h M
+      obtain ⟨H, hH⟩ := h M
+      exact ⟨H, (hiff M H).mpr hH⟩
+  have hq01 : Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap ↔
+      (∀ M : Nat, ∃ H : Nat, ∀ x : Nat,
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH H x ≤ M →
+        ¬ SurvivesTo x H) :=
+    Iff.trans massDiverges_iff_Q01Gap.symm hmass
+  exact ⟨hiff, hmono_cap, hmass, hq01⟩
+
+/-- Dual seed on `[0, 2 ^ H)` whose `H`-step center trace is the bitwise complement of `trace y H`. -/
+def complementTraceSeed (H y : Nat) : Nat :=
+  seedOfTrace ((trace y H).map Bool.not)
+
+/-- Number of black (`true`) cells in the `H`-step center trace `trace y H`. -/
+def blackCountTrace (y H : Nat) : Nat :=
+  ((trace y H).filter id).length
+
+theorem map_not_map_not (w : List Bool) :
+    (w.map Bool.not).map Bool.not = w := by
+  induction w with
+  | nil => rfl
+  | cons b bs ih =>
+    simp only [List.map_cons, Bool.not_not, ih]
+
+theorem filter_not_length_add_filter_length (w : List Bool) :
+    (((w.map Bool.not).filter id).length) + ((w.filter id).length) = w.length := by
+  induction w with
+  | nil => rfl
+  | cons b bs ih =>
+    cases b <;> simp only [List.map_cons, Bool.not_false, Bool.not_true, List.filter_cons_of_pos,
+      List.filter_cons_of_neg, id_eq, Bool.false_eq_true, not_false_eq_true, List.length_cons] <;> omega
+
+/-- **Trace-Complement Involution and Pairwise Black-Cell Count on `[0, 2 ^ H)`
+(`complementTraceSeed_involution_and_blackCount`).**
+Constructively proves (`propext`, `Quot.sound` only) for every horizon `H : Nat` and every
+seed `y < 2 ^ H`:
+1. `complementTraceSeed H y < 2 ^ H` and `trace (complementTraceSeed H y) H = (trace y H).map Bool.not`,
+2. `complementTraceSeed H (complementTraceSeed H y) = y` (involution on `[0, 2 ^ H)`),
+3. `1 ≤ H → complementTraceSeed H y ≠ y` (fixed-point free for `H ≥ 1`), and
+4. `blackCountTrace (complementTraceSeed H y) H + blackCountTrace y H = H`. -/
+theorem complementTraceSeed_involution_and_blackCount (H y : Nat)
+    (hy : y < 2 ^ H) :
+    complementTraceSeed H y < 2 ^ H ∧
+    trace (complementTraceSeed H y) H = (trace y H).map Bool.not ∧
+    complementTraceSeed H (complementTraceSeed H y) = y ∧
+    (1 ≤ H → complementTraceSeed H y ≠ y) ∧
+    blackCountTrace (complementTraceSeed H y) H + blackCountTrace y H = H := by
+  have hlen_tr : (trace y H).length = H := trace_length y H
+  have hlen_map : ((trace y H).map Bool.not).length = H := by
+    rw [List.length_map, hlen_tr]
+  have hspec_map := seedOfTrace_spec ((trace y H).map Bool.not)
+  have hlt_comp : complementTraceSeed H y < 2 ^ H := by
+    unfold complementTraceSeed
+    have h1 := hspec_map.1
+    rwa [hlen_map] at h1
+  have htr_comp : trace (complementTraceSeed H y) H = (trace y H).map Bool.not := by
+    unfold complementTraceSeed
+    have hst := hspec_map.2
+    rwa [hlen_map] at hst
+  have hinv : complementTraceSeed H (complementTraceSeed H y) = y := by
+    unfold complementTraceSeed
+    have hst := hspec_map.2
+    rw [hlen_map] at hst
+    rw [hst, map_not_map_not]
+    have hbij := (trace_eq_iff_mod_pow2_eq_and_seedOfTrace_bijection H y y []).2.2
+    rw [hbij, Nat.mod_eq_of_lt hy]
+  have hfp : 1 ≤ H → complementTraceSeed H y ≠ y := by
+    intro hH heq
+    have htr_eq : trace (complementTraceSeed H y) H = trace y H := by rw [heq]
+    rw [htr_comp] at htr_eq
+    cases hlist : trace y H with
+    | nil =>
+      have h0 : (trace y H).length = 0 := by rw [hlist]; rfl
+      omega
+    | cons b bs =>
+      rw [hlist] at htr_eq
+      simp only [List.map_cons, List.cons.injEq] at htr_eq
+      cases b <;> simp at htr_eq
+  have hsum : blackCountTrace (complementTraceSeed H y) H + blackCountTrace y H = H := by
+    unfold blackCountTrace
+    rw [htr_comp, filter_not_length_add_filter_length, hlen_tr]
+  exact ⟨hlt_comp, htr_comp, hinv, hfp, hsum⟩
+
+theorem add_two_pow_mod_and_bits {y k : Nat} (hy : y < 2 ^ k) :
+    y + 2 ^ k < 2 ^ (k + 1) ∧
+    (y + 2 ^ k) % 2 ^ k = y ∧
+    y.testBit k = false ∧
+    (y + 2 ^ k).testBit k = true := by
+  have hlt1 : y + 2 ^ k < 2 ^ (k + 1) := by
+    rw [Nat.pow_succ]
+    omega
+  have hmod : (y + 2 ^ k) % 2 ^ k = y := by
+    rw [Nat.add_mod_right, Nat.mod_eq_of_lt hy]
+  have hbit_y : y.testBit k = false := Nat.testBit_lt_two_pow hy
+  have hdiv : (y + 2 ^ k) / 2 ^ k = 1 := by
+    have hpos : 0 < 2 ^ k := Nat.two_pow_pos k
+    have hdiv_y : y / 2 ^ k = 0 := Nat.div_eq_of_lt hy
+    rw [Nat.add_div_right y hpos, hdiv_y]
+  have hbit_yk : (y + 2 ^ k).testBit k = true := by
+    rw [Nat.testBit, Nat.shiftRight_eq_div_pow, hdiv]
+    rfl
+  exact ⟨hlt1, hmod, hbit_y, hbit_yk⟩
+
+/-- **Dependence of Trace Bit `k` on Seed Bit `k` (`trace_bit_depends_on_seed_bit`).**
+Constructively proves (`propext`, `Quot.sound` only) for every step `k : Nat` and every seed
+`y < 2 ^ k`:
+1. The bit-flipped extension `y + 2 ^ k < 2 ^ (k + 1)` agrees with `y` below `k`
+   (`(y + 2 ^ k) % 2 ^ k = y`), has the same `k`-step prefix trace (`trace (y + 2 ^ k) k = trace y k`),
+   and flips trace bit `k` (`tr (y + 2 ^ k) k = !(tr y k)`).
+2. There exist seeds `y0, y1 < 2 ^ (k + 1)` with `trace y0 k = trace y k`,
+   `trace y1 k = trace y k`, `tr y0 k = false`, and `tr y1 k = true`.
+3. For every function `P : Nat → Bool` of the `< k` prefix (`z % 2 ^ k`), there exists
+   `z < 2 ^ (k + 1)` with `z % 2 ^ k = y` such that `P (z % 2 ^ k) ≠ tr z k`. -/
+theorem trace_bit_depends_on_seed_bit (k y : Nat)
+    (hy : y < 2 ^ k) :
+    (y + 2 ^ k < 2 ^ (k + 1) ∧
+      (y + 2 ^ k) % 2 ^ k = y ∧
+      trace (y + 2 ^ k) k = trace y k ∧
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr (y + 2 ^ k) k =
+        !(Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y k)) ∧
+    (∃ y0 y1 : Nat,
+      y0 < 2 ^ (k + 1) ∧ y1 < 2 ^ (k + 1) ∧
+      trace y0 k = trace y k ∧ trace y1 k = trace y k ∧
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y0 k = false ∧
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y1 k = true) ∧
+    (∀ P : Nat → Bool,
+      ∃ z : Nat, z < 2 ^ (k + 1) ∧ z % 2 ^ k = y ∧
+        P (z % 2 ^ k) ≠ Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr z k) := by
+  obtain ⟨hlt_yk, hmod_yk, hbit_y, hbit_yk⟩ := add_two_pow_mod_and_bits hy
+  have hmod_yy : (y + 2 ^ k) % 2 ^ k = y % 2 ^ k := by
+    rw [hmod_yk, Nat.mod_eq_of_lt hy]
+  have hdiff : (y + 2 ^ k).testBit k ≠ y.testBit k := by
+    rw [hbit_yk, hbit_y]
+    decide
+  have hwave := inward_distinction_wavefront_and_first_trace_diff (y + 2 ^ k) y k hmod_yy hdiff
+  have htr_flip : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr (y + 2 ^ k) k =
+      !(Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y k) := hwave.2.2
+  have hlt_y_k1 : y < 2 ^ (k + 1) :=
+    Nat.lt_of_lt_of_le hy (Nat.pow_le_pow_right (by decide) (by omega))
+  refine ⟨⟨hlt_yk, hmod_yk, hwave.2.1, htr_flip⟩, ?_, ?_⟩
+  · cases htry : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y k
+    · refine ⟨y, y + 2 ^ k, hlt_y_k1, hlt_yk, rfl, hwave.2.1, htry, ?_⟩
+      rw [htr_flip, htry]
+      rfl
+    · refine ⟨y + 2 ^ k, y, hlt_yk, hlt_y_k1, hwave.2.1, rfl, ?_, htry⟩
+      rw [htr_flip, htry]
+      rfl
+  · intro P
+    by_cases hPy : P y = Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y k
+    · refine ⟨y + 2 ^ k, hlt_yk, hmod_yk, ?_⟩
+      rw [hmod_yk, hPy, htr_flip]
+      cases Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y k <;> decide
+    · refine ⟨y, hlt_y_k1, Nat.mod_eq_of_lt hy, ?_⟩
+      rw [Nat.mod_eq_of_lt hy]
+      exact hPy
+
+end TraceComplementAndBitDependence
+
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
