@@ -4844,5 +4844,322 @@ theorem survivingSeeds_reset_iterVoidMacro_zc_and_crash_iff :
 
 end VoidMacroZcIncrement
 
+/-! ## 17. First-Active-Bit Inward Rescue Wavefront, 8-Step Ground-State Synchronization, and Pure Ground-State Macro-Cycle Closure Equivalence (`void_crash_forces_first_active_bit_and_trace_flip`, `void_odd_state_reaches_ground_reset_within_eight`, `q01Gap_and_massDiverges_iff_reset_iterVoidMacro_crash`) -/
+
+section FirstActiveBitAndMacroClosure
+open Rule30ZeroBoundary.IntegerForm
+
+theorem exists_first_diff_bit_of_mod_eq {y z K L : Nat}
+    (hmod : z % 2 ^ K = y % 2 ^ K) (hne : z % 2 ^ (K + L) ≠ y % 2 ^ (K + L)) :
+    ∃ k : Nat,
+      K ≤ k ∧ k < K + L ∧
+      z % 2 ^ k = y % 2 ^ k ∧
+      z.testBit k ≠ y.testBit k := by
+  induction L with
+  | zero =>
+    exfalso
+    rw [Nat.add_zero] at hne
+    exact hne hmod
+  | succ L ih =>
+    by_cases hmod_L : z % 2 ^ (K + L) = y % 2 ^ (K + L)
+    · refine ⟨K + L, by omega, by omega, hmod_L, ?_⟩
+      intro hbit_eq
+      apply hne
+      apply Nat.eq_of_testBit_eq
+      intro i
+      rw [Nat.testBit_mod_two_pow, Nat.testBit_mod_two_pow]
+      by_cases hi : i < K + (L + 1)
+      · simp only [decide_eq_true hi, Bool.true_and]
+        by_cases hiL : i < K + L
+        · have h1 : (z % 2 ^ (K + L)).testBit i = z.testBit i := by
+            rw [Nat.testBit_mod_two_pow, decide_eq_true hiL, Bool.true_and]
+          have h2 : (y % 2 ^ (K + L)).testBit i = y.testBit i := by
+            rw [Nat.testBit_mod_two_pow, decide_eq_true hiL, Bool.true_and]
+          rw [← h1, ← h2, hmod_L]
+        · have hieq : i = K + L := by omega
+          rw [hieq, hbit_eq]
+      · simp [hi]
+    · obtain ⟨k, hk_lo, hk_hi, hk_mod, hk_diff⟩ := ih hmod_L
+      exact ⟨k, hk_lo, by omega, hk_mod, hk_diff⟩
+
+/-- **First-Active-Bit Inward Rescue Wavefront Theorem
+(`void_crash_forces_first_active_bit_and_trace_flip`).**
+Whenever `voidOrbit y K L = none` for a canonical surviving seed `y ∈ survivingSeeds K` (`K ≥ 1`),
+every surviving extension `z ∈ survivingSeeds (K + L)` with `z % 2 ^ K = y` has a first active
+rescue bit at depth `k ∈ [K, K + L)` such that:
+1. `K ≤ k ∧ k < K + L`, `z % 2 ^ k = y`, `z.testBit k = true`, and `y.testBit k = false`,
+2. For every step `d ≤ k`, `(iter F d z) % 2 ^ (k - d) = (iter F d y) % 2 ^ (k - d)` and
+   `(iter F d z).testBit (k - d) = !(iter F d y).testBit (k - d)`, and
+3. `trace z k = trace y k ∧ (iter F k z).testBit 0 = !(iter F k y).testBit 0` (the rescue bit at
+   depth `k` reaches the center column at exact time `t = k` and flips the center trace bit). -/
+theorem void_crash_forces_first_active_bit_and_trace_flip (K L y z : Nat)
+    (hK : 1 ≤ K) (hy : y ∈ survivingSeeds K) (hnone : voidOrbit y K L = none)
+    (hz : z ∈ survivingSeeds (K + L)) (hmod : z % 2 ^ K = y) :
+    popcount y + 1 ≤ popcount z ∧
+    ∃ k : Nat,
+      K ≤ k ∧ k < K + L ∧
+      z % 2 ^ k = y ∧
+      z.testBit k = true ∧
+      y.testBit k = false ∧
+      (∀ d : Nat, d ≤ k →
+        (iter F d z) % 2 ^ (k - d) = (iter F d y) % 2 ^ (k - d) ∧
+        (iter F d z).testBit (k - d) = !(iter F d y).testBit (k - d)) ∧
+      trace z k = trace y k ∧
+      (iter F k z).testBit 0 = !(iter F k y).testBit 0 := by
+  have hstep := (survivingSeeds_void_crash_forces_weight_step K L y hK hy).2 hnone
+  have hpop : popcount y + 1 ≤ popcount z := (hstep.2 z hz hmod).1
+  obtain ⟨hlt_y, _⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff K y).1.mp hy
+  obtain ⟨hlt_z, hsurv_z⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff (K + L) z).1.mp hz
+  have hlt_y_KL : y < 2 ^ (K + L) :=
+    Nat.lt_of_lt_of_le hlt_y (Nat.pow_le_pow_right (by decide) (by omega))
+  have hne : z % 2 ^ (K + L) ≠ y % 2 ^ (K + L) := by
+    rw [Nat.mod_eq_of_lt hlt_z, Nat.mod_eq_of_lt hlt_y_KL]
+    intro heq
+    rw [heq] at hsurv_z
+    exact hstep.1 hsurv_z
+  have hmod_yy : z % 2 ^ K = y % 2 ^ K := by rw [hmod, Nat.mod_eq_of_lt hlt_y]
+  obtain ⟨k, hk_lo, hk_hi, hk_mod, hk_diff⟩ := exists_first_diff_bit_of_mod_eq hmod_yy hne
+  have hy_lt_k : y < 2 ^ k :=
+    Nat.lt_of_lt_of_le hlt_y (Nat.pow_le_pow_right (by decide) hk_lo)
+  have hy_bit_k : y.testBit k = false := Nat.testBit_lt_two_pow hy_lt_k
+  have hz_bit_k : z.testBit k = true := by
+    cases hzk : z.testBit k
+    · exfalso; apply hk_diff; rw [hzk, hy_bit_k]
+    · rfl
+  have hzk_eq_y : z % 2 ^ k = y := by
+    rw [hk_mod, Nat.mod_eq_of_lt hy_lt_k]
+  have hwave := inward_distinction_wavefront_and_first_trace_diff z y k hk_mod hk_diff
+  exact ⟨hpop, k, hk_lo, hk_hi, hzk_eq_y, hz_bit_k, hy_bit_k, hwave.1, hwave.2.1, hwave.2.2⟩
+
+/-- **Universal 8-Step Ground-State Synchronization Theorem
+(`void_odd_state_reaches_ground_reset_within_eight`).**
+From any odd-horizon state `s : PhysState` with `s.isOdd = true` and `s.age < 5`, if
+`(iterZeroNext s 8).isSome = true`, then there exists `j ≤ 4` and `s' : PhysState` such that
+`iterZeroNext s (2 * j) = some s'`, `s'.isOdd = true`, and `s'.age = 0`. -/
+theorem gateNext_some_age_lt_five {a a' : Nat} {z : Bool} (h : gateNext a z = some a') :
+    a < 5 := by
+  rcases a with _ | _ | _ | _ | _ | a5 <;> cases z <;> simp [gateNext] at h <;> omega
+
+theorem void_odd_state_reaches_ground_reset_within_eight (s : PhysState)
+    (ho : s.isOdd = true)
+    (his : (iterZeroNext s 8).isSome = true) :
+    ∃ j : Nat, j ≤ 4 ∧ ∃ s' : PhysState,
+      iterZeroNext s (2 * j) = some s' ∧ s'.isOdd = true ∧ s'.age = 0 := by
+  obtain ⟨s8, h8⟩ := Option.isSome_iff_exists.mp his
+  rcases s1_eq : zeroNext s with _ | s1
+  · simp [iterZeroNext, s1_eq] at h8
+  have h8_1 : iterZeroNext s1 7 = some s8 := by simpa [iterZeroNext, s1_eq] using h8
+  rcases s2_eq : zeroNext s1 with _ | s2
+  · simp [iterZeroNext, s2_eq] at h8_1
+  have h8_2 : iterZeroNext s2 6 = some s8 := by simpa [iterZeroNext, s2_eq] using h8_1
+  rcases s3_eq : zeroNext s2 with _ | s3
+  · simp [iterZeroNext, s3_eq] at h8_2
+  have h8_3 : iterZeroNext s3 5 = some s8 := by simpa [iterZeroNext, s3_eq] using h8_2
+  rcases s4_eq : zeroNext s3 with _ | s4
+  · simp [iterZeroNext, s4_eq] at h8_3
+  have h8_4 : iterZeroNext s4 4 = some s8 := by simpa [iterZeroNext, s4_eq] using h8_3
+  rcases s5_eq : zeroNext s4 with _ | s5
+  · simp [iterZeroNext, s5_eq] at h8_4
+  have h8_5 : iterZeroNext s5 3 = some s8 := by simpa [iterZeroNext, s5_eq] using h8_4
+  rcases s6_eq : zeroNext s5 with _ | s6
+  · simp [iterZeroNext, s6_eq] at h8_5
+  have h8_6 : iterZeroNext s6 2 = some s8 := by simpa [iterZeroNext, s6_eq] using h8_5
+  rcases s7_eq : zeroNext s6 with _ | s7
+  · simp [iterZeroNext, s7_eq] at h8_6
+  have h8_7 : zeroNext s7 = some s8 := by
+    rw [← iterZeroNext_one s7]
+    simpa [iterZeroNext, s7_eq] using h8_6
+  obtain ⟨_, ho1, hna1⟩ := zeroNext_n_isOdd_and_age s1_eq
+  obtain ⟨_, ho2, hna2⟩ := zeroNext_n_isOdd_and_age s2_eq
+  obtain ⟨_, ho3, hna3⟩ := zeroNext_n_isOdd_and_age s3_eq
+  obtain ⟨_, ho4, hna4⟩ := zeroNext_n_isOdd_and_age s4_eq
+  obtain ⟨_, ho5, hna5⟩ := zeroNext_n_isOdd_and_age s5_eq
+  obtain ⟨_, ho6, hna6⟩ := zeroNext_n_isOdd_and_age s6_eq
+  obtain ⟨_, ho7, hna7⟩ := zeroNext_n_isOdd_and_age s7_eq
+  obtain ⟨_, ho8, hna8⟩ := zeroNext_n_isOdd_and_age h8_7
+  have h_o1 : s1.isOdd = false := by rw [ho1, ho]; rfl
+  have h_o2 : s2.isOdd = true := by rw [ho2, h_o1]; rfl
+  have h_o3 : s3.isOdd = false := by rw [ho3, h_o2]; rfl
+  have h_o4 : s4.isOdd = true := by rw [ho4, h_o3]; rfl
+  have h_o5 : s5.isOdd = false := by rw [ho5, h_o4]; rfl
+  have h_o6 : s6.isOdd = true := by rw [ho6, h_o5]; rfl
+  have h_o7 : s7.isOdd = false := by rw [ho7, h_o6]; rfl
+  have h_o8 : s8.isOdd = true := by rw [ho8, h_o7]; rfl
+  have hit0 : iterZeroNext s 0 = some s := rfl
+  have hit2 : iterZeroNext s 2 = some s2 := by simp [iterZeroNext, s1_eq, s2_eq]
+  have hit4 : iterZeroNext s 4 = some s4 := by simp [iterZeroNext, s1_eq, s2_eq, s3_eq, s4_eq]
+  have hit6 : iterZeroNext s 6 = some s6 := by
+    simp [iterZeroNext, s1_eq, s2_eq, s3_eq, s4_eq, s5_eq, s6_eq]
+  have hit8 : iterZeroNext s 8 = some s8 := h8
+  have ha1_eq : s1.age = s.age := by
+    rw [ho] at hna1
+    cases hbit : Ruliology.CellularAutomata.Rule30ZeroCoastBridge.piParity (physSigma s) <;>
+      simp [nextAge, hbit] at hna1
+    exact hna1.symm
+  have ha_lt5 : s.age < 5 := by
+    rw [h_o1] at hna2
+    dsimp only [nextAge] at hna2
+    have hlt1 := gateNext_some_age_lt_five hna2
+    omega
+  have hage_cases : s.age = 0 ∨ s.age = 1 ∨ s.age = 2 ∨ s.age = 3 ∨ s.age = 4 := by omega
+  rcases hage_cases with ha0 | ha1 | ha2 | ha3 | ha4
+  · exact ⟨0, by omega, s, hit0, ho, ha0⟩
+  · have a1 := (nextAge_step_from hna1).2.2.1 ⟨ho, ha1⟩
+    have a2 := (nextAge_step_from hna2).2.2.2.1 ⟨h_o1, a1⟩
+    have a3 := (nextAge_step_from hna3).2.2.2.2.1 ⟨h_o2, a2⟩
+    have a4 := (nextAge_step_from hna4).2.2.2.2.2.1 ⟨h_o3, a3⟩
+    rcases a4 with a4_0 | a4_3
+    · exact ⟨2, by omega, s4, hit4, h_o4, a4_0⟩
+    · have a5 := (nextAge_step_from hna5).2.2.2.2.2.2.1 ⟨h_o4, a4_3⟩
+      have a6 := (nextAge_step_from hna6).2.2.2.2.2.2.2.1 ⟨h_o5, a5⟩
+      have a7 := (nextAge_step_from hna7).2.2.2.2.2.2.2.2.1 ⟨h_o6, a6⟩
+      have a8 := (nextAge_step_from hna8).2.2.2.2.2.2.2.2.2 ⟨h_o7, a7⟩
+      exact ⟨4, by omega, s8, hit8, h_o8, a8⟩
+  · have a1 := (nextAge_step_from hna1).2.2.2.2.1 ⟨ho, ha2⟩
+    have a2 := (nextAge_step_from hna2).2.2.2.2.2.1 ⟨h_o1, a1⟩
+    rcases a2 with a2_0 | a2_3
+    · exact ⟨1, by omega, s2, hit2, h_o2, a2_0⟩
+    · have a3 := (nextAge_step_from hna3).2.2.2.2.2.2.1 ⟨h_o2, a2_3⟩
+      have a4 := (nextAge_step_from hna4).2.2.2.2.2.2.2.1 ⟨h_o3, a3⟩
+      have a5 := (nextAge_step_from hna5).2.2.2.2.2.2.2.2.1 ⟨h_o4, a4⟩
+      have a6 := (nextAge_step_from hna6).2.2.2.2.2.2.2.2.2 ⟨h_o5, a5⟩
+      exact ⟨3, by omega, s6, hit6, h_o6, a6⟩
+  · have a1 := (nextAge_step_from hna1).2.2.2.2.2.2.1 ⟨ho, ha3⟩
+    have a2 := (nextAge_step_from hna2).2.2.2.2.2.2.2.1 ⟨h_o1, a1⟩
+    have a3 := (nextAge_step_from hna3).2.2.2.2.2.2.2.2.1 ⟨h_o2, a2⟩
+    have a4 := (nextAge_step_from hna4).2.2.2.2.2.2.2.2.2 ⟨h_o3, a3⟩
+    exact ⟨2, by omega, s4, hit4, h_o4, a4⟩
+  · have a1 := (nextAge_step_from hna1).2.2.2.2.2.2.2.2.1 ⟨ho, ha4⟩
+    have a2 := (nextAge_step_from hna2).2.2.2.2.2.2.2.2.2 ⟨h_o1, a1⟩
+    exact ⟨1, by omega, s2, hit2, h_o2, a2⟩
+
+/-- **Pure Ground-State Macro-Cycle Closure Equivalence
+(`q01Gap_and_massDiverges_iff_reset_iterVoidMacro_crash`).**
+Proves unconditionally that `FiniteSeedsTerminate`, `MassDiverges`, and `Rule30GateTrap.Q01Gap`
+are equivalent to macro-cycle Void termination (`∃ k, iterVoidMacro s k = none`) restricted
+purely to canonical surviving seeds `y ∈ survivingSeeds (2 * m + 1)` at post-reset ground states
+(`physStateOf y (2 * m + 1) = some s` with `s.age = 0`). -/
+theorem q01Gap_and_massDiverges_iff_reset_iterVoidMacro_crash :
+    (FiniteSeedsTerminate ↔
+      (∀ m : Nat, ∀ y ∈ survivingSeeds (2 * m + 1), ∀ s : PhysState,
+        physStateOf y (2 * m + 1) = some s → s.age = 0 →
+        ∃ k : Nat, iterVoidMacro s k = none)) ∧
+    (MassDiverges ↔
+      (∀ m : Nat, ∀ y ∈ survivingSeeds (2 * m + 1), ∀ s : PhysState,
+        physStateOf y (2 * m + 1) = some s → s.age = 0 →
+        ∃ k : Nat, iterVoidMacro s k = none)) ∧
+    (Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap ↔
+      (∀ m : Nat, ∀ y ∈ survivingSeeds (2 * m + 1), ∀ s : PhysState,
+        physStateOf y (2 * m + 1) = some s → s.age = 0 →
+        ∃ k : Nat, iterVoidMacro s k = none)) := by
+  have hfin_iff : FiniteSeedsTerminate ↔
+      (∀ m : Nat, ∀ y ∈ survivingSeeds (2 * m + 1), ∀ s : PhysState,
+        physStateOf y (2 * m + 1) = some s → s.age = 0 →
+        ∃ k : Nat, iterVoidMacro s k = none) := by
+    constructor
+    · intro hfin m y hy s hps ha
+      obtain ⟨L, hnone⟩ := q01Gap_and_massDiverges_iff_survivingSeeds_void_crash.1.mp hfin
+        (2 * m + 1) (by omega) y hy
+      unfold voidOrbit at hnone
+      rw [hps] at hnone
+      dsimp only [Option.bind] at hnone
+      obtain ⟨hn_eq, hm⟩ := physStateOf_sound y (2 * m + 1) s hps
+      have ho : s.isOdd = true := by
+        have ho_mod := hm.2.1
+        rw [← hn_eq, show (2 * m + 1) % 2 = 1 by omega] at ho_mod
+        exact ho_mod
+      exact (survivingSeeds_reset_iterVoidMacro_zc_and_crash_iff.1 s ho ha).mp ⟨L, hnone⟩
+    · intro hreset y
+      let m0 := y + 1
+      have hlt0 : y < 2 ^ (2 * m0 + 1) :=
+        Nat.lt_of_lt_of_le Nat.lt_two_pow_self (Nat.pow_le_pow_right (by decide) (by omega))
+      by_cases hs8 : SurvivesTo y (2 * m0 + 1 + 8)
+      · have hs0 : SurvivesTo y (2 * m0 + 1) :=
+          survivesTo_mono (by omega : 2 * m0 + 1 ≤ 2 * m0 + 1 + 8) hs8
+        obtain ⟨s0, hps0, hm0, hn0⟩ := physStateOf_isSome_of_survives (by omega) hs0
+        have ho0 : s0.isOdd = true := by
+          have ho_mod := hm0.2.1
+          rw [hn0, show (2 * m0 + 1) % 2 = 1 by omega] at ho_mod
+          exact ho_mod
+        have hzeros8 : ∀ j < 8, y.testBit (s0.n + j) = false := by
+          intro j _
+          apply Nat.testBit_lt_two_pow
+          rw [hn0]
+          exact Nat.lt_of_lt_of_le hlt0 (Nat.pow_le_pow_right (by decide) (by omega))
+        have his8 : (iterZeroNext s0 8).isSome = true := by
+          have hiff8 := iterZeroNext_isSome_iff_survives 8 hm0 hzeros8
+          rw [hn0] at hiff8
+          exact hiff8.mpr hs8
+        obtain ⟨j, hj_le, s', hstep2j, ho', ha'⟩ :=
+          void_odd_state_reaches_ground_reset_within_eight s0 ho0 his8
+        let m1 := m0 + j
+        have hn' : s'.n = 2 * m1 + 1 := by
+          have hneq := iterZeroNext_n_eq (2 * j) hstep2j
+          omega
+        have hm' : StateMatchesSeed y s' := by
+          have hsurv_m1 : SurvivesTo y (2 * m1 + 1) :=
+            survivesTo_mono (by omega : 2 * m1 + 1 ≤ 2 * m0 + 1 + 8) hs8
+          obtain ⟨s_can, hps_can, hm_can, hn_can⟩ :=
+            physStateOf_isSome_of_survives (by omega) hsurv_m1
+          -- Show iterZeroNext preserves StateMatchesSeed via zeroNext_spec_of_match
+          have hiter_match : ∀ (d : Nat) {u v : PhysState},
+              StateMatchesSeed y u →
+              (∀ i < d, y.testBit (u.n + i) = false) →
+              iterZeroNext u d = some v →
+              StateMatchesSeed y v := by
+            intro d
+            induction d with
+            | zero =>
+              intro u v hmu _ h0
+              simp only [iterZeroNext, Option.some.injEq] at h0
+              rwa [← h0]
+            | succ d ih =>
+              intro u v hmu hz_d hsucc
+              simp only [iterZeroNext] at hsucc
+              cases hzu : zeroNext u with
+              | none => simp [hzu] at hsucc
+              | some u1 =>
+                rw [hzu] at hsucc
+                have hbu : y.testBit u.n = false := hz_d 0 (by omega)
+                have hmu1 := ((zeroNext_spec_of_match hmu).1 hbu).2 u1 hzu |>.2.2.1
+                have hnu1 := (zeroNext_n_isOdd_and_age hzu).1
+                apply ih hmu1 _ hsucc
+                intro i hi
+                rw [hnu1, show u.n + 1 + i = u.n + (i + 1) by omega]
+                exact hz_d (i + 1) (by omega)
+          exact hiter_match (2 * j) hm0 (fun i hi => hzeros8 i (by omega)) hstep2j
+        have hps' : physStateOf y (2 * m1 + 1) = some s' :=
+          (physStateOf_spec y (2 * m1 + 1) s').mpr ⟨hn'.symm, hm'⟩
+        have hsurv_m1 : SurvivesTo y (2 * m1 + 1) := by
+          have hs := stateMatchesSeed_survivesTo hm'
+          rwa [hn'] at hs
+        have hlt_m1 : y < 2 ^ (2 * m1 + 1) :=
+          Nat.lt_of_lt_of_le hlt0 (Nat.pow_le_pow_right (by decide) (by omega))
+        have hy_mem : y ∈ survivingSeeds (2 * m1 + 1) :=
+          (mem_survivingSeeds_iff_and_survivesTo_iff (2 * m1 + 1) y).1.mpr ⟨hlt_m1, hsurv_m1⟩
+        obtain ⟨k, hmacro_none⟩ := hreset m1 y hy_mem s' hps' ha'
+        obtain ⟨L, hzero_none⟩ :=
+          (survivingSeeds_reset_iterVoidMacro_zc_and_crash_iff.1 s' ho' ha').mpr ⟨k, hmacro_none⟩
+        have hvo_none : voidOrbit y (2 * m1 + 1) L = none := by
+          unfold voidOrbit
+          rw [hps']
+          exact hzero_none
+        exact ⟨2 * m1 + 1 + L,
+          ((survivingSeeds_void_crash_forces_weight_step (2 * m1 + 1) L y (by omega) hy_mem).2 hvo_none).1⟩
+      · exact ⟨2 * m0 + 1 + 8, hs8⟩
+  have hmass_iff : MassDiverges ↔
+      (∀ m : Nat, ∀ y ∈ survivingSeeds (2 * m + 1), ∀ s : PhysState,
+        physStateOf y (2 * m + 1) = some s → s.age = 0 →
+        ∃ k : Nat, iterVoidMacro s k = none) :=
+    Iff.trans finite_seeds_terminate_iff_mass_diverges.symm hfin_iff
+  have hq01_iff : Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap ↔
+      (∀ m : Nat, ∀ y ∈ survivingSeeds (2 * m + 1), ∀ s : PhysState,
+        physStateOf y (2 * m + 1) = some s → s.age = 0 →
+        ∃ k : Nat, iterVoidMacro s k = none) :=
+    Iff.trans massDiverges_iff_Q01Gap.symm hmass_iff
+  exact ⟨hfin_iff, hmass_iff, hq01_iff⟩
+
+end FirstActiveBitAndMacroClosure
+
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
