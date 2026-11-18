@@ -153,6 +153,7 @@ public import Ruliology.CellularAutomata.Rule30PrefixMerger
 public import Ruliology.CellularAutomata.Rule30LateTwins
 public import Ruliology.CellularAutomata.Rule30AgeEightInverse
 public import Ruliology.CellularAutomata.Rule30AgeTwentyFourInverse
+public import Ruliology.CellularAutomata.Rule30AgeEightyInverse
 public import Ruliology.CellularAutomata.Rule30BlackRunErosion
 public import Ruliology.CellularAutomata.Rule30LeftReset
 public import Ruliology.CellularAutomata.Rule30LeftUnbounded
