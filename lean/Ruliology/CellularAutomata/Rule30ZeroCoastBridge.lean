@@ -4422,5 +4422,427 @@ theorem voidMacroStep_and_iterVoidMacro_dilation_laws :
 
 end GE2SeedsAndVoidMacroReturnMap
 
+/-! ## 16. Exact Assembly-Index / Even-Time Zero Count (`Zc`) Increment and Macro-Cycle Termination Equivalences for `iterVoidMacro` (`voidMacroStep_zc_increment`, `iterVoidMacro_zc_increment_and_density_laws`, `survivingSeeds_reset_iterVoidMacro_zc_and_crash_iff`) -/
+
+section VoidMacroZcIncrement
+open Rule30ZeroBoundary.IntegerForm
+
+theorem gateNext_eq_some_iff_bit {a a' : Nat} {b : Bool} (h : gateNext a b = some a') :
+    (a' = 0 → b = true) ∧ (a' ≠ 0 → b = false) := by
+  cases a with
+  | zero =>
+    cases b <;> simp [gateNext] at h
+    subst h; decide
+  | succ a1 =>
+    cases a1 with
+    | zero =>
+      cases b <;> simp [gateNext] at h
+      subst h; decide
+    | succ a2 =>
+      cases a2 with
+      | zero =>
+        cases b <;> simp [gateNext] at h <;> subst h <;> decide
+      | succ a3 =>
+        cases a3 with
+        | zero =>
+          cases b <;> simp [gateNext] at h
+          subst h; decide
+        | succ a4 =>
+          cases a4 with
+          | zero =>
+            cases b <;> simp [gateNext] at h
+            subst h; decide
+          | succ a5 =>
+            cases b <;> simp [gateNext] at h
+
+theorem zeroNext_match_and_tr_bit {y : Nat} {s s' : PhysState}
+    (hm : StateMatchesSeed y s) (hb0 : y.testBit s.n = false)
+    (hz : zeroNext s = some s') :
+    StateMatchesSeed y s' ∧
+    s'.n = s.n + 1 ∧
+    s'.isOdd = !s.isOdd ∧
+    nextAge s.isOdd s.age (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y s.n) =
+      some s'.age := by
+  have hspec := (zeroNext_spec_of_match hm).1 hb0 |>.2 s' hz
+  obtain ⟨hzrow, _, hm', _, _⟩ := hspec
+  obtain ⟨hn', ho', hna⟩ := zeroNext_n_isOdd_and_age hz
+  have htr_eq : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y s.n =
+      piParity (physSigma s) := by
+    rw [← hzrow]
+    exact (zrow_rowOfNat_col1 y s.n).symm
+  rw [htr_eq]
+  exact ⟨hm', hn', ho', hna⟩
+
+theorem zc_step_of_even_zeroNext {y j : Nat} {s s' : PhysState}
+    (hm : StateMatchesSeed y s) (hn : s.n = 2 * j) (ho : s.isOdd = false)
+    (hb0 : y.testBit s.n = false) (hz : zeroNext s = some s') :
+    (s'.age = 0 →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (j + 1) =
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) j + 1) ∧
+    (s'.age ≠ 0 →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (j + 1) =
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) j) := by
+  obtain ⟨_, _, _, hna⟩ := zeroNext_match_and_tr_bit hm hb0 hz
+  rw [ho, hn] at hna
+  dsimp only [nextAge] at hna
+  have hbit := gateNext_eq_some_iff_bit hna
+  constructor
+  · intro ha0
+    have htr_false : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * j) = false := by
+      simpa using hbit.1 ha0
+    simp [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc, htr_false]
+  · intro hne0
+    have htr_true : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y (2 * j) = true := by
+      simpa using hbit.2 hne0
+    simp [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc, htr_true]
+
+/-- **Single Macro-Step `Zc` Increment Theorem (`voidMacroStep_zc_increment`).**
+From any post-reset ground state `s` (`StateMatchesSeed y s`, `s.n = 2 * m + 1`, `s.isOdd = true`,
+`s.age = 0`), a single macro-step `voidMacroStep s = some (s', dt)` in the Zero Void (`∀ j < dt,
+y.testBit (s.n + j) = false`) advances the half-horizon by `dm ∈ {3, 5}` (`dt = 2 * dm`,
+`s'.n = 2 * (m + dm) + 1`), preserves `StateMatchesSeed y s'` and `s'.isOdd = true ∧ s'.age = 0`,
+and increments the even-time zero count `Zc (tr y)` by exactly `+1`:
+`Zc (tr y) (m + dm + 1) = Zc (tr y) (m + 1) + 1`. -/
+theorem voidMacroStep_zc_increment {y m dt : Nat} {s s' : PhysState}
+    (hm : StateMatchesSeed y s) (hn : s.n = 2 * m + 1)
+    (ho : s.isOdd = true) (ha : s.age = 0)
+    (hzeros : ∀ j < dt, y.testBit (s.n + j) = false)
+    (hms : voidMacroStep s = some (s', dt)) :
+    ∃ dm : Nat,
+      (dm = 3 ∨ dm = 5) ∧
+      dt = 2 * dm ∧
+      StateMatchesSeed y s' ∧
+      s'.n = 2 * (m + dm) + 1 ∧
+      s'.isOdd = true ∧
+      s'.age = 0 ∧
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + dm + 1) =
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + 1) + 1 := by
+  obtain ⟨hdt, hiter, hn', ho', ha'⟩ := voidMacroStep_spec hms
+  rcases hdt with rfl | rfl
+  · rcases s1_eq : zeroNext s with _ | s1
+    · simp [iterZeroNext, s1_eq] at hiter
+    have h6_1 : iterZeroNext s1 5 = some s' := by simpa [iterZeroNext, s1_eq] using hiter
+    rcases s2_eq : zeroNext s1 with _ | s2
+    · simp [iterZeroNext, s2_eq] at h6_1
+    have h6_2 : iterZeroNext s2 4 = some s' := by simpa [iterZeroNext, s2_eq] using h6_1
+    rcases s3_eq : zeroNext s2 with _ | s3
+    · simp [iterZeroNext, s3_eq] at h6_2
+    have h6_3 : iterZeroNext s3 3 = some s' := by simpa [iterZeroNext, s3_eq] using h6_2
+    rcases s4_eq : zeroNext s3 with _ | s4
+    · simp [iterZeroNext, s4_eq] at h6_3
+    have h6_4 : iterZeroNext s4 2 = some s' := by simpa [iterZeroNext, s4_eq] using h6_3
+    rcases s5_eq : zeroNext s4 with _ | s5
+    · simp [iterZeroNext, s5_eq] at h6_4
+    have h6_5 : zeroNext s5 = some s' := by
+      rw [← iterZeroNext_one s5]
+      simpa [iterZeroNext, s5_eq] using h6_4
+    have hb0 : y.testBit s.n = false := hzeros 0 (by omega)
+    obtain ⟨hm1, hn1, ho1, hna1⟩ := zeroNext_match_and_tr_bit hm hb0 s1_eq
+    have hb1 : y.testBit s1.n = false := by rw [hn1]; exact hzeros 1 (by omega)
+    obtain ⟨hm2, hn2, ho2, hna2⟩ := zeroNext_match_and_tr_bit hm1 hb1 s2_eq
+    have hb2 : y.testBit s2.n = false := by rw [hn2, hn1]; exact hzeros 2 (by omega)
+    obtain ⟨hm3, hn3, ho3, hna3⟩ := zeroNext_match_and_tr_bit hm2 hb2 s3_eq
+    have hb3 : y.testBit s3.n = false := by rw [hn3, hn2, hn1]; exact hzeros 3 (by omega)
+    obtain ⟨hm4, hn4, ho4, hna4⟩ := zeroNext_match_and_tr_bit hm3 hb3 s4_eq
+    have hb4 : y.testBit s4.n = false := by rw [hn4, hn3, hn2, hn1]; exact hzeros 4 (by omega)
+    obtain ⟨hm5, hn5, ho5, hna5⟩ := zeroNext_match_and_tr_bit hm4 hb4 s5_eq
+    have hb5 : y.testBit s5.n = false := by rw [hn5, hn4, hn3, hn2, hn1]; exact hzeros 5 (by omega)
+    obtain ⟨hm6, hn6, ho6, _⟩ := zeroNext_match_and_tr_bit hm5 hb5 h6_5
+    have h_o1 : s1.isOdd = false := by rw [ho1, ho]; rfl
+    have h_o2 : s2.isOdd = true := by rw [ho2, h_o1]; rfl
+    have h_o3 : s3.isOdd = false := by rw [ho3, h_o2]; rfl
+    have h_o4 : s4.isOdd = true := by rw [ho4, h_o3]; rfl
+    have h_o5 : s5.isOdd = false := by rw [ho5, h_o4]; rfl
+    have ha1 := (nextAge_step_from hna1).1 ⟨ho, ha⟩
+    have ha2 := (nextAge_step_from hna2).2.1 ⟨h_o1, ha1⟩
+    have ha3 := (nextAge_step_from hna3).2.2.1 ⟨h_o2, ha2⟩
+    have ha4 := (nextAge_step_from hna4).2.2.2.1 ⟨h_o3, ha3⟩
+    have hzc1 := (zc_step_of_even_zeroNext hm1 (by omega : s1.n = 2 * (m + 1)) h_o1 hb1 s2_eq).2 (by omega)
+    have hzc2 := (zc_step_of_even_zeroNext hm3 (by omega : s3.n = 2 * (m + 2)) h_o3 hb3 s4_eq).2 (by omega)
+    have hzc3 := (zc_step_of_even_zeroNext hm5 (by omega : s5.n = 2 * (m + 3)) h_o5 hb5 h6_5).1 ha'
+    rw [Nat.add_assoc] at hzc1 hzc2
+    refine ⟨3, Or.inl rfl, rfl, hm6, by omega, ho', ha', ?_⟩
+    rw [hzc3, hzc2, hzc1]
+  · unfold voidMacroStep at hms
+    cases h6 : iterZeroNext s 6 with
+    | none => simp [h6] at hms
+    | some s6 =>
+      rw [h6] at hms
+      dsimp only at hms
+      split at hms
+      · next hcond6 =>
+        simp only [Option.some.injEq, Prod.mk.injEq] at hms
+        omega
+      · next hnot6 =>
+        have hsplit : iterZeroNext s 10 = (iterZeroNext s 6).bind (fun u => iterZeroNext u 4) :=
+          iterZeroNext_add s 6 4
+        rw [hiter, h6] at hsplit
+        dsimp only [Option.bind] at hsplit
+        have hrem : iterZeroNext s6 4 = some s' := hsplit.symm
+        rcases s1_eq : zeroNext s with _ | s1
+        · simp [iterZeroNext, s1_eq] at h6
+        have h6_1 : iterZeroNext s1 5 = some s6 := by simpa [iterZeroNext, s1_eq] using h6
+        rcases s2_eq : zeroNext s1 with _ | s2
+        · simp [iterZeroNext, s2_eq] at h6_1
+        have h6_2 : iterZeroNext s2 4 = some s6 := by simpa [iterZeroNext, s2_eq] using h6_1
+        rcases s3_eq : zeroNext s2 with _ | s3
+        · simp [iterZeroNext, s3_eq] at h6_2
+        have h6_3 : iterZeroNext s3 3 = some s6 := by simpa [iterZeroNext, s3_eq] using h6_2
+        rcases s4_eq : zeroNext s3 with _ | s4
+        · simp [iterZeroNext, s4_eq] at h6_3
+        have h6_4 : iterZeroNext s4 2 = some s6 := by simpa [iterZeroNext, s4_eq] using h6_3
+        rcases s5_eq : zeroNext s4 with _ | s5
+        · simp [iterZeroNext, s5_eq] at h6_4
+        have h6_5 : zeroNext s5 = some s6 := by
+          rw [← iterZeroNext_one s5]
+          simpa [iterZeroNext, s5_eq] using h6_4
+        rcases s7_eq : zeroNext s6 with _ | s7
+        · simp [iterZeroNext, s7_eq] at hrem
+        have hrem1 : iterZeroNext s7 3 = some s' := by simpa [iterZeroNext, s7_eq] using hrem
+        rcases s8_eq : zeroNext s7 with _ | s8
+        · simp [iterZeroNext, s8_eq] at hrem1
+        have hrem2 : iterZeroNext s8 2 = some s' := by simpa [iterZeroNext, s8_eq] using hrem1
+        rcases s9_eq : zeroNext s8 with _ | s9
+        · simp [iterZeroNext, s9_eq] at hrem2
+        have hrem3 : zeroNext s9 = some s' := by
+          rw [← iterZeroNext_one s9]
+          simpa [iterZeroNext, s9_eq] using hrem2
+        have hb0 : y.testBit s.n = false := hzeros 0 (by omega)
+        obtain ⟨hm1, hn1, ho1, hna1⟩ := zeroNext_match_and_tr_bit hm hb0 s1_eq
+        have hb1 : y.testBit s1.n = false := by rw [hn1]; exact hzeros 1 (by omega)
+        obtain ⟨hm2, hn2, ho2, hna2⟩ := zeroNext_match_and_tr_bit hm1 hb1 s2_eq
+        have hb2 : y.testBit s2.n = false := by rw [hn2, hn1]; exact hzeros 2 (by omega)
+        obtain ⟨hm3, hn3, ho3, hna3⟩ := zeroNext_match_and_tr_bit hm2 hb2 s3_eq
+        have hb3 : y.testBit s3.n = false := by rw [hn3, hn2, hn1]; exact hzeros 3 (by omega)
+        obtain ⟨hm4, hn4, ho4, hna4⟩ := zeroNext_match_and_tr_bit hm3 hb3 s4_eq
+        have hb4 : y.testBit s4.n = false := by rw [hn4, hn3, hn2, hn1]; exact hzeros 4 (by omega)
+        obtain ⟨hm5, hn5, ho5, hna5⟩ := zeroNext_match_and_tr_bit hm4 hb4 s5_eq
+        have hb5 : y.testBit s5.n = false := by rw [hn5, hn4, hn3, hn2, hn1]; exact hzeros 5 (by omega)
+        obtain ⟨hm6, hn6, ho6, hna6⟩ := zeroNext_match_and_tr_bit hm5 hb5 h6_5
+        have hb6 : y.testBit s6.n = false := by rw [hn6, hn5, hn4, hn3, hn2, hn1]; exact hzeros 6 (by omega)
+        obtain ⟨hm7, hn7, ho7, hna7⟩ := zeroNext_match_and_tr_bit hm6 hb6 s7_eq
+        have hb7 : y.testBit s7.n = false := by rw [hn7, hn6, hn5, hn4, hn3, hn2, hn1]; exact hzeros 7 (by omega)
+        obtain ⟨hm8, hn8, ho8, hna8⟩ := zeroNext_match_and_tr_bit hm7 hb7 s8_eq
+        have hb8 : y.testBit s8.n = false := by rw [hn8, hn7, hn6, hn5, hn4, hn3, hn2, hn1]; exact hzeros 8 (by omega)
+        obtain ⟨hm9, hn9, ho9, hna9⟩ := zeroNext_match_and_tr_bit hm8 hb8 s9_eq
+        have hb9 : y.testBit s9.n = false := by rw [hn9, hn8, hn7, hn6, hn5, hn4, hn3, hn2, hn1]; exact hzeros 9 (by omega)
+        obtain ⟨hm10, hn10, _, _⟩ := zeroNext_match_and_tr_bit hm9 hb9 hrem3
+        have h_o1 : s1.isOdd = false := by rw [ho1, ho]; rfl
+        have h_o2 : s2.isOdd = true := by rw [ho2, h_o1]; rfl
+        have h_o3 : s3.isOdd = false := by rw [ho3, h_o2]; rfl
+        have h_o4 : s4.isOdd = true := by rw [ho4, h_o3]; rfl
+        have h_o5 : s5.isOdd = false := by rw [ho5, h_o4]; rfl
+        have h_o6 : s6.isOdd = true := by rw [ho6, h_o5]; rfl
+        have h_o7 : s7.isOdd = false := by rw [ho7, h_o6]; rfl
+        have h_o8 : s8.isOdd = true := by rw [ho8, h_o7]; rfl
+        have h_o9 : s9.isOdd = false := by rw [ho9, h_o8]; rfl
+        have ha1 := (nextAge_step_from hna1).1 ⟨ho, ha⟩
+        have ha2 := (nextAge_step_from hna2).2.1 ⟨h_o1, ha1⟩
+        have ha3 := (nextAge_step_from hna3).2.2.1 ⟨h_o2, ha2⟩
+        have ha4 := (nextAge_step_from hna4).2.2.2.1 ⟨h_o3, ha3⟩
+        have ha5 := (nextAge_step_from hna5).2.2.2.2.1 ⟨h_o4, ha4⟩
+        have ha6 := (nextAge_step_from hna6).2.2.2.2.2.1 ⟨h_o5, ha5⟩
+        have ha6_3 : s6.age = 3 := by
+          rcases ha6 with ha6_0 | ha6_3
+          · exfalso; apply hnot6; simp [h_o6, ha6_0]
+          · exact ha6_3
+        have ha7 := (nextAge_step_from hna7).2.2.2.2.2.2.1 ⟨h_o6, ha6_3⟩
+        have ha8 := (nextAge_step_from hna8).2.2.2.2.2.2.2.1 ⟨h_o7, ha7⟩
+        have hzc1 := (zc_step_of_even_zeroNext hm1 (by omega : s1.n = 2 * (m + 1)) h_o1 hb1 s2_eq).2 (by omega)
+        have hzc2 := (zc_step_of_even_zeroNext hm3 (by omega : s3.n = 2 * (m + 2)) h_o3 hb3 s4_eq).2 (by omega)
+        have hzc3 := (zc_step_of_even_zeroNext hm5 (by omega : s5.n = 2 * (m + 3)) h_o5 hb5 h6_5).2 (by omega)
+        have hzc4 := (zc_step_of_even_zeroNext hm7 (by omega : s7.n = 2 * (m + 4)) h_o7 hb7 s8_eq).2 (by omega)
+        have hzc5 := (zc_step_of_even_zeroNext hm9 (by omega : s9.n = 2 * (m + 5)) h_o9 hb9 hrem3).1 ha'
+        rw [Nat.add_assoc] at hzc1 hzc2 hzc3 hzc4
+        refine ⟨5, Or.inr rfl, rfl, hm10, by omega, ho', ha', ?_⟩
+        rw [hzc5, hzc4, hzc3, hzc2, hzc1]
+
+/-- **Exact Assembly-Index (`Zc`) Increment and Two-Sided Density Laws Across `k` Cycles of `iterVoidMacro`
+(`iterVoidMacro_zc_increment_and_density_laws`).**
+For every cycle count `k : Nat`, seed `y : Nat`, half-horizon `m : Nat`, and states `s s' : PhysState`,
+if `StateMatchesSeed y s`, `s.n = 2 * m + 1`, `s.isOdd = true`, `s.age = 0`,
+`∀ j < 10 * k, y.testBit (s.n + j) = false`, and `iterVoidMacro s k = some s'`, then there exists
+an exact half-horizon advance `dm : Nat` such that:
+1. `3 * k ≤ dm ∧ dm ≤ 5 * k`,
+2. `StateMatchesSeed y s' ∧ s'.n = 2 * (m + dm) + 1 ∧ s'.isOdd = true ∧ s'.age = 0`,
+3. `Zc (tr y) (m + dm + 1) = Zc (tr y) (m + 1) + k` (every macro-cycle increments the even-time
+   zero count `Zc` by exactly `+1`), and
+4. For `s = initPhysState` (`m = 0`) and any `y` with `∀ j < 10 * k + 1, y.testBit j = false`,
+   `iterVoidMacro initPhysState k = some s'` implies `Zc (tr y) (dm + 1) = k + 1`. -/
+theorem iterVoidMacro_zc_increment_and_density_laws :
+    (∀ k y m : Nat, ∀ s s' : PhysState,
+      StateMatchesSeed y s →
+      s.n = 2 * m + 1 →
+      s.isOdd = true →
+      s.age = 0 →
+      (∀ j < 10 * k, y.testBit (s.n + j) = false) →
+      iterVoidMacro s k = some s' →
+        ∃ dm : Nat,
+          3 * k ≤ dm ∧ dm ≤ 5 * k ∧
+          StateMatchesSeed y s' ∧
+          s'.n = 2 * (m + dm) + 1 ∧
+          s'.isOdd = true ∧
+          s'.age = 0 ∧
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+            (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + dm + 1) =
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+            (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + 1) + k) ∧
+    (∀ k y : Nat, ∀ s' : PhysState,
+      (∀ j < 10 * k + 1, y.testBit j = false) →
+      iterVoidMacro initPhysState k = some s' →
+        ∃ dm : Nat,
+          3 * k ≤ dm ∧ dm ≤ 5 * k ∧
+          s'.n = 2 * dm + 1 ∧
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+            (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (dm + 1) = k + 1) := by
+  have hmain : ∀ k y m : Nat, ∀ s s' : PhysState,
+      StateMatchesSeed y s →
+      s.n = 2 * m + 1 →
+      s.isOdd = true →
+      s.age = 0 →
+      (∀ j < 10 * k, y.testBit (s.n + j) = false) →
+      iterVoidMacro s k = some s' →
+        ∃ dm : Nat,
+          3 * k ≤ dm ∧ dm ≤ 5 * k ∧
+          StateMatchesSeed y s' ∧
+          s'.n = 2 * (m + dm) + 1 ∧
+          s'.isOdd = true ∧
+          s'.age = 0 ∧
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+            (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + dm + 1) =
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+            (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + 1) + k := by
+    intro k
+    induction k with
+    | zero =>
+      intro y m s s' hm hn ho ha _ hiter
+      simp only [iterVoidMacro, Option.some.injEq] at hiter
+      subst hiter
+      exact ⟨0, by omega, by omega, hm, by omega, ho, ha, by simp⟩
+    | succ k ih =>
+      intro y m s s' hm hn ho ha hzeros hiter
+      simp only [iterVoidMacro] at hiter
+      cases hms : voidMacroStep s with
+      | none => simp [hms] at hiter
+      | some pr =>
+        rcases pr with ⟨s1, dt⟩
+        rw [hms] at hiter
+        have hdt_le : dt ≤ 10 := by
+          rcases (voidMacroStep_spec hms).1 with rfl | rfl <;> omega
+        have hz_dt : ∀ j < dt, y.testBit (s.n + j) = false := fun j hj =>
+          hzeros j (by omega)
+        obtain ⟨dm1, hdm1_35, hdt_eq, hm1, hn1, ho1, ha1, hzc1⟩ :=
+          voidMacroStep_zc_increment hm hn ho ha hz_dt hms
+        have hz_rem : ∀ j < 10 * k, y.testBit (s1.n + j) = false := by
+          intro j hj
+          rw [hn1, show 2 * (m + dm1) + 1 + j = s.n + (dt + j) by omega]
+          exact hzeros (dt + j) (by omega)
+        obtain ⟨dm2, hdm2_lo, hdm2_hi, hm', hn', ho', ha', hzc2⟩ :=
+          ih y (m + dm1) s1 s' hm1 hn1 ho1 ha1 hz_rem hiter
+        refine ⟨dm1 + dm2, ?_, ?_, hm', ?_, ho', ha', ?_⟩
+        · rcases hdm1_35 with rfl | rfl <;> omega
+        · rcases hdm1_35 with rfl | rfl <;> omega
+        · rw [← Nat.add_assoc]; exact hn'
+        · rw [show m + (dm1 + dm2) + 1 = m + dm1 + dm2 + 1 by omega]
+          omega
+  refine ⟨hmain, fun k y s' hzeros hiter => ?_⟩
+  have hy0 : y.testBit 0 = false := hzeros 0 (by omega)
+  have hm0 : StateMatchesSeed y initPhysState :=
+    ⟨by decide, by decide, hy0, by simp [initPhysState, trace, acceptFinal],
+      by simp [initPhysState, antidiag, iter, hy0], rfl⟩
+  have hz0 : ∀ j < 10 * k, y.testBit (initPhysState.n + j) = false := by
+    intro j hj
+    change y.testBit (1 + j) = false
+    exact hzeros (1 + j) (by omega)
+  obtain ⟨dm, hlo, hhi, _, hn', _, _, hzc⟩ :=
+    hmain k y 0 initPhysState s' hm0 rfl rfl rfl hz0 hiter
+  have hzc0 : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+      (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) 1 = 1 := by
+    have htr0 : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y 0 = false := hy0
+    simp [Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc, htr0]
+  refine ⟨dm, hlo, hhi, by simpa using hn', ?_⟩
+  simpa [hzc0, Nat.add_comm] using hzc
+
+/-- **Macro-Cycle Void Termination Equivalence and Canonical Seed `Zc` Evolution
+(`survivingSeeds_reset_iterVoidMacro_zc_and_crash_iff`).**
+1. For any post-reset ground state `s` (`s.isOdd = true ∧ s.age = 0`), microscopic Void termination
+   `∃ L, iterZeroNext s L = none` holds if and only if macro-cycle Void termination
+   `∃ k, iterVoidMacro s k = none` holds.
+2. For any canonical surviving seed `y ∈ survivingSeeds (2 * m + 1)` whose state
+   `physStateOf y (2 * m + 1) = some s` is in the ground state (`s.age = 0`), if
+   `iterVoidMacro s k = some s'`, then there exists `dm` with `3 * k ≤ dm ≤ 5 * k` such that
+   `y ∈ survivingSeeds (2 * (m + dm) + 1)` and
+   `Zc (tr y) (m + dm + 1) = Zc (tr y) (m + 1) + k`. -/
+theorem survivingSeeds_reset_iterVoidMacro_zc_and_crash_iff :
+    (∀ s : PhysState, s.isOdd = true → s.age = 0 →
+      ((∃ L : Nat, iterZeroNext s L = none) ↔
+        (∃ k : Nat, iterVoidMacro s k = none))) ∧
+    (∀ m k y : Nat, ∀ s s' : PhysState,
+      y ∈ survivingSeeds (2 * m + 1) →
+      physStateOf y (2 * m + 1) = some s →
+      s.age = 0 →
+      iterVoidMacro s k = some s' →
+        ∃ dm : Nat,
+          3 * k ≤ dm ∧ dm ≤ 5 * k ∧
+          y ∈ survivingSeeds (2 * (m + dm) + 1) ∧
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+            (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + dm + 1) =
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.Zc
+            (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr y) (m + 1) + k) := by
+  have hlaws := voidMacroStep_and_iterVoidMacro_dilation_laws
+  refine ⟨fun s ho ha => ?_, fun m k y s s' hy hps ha hiter => ?_⟩
+  · constructor
+    · rintro ⟨L, hnone⟩
+      refine ⟨L, ?_⟩
+      cases hm : iterVoidMacro s L with
+      | none => rfl
+      | some s' =>
+        exfalso
+        obtain ⟨L', hlo, _, hstep, _⟩ := hlaws.2.2.1 L s s' hm
+        have hle : L ≤ L' := by omega
+        obtain ⟨d, hd⟩ := Nat.exists_eq_add_of_le hle
+        rw [hd, iterZeroNext_add, hnone] at hstep
+        simp at hstep
+    · rintro ⟨k, hnone⟩
+      refine ⟨10 * k, ?_⟩
+      cases h10k : iterZeroNext s (10 * k) with
+      | none => rfl
+      | some _ =>
+        exfalso
+        have his : (iterVoidMacro s k).isSome = true :=
+          hlaws.2.2.2 k s ho ha (by simp [h10k])
+        rw [hnone] at his
+        simp at his
+  · obtain ⟨hlt_y, _⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff (2 * m + 1) y).1.mp hy
+    obtain ⟨hn_eq, hm⟩ := physStateOf_sound y (2 * m + 1) s hps
+    have hn : s.n = 2 * m + 1 := hn_eq.symm
+    have ho : s.isOdd = true := by
+      have ho_mod := hm.2.1
+      rw [hn, show (2 * m + 1) % 2 = 1 by omega] at ho_mod
+      exact ho_mod
+    have hzeros : ∀ j < 10 * k, y.testBit (s.n + j) = false := by
+      intro j _
+      apply Nat.testBit_lt_two_pow
+      rw [hn]
+      exact Nat.lt_of_lt_of_le hlt_y (Nat.pow_le_pow_right (by decide) (by omega))
+    obtain ⟨dm, hlo, hhi, hm', hn', _, _, hzc⟩ :=
+      iterVoidMacro_zc_increment_and_density_laws.1 k y m s s' hm hn ho ha hzeros hiter
+    have hsurv' : SurvivesTo y (2 * (m + dm) + 1) := by
+      have hs := stateMatchesSeed_survivesTo hm'
+      rwa [hn'] at hs
+    have hlt' : y < 2 ^ (2 * (m + dm) + 1) :=
+      Nat.lt_of_lt_of_le hlt_y (Nat.pow_le_pow_right (by decide) (by omega))
+    have hy' : y ∈ survivingSeeds (2 * (m + dm) + 1) :=
+      (mem_survivingSeeds_iff_and_survivesTo_iff (2 * (m + dm) + 1) y).1.mpr ⟨hlt', hsurv'⟩
+    exact ⟨dm, hlo, hhi, hy', hzc⟩
+
+end VoidMacroZcIncrement
+
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
