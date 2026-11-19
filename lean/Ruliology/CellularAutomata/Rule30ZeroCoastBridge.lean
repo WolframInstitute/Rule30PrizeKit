@@ -6191,5 +6191,294 @@ theorem toggleTraceSeed_survivesTo_iff_of_fits_65470 (H x : Nat) (hH : 17 ≤ H)
 
 end ResetSwapZeroCoastBridge
 
+/-! ## 22. Global `(trace, iter F)` Seed Injectivity, Unreachability of Isolated-Top-Bit States (`2 ^ (p + 1)`), Inward Lowest-Bit Shift, and White-Record Top-Bit Lower Bound (`iter_F_and_trace_injective_on_seeds`, `isolated_top_bit_no_F_predecessor`, `white_trace_prefix_inward_lowest_bit_and_width_lower_bound`) -/
+
+section WallAncestryIntegerSeedBridge
+open Rule30ZeroBoundary Rule30ZeroBoundary.IntegerForm
+
+theorem F_and_testBit_zero_inj {x1 x2 : Nat}
+    (hF : F x1 = F x2) (hb0 : x1.testBit 0 = x2.testBit 0) :
+    x1 = x2 := by
+  have hbit : ∀ n : Nat, x1.testBit n = x2.testBit n ∧ x1.testBit (n + 1) = x2.testBit (n + 1) := by
+    intro n
+    induction n with
+    | zero =>
+      refine ⟨hb0, ?_⟩
+      have hf0 := congrArg (fun z : Nat => z.testBit 0) hF
+      rw [testBit_F_zero, testBit_F_zero, hb0] at hf0
+      revert hf0
+      cases x1.testBit 1 <;> cases x2.testBit 1 <;> cases x2.testBit 0 <;> decide
+    | succ n ih =>
+      refine ⟨ih.2, ?_⟩
+      have hfn := congrArg (fun z : Nat => z.testBit (n + 1)) hF
+      rw [testBit_F_succ, testBit_F_succ, ih.1, ih.2] at hfn
+      revert hfn
+      cases x1.testBit (n + 2) <;> cases x2.testBit (n + 2) <;>
+        cases (x2.testBit (n + 1) || x2.testBit n) <;> decide
+  exact Nat.eq_of_testBit_eq (fun n => (hbit n).1)
+
+/-- **Global Injectivity of `(trace · k, iter F k ·)` on Integer Seeds
+(`iter_F_and_trace_injective_on_seeds`).**
+Constructively proves (`propext` only):
+1. One ZBL step `F` combined with bit `0` is globally injective on `Nat`:
+   `(F x1 = F x2 ∧ x1.testBit 0 = x2.testBit 0) ↔ x1 = x2`.
+2. For every generation height `k : Nat` and integer seeds `x1, x2 : Nat`, matching both the
+   `k`-step wall trace `trace x k` and the time-`k` integer state `iter F k x` uniquely determines
+   the entire seed on `Nat`:
+   `(iter F k x1 = iter F k x2 ∧ trace x1 k = trace x2 k) ↔ x1 = x2`. -/
+theorem iter_F_and_trace_injective_on_seeds :
+    (∀ x1 x2 : Nat,
+      (F x1 = F x2 ∧ x1.testBit 0 = x2.testBit 0) ↔ x1 = x2) ∧
+    (∀ k x1 x2 : Nat,
+      (iter F k x1 = iter F k x2 ∧ trace x1 k = trace x2 k) ↔ x1 = x2) := by
+  have h1 : ∀ x1 x2 : Nat, (F x1 = F x2 ∧ x1.testBit 0 = x2.testBit 0) ↔ x1 = x2 := by
+    intro x1 x2
+    constructor
+    · rintro ⟨hF, hb0⟩
+      exact F_and_testBit_zero_inj hF hb0
+    · rintro rfl
+      exact ⟨rfl, rfl⟩
+  refine ⟨h1, fun k => ?_⟩
+  induction k with
+  | zero =>
+    intro x1 x2
+    simp [iter, trace]
+  | succ k ih =>
+    intro x1 x2
+    constructor
+    · rintro ⟨hit, htr⟩
+      rw [trace_succ_left_eq, trace_succ_left_eq, List.cons.injEq] at htr
+      rw [ ← iter_F_succ_right k x1, ← iter_F_succ_right k x2] at hit
+      have hF_eq : F x1 = F x2 := (ih (F x1) (F x2)).mp ⟨hit, htr.2⟩
+      exact F_and_testBit_zero_inj hF_eq htr.1
+    · rintro rfl
+      exact ⟨rfl, rfl⟩
+
+theorem isolated_top_bit_forces_all_higher_bits_true {x y p : Nat}
+    (hp0 : y.testBit p = false)
+    (hp1 : y.testBit (p + 1) = true)
+    (htop : ∀ j : Nat, p + 1 < j → y.testBit j = false)
+    (hFx : F x = y) :
+    ∀ d : Nat, x.testBit (p + 3 + d) = true := by
+  have hor_p : (x.testBit (p + 1) || x.testBit p) = x.testBit (p + 1) := by
+    have hfp := congrArg (fun z : Nat => z.testBit p) hFx
+    rw [hp0] at hfp
+    cases p with
+    | zero =>
+      rw [testBit_F_zero] at hfp
+      revert hfp
+      cases x.testBit 1 <;> cases x.testBit 0 <;> decide
+    | succ q =>
+      rw [testBit_F_succ] at hfp
+      revert hfp
+      cases x.testBit (q + 2) <;> cases x.testBit (q + 1) <;> cases x.testBit q <;> decide
+  have hor_p1 : (x.testBit (p + 2) || x.testBit (p + 1)) = true := by
+    have hfp1 := congrArg (fun z : Nat => z.testBit (p + 1)) hFx
+    rw [hp1, testBit_F_succ, hor_p] at hfp1
+    revert hfp1
+    cases x.testBit (p + 2) <;> cases x.testBit (p + 1) <;> decide
+  have hstart : x.testBit (p + 3) = true := by
+    have hfp2 := congrArg (fun z : Nat => z.testBit (p + 2)) hFx
+    rw [htop (p + 2) (by omega), testBit_F_succ, hor_p1] at hfp2
+    revert hfp2
+    cases x.testBit (p + 3) <;> decide
+  intro d
+  induction d with
+  | zero => exact hstart
+  | succ d ih =>
+    have hfpd := congrArg (fun z : Nat => z.testBit (p + 3 + d)) hFx
+    rw [htop (p + 3 + d) (by omega),
+      show p + 3 + d = (p + 2 + d) + 1 by omega, testBit_F_succ,
+      show (p + 2 + d) + 2 = p + 3 + (d + 1) by omega,
+      show (p + 2 + d) + 1 = p + 3 + d by omega, ih, Bool.true_or] at hfpd
+    revert hfpd
+    cases x.testBit (p + 3 + (d + 1)) <;> decide
+
+/-- **Unreachability of Isolated-Top-Bit Integer States and Positive Powers of Two Under `F`
+(`isolated_top_bit_no_F_predecessor`).**
+Constructively proves (`propext` only):
+1. Whenever `y : Nat` has `y.testBit p = false`, `y.testBit (p + 1) = true`, and
+   `∀ j > p + 1, y.testBit j = false`, any `x` with `F x = y` would satisfy
+   `∀ d, x.testBit (p + 3 + d) = true`, so no integer seed `x : Nat` satisfies `F x = y`.
+2. In particular, for every `p : Nat`, `2 ^ (p + 1)` has no integer predecessor under `F`
+   (`∀ x : Nat, F x ≠ 2 ^ (p + 1)`), and for every `k ≥ 1`, `∀ x : Nat, iter F k x ≠ 2 ^ (p + 1)`. -/
+theorem isolated_top_bit_no_F_predecessor :
+    (∀ (p y : Nat),
+      y.testBit p = false →
+      y.testBit (p + 1) = true →
+      (∀ j : Nat, p + 1 < j → y.testBit j = false) →
+      ∀ x : Nat, F x ≠ y) ∧
+    (∀ (p x : Nat), F x ≠ 2 ^ (p + 1)) ∧
+    (∀ (k p x : Nat), 1 ≤ k → iter F k x ≠ 2 ^ (p + 1)) := by
+  have hmain : ∀ (p y : Nat),
+      y.testBit p = false →
+      y.testBit (p + 1) = true →
+      (∀ j : Nat, p + 1 < j → y.testBit j = false) →
+      ∀ x : Nat, F x ≠ y := by
+    intro p y hp0 hp1 htop x hFx
+    have htrue := isolated_top_bit_forces_all_higher_bits_true hp0 hp1 htop hFx x
+    have hlt : x < 2 ^ (p + 3 + x) :=
+      Nat.lt_of_lt_of_le Nat.lt_two_pow_self
+        (Nat.pow_le_pow_right (by decide) (by omega : x ≤ p + 3 + x))
+    have hfalse : x.testBit (p + 3 + x) = false := Nat.testBit_lt_two_pow hlt
+    rw [htrue] at hfalse
+    cases hfalse
+  have hpow : ∀ (p x : Nat), F x ≠ 2 ^ (p + 1) := by
+    intro p x
+    apply hmain p (2 ^ (p + 1))
+    · rw [Nat.testBit_two_pow]; exact decide_eq_false (by omega)
+    · simp [Nat.testBit_two_pow_self]
+    · intro j hj
+      rw [Nat.testBit_two_pow]
+      exact decide_eq_false (by omega)
+  refine ⟨hmain, hpow, fun k p x hk => ?_⟩
+  cases k with
+  | zero => omega
+  | succ k =>
+    change F (iter F k x) ≠ 2 ^ (p + 1)
+    exact hpow p (iter F k x)
+
+theorem F_lowest_bit_shift_one {y k : Nat}
+    (hlow : ∀ i : Nat, i < k + 1 → y.testBit i = false)
+    (hbit : y.testBit (k + 1) = true) :
+    (∀ i : Nat, i < k → (F y).testBit i = false) ∧
+    (F y).testBit k = true := by
+  refine ⟨fun i hi => ?_, ?_⟩
+  · cases i with
+    | zero =>
+      rw [testBit_F_zero, hlow 1 (by omega), hlow 0 (by omega)]
+      rfl
+    | succ j =>
+      rw [testBit_F_succ, hlow (j + 2) (by omega), hlow (j + 1) (by omega), hlow j (by omega)]
+      rfl
+  · cases k with
+    | zero =>
+      rw [testBit_F_zero, hbit, hlow 0 (by omega)]
+      rfl
+    | succ j =>
+      rw [testBit_F_succ, hbit, hlow (j + 1) (by omega), hlow j (by omega)]
+      rfl
+
+theorem iter_F_lowest_bit_shift {x n : Nat}
+    (hlow : ∀ i : Nat, i < n → x.testBit i = false)
+    (hbit : x.testBit n = true) :
+    ∀ t : Nat, t ≤ n →
+      (∀ i : Nat, i < n - t → (iter F t x).testBit i = false) ∧
+      (iter F t x).testBit (n - t) = true := by
+  intro t
+  induction t with
+  | zero =>
+    intro _
+    simpa using ⟨hlow, hbit⟩
+  | succ t ih =>
+    intro htn
+    obtain ⟨ih_low, ih_bit⟩ := ih (by omega)
+    have hsub : n - t = (n - (t + 1)) + 1 := by omega
+    rw [hsub] at ih_low ih_bit
+    show (∀ i < n - (t + 1), (F (iter F t x)).testBit i = false) ∧
+      (F (iter F t x)).testBit (n - (t + 1)) = true
+    exact F_lowest_bit_shift_one ih_low ih_bit
+
+/-- **All-White Trace Prefix Equivalence, Inward Lowest-Bit Shift, and White-Record Top-Bit Lower Bound
+(`white_trace_prefix_inward_lowest_bit_and_width_lower_bound`).**
+Constructively proves (`propext`, `Quot.sound` only):
+1. For every seed `x : Nat` and horizon `n : Nat`,
+   `(∀ t < n, tr x t = false) ↔ (∀ i < n, x.testBit i = false)` and
+   `(∀ t < n, tr x t = false) ↔ x % 2 ^ n = 0`.
+2. (**Inward Lowest-Bit Shift**): If `∀ i < n, x.testBit i = false` and `x.testBit n = true`,
+   then for every step `t ≤ n`,
+   `(∀ i < n - t, (iter F t x).testBit i = false) ∧ (iter F t x).testBit (n - t) = true`,
+   and at `t = n`, `tr x n = true`.
+3. (**White-Record Top-Bit Lower Bound**): If `x` has a `k`-step all-white past
+   (`∀ t < k, tr x t = false`), its time-`k` state `iter F k x` has an `H`-step all-white future
+   record (`∀ t < H, tr (iter F k x) t = false`), and `x` has top set bit `m`
+   (`x.testBit m = true ∧ ∀ i > m, x.testBit i = false`), then `k + H ≤ m`,
+   `(iter F k x).testBit (m + k) = true`, and `H + 2 * k ≤ m + k`. -/
+theorem white_trace_prefix_inward_lowest_bit_and_width_lower_bound :
+    (∀ (x n : Nat),
+      ((∀ t : Nat, t < n → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x t = false) ↔
+        x % 2 ^ n = 0) ∧
+      (x % 2 ^ n = 0 ↔ ∀ i : Nat, i < n → x.testBit i = false)) ∧
+    (∀ (x n : Nat),
+      (∀ i : Nat, i < n → x.testBit i = false) →
+      x.testBit n = true →
+      (∀ t : Nat, t ≤ n →
+        (∀ i : Nat, i < n - t → (iter F t x).testBit i = false) ∧
+        (iter F t x).testBit (n - t) = true) ∧
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x n = true) ∧
+    (∀ (x k H m : Nat),
+      (∀ t : Nat, t < k → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x t = false) →
+      (∀ t : Nat, t < H → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr (iter F k x) t = false) →
+      x.testBit m = true →
+      (∀ i : Nat, m < i → x.testBit i = false) →
+      k + H ≤ m ∧
+      (iter F k x).testBit (m + k) = true ∧
+      H + 2 * k ≤ m + k) := by
+  have htr_zero : ∀ t : Nat, Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr 0 t = false := by
+    intro t
+    change (iter F t 0).testBit 0 = false
+    rw [iter_F_zero]
+    rfl
+  have hmod_bits : ∀ (x n : Nat), x % 2 ^ n = 0 ↔ ∀ i : Nat, i < n → x.testBit i = false := by
+    intro x n
+    constructor
+    · intro hmod i hi
+      have hbit := congrArg (fun z : Nat => z.testBit i) hmod
+      rw [Nat.testBit_mod_two_pow, decide_eq_true hi, Bool.true_and, Nat.zero_testBit] at hbit
+      exact hbit
+    · intro hbits
+      apply Nat.eq_of_testBit_eq
+      intro i
+      rw [Nat.testBit_mod_two_pow]
+      by_cases hi : i < n
+      · simp [hi, hbits i hi]
+      · simp [hi]
+  have htr_mod : ∀ (x n : Nat),
+      (∀ t : Nat, t < n → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x t = false) ↔
+        x % 2 ^ n = 0 := by
+    intro x n
+    have hbij := (trace_eq_iff_mod_pow2_eq_and_seedOfTrace_bijection n x 0 []).1
+    rw [Nat.zero_mod] at hbij
+    rw [← hbij, trace_eq_map_range_tr x n, trace_eq_map_range_tr 0 n]
+    constructor
+    · intro h
+      refine List.map_congr_left fun t ht => ?_
+      rw [List.mem_range] at ht
+      rw [h t ht, htr_zero t]
+    · intro hmap t ht
+      have hget := congrArg (fun l : List Bool => l[t]?) hmap
+      simp only [List.getElem?_map, List.getElem?_range ht, Option.map_some, Option.some.injEq] at hget
+      rw [hget, htr_zero t]
+  refine ⟨fun x n => ⟨htr_mod x n, hmod_bits x n⟩, fun x n hlow hbit => ?_,
+    fun x k H m hpast hfut hm htop => ?_⟩
+  · have hshift := iter_F_lowest_bit_shift hlow hbit
+    have htrn : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x n = true := by
+      have hn := (hshift n (Nat.le_refl n)).2
+      rw [Nat.sub_self] at hn
+      exact hn
+    exact ⟨hshift, htrn⟩
+  · have hall_white : ∀ t : Nat, t < k + H →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x t = false := by
+      intro t ht
+      by_cases htk : t < k
+      · exact hpast t htk
+      · obtain ⟨s, rfl⟩ : ∃ s, t = k + s := ⟨t - k, by omega⟩
+        change (iter F (k + s) x).testBit 0 = false
+        rw [iter_F_add]
+        exact hfut s (by omega)
+    have hlow_kH : ∀ i : Nat, i < k + H → x.testBit i = false :=
+      (hmod_bits x (k + H)).mp ((htr_mod x (k + H)).mp hall_white)
+    have hkH_le_m : k + H ≤ m := by
+      apply Classical.byContradiction
+      intro hgt
+      have hfalse := hlow_kH m (by omega)
+      rw [hm] at hfalse
+      cases hfalse
+    have htop_k : (iter F k x).testBit (m + k) = true :=
+      testBit_iter_F_add_of_top hm htop k
+    exact ⟨hkH_le_m, htop_k, by omega⟩
+
+end WallAncestryIntegerSeedBridge
+
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
