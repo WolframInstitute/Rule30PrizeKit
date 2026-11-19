@@ -3,6 +3,7 @@ module
 public import Ruliology.CellularAutomata.Rule30Prize
 public import Ruliology.CellularAutomata.Rule30SpacingRenormalization
 public import Ruliology.CellularAutomata.Rule30ZeroBoundary
+public import Ruliology.CellularAutomata.Rule30ResetSwapCore
 public import Ruliology.CellularAutomata.Rule30GateTrap
 public import Ruliology.CellularAutomata.Rule30PeriodTwo
 public import Ruliology.CellularAutomata.Rule30PeriodTwoSideways
@@ -5877,6 +5878,318 @@ theorem ge2Seeds_weight_schedule_iff_noSeedGE2_and_not_period_one_two :
   exact ⟨hno, hsched, hfin, hmass, hbox, hq01, hnot1, hnot2, hge3⟩
 
 end ScanXorInversionAndWeightSchedules
+
+/-! ## 21. Bridge to `Rule30ResetSwapCore`: Bitwise `walk` Seed-Bit Recovery, High-Bit Synchronization Under `(6, 10) ↔ (10, 6)` Toggle, and `survivingSeeds H` Reset-Swap Bijection (`side_tr_eq_testBit_and_walk_packed_seed_bits`, `good_sync_and_toggle_preserve_high_seed_bits`, `toggleTraceSeed_survivesTo_iff_of_fits_65470`) -/
+
+section ResetSwapZeroCoastBridge
+open Rule30ZeroBoundary Rule30ZeroBoundary.IntegerForm
+
+theorem side_local_core {u v : Ruliology.CellularAutomata.Rule30ResetSwap.Trace} {H : Nat}
+    (h : ∀ t, t < H → u t = v t) (j t : Nat) (hj : j + t < H) :
+    Ruliology.CellularAutomata.Rule30ResetSwap.side u j t =
+      Ruliology.CellularAutomata.Rule30ResetSwap.side v j t := by
+  induction j generalizing t with
+  | zero => simp only [Ruliology.CellularAutomata.Rule30ResetSwap.side_zero, h t (by omega)]
+  | succ j ih =>
+    simp only [Ruliology.CellularAutomata.Rule30ResetSwap.side_succ,
+      ih t (by omega), ih (t + 1) (by omega)]
+
+theorem toggle_twice_core (u : Ruliology.CellularAutomata.Rule30ResetSwap.Trace) :
+    Ruliology.CellularAutomata.Rule30ResetSwap.toggle
+      (Ruliology.CellularAutomata.Rule30ResetSwap.toggle u) = u := by
+  funext t
+  simp only [Ruliology.CellularAutomata.Rule30ResetSwap.toggle]
+  cases u t <;> cases (1088 : Nat).testBit t <;> rfl
+
+/-- **Bitwise Sideways `walk` Recovers Integer Seed Bits (`side_tr_eq_testBit_and_walk_packed_seed_bits`).**
+Constructively proves (`propext`, `Quot.sound` only):
+1. For every integer seed `x : Nat`, depth `j : Nat`, and time `t : Nat`,
+   `Rule30ResetSwap.side (tr x) j t = (zrow (rowOfNat x) t j, zrow (rowOfNat x) t (j + 1))`.
+2. At `t = 0`, `(Rule30ResetSwap.side (tr x) j 0).2 = x.testBit j`.
+3. Whenever a packed trace integer `a : Nat` fits `tr x` on `[0, n)` (`Rule30ResetSwap.Fits (tr x) n a`),
+   step `j < n` of the bitwise sideways walk `Rule30ResetSwap.walk j (0, a)` recovers seed bit `j`
+   in the least significant bit of its second component:
+   `∀ j < n, (Rule30ResetSwap.walk j (0, a)).2.testBit 0 = x.testBit j`. -/
+theorem side_tr_eq_testBit_and_walk_packed_seed_bits (x : Nat) :
+    (∀ j t : Nat,
+      Ruliology.CellularAutomata.Rule30ResetSwap.side
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) j t =
+        (zrow (rowOfNat x) t j, zrow (rowOfNat x) t (j + 1))) ∧
+    (∀ j : Nat,
+      (Ruliology.CellularAutomata.Rule30ResetSwap.side
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) j 0).2 = x.testBit j) ∧
+    (∀ n a : Nat,
+      Ruliology.CellularAutomata.Rule30ResetSwap.Fits
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) n a →
+      ∀ j : Nat, j < n →
+        (Ruliology.CellularAutomata.Rule30ResetSwap.walk j (0, a)).2.testBit 0 = x.testBit j) := by
+  have htr_eq : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x =
+      fun s => zrow (rowOfNat x) s 1 := by
+    funext s
+    exact (zrow_rowOfNat_col1 x s).symm
+  have hside : ∀ j t : Nat,
+      Ruliology.CellularAutomata.Rule30ResetSwap.side
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) j t =
+        (zrow (rowOfNat x) t j, zrow (rowOfNat x) t (j + 1)) := by
+    intro j t
+    rw [htr_eq]
+    exact Ruliology.CellularAutomata.Rule30ResetSwap.of_wall (rowOfNat x) j t
+  have hbit : ∀ j : Nat,
+      (Ruliology.CellularAutomata.Rule30ResetSwap.side
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) j 0).2 = x.testBit j := by
+    intro j
+    rw [hside j 0]
+    dsimp only
+    rw [zrow_zero_of_pos (rowOfNat x) (by omega : 1 ≤ j + 1)]
+    rfl
+  refine ⟨hside, hbit, fun n a hfits j hj => ?_⟩
+  have hpack := Ruliology.CellularAutomata.Rule30ResetSwap.packed hfits j 0 (by omega : j + 0 < n)
+  have h2 := congrArg Prod.snd hpack
+  dsimp only [Ruliology.CellularAutomata.Rule30ResetSwap.bits] at h2
+  rw [h2, hbit j]
+
+/-- Trace list of length `H` obtained by applying `Rule30ResetSwap.toggle` (flipping ticks `6` and `10`
+via `1088 = 2^6 + 2^10`) to the center trace `tr x`. -/
+def toggleTraceList (H x : Nat) : List Bool :=
+  (List.range H).map (fun t =>
+    Ruliology.CellularAutomata.Rule30ResetSwap.toggle
+      (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) t)
+
+/-- Canonical seed on `[0, 2 ^ H)` whose `H`-step center trace is `toggleTraceList H x`. -/
+def toggleTraceSeed (H x : Nat) : Nat :=
+  seedOfTrace (toggleTraceList H x)
+
+theorem toggleTraceList_length (H x : Nat) :
+    (toggleTraceList H x).length = H := by
+  unfold toggleTraceList
+  rw [List.length_map, List.length_range]
+
+theorem trace_eq_map_range_tr (x H : Nat) :
+    trace x H = (List.range H).map (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) := by
+  apply List.ext_getElem
+  · rw [trace_length, List.length_map, List.length_range]
+  · intro t h1 h2
+    rw [List.getElem_map, List.getElem_range]
+    have ht : t < H := by
+      rw [trace_length] at h1
+      exact h1
+    exact trace_getElem x H t ht
+
+theorem toggleTraceSeed_spec (H x : Nat) :
+    toggleTraceSeed H x < 2 ^ H ∧
+    trace (toggleTraceSeed H x) H = toggleTraceList H x ∧
+    ∀ t : Nat, t < H →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr (toggleTraceSeed H x) t =
+        Ruliology.CellularAutomata.Rule30ResetSwap.toggle
+          (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) t := by
+  have hlen : (toggleTraceList H x).length = H := toggleTraceList_length H x
+  have hsp := seedOfTrace_spec (toggleTraceList H x)
+  have hlt : toggleTraceSeed H x < 2 ^ H := by
+    unfold toggleTraceSeed
+    have h1 := hsp.1
+    rwa [hlen] at h1
+  have htr : trace (toggleTraceSeed H x) H = toggleTraceList H x := by
+    unfold toggleTraceSeed
+    have h2 := hsp.2
+    rwa [hlen] at h2
+  refine ⟨hlt, htr, fun t ht => ?_⟩
+  have hget := (trace_getElem (toggleTraceSeed H x) H t ht).symm
+  change Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr (toggleTraceSeed H x) t =
+    (trace (toggleTraceSeed H x) H)[t]'(by rw [trace_length]; exact ht) at hget
+  rw [hget]
+  simp only [htr, toggleTraceList, List.getElem_map, List.getElem_range]
+
+/-- **Involutive `(6, 10) ↔ (10, 6)` Seed Swap and High-Bit Synchronization
+(`good_sync_and_toggle_preserve_high_seed_bits`).**
+Constructively proves (`propext`, `Quot.sound` only):
+1. For every horizon `H` and seed `x : Nat`, `toggleTraceSeed H x < 2 ^ H`,
+   `∀ t < H, tr (toggleTraceSeed H x) t = Rule30ResetSwap.toggle (tr x) t`, and
+   `toggleTraceSeed H (toggleTraceSeed H x) = x % 2 ^ H` (involution on `[0, 2 ^ H)`).
+2. Whenever `Rule30ResetSwap.Fits (tr x) n a` and `Rule30ResetSwap.Good n a j = true` hold,
+   `j ≤ 174` and `toggleTraceSeed H x` has the exact same seed bits as `x` at all bit indices
+   `j + d` with `j + d + 1 < H`:
+   `∀ d : Nat, j + d + 1 < H → (toggleTraceSeed H x).testBit (j + d) = x.testBit (j + d)`.
+3. Symmetrically, whenever `(Fits (tr x) n a ∨ Fits (toggle (tr x)) n a)` and `Good n a j = true`
+   hold, `j ≤ 174` and for every bit index `i` with `j ≤ i` and `i + 1 < H`,
+   `(toggleTraceSeed H x).testBit i = x.testBit i`. -/
+theorem good_sync_and_toggle_preserve_high_seed_bits (H x : Nat) :
+    (toggleTraceSeed H x < 2 ^ H ∧
+      (∀ t : Nat, t < H →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr (toggleTraceSeed H x) t =
+          Ruliology.CellularAutomata.Rule30ResetSwap.toggle
+            (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) t) ∧
+      toggleTraceSeed H (toggleTraceSeed H x) = x % 2 ^ H) ∧
+    (∀ n a j : Nat,
+      Ruliology.CellularAutomata.Rule30ResetSwap.Fits
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) n a →
+      Ruliology.CellularAutomata.Rule30ResetSwap.Good n a j = true →
+      j ≤ 174 ∧
+      ∀ d : Nat, j + d + 1 < H →
+        (toggleTraceSeed H x).testBit (j + d) = x.testBit (j + d)) ∧
+    (∀ n a j : Nat,
+      (Ruliology.CellularAutomata.Rule30ResetSwap.Fits
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) n a ∨
+       Ruliology.CellularAutomata.Rule30ResetSwap.Fits
+        (Ruliology.CellularAutomata.Rule30ResetSwap.toggle
+          (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x)) n a) →
+      Ruliology.CellularAutomata.Rule30ResetSwap.Good n a j = true →
+      j ≤ 174 ∧
+      ∀ i : Nat, j ≤ i → i + 1 < H →
+        (toggleTraceSeed H x).testBit i = x.testBit i) := by
+  obtain ⟨hlt, htr_list, htr_pt⟩ := toggleTraceSeed_spec H x
+  have hinv : toggleTraceSeed H (toggleTraceSeed H x) = x % 2 ^ H := by
+    have hlist2 : toggleTraceList H (toggleTraceSeed H x) = trace x H := by
+      rw [trace_eq_map_range_tr x H]
+      unfold toggleTraceList
+      apply List.ext_getElem
+      · simp
+      · intro t h1 h2
+        simp only [List.getElem_map, List.getElem_range]
+        have ht : t < H := by simp at h1; exact h1
+        have hpt := htr_pt t ht
+        unfold Ruliology.CellularAutomata.Rule30ResetSwap.toggle at hpt ⊢
+        rw [hpt]
+        cases Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x t <;>
+          cases (1088 : Nat).testBit t <;> rfl
+    change seedOfTrace (toggleTraceList H (toggleTraceSeed H x)) = x % 2 ^ H
+    rw [hlist2]
+    exact (trace_eq_iff_mod_pow2_eq_and_seedOfTrace_bijection H x x []).2.2
+  have hsync_to_bits : ∀ j : Nat,
+      (∀ d t : Nat,
+        Ruliology.CellularAutomata.Rule30ResetSwap.side
+          (Ruliology.CellularAutomata.Rule30ResetSwap.toggle
+            (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x)) (j + d) t =
+        Ruliology.CellularAutomata.Rule30ResetSwap.side
+          (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) (j + d) t) →
+      ∀ d : Nat, j + d + 1 < H →
+        (toggleTraceSeed H x).testBit (j + d) = x.testBit (j + d) := by
+    intro j hsync d hjd
+    have hloc := side_local_core
+      (u := Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr (toggleTraceSeed H x))
+      (v := Ruliology.CellularAutomata.Rule30ResetSwap.toggle
+        (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x))
+      (H := H) htr_pt (j + d) 0 (by omega)
+    have htrans := hloc.trans (hsync d 0)
+    have h2 := congrArg Prod.snd htrans
+    rw [(side_tr_eq_testBit_and_walk_packed_seed_bits (toggleTraceSeed H x)).2.1 (j + d),
+      (side_tr_eq_testBit_and_walk_packed_seed_bits x).2.1 (j + d)] at h2
+    exact h2
+  refine ⟨⟨hlt, htr_pt, hinv⟩, fun n a j hfits hgood => ?_, fun n a j hfits_or hgood => ?_⟩
+  · have hj174 : j ≤ 174 := (of_decide_eq_true hgood).1
+    exact ⟨hj174, hsync_to_bits j (Ruliology.CellularAutomata.Rule30ResetSwap.good_sync hfits hgood)⟩
+  · have hj174 : j ≤ 174 := (of_decide_eq_true hgood).1
+    refine ⟨hj174, fun i hji hiH => ?_⟩
+    obtain ⟨d, rfl⟩ : ∃ d, i = j + d := ⟨i - j, by omega⟩
+    rcases hfits_or with ha | hb
+    · exact hsync_to_bits j (Ruliology.CellularAutomata.Rule30ResetSwap.good_sync ha hgood) d hiH
+    · have hsync := Ruliology.CellularAutomata.Rule30ResetSwap.good_sync hb hgood
+      rw [toggle_twice_core] at hsync
+      exact hsync_to_bits j (fun d' t => (hsync d' t).symm) d hiH
+
+/-- The 17-tick `(6, 10)` reset prefix `65470` as a boolean trace word. -/
+def prefix65470 : List Bool :=
+  (List.range 17).map (fun t => (65470 : Nat).testBit t)
+
+/-- The 17-tick `(10, 6)` toggled reset prefix `65470 ^^^ 1088 = 64510` as a boolean trace word. -/
+def prefix65470Toggled : List Bool :=
+  (List.range 17).map (fun t => xor ((65470 : Nat).testBit t) ((1088 : Nat).testBit t))
+
+theorem accept_prefix65470_append_eq (rest : List Bool) :
+    accept (prefix65470 ++ rest) = acceptRest true 0 rest ∧
+    accept (prefix65470Toggled ++ rest) = acceptRest true 0 rest := by
+  have h1 : prefix65470 = false :: prefix65470.tail := by decide
+  have h2 : prefix65470Toggled = false :: prefix65470Toggled.tail := by decide
+  have haf1 : acceptFinal true 0 prefix65470.tail = some (true, 0) := by decide
+  have haf2 : acceptFinal true 0 prefix65470Toggled.tail = some (true, 0) := by decide
+  have heq1 : accept (prefix65470 ++ rest) = acceptRest true 0 rest := by
+    rw [h1, List.cons_append]
+    unfold accept
+    simp only [Bool.not_false, Bool.true_and, ← acceptFinal_isSome_eq_acceptRest]
+    rw [acceptFinal_append, haf1]
+  have heq2 : accept (prefix65470Toggled ++ rest) = acceptRest true 0 rest := by
+    rw [h2, List.cons_append]
+    unfold accept
+    simp only [Bool.not_false, Bool.true_and, ← acceptFinal_isSome_eq_acceptRest]
+    rw [acceptFinal_append, haf2]
+  exact ⟨heq1, heq2⟩
+
+/-- **`SurvivesTo` and `survivingSeeds H` Bijection Under Initial `(6, 10) ↔ (10, 6)` Reset Swap
+(`toggleTraceSeed_survivesTo_iff_of_fits_65470`).**
+Constructively proves (`propext`, `Quot.sound` only) for every horizon `H ≥ 17` and every seed
+`x : Nat` whose trace fits the `(6, 10)` reset prefix `65470` on `[0, 17)`
+(`Rule30ResetSwap.Fits (tr x) 17 65470`):
+1. `acceptFinal true 0 (trace x 17).tail = some (true, 0)` and
+   `acceptFinal true 0 (trace (toggleTraceSeed H x) 17).tail = some (true, 0)` (both `(6, 10)` and
+   `(10, 6)` return the `(isOdd, age)` gate state machine to ground state `(true, 0)` at tick `16`).
+2. `SurvivesTo (toggleTraceSeed H x) H ↔ SurvivesTo x H`.
+3. Whenever `x ∈ survivingSeeds H`, the `(6, 10) ↔ (10, 6)` swapped seed satisfies
+   `toggleTraceSeed H x ∈ survivingSeeds H` and `toggleTraceSeed H (toggleTraceSeed H x) = x`. -/
+theorem toggleTraceSeed_survivesTo_iff_of_fits_65470 (H x : Nat) (hH : 17 ≤ H)
+    (hfits : Ruliology.CellularAutomata.Rule30ResetSwap.Fits
+      (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x) 17 65470) :
+    (acceptFinal true 0 (trace x 17).tail = some (true, 0) ∧
+     acceptFinal true 0 (trace (toggleTraceSeed H x) 17).tail = some (true, 0)) ∧
+    (SurvivesTo (toggleTraceSeed H x) H ↔ SurvivesTo x H) ∧
+    (x ∈ survivingSeeds H →
+      toggleTraceSeed H x ∈ survivingSeeds H ∧
+      toggleTraceSeed H (toggleTraceSeed H x) = x) := by
+  obtain ⟨hlt_tog, htr_list_tog, htr_tog⟩ := toggleTraceSeed_spec H x
+  have htr17_x : trace x 17 = prefix65470 := by
+    rw [trace_eq_map_range_tr x 17]
+    unfold prefix65470
+    refine List.map_congr_left fun t ht => ?_
+    rw [List.mem_range] at ht
+    exact hfits t ht
+  have htr17_tog : trace (toggleTraceSeed H x) 17 = prefix65470Toggled := by
+    rw [trace_eq_map_range_tr (toggleTraceSeed H x) 17]
+    unfold prefix65470Toggled
+    refine List.map_congr_left fun t ht => ?_
+    rw [List.mem_range] at ht
+    rw [htr_tog t (by omega)]
+    unfold Ruliology.CellularAutomata.Rule30ResetSwap.toggle
+    rw [hfits t ht]
+  have haf_x : acceptFinal true 0 (trace x 17).tail = some (true, 0) := by
+    rw [htr17_x]; decide
+  have haf_tog : acceptFinal true 0 (trace (toggleTraceSeed H x) 17).tail = some (true, 0) := by
+    rw [htr17_tog]; decide
+  have htail_eq : trace (iter F 17 (toggleTraceSeed H x)) (H - 17) =
+      trace (iter F 17 x) (H - 17) := by
+    apply List.ext_getElem
+    · rw [trace_length, trace_length]
+    · intro k h1 h2
+      have hk : k < H - 17 := by rw [trace_length] at h1; exact h1
+      rw [trace_getElem (iter F 17 (toggleTraceSeed H x)) (H - 17) k hk,
+        trace_getElem (iter F 17 x) (H - 17) k hk,
+        ← iter_F_add 17 k (toggleTraceSeed H x), ← iter_F_add 17 k x]
+      change Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr (toggleTraceSeed H x) (17 + k) =
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr x (17 + k)
+      rw [htr_tog (17 + k) (by omega)]
+      have hbound : 1088 < 2 ^ (17 + k) :=
+        Nat.lt_of_lt_of_le (by decide : 1088 < 2 ^ 11) (Nat.pow_le_pow_right (by decide) (by omega))
+      unfold Ruliology.CellularAutomata.Rule30ResetSwap.toggle
+      rw [Nat.testBit_lt_two_pow hbound, Bool.xor_false]
+  have hsurv_iff : SurvivesTo (toggleTraceSeed H x) H ↔ SurvivesTo x H := by
+    unfold SurvivesTo
+    have hsplit_x : trace x H = prefix65470 ++ trace (iter F 17 x) (H - 17) := by
+      rw [← htr17_x]
+      simpa [Nat.add_sub_of_le hH] using trace_add x 17 (H - 17)
+    have hsplit_tog : trace (toggleTraceSeed H x) H =
+        prefix65470Toggled ++ trace (iter F 17 x) (H - 17) := by
+      rw [← htr17_tog, ← htail_eq]
+      simpa [Nat.add_sub_of_le hH] using trace_add (toggleTraceSeed H x) 17 (H - 17)
+    rw [hsplit_tog, hsplit_x,
+      (accept_prefix65470_append_eq (trace (iter F 17 x) (H - 17))).1,
+      (accept_prefix65470_append_eq (trace (iter F 17 x) (H - 17))).2]
+  refine ⟨⟨haf_x, haf_tog⟩, hsurv_iff, fun hx_mem => ?_⟩
+  obtain ⟨hlt_x, hsurv_x⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff H x).1.mp hx_mem
+  have hsurv_tog : SurvivesTo (toggleTraceSeed H x) H := hsurv_iff.mpr hsurv_x
+  have hmem_tog : toggleTraceSeed H x ∈ survivingSeeds H :=
+    (mem_survivingSeeds_iff_and_survivesTo_iff H (toggleTraceSeed H x)).1.mpr ⟨hlt_tog, hsurv_tog⟩
+  have hinv_x : toggleTraceSeed H (toggleTraceSeed H x) = x := by
+    rw [(good_sync_and_toggle_preserve_high_seed_bits H x).1.2.2, Nat.mod_eq_of_lt hlt_x]
+  exact ⟨hmem_tog, hinv_x⟩
+
+end ResetSwapZeroCoastBridge
 
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
