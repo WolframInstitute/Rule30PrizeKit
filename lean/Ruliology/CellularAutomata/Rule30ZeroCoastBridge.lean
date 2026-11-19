@@ -5606,5 +5606,277 @@ theorem void_schedule_telescoping_weight_bound_and_q01Gap_iff :
 
 end VoidScheduleWeightBridge
 
+/-! ## 20. `scanXor`–`adjacentXor` Inversion, `zeroNext` Trailing-Zero Invariant, and Recursive Void / `ge2Seeds` Weight Schedules (`scanXor_adjacentXor_involution_and_zeroNext_getLast_false`, `existsVoidCrashSchedule_iff_q01Gap_and_massDiverges`, `ge2Seeds_weight_schedule_iff_noSeedGE2_and_not_period_one_two`) -/
+
+section ScanXorInversionAndWeightSchedules
+open Rule30ZeroBoundary.IntegerForm
+
+/-- Pairwise adjacent XOR difference operator with initial carry `prev : Bool`,
+inverting `(scanXor prev ·).1` on `List Bool`. -/
+def adjacentXor : Bool → List Bool → List Bool
+  | _, [] => []
+  | prev, x :: xs => xor prev x :: adjacentXor x xs
+
+theorem adjacentXor_scanXor_fst (acc : Bool) (sig : List Bool) :
+    adjacentXor acc (scanXor acc sig).1 = sig := by
+  induction sig generalizing acc with
+  | nil => rfl
+  | cons s sig ih =>
+    simp only [scanXor, adjacentXor]
+    have hxor : xor acc (xor acc s) = s := by
+      cases acc <;> cases s <;> rfl
+    rw [hxor, ih (xor acc s)]
+
+theorem scanXor_adjacentXor_fst (acc : Bool) (d : List Bool) :
+    (scanXor acc (adjacentXor acc d)).1 = d := by
+  induction d generalizing acc with
+  | nil => rfl
+  | cons x xs ih =>
+    simp only [adjacentXor, scanXor]
+    have hxor : xor acc (xor acc x) = x := by
+      cases acc <;> cases x <;> rfl
+    rw [hxor, ih x]
+
+theorem scanXor_fst_length (acc : Bool) (sig : List Bool) :
+    (scanXor acc sig).1.length = sig.length := by
+  induction sig generalizing acc with
+  | nil => rfl
+  | cons s sig ih =>
+    simp only [scanXor, List.length_cons]
+    rw [ih (xor acc s)]
+
+theorem getLast_cons_scanXor_fst (acc : Bool) (sig : List Bool) :
+    (acc :: (scanXor acc sig).1).getLast (List.cons_ne_nil _ _) = (scanXor acc sig).2 := by
+  induction sig generalizing acc with
+  | nil => rfl
+  | cons s sig ih =>
+    simp only [scanXor]
+    rw [List.getLast_cons (List.cons_ne_nil _ _)]
+    exact ih (xor acc s)
+
+/-- **`scanXor`–`adjacentXor` Bijection and `zeroNext` Trailing-Zero / Reconstruction Invariant
+(`scanXor_adjacentXor_involution_and_zeroNext_getLast_false`).**
+Constructively proves (`propext`, `Quot.sound` only):
+1. For every initial bit `acc : Bool`, `adjacentXor acc` and `(scanXor acc ·).1` are two-sided
+   inverses on `List Bool`, with `(scanXor acc sig).1.length = sig.length`.
+2. For every `acc : Bool` and `sig : List Bool`, the last element of `acc :: (scanXor acc sig).1`
+   equals the carry-out `(scanXor acc sig).2 = xor acc (piParity sig)`.
+3. Whenever `zeroNext s = some s'`, we have `s'.d2 = s.d1`, `s'.d1.length = (physSigma s).length + 1`,
+   `s'.d1 ≠ []` with trailing bit `s'.d1.getLast _ = false`, and
+   `adjacentXor (piParity (physSigma s)) s'.d1.tail = physSigma s`. -/
+theorem scanXor_adjacentXor_involution_and_zeroNext_getLast_false :
+    (∀ (acc : Bool) (sig : List Bool),
+      adjacentXor acc (scanXor acc sig).1 = sig ∧
+      (scanXor acc sig).1.length = sig.length ∧
+      (acc :: (scanXor acc sig).1).getLast (List.cons_ne_nil _ _) = xor acc (piParity sig)) ∧
+    (∀ (acc : Bool) (d : List Bool),
+      (scanXor acc (adjacentXor acc d)).1 = d) ∧
+    (∀ (s s' : PhysState), zeroNext s = some s' →
+      s'.d2 = s.d1 ∧
+      s'.d1.length = (physSigma s).length + 1 ∧
+      ∃ hne : s'.d1 ≠ [],
+        s'.d1.getLast hne = false ∧
+        adjacentXor (piParity (physSigma s)) s'.d1.tail = physSigma s) := by
+  refine ⟨fun acc sig => ?_, scanXor_adjacentXor_fst, fun s s' hzn => ?_⟩
+  · refine ⟨adjacentXor_scanXor_fst acc sig, scanXor_fst_length acc sig, ?_⟩
+    rw [getLast_cons_scanXor_fst, scanXor_snd_eq_xor_piParity]
+  · unfold zeroNext at hzn
+    cases hna : nextAge s.isOdd s.age (piParity (physSigma s)) with
+    | none => simp [hna] at hzn
+    | some na =>
+      simp only [hna, Option.some.injEq] at hzn
+      subst hzn
+      dsimp only
+      refine ⟨rfl, ?_, List.cons_ne_nil _ _, ?_, ?_⟩
+      · simp [scanXor_fst_length]
+      · rw [getLast_cons_scanXor_fst]
+        exact (scanXor_snd_eq_false_iff _ _).mpr rfl
+      · simp only [List.tail_cons]
+        exact adjacentXor_scanXor_fst (piParity (physSigma s)) (physSigma s)
+
+/-- Existence of an infinite Void-crash horizon schedule `(H L : Nat → Nat)` starting at `1 ≤ H 0`
+such that `H (i + 1) = H i + L i` and every canonical surviving seed at horizon `H i` crashes in
+the Zero Void within `L i` steps. -/
+def ExistsVoidCrashSchedule : Prop :=
+  ∃ (H L : Nat → Nat),
+    1 ≤ H 0 ∧
+    (∀ i : Nat, H (i + 1) = H i + L i) ∧
+    (∀ i : Nat, ∀ y ∈ survivingSeeds (H i), voidOrbit y (H i) (L i) = none)
+
+/-- **Recursive Void-Crash Schedule Equivalence Across Zero-Coast Formulations
+(`existsVoidCrashSchedule_iff_q01Gap_and_massDiverges`).**
+Proves unconditionally that `ExistsVoidCrashSchedule` is equivalent (`↔`) to:
+1. `FiniteSeedsTerminate`,
+2. `MassDiverges`,
+3. `ZeroCoastBoxTerminationHypothesis`,
+4. `Rule30GateTrap.Q01Gap`,
+5. Ground-state reset `iterVoidMacro` crash for all `y ∈ survivingSeeds (2 * m + 1)`, and
+6. Stepwise `+1` active-weight increment `∀ K ≥ 1, ∃ L, ∀ x, SurvivesTo x (K + L) → wtH K x + 1 ≤ wtH (K + L) x`. -/
+theorem existsVoidCrashSchedule_iff_q01Gap_and_massDiverges :
+    (ExistsVoidCrashSchedule ↔ FiniteSeedsTerminate) ∧
+    (ExistsVoidCrashSchedule ↔ MassDiverges) ∧
+    (ExistsVoidCrashSchedule ↔ ZeroCoastBoxTerminationHypothesis) ∧
+    (ExistsVoidCrashSchedule ↔ Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap) ∧
+    (ExistsVoidCrashSchedule ↔
+      (∀ m : Nat, ∀ y ∈ survivingSeeds (2 * m + 1), ∀ s : PhysState,
+        physStateOf y (2 * m + 1) = some s → s.age = 0 →
+        ∃ k : Nat, iterVoidMacro s k = none)) ∧
+    (ExistsVoidCrashSchedule ↔
+      (∀ K : Nat, 1 ≤ K → ∃ L : Nat, ∀ x : Nat, SurvivesTo x (K + L) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH K x + 1 ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (K + L) x)) := by
+  have hsched_iff_mass : ExistsVoidCrashSchedule ↔ MassDiverges := by
+    constructor
+    · rintro ⟨H, L, hH0, hstep, hnone⟩
+      rw [massDiverges_and_q01Gap_iff_survivingSeeds_konig.2.2.1]
+      intro M
+      refine ⟨H (M + 1), fun y hy => ?_⟩
+      obtain ⟨_, hsurv⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff (H (M + 1)) y).1.mp hy
+      have hbound := (void_schedule_telescoping_weight_bound_and_q01Gap_iff.1
+        H L hH0 hstep hnone (M + 1) y hsurv).2
+      omega
+    · intro hmass
+      have hall := q01Gap_and_massDiverges_iff_survivingSeeds_void_crash.2.1.mp hmass
+      have hunif : ∀ K : Nat, ∃ L : Nat, 1 ≤ K → ∀ y ∈ survivingSeeds K, voidOrbit y K L = none := by
+        intro K
+        by_cases hK : 1 ≤ K
+        · obtain ⟨L, hL⟩ := (list_forall_exists_voidOrbit_none_iff K (survivingSeeds K)).mp (hall K hK)
+          exact ⟨L, fun _ => hL⟩
+        · exact ⟨0, fun hK' => False.elim (hK hK')⟩
+      let Lfn : Nat → Nat := fun K => Classical.choose (hunif K)
+      have hLfn : ∀ K : Nat, 1 ≤ K → ∀ y ∈ survivingSeeds K, voidOrbit y K (Lfn K) = none :=
+        fun K hK => Classical.choose_spec (hunif K) hK
+      let H : Nat → Nat := fun i => Nat.rec 1 (fun _ Hk => Hk + Lfn Hk) i
+      let L : Nat → Nat := fun i => Lfn (H i)
+      have hH0 : 1 ≤ H 0 := by change 1 ≤ 1; omega
+      have hstep : ∀ i : Nat, H (i + 1) = H i + L i := fun _ => rfl
+      have hH_pos : ∀ i : Nat, 1 ≤ H i := by
+        intro i
+        induction i with
+        | zero => exact hH0
+        | succ i ih =>
+          rw [hstep i]
+          omega
+      refine ⟨H, L, hH0, hstep, fun i y hy => hLfn (H i) (hH_pos i) y hy⟩
+  have hsched_iff_fin : ExistsVoidCrashSchedule ↔ FiniteSeedsTerminate :=
+    Iff.trans hsched_iff_mass (Iff.trans q01Gap_and_massDiverges_iff_stepwise_wtH_increment.2.1 q01Gap_and_massDiverges_iff_stepwise_wtH_increment.1.symm)
+  have hsched_iff_box : ExistsVoidCrashSchedule ↔ ZeroCoastBoxTerminationHypothesis :=
+    Iff.trans hsched_iff_mass massDiverges_iff_zeroCoastBoxTermination
+  have hsched_iff_q01 : ExistsVoidCrashSchedule ↔ Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap :=
+    Iff.trans hsched_iff_mass massDiverges_iff_Q01Gap
+  have hsched_iff_macro : ExistsVoidCrashSchedule ↔
+      (∀ m : Nat, ∀ y ∈ survivingSeeds (2 * m + 1), ∀ s : PhysState,
+        physStateOf y (2 * m + 1) = some s → s.age = 0 →
+        ∃ k : Nat, iterVoidMacro s k = none) :=
+    Iff.trans hsched_iff_mass q01Gap_and_massDiverges_iff_reset_iterVoidMacro_crash.2.1
+  have hsched_iff_wtH : ExistsVoidCrashSchedule ↔
+      (∀ K : Nat, 1 ≤ K → ∃ L : Nat, ∀ x : Nat, SurvivesTo x (K + L) →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH K x + 1 ≤
+          Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (K + L) x) :=
+    Iff.trans hsched_iff_mass q01Gap_and_massDiverges_iff_stepwise_wtH_increment.2.1
+  exact ⟨hsched_iff_fin, hsched_iff_mass, hsched_iff_box, hsched_iff_q01, hsched_iff_macro, hsched_iff_wtH⟩
+
+/-- **Width-13 `ge2Seeds` Weight-Schedule Equivalence and Period-1/Period-2 Exclusion
+(`ge2Seeds_weight_schedule_iff_noSeedGE2_and_not_period_one_two`).**
+1. `Rule30PeriodTwoWidth13.NoSeedGE2` is equivalent (`↔`) to the existence of a horizon schedule
+   `m : Nat → Nat` such that `∀ M : Nat, ∀ Y ∈ ge2Seeds (m M), M < popcount Y`, and equivalent (`↔`)
+   to `∃ m : Nat → Nat, ∀ M X : Nat, GE2 (tr X) (m M) → M < wtH (2 * m M) X`.
+2. Whenever `NoSeedGE2` (or an equivalent `ge2Seeds` weight schedule `m : Nat → Nat`) holds,
+   `ExistsVoidCrashSchedule`, `FiniteSeedsTerminate`, `MassDiverges`, `ZeroCoastBoxTerminationHypothesis`,
+   and `Rule30GateTrap.Q01Gap` all hold, neither period `p = 1` nor period `p = 2` can occur for
+   `Rule30Prize.center`, and any hypothetical eventual period `p > 0` of `Rule30Prize.center`
+   must satisfy `3 ≤ p`. -/
+theorem ge2Seeds_weight_schedule_iff_noSeedGE2_and_not_period_one_two :
+    (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 ↔
+      (∃ m : Nat → Nat, ∀ M : Nat, ∀ Y ∈ ge2Seeds (m M), M < popcount Y)) ∧
+    (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 ↔
+      (∃ m : Nat → Nat, ∀ M X : Nat,
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+          (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X) (m M) →
+        M < Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m M) X)) ∧
+    (∀ m : Nat → Nat,
+      (∀ M : Nat, ∀ Y ∈ ge2Seeds (m M), M < popcount Y) →
+      Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 ∧
+      ExistsVoidCrashSchedule ∧
+      FiniteSeedsTerminate ∧
+      MassDiverges ∧
+      ZeroCoastBoxTerminationHypothesis ∧
+      Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap ∧
+      (¬ ∃ T0, ∀ t, T0 ≤ t →
+        Ruliology.CellularAutomata.Rule30Prize.center (t + 1) =
+          Ruliology.CellularAutomata.Rule30Prize.center t) ∧
+      (¬ ∃ T0, ∀ t, T0 ≤ t →
+        Ruliology.CellularAutomata.Rule30Prize.center (t + 2) =
+          Ruliology.CellularAutomata.Rule30Prize.center t) ∧
+      (∀ T0 p : Nat, 0 < p →
+        (∀ t, T0 ≤ t →
+          Ruliology.CellularAutomata.Rule30Prize.center (t + p) =
+            Ruliology.CellularAutomata.Rule30Prize.center t) →
+        3 ≤ p)) := by
+  have hiff1 : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 ↔
+      (∃ m : Nat → Nat, ∀ M : Nat, ∀ Y ∈ ge2Seeds (m M), M < popcount Y) := by
+    rw [mem_ge2Seeds_iff_and_noSeed_GE2_konig.2.2.2.1]
+    constructor
+    · intro h
+      exact ⟨fun M => Classical.choose (h M), fun M => Classical.choose_spec (h M)⟩
+    · rintro ⟨m, hm⟩ M
+      exact ⟨m M, hm M⟩
+  have hiff2 : (∃ m : Nat → Nat, ∀ M : Nat, ∀ Y ∈ ge2Seeds (m M), M < popcount Y) ↔
+      (∃ m : Nat → Nat, ∀ M X : Nat,
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.GE2
+          (Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr X) (m M) →
+        M < Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.wtH (2 * m M) X) := by
+    constructor
+    · rintro ⟨m, hm⟩
+      refine ⟨m, fun M X hge2 => ?_⟩
+      have hmem : X % 2 ^ (2 * m M) ∈ ge2Seeds (m M) :=
+        (mem_ge2Seeds_iff_and_noSeed_GE2_konig.2.1 (m M) X).mp hge2
+      have hlt := hm M (X % 2 ^ (2 * m M)) hmem
+      rwa [popcount_mod_pow2_eq_wtH X (2 * m M)] at hlt
+    · rintro ⟨m, hm⟩
+      refine ⟨m, fun M Y hY => ?_⟩
+      obtain ⟨hlt_Y, hge2⟩ := (mem_ge2Seeds_iff_and_noSeed_GE2_konig.1 (m M) Y).mp hY
+      have hwt := hm M Y hge2
+      rwa [← popcount_mod_pow2_eq_wtH Y (2 * m M), Nat.mod_eq_of_lt hlt_Y] at hwt
+  refine ⟨hiff1, Iff.trans hiff1 hiff2, fun m hm => ?_⟩
+  have hno : Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.NoSeedGE2 :=
+    hiff1.mpr ⟨m, hm⟩
+  have hbridge := survivesTo_two_mul_imp_ge2_and_noSeedGE2_imp_massDiverges.2.2.1 hno
+  have hfin : FiniteSeedsTerminate := hbridge.1
+  have hmass : MassDiverges := hbridge.2.1
+  have hbox : ZeroCoastBoxTerminationHypothesis := hbridge.2.2.1
+  have hq01 : Ruliology.CellularAutomata.Rule30GateTrap.Q01Gap := hbridge.2.2.2
+  have hsched : ExistsVoidCrashSchedule :=
+    existsVoidCrashSchedule_iff_q01Gap_and_massDiverges.2.1.mpr hmass
+  have hnot2 : ¬ ∃ T0, ∀ t, T0 ≤ t →
+      Ruliology.CellularAutomata.Rule30Prize.center (t + 2) =
+        Ruliology.CellularAutomata.Rule30Prize.center t :=
+    Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.not_eventually_period_two_of_noSeed_GE2 hno
+  have hnot1 : ¬ ∃ T0, ∀ t, T0 ≤ t →
+      Ruliology.CellularAutomata.Rule30Prize.center (t + 1) =
+        Ruliology.CellularAutomata.Rule30Prize.center t := by
+    rintro ⟨T0, hT0⟩
+    apply hnot2
+    refine ⟨T0, fun t ht => ?_⟩
+    have h1 : Ruliology.CellularAutomata.Rule30Prize.center (t + 2) =
+        Ruliology.CellularAutomata.Rule30Prize.center (t + 1) := by
+      simpa [Nat.add_assoc] using hT0 (t + 1) (by omega)
+    rw [h1, hT0 t ht]
+  have hge3 : ∀ T0 p : Nat, 0 < p →
+      (∀ t, T0 ≤ t →
+        Ruliology.CellularAutomata.Rule30Prize.center (t + p) =
+          Ruliology.CellularAutomata.Rule30Prize.center t) →
+      3 ≤ p := by
+    intro T0 p hp hper
+    apply Classical.byContradiction
+    intro hlt3
+    have hp12 : p = 1 ∨ p = 2 := by omega
+    rcases hp12 with rfl | rfl
+    · exact hnot1 ⟨T0, hper⟩
+    · exact hnot2 ⟨T0, hper⟩
+  exact ⟨hno, hsched, hfin, hmass, hbox, hq01, hnot1, hnot2, hge3⟩
+
+end ScanXorInversionAndWeightSchedules
+
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
