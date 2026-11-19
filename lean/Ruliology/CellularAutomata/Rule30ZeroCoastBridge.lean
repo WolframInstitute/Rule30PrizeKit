@@ -6480,5 +6480,199 @@ theorem white_trace_prefix_inward_lowest_bit_and_width_lower_bound :
 
 end WallAncestryIntegerSeedBridge
 
+/-! ## 23. Trivial Kernel of `iter F`, Top-Bit Conservation Across Meeting Orbits, Sharp Integer-Seed White-Past Cutoff (`z = 2 ^ m` at `k = m`), and Two-Predecessor Fiber Bound (`exists_top_bit_and_iter_F_eq_zero_iff_and_top_bit_conservation`, `fixed_origin_white_past_cutoff_and_sharp_boundary_pow2_on_seeds`, `F_preimage_at_most_two_and_distinct_parents_opposite_wall_bit`) -/
+
+section WhitePastCutoffAndFiberBounds
+open Rule30ZeroBoundary Rule30ZeroBoundary.IntegerForm
+
+theorem exists_top_bit_of_pos (x : Nat) :
+    0 < x → ∃ m : Nat, x.testBit m = true ∧ ∀ i : Nat, m < i → x.testBit i = false := by
+  induction x using Nat.strongRecOn with
+  | ind x ih =>
+    intro hx
+    by_cases hdiv : x / 2 = 0
+    · have hx1 : x = 1 := by omega
+      subst hx1
+      refine ⟨0, rfl, fun i hi => ?_⟩
+      exact Nat.testBit_lt_two_pow (Nat.pow_lt_pow_right (by decide) hi)
+    · obtain ⟨m, hm, htop⟩ := ih (x / 2) (Nat.div_lt_self hx (by decide)) (by omega)
+      refine ⟨m + 1, ?_, fun i hi => ?_⟩
+      · rw [Nat.testBit_succ]; exact hm
+      · obtain ⟨j, rfl⟩ : ∃ j, i = j + 1 := ⟨i - 1, by omega⟩
+        rw [Nat.testBit_succ]
+        exact htop j (by omega)
+
+theorem top_bit_unique {x m1 m2 : Nat}
+    (hm1 : x.testBit m1 = true) (htop1 : ∀ i : Nat, m1 < i → x.testBit i = false)
+    (hm2 : x.testBit m2 = true) (htop2 : ∀ i : Nat, m2 < i → x.testBit i = false) :
+    m1 = m2 := by
+  rcases Nat.lt_trichotomy m1 m2 with hlt | rfl | hgt
+  · have hf := htop1 m2 hlt
+    rw [hm2] at hf; cases hf
+  · rfl
+  · have hf := htop2 m1 hgt
+    rw [hm1] at hf; cases hf
+
+theorem iter_F_top_bit_spec {x m : Nat}
+    (hm : x.testBit m = true) (htop : ∀ i : Nat, m < i → x.testBit i = false) (k : Nat) :
+    (iter F k x).testBit (m + k) = true ∧
+    ∀ i : Nat, m + k < i → (iter F k x).testBit i = false := by
+  refine ⟨testBit_iter_F_add_of_top hm htop k, fun i hi => ?_⟩
+  exact testBit_iter_F_eq_false_of_ge (b := m + 1) (fun j hj => htop j (by omega)) k (by omega)
+
+/-- **Top-Bit Existence, Trivial Kernel of `iter F`, and Top-Bit Conservation Across Meeting Orbits
+(`exists_top_bit_and_iter_F_eq_zero_iff_and_top_bit_conservation`).**
+Constructively proves (`propext` only):
+1. Every positive integer seed `x > 0` has a unique top set bit `m : Nat`
+   (`x.testBit m = true ∧ ∀ i > m, x.testBit i = false`).
+2. For every `k : Nat` and `x : Nat`, `iter F k x = 0 ↔ x = 0` (and `F x = 0 ↔ x = 0`).
+3. Whenever `iter F k z = iter F k x` and `x` has top set bit `m`, `z` also has top set bit `m`
+   (`z.testBit m = true ∧ ∀ i > m, z.testBit i = false`). -/
+theorem exists_top_bit_and_iter_F_eq_zero_iff_and_top_bit_conservation :
+    (∀ x : Nat, 0 < x →
+      ∃ m : Nat, x.testBit m = true ∧ ∀ i : Nat, m < i → x.testBit i = false) ∧
+    (∀ k x : Nat, iter F k x = 0 ↔ x = 0) ∧
+    (∀ k x z m : Nat,
+      x.testBit m = true →
+      (∀ i : Nat, m < i → x.testBit i = false) →
+      iter F k z = iter F k x →
+      z.testBit m = true ∧ ∀ i : Nat, m < i → z.testBit i = false) := by
+  have hzero : ∀ k x : Nat, iter F k x = 0 ↔ x = 0 := by
+    intro k x
+    constructor
+    · intro h
+      by_cases hx : x = 0
+      · exact hx
+      · obtain ⟨m, hm, htop⟩ := exists_top_bit_of_pos x (by omega)
+        have hbit := (iter_F_top_bit_spec hm htop k).1
+        rw [h, Nat.zero_testBit] at hbit
+        cases hbit
+    · rintro rfl
+      exact iter_F_zero k
+  refine ⟨exists_top_bit_of_pos, hzero, fun k x z m hm htop heq => ?_⟩
+  have hz_ne : z ≠ 0 := by
+    intro hz0
+    subst hz0
+    rw [iter_F_zero] at heq
+    have hx0 : x = 0 := (hzero k x).mp heq.symm
+    subst hx0
+    rw [Nat.zero_testBit] at hm
+    cases hm
+  obtain ⟨n, hn, htop_z⟩ := exists_top_bit_of_pos z (by omega)
+  have hspec_x := iter_F_top_bit_spec hm htop k
+  have hspec_z := iter_F_top_bit_spec hn htop_z k
+  rw [heq] at hspec_z
+  have hnk_eq : n + k = m + k :=
+    top_bit_unique hspec_z.1 hspec_z.2 hspec_x.1 hspec_x.2
+  have hnm : n = m := by omega
+  subst hnm
+  exact ⟨hn, htop_z⟩
+
+/-- **Integer-Seed White-Past Cutoff and Sharp `z = 2 ^ m` Boundary Classification
+(`fixed_origin_white_past_cutoff_and_sharp_boundary_pow2_on_seeds`).**
+Constructively proves (`propext`, `Quot.sound` only):
+1. Whenever `x : Nat` has top set bit `m` (`x.testBit m = true ∧ ∀ i > m, x.testBit i = false`),
+   and a seed `z : Nat` has a `k`-step all-white wall trace (`∀ t < k, tr z t = false`) and meets
+   `x` at time `k` (`iter F k z = iter F k x`), we have `k ≤ m`.
+2. Consequently, for every `k > m`, no integer seed `z : Nat` with a `k`-step all-white wall trace
+   can ever meet `iter F k x`:
+   `∀ k > m, ∀ z : Nat, (∀ t < k, tr z t = false) → iter F k z ≠ iter F k x`.
+3. At the sharp cutoff `k = m`, any seed `z : Nat` with an `m`-step all-white wall trace and
+   `iter F m z = iter F m x` is uniquely forced to be `z = 2 ^ m`; thus an `m`-step all-white-past
+   seed meeting `iter F m x` exists if and only if `iter F m x = iter F m (2 ^ m)`. -/
+theorem fixed_origin_white_past_cutoff_and_sharp_boundary_pow2_on_seeds (x m : Nat)
+    (hm : x.testBit m = true) (htop : ∀ i : Nat, m < i → x.testBit i = false) :
+    (∀ k z : Nat,
+      (∀ t : Nat, t < k → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr z t = false) →
+      iter F k z = iter F k x →
+      k ≤ m) ∧
+    (∀ k : Nat, m < k → ∀ z : Nat,
+      (∀ t : Nat, t < k → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr z t = false) →
+      iter F k z ≠ iter F k x) ∧
+    (∀ z : Nat,
+      (∀ t : Nat, t < m → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr z t = false) →
+      iter F m z = iter F m x →
+      z = 2 ^ m) ∧
+    ((∃ z : Nat,
+        (∀ t : Nat, t < m → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr z t = false) ∧
+        iter F m z = iter F m x) ↔
+      iter F m x = iter F m (2 ^ m)) := by
+  have h_white_bits : ∀ (z k : Nat),
+      (∀ t : Nat, t < k → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr z t = false) ↔
+      (∀ i : Nat, i < k → z.testBit i = false) := by
+    intro z k
+    have hw := white_trace_prefix_inward_lowest_bit_and_width_lower_bound.1 z k
+    exact Iff.trans hw.1 hw.2
+  have hcutoff : ∀ k z : Nat,
+      (∀ t : Nat, t < k → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr z t = false) →
+      iter F k z = iter F k x →
+      k ≤ m := by
+    intro k z htr_z heq
+    have hz_top := exists_top_bit_and_iter_F_eq_zero_iff_and_top_bit_conservation.2.2 k x z m hm htop heq
+    have hlow_z : ∀ i : Nat, i < k → z.testBit i = false := (h_white_bits z k).mp htr_z
+    apply Nat.le_of_not_lt
+    intro hlt
+    have hf := hlow_z m hlt
+    rw [hz_top.1] at hf
+    cases hf
+  have hsharp : ∀ z : Nat,
+      (∀ t : Nat, t < m → Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr z t = false) →
+      iter F m z = iter F m x →
+      z = 2 ^ m := by
+    intro z htr_z heq
+    have hz_top := exists_top_bit_and_iter_F_eq_zero_iff_and_top_bit_conservation.2.2 m x z m hm htop heq
+    have hlow_z : ∀ i : Nat, i < m → z.testBit i = false := (h_white_bits z m).mp htr_z
+    apply Nat.eq_of_testBit_eq
+    intro i
+    rw [Nat.testBit_two_pow]
+    rcases Nat.lt_trichotomy i m with hlt | rfl | hgt
+    · rw [hlow_z i hlt]
+      exact (decide_eq_false (by omega)).symm
+    · rw [hz_top.1]
+      exact (decide_eq_true rfl).symm
+    · rw [hz_top.2 i hgt]
+      exact (decide_eq_false (by omega)).symm
+  refine ⟨hcutoff, fun k hmk z htr_z heq => Nat.not_le_of_gt hmk (hcutoff k z htr_z heq),
+    hsharp, ?_⟩
+  constructor
+  · rintro ⟨z, htr_z, heq⟩
+    have hz_eq : z = 2 ^ m := hsharp z htr_z heq
+    subst hz_eq
+    exact heq.symm
+  · intro heq_pow
+    refine ⟨2 ^ m, ?_, heq_pow.symm⟩
+    apply (h_white_bits (2 ^ m) m).mpr
+    intro i hi
+    rw [Nat.testBit_two_pow]
+    exact decide_eq_false (by omega)
+
+/-- **Two-Predecessor Fiber Bound for `F` and Opposite Wall-Bit Dichotomy
+(`F_preimage_at_most_two_and_distinct_parents_opposite_wall_bit`).**
+Constructively proves (`propext` only):
+1. Whenever `F x1 = F x2` and `x1 ≠ x2`, their bit-`0` wall values are opposite:
+   `x1.testBit 0 = !(x2.testBit 0)`.
+2. Every integer state has at most two 1-step predecessors under `F`: whenever
+   `F x1 = F x2` and `F x2 = F x3`, at least two of `x1, x2, x3` are equal
+   (`x1 = x2 ∨ x1 = x3 ∨ x2 = x3`). -/
+theorem F_preimage_at_most_two_and_distinct_parents_opposite_wall_bit :
+    (∀ x1 x2 : Nat, F x1 = F x2 → x1 ≠ x2 → x1.testBit 0 = !(x2.testBit 0)) ∧
+    (∀ x1 x2 x3 : Nat, F x1 = F x2 → F x2 = F x3 → x1 = x2 ∨ x1 = x3 ∨ x2 = x3) := by
+  have hopp : ∀ x1 x2 : Nat, F x1 = F x2 → x1 ≠ x2 → x1.testBit 0 = !(x2.testBit 0) := by
+    intro x1 x2 hF hne
+    have hnot_eq : x1.testBit 0 ≠ x2.testBit 0 := by
+      intro hb0
+      exact hne ((iter_F_and_trace_injective_on_seeds.1 x1 x2).mp ⟨hF, hb0⟩)
+    revert hnot_eq
+    cases x1.testBit 0 <;> cases x2.testBit 0 <;> decide
+  refine ⟨hopp, fun x1 x2 x3 h12 h23 => ?_⟩
+  have hbits : x1.testBit 0 = x2.testBit 0 ∨ x1.testBit 0 = x3.testBit 0 ∨ x2.testBit 0 = x3.testBit 0 := by
+    cases x1.testBit 0 <;> cases x2.testBit 0 <;> cases x3.testBit 0 <;> decide
+  rcases hbits with h12b | h13b | h23b
+  · exact Or.inl ((iter_F_and_trace_injective_on_seeds.1 x1 x2).mp ⟨h12, h12b⟩)
+  · exact Or.inr (Or.inl ((iter_F_and_trace_injective_on_seeds.1 x1 x3).mp ⟨h12.trans h23, h13b⟩))
+  · exact Or.inr (Or.inr ((iter_F_and_trace_injective_on_seeds.1 x2 x3).mp ⟨h23, h23b⟩))
+
+end WhitePastCutoffAndFiberBounds
+
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
