@@ -116,6 +116,7 @@ public import Ruliology.CellularAutomata.Rule30TraceMerge
 public import Ruliology.CellularAutomata.Rule30TraceAmbiguity
 public import Ruliology.CellularAutomata.Rule30ColumnSeparation
 public import Ruliology.CellularAutomata.Rule30SourceArrivals
+public import Ruliology.CellularAutomata.Rule30EventReturns
 public import Ruliology.CellularAutomata.Rule30SpacingRenormalization
 public import Ruliology.CellularAutomata.Rule30PackedReconstruction
 public import Ruliology.CellularAutomata.Rule30SpacingGapCounterexample
