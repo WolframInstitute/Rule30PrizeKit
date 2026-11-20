@@ -699,4 +699,149 @@ theorem contextual_distinction_and_problem1_iff_ge_two (i : Int) (T : Nat) :
     · exact center_not_eventually_period_one ⟨N, hper⟩
     · exact hge N P hP2 hper
 
+/-! ## Two-sided XOR mirror law and exact non-partial equivalence for `Rule30Prize.Problem1` -/
+
+/-- Pointwise XOR difference `cell (T + k) p xor cell (T + P + k) p` between two rows of the single-seed cone separated by `P` ticks. -/
+def seedDiff (T P k : Nat) (p : Int) : Bool :=
+  xor (Rule30Jen.cell (T + k) p) (Rule30Jen.cell (T + P + k) p)
+
+private theorem cell_step_at (t : Nat) (p : Int) :
+    Rule30Jen.cell (t + 1) p =
+      xor (Rule30Jen.cell t (p - 1)) (Rule30Jen.cell t p || Rule30Jen.cell t (p + 1)) := rfl
+
+/-- **Right-Half Center Cancellation and Black/White XOR Mirror Step (`seedDiff_right_cancel_and_mirror_step`):**
+whenever `seedDiff T P k 0 = false`, column `0` cancels out of `seedDiff T P (k + 1) 1`; and if
+`seedDiff T P (k + 1) 0 = false` as well, then `seedDiff T P k (-1) = false` on black center ticks
+and `seedDiff T P k (-1) = seedDiff T P k 1` on white center ticks. -/
+theorem seedDiff_right_cancel_and_mirror_step (T P k : Nat)
+    (h0 : seedDiff T P k 0 = false) :
+    seedDiff T P (k + 1) 1 =
+      xor (Rule30Jen.cell (T + k) 1 || Rule30Jen.cell (T + k) 2)
+          (Rule30Jen.cell (T + P + k) 1 || Rule30Jen.cell (T + P + k) 2) ∧
+    (seedDiff T P (k + 1) 0 = false →
+      (Rule30Prize.center (T + k) = true → seedDiff T P k (-1) = false) ∧
+      (Rule30Prize.center (T + k) = false → seedDiff T P k (-1) = seedDiff T P k 1)) := by
+  have heq0 : Rule30Jen.cell (T + k) 0 = Rule30Jen.cell (T + P + k) 0 := by
+    unfold seedDiff at h0
+    revert h0; cases Rule30Jen.cell (T + k) 0 <;> cases Rule30Jen.cell (T + P + k) 0 <;> decide
+  refine ⟨?_, fun hnext => ⟨fun hblack => ?_, fun hwhite => ?_⟩⟩
+  · unfold seedDiff
+    rw [show T + (k + 1) = (T + k) + 1 by omega,
+        show T + P + (k + 1) = (T + P + k) + 1 by omega,
+        cell_step_at (T + k) 1, cell_step_at (T + P + k) 1,
+        show (1 : Int) - 1 = 0 by omega, show (1 : Int) + 1 = 2 by omega, heq0]
+    cases Rule30Jen.cell (T + P + k) 0 <;>
+      cases (Rule30Jen.cell (T + k) 1 || Rule30Jen.cell (T + k) 2) <;>
+      cases (Rule30Jen.cell (T + P + k) 1 || Rule30Jen.cell (T + P + k) 2) <;> rfl
+  · unfold Rule30Prize.center at hblack
+    unfold seedDiff at hnext ⊢
+    rw [show T + (k + 1) = (T + k) + 1 by omega,
+        show T + P + (k + 1) = (T + P + k) + 1 by omega,
+        cell_step_at (T + k) 0, cell_step_at (T + P + k) 0,
+        show (0 : Int) - 1 = -1 by omega, show (0 : Int) + 1 = 1 by omega,
+        ← heq0, hblack] at hnext
+    revert hnext
+    cases Rule30Jen.cell (T + k) (-1) <;> cases Rule30Jen.cell (T + P + k) (-1) <;> simp
+  · unfold Rule30Prize.center at hwhite
+    unfold seedDiff at hnext ⊢
+    rw [show T + (k + 1) = (T + k) + 1 by omega,
+        show T + P + (k + 1) = (T + P + k) + 1 by omega,
+        cell_step_at (T + k) 0, cell_step_at (T + P + k) 0,
+        show (0 : Int) - 1 = -1 by omega, show (0 : Int) + 1 = 1 by omega,
+        ← heq0, hwhite] at hnext
+    revert hnext
+    cases Rule30Jen.cell (T + k) (-1) <;> cases Rule30Jen.cell (T + P + k) (-1) <;>
+      cases Rule30Jen.cell (T + k) 1 <;> cases Rule30Jen.cell (T + P + k) 1 <;> decide
+
+private theorem first_diff_exists :
+    ∀ k : Nat, ∀ f : Nat → Bool, f k = true →
+      f 0 = true ∨ ∃ m : Nat, m < k ∧ f m = false ∧ f (m + 1) = true
+  | 0, _, hk => Or.inl hk
+  | k + 1, f, hk => by
+    cases hfk : f k with
+    | false => exact Or.inr ⟨k, Nat.lt_succ_self k, hfk, hk⟩
+    | true =>
+      rcases first_diff_exists k f hfk with h0 | ⟨m, hm, hfm, hfm1⟩
+      · exact Or.inl h0
+      · exact Or.inr ⟨m, by omega, hfm, hfm1⟩
+
+/-- **Exact Two-Sided Coupled XOR Mirror Equivalence for `Rule30Prize.Problem1` (`problem1_iff_two_sided_xor_mirror_escape`):**
+the official Rule 30 Prize Problem 1 holds if and only if for every transient `T` and period `P ≥ 2`,
+either `seedDiff T P 0 0 = true`, or at some step `k` a black center tick exhibits `seedDiff T P k (-1) = true`
+or a white center tick breaks left–right difference symmetry (`seedDiff T P k (-1) ≠ seedDiff T P k 1`). -/
+theorem problem1_iff_two_sided_xor_mirror_escape :
+    Rule30Prize.Problem1 ↔
+      ∀ (T P : Nat), 2 ≤ P →
+        seedDiff T P 0 0 = true ∨
+        ∃ k : Nat,
+          (Rule30Prize.center (T + k) = true ∧ seedDiff T P k (-1) = true) ∨
+          (Rule30Prize.center (T + k) = false ∧ seedDiff T P k (-1) ≠ seedDiff T P k 1) := by
+  rw [(contextual_distinction_and_problem1_iff_ge_two 0 0).2]
+  constructor
+  · intro hge T P hP
+    have hnot_per : ¬ ∀ t, T ≤ t → Rule30Prize.center (t + P) = Rule30Prize.center t := hge T P hP
+    have hex_k : ∃ k : Nat, seedDiff T P k 0 = true := by
+      apply Classical.byContradiction
+      intro hno
+      apply hnot_per
+      intro t ht
+      obtain ⟨k, rfl⟩ : ∃ k, t = T + k := ⟨t - T, by omega⟩
+      have hfalse : seedDiff T P k 0 = false := by
+        cases hs : seedDiff T P k 0
+        · rfl
+        · exact False.elim (hno ⟨k, hs⟩)
+      unfold seedDiff at hfalse
+      unfold Rule30Prize.center
+      rw [show T + k + P = T + P + k by omega]
+      revert hfalse
+      cases Rule30Jen.cell (T + k) 0 <;> cases Rule30Jen.cell (T + P + k) 0 <;> decide
+    obtain ⟨k, hk⟩ := hex_k
+    rcases first_diff_exists k (fun m => seedDiff T P m 0) hk with h0 | ⟨m, _, hm0, hm1⟩
+    · exact Or.inl h0
+    · right
+      refine ⟨m, ?_⟩
+      have heq0 : Rule30Jen.cell (T + m) 0 = Rule30Jen.cell (T + P + m) 0 := by
+        unfold seedDiff at hm0
+        revert hm0; cases Rule30Jen.cell (T + m) 0 <;> cases Rule30Jen.cell (T + P + m) 0 <;> decide
+      cases hc : Rule30Prize.center (T + m) with
+      | true =>
+        left
+        refine ⟨rfl, ?_⟩
+        unfold Rule30Prize.center at hc
+        unfold seedDiff at hm1 ⊢
+        rw [show T + (m + 1) = (T + m) + 1 by omega,
+            show T + P + (m + 1) = (T + P + m) + 1 by omega,
+            cell_step_at (T + m) 0, cell_step_at (T + P + m) 0,
+            show (0 : Int) - 1 = -1 by omega, show (0 : Int) + 1 = 1 by omega,
+            ← heq0, hc] at hm1
+        simpa using hm1
+      | false =>
+        right
+        refine ⟨rfl, ?_⟩
+        unfold Rule30Prize.center at hc
+        unfold seedDiff at hm1 ⊢
+        rw [show T + (m + 1) = (T + m) + 1 by omega,
+            show T + P + (m + 1) = (T + P + m) + 1 by omega,
+            cell_step_at (T + m) 0, cell_step_at (T + P + m) 0,
+            show (0 : Int) - 1 = -1 by omega, show (0 : Int) + 1 = 1 by omega,
+            ← heq0, hc] at hm1
+        intro heq_lr
+        rw [Bool.false_or, Bool.false_or] at hm1
+        revert hm1 heq_lr
+        cases Rule30Jen.cell (T + m) (-1) <;> cases Rule30Jen.cell (T + P + m) (-1) <;>
+          cases Rule30Jen.cell (T + m) 1 <;> cases Rule30Jen.cell (T + P + m) 1 <;> decide
+  · intro hesc T P hP hper
+    have hdiff0 : ∀ k : Nat, seedDiff T P k 0 = false := by
+      intro k
+      have heq := hper (T + k) (by omega)
+      unfold Rule30Prize.center at heq
+      unfold seedDiff
+      rw [show T + P + k = T + k + P by omega, heq, Bool.xor_self]
+    rcases hesc T P hP with h0 | ⟨k, hcase⟩
+    · rw [hdiff0 0] at h0; cases h0
+    · have hmir := (seedDiff_right_cancel_and_mirror_step T P k (hdiff0 k)).2 (hdiff0 (k + 1))
+      rcases hcase with ⟨hb, hneg1⟩ | ⟨hw, hneq⟩
+      · rw [hmir.1 hb] at hneg1; cases hneg1
+      · exact hneq (hmir.2 hw)
+
 end Ruliology.CellularAutomata.Rule30UniversalStart
