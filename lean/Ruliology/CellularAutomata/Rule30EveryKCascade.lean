@@ -239,4 +239,88 @@ theorem scheduled_edge {w v q : Nat} (hq : 0 < q) (cycle : bandAt w v q = v)
         have result := ih (d+1) j k (e-1) (by omega) (by omega) next (by omega)
         simpa [show e-(k+1) = e-1-k by omega] using result
 
+/-! ## Period-multiple invariance of `earlier`, `schedule`, and `phaseCapacity` -/
+
+private theorem bandAt_eq_mod {w v q : Nat} (cycle : bandAt w v q = v) (x : Nat) :
+    bandAt w v x = bandAt w v (x % q) := by
+  have hdiv : x = x % q + (x / q) * q := by
+    rw [Nat.mul_comm]; exact (Nat.mod_add_div x q).symm
+  conv => lhs; rw [hdiv]
+  exact rowAt_add_mul cycle (x % q) (x / q)
+
+private theorem sub_mul_mod_eq (m q c r : Nat) (hq : 0 < q) (hc : c < m) (hr : r < q) :
+    ((m * q - (r + q * c)) % (m * q)) % q = ((q - r) % q) % q := by
+  have hqc : q * c = c * q := Nat.mul_comm q c
+  by_cases hr0 : r = 0
+  · subst hr0
+    by_cases hc0 : c = 0
+    · subst hc0
+      simp
+    · have hm_split : m * q = (m - c) * q + c * q := by
+        rw [← Nat.add_mul, show m - c + c = m by omega]
+      have hsub : m * q - (0 + q * c) = (m - c) * q := by omega
+      have hlt_mq : (m - c) * q < m * q := (Nat.mul_lt_mul_right hq).mpr (by omega)
+      rw [hsub, Nat.mod_eq_of_lt hlt_mq, Nat.mul_mod_left, Nat.sub_zero, Nat.mod_self, Nat.zero_mod]
+  · have hm_split : m * q = (m - 1 - c) * q + q + c * q := by
+      conv => lhs; rw [show m = (m - 1 - c) + 1 + c by omega, Nat.add_mul, Nat.add_mul, Nat.one_mul]
+    have hsub : m * q - (r + q * c) = (q - r) + (m - 1 - c) * q := by omega
+    have hlt_mq : (q - r) + (m - 1 - c) * q < m * q := by
+      have hle : (m - 1 - c) * q ≤ (m - 1 - c) * q + c * q := Nat.le_add_right _ _
+      omega
+    have hqr_lt : q - r < q := by omega
+    rw [hsub, Nat.mod_eq_of_lt hlt_mq, Nat.add_mul_mod_self_right,
+      Nat.mod_eq_of_lt hqr_lt, Nat.mod_eq_of_lt hqr_lt]
+
+private theorem phase_mod_mul_eq {m q : Nat} (hm : 0 < m) (hq : 0 < q) (d : Nat) :
+    ((m * q - d % (m * q)) % (m * q)) % q = ((q - d % q) % q) % q := by
+  have hmq : 0 < m * q := Nat.mul_pos hm hq
+  have hrem_lt : d % (m * q) < m * q := Nat.mod_lt d hmq
+  have hd_mod : d % q = (d % (m * q)) % q :=
+    (Nat.mod_mod_of_dvd d ⟨m, Nat.mul_comm m q⟩).symm
+  have hc_lt : (d % (m * q)) / q < m := by
+    apply Classical.byContradiction
+    intro hge
+    have hbig : m * q ≤ q * ((d % (m * q)) / q) := by
+      rw [Nat.mul_comm q _]
+      exact Nat.mul_le_mul_right q (Nat.not_lt.mp hge)
+    have hdiv := Nat.mod_add_div (d % (m * q)) q
+    omega
+  have hr_lt : (d % (m * q)) % q < q := Nat.mod_lt (d % (m * q)) hq
+  have hdecomp : d % (m * q) = (d % (m * q)) % q + q * ((d % (m * q)) / q) :=
+    (Nat.mod_add_div (d % (m * q)) q).symm
+  rw [hd_mod]
+  conv => lhs; rw [hdecomp]
+  exact sub_mul_mod_eq m q ((d % (m * q)) / q) ((d % (m * q)) % q) hq hc_lt hr_lt
+
+/-- **Period-Multiple Invariance of `earlier`, `schedule`, and `phaseCapacity` (`earlier_and_phaseCapacity_mul_period`):**
+for any cycle period `q > 0` (`bandAt w v q = v`) and positive multiplier `m > 0`, evaluating `earlier`,
+`schedule`, or `phaseCapacity` at period `m * q` is identically equal to evaluating at `q`. -/
+theorem earlier_and_phaseCapacity_mul_period {w v q m : Nat}
+    (hq : 0 < q) (hm : 0 < m) (cycle : bandAt w v q = v) :
+    (∀ d : Nat, earlier w v (m * q) d = earlier w v q d) ∧
+    (∀ fuel d avail : Nat, schedule w v (m * q) fuel d avail = schedule w v q fuel d avail) ∧
+    phaseCapacity w v (m * q) = phaseCapacity w v q := by
+  have hearlier : ∀ d : Nat, earlier w v (m * q) d = earlier w v q d := by
+    intro d
+    unfold earlier
+    rw [bandAt_eq_mod cycle ((m * q - d % (m * q)) % (m * q)),
+      bandAt_eq_mod cycle ((q - d % q) % q), phase_mod_mul_eq hm hq d]
+  have hsched : ∀ fuel d avail : Nat,
+      schedule w v (m * q) fuel d avail = schedule w v q fuel d avail := by
+    intro fuel
+    induction fuel with
+    | zero => intros; rfl
+    | succ fuel ih =>
+      intro d avail
+      simp only [schedule]
+      change (match firstReset (earlier w v (m * q) d) avail with
+        | none => 0 | some j => 1 + schedule w v (m * q) fuel (d + 1) j) =
+        (match firstReset (earlier w v q d) avail with
+        | none => 0 | some j => 1 + schedule w v q fuel (d + 1) j)
+      rw [hearlier d]
+      cases firstReset (earlier w v q d) avail with
+      | none => rfl
+      | some j => dsimp only; rw [ih (d + 1) j]
+  exact ⟨hearlier, hsched, hsched w 0 w⟩
+
 end Ruliology.CellularAutomata.Rule30EveryKCascade

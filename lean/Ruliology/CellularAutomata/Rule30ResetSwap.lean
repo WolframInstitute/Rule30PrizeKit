@@ -206,4 +206,56 @@ theorem late_swap_transition (L : Trace) (s W : Nat) (g : Nat → Bool)
   have fs : FinSupp (zrow M s) := ⟨W+s,fun k hk => (hrow k (by omega)).trans (hy k hk)⟩
   exact ⟨M,hpre,wall,fs,finite_transition inf0 fs⟩
 
+/-! ## Exact `{6, 10}` support of `toggle`, uniqueness of `lift_past` on positive cells, and exact edge preservation -/
+
+/-- **Exact `{6, 10}` Support of `toggle`, Positive-Half Uniqueness of `lift_past`, and Exact Edge Preservation (`toggle_support_and_lift_past_unique`).** -/
+theorem toggle_support_and_lift_past_unique :
+    (∀ u : Trace, toggle u 6 = !u 6 ∧ toggle u 10 = !u 10 ∧
+      ∀ t : Nat, t ≠ 6 → t ≠ 10 → toggle u t = u t) ∧
+    (∀ (M₁ M₂ : Trace) (s : Nat),
+      (∀ t, t < s → zrow M₁ t 1 = zrow M₂ t 1) →
+      (∀ k, 1 ≤ k → zrow M₁ s k = zrow M₂ s k) →
+      ∀ k, 1 ≤ k → M₁ k = M₂ k) ∧
+    (∀ (L M : Trace) (W T : Nat), 1 ≤ W → L W = true →
+      (∀ k, W < k → L k = false) → FinSupp M →
+      (∀ k, zrow M T k = zrow L T k) →
+      M W = true ∧ ∀ k, W < k → M k = false) := by
+  refine ⟨fun u => ⟨?_, ?_, ?_⟩, fun M₁ M₂ s hwall hrow k hk => ?_,
+    fun L M W T hW hLW hLfin hMfin hmeet => ?_⟩
+  · unfold toggle; cases u 6 <;> decide
+  · unfold toggle; cases u 10 <;> decide
+  · intro t ht6 ht10
+    unfold toggle
+    have hbit : (1088 : Nat).testBit t = false := by
+      by_cases hlt : t < 11
+      · have hcases : t = 0 ∨ t = 1 ∨ t = 2 ∨ t = 3 ∨ t = 4 ∨ t = 5 ∨
+            t = 7 ∨ t = 8 ∨ t = 9 := by omega
+        rcases hcases with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> decide
+      · exact Nat.testBit_lt_two_pow (Nat.lt_of_lt_of_le (by decide : 1088 < 2 ^ 11)
+          (Nat.pow_le_pow_right (by decide) (by omega)))
+    rw [hbit, Bool.xor_false]
+  · have hfull : ∀ j : Nat, zrow M₁ s j = zrow M₂ s j := by
+      intro j
+      cases j with
+      | zero => rw [zrow_wall, zrow_wall]
+      | succ j => exact hrow (j + 1) (by omega)
+    have hdet := history_det hfull hwall 0 (Nat.zero_le s) k
+    simpa only [zrow_zero_of_pos _ hk] using hdet
+  · have hMbound := width_of_meeting hLfin hMfin hmeet
+    refine ⟨?_, hMbound⟩
+    cases hMW : M W with
+    | true => rfl
+    | false =>
+      have hM_le : ∀ k, W - 1 < k → M k = false := by
+        intro k hk
+        by_cases heq : k = W
+        · subst heq; exact hMW
+        · exact hMbound k (by omega)
+      have htop_false : zrow M T (W + T) = false :=
+        zrow_fin hM_le T (W + T) (by omega)
+      have htop_true : zrow L T (W + T) = true :=
+        (zrow_edge hW hLW hLfin T).1
+      rw [hmeet (W + T), htop_true] at htop_false
+      cases htop_false
+
 end Ruliology.CellularAutomata.Rule30ResetSwap
