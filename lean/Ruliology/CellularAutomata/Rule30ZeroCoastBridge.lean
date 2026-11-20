@@ -4,6 +4,7 @@ public import Ruliology.CellularAutomata.Rule30Prize
 public import Ruliology.CellularAutomata.Rule30SpacingRenormalization
 public import Ruliology.CellularAutomata.Rule30ZeroBoundary
 public import Ruliology.CellularAutomata.Rule30ResetSwapCore
+public import Ruliology.CellularAutomata.Rule30EveryKInverse
 public import Ruliology.CellularAutomata.Rule30GateTrap
 public import Ruliology.CellularAutomata.Rule30PeriodTwo
 public import Ruliology.CellularAutomata.Rule30PeriodTwoSideways
@@ -6673,6 +6674,147 @@ theorem F_preimage_at_most_two_and_distinct_parents_opposite_wall_bit :
   · exact Or.inr (Or.inr ((iter_F_and_trace_injective_on_seeds.1 x2 x3).mp ⟨h23, h23b⟩))
 
 end WhitePastCutoffAndFiberBounds
+
+/-! ## 24. Bridge to `Rule30EveryKInverse`: `2 * k ≤ age` Settling-Age Lower Bound, Global Uniqueness and `seedOfTrace` Decomposition of `AllHistories` Ancestors, and Convergence of `survivingSeeds k` Lifts to Any Settled State (`two_mul_le_age_of_allHistories_and_settled_age_lower_bound`, `allHistories_unique_seed_and_mod_pow2_eq_seedOfTrace`, `settled_survivingSeeds_converge_to_common_iter_F_state`) -/
+
+section EveryKZeroCoastBridge
+open Rule30ZeroBoundary Rule30ZeroBoundary.IntegerForm
+
+/-- **Universal `2 * k ≤ age` Lower Bound on `AllHistories`, `TargetAt`, and Settled Capacity Ages
+(`two_mul_le_age_of_allHistories_and_settled_age_lower_bound`).**
+Proves:
+1. For every `k, age : Nat`, `Rule30EveryKStatement.AllHistories k age → 2 * k ≤ age`
+   (and `Rule30EveryKStatement.TargetAt k age → 2 * k ≤ age`).
+2. For every positive band width `w > 0`, every `k ≤ Rule30EveryKStatement.K1 w`, and every `age`
+   with `Rule30EveryKStatement.Settled w age`, we have `2 * k ≤ age`, and in particular
+   `2 * Rule30EveryKStatement.K1 w ≤ age`. -/
+theorem two_mul_le_age_of_allHistories_and_settled_age_lower_bound :
+    (∀ k age : Nat,
+      Ruliology.CellularAutomata.Rule30EveryKStatement.AllHistories k age → 2 * k ≤ age) ∧
+    (∀ k age : Nat,
+      Ruliology.CellularAutomata.Rule30EveryKStatement.TargetAt k age → 2 * k ≤ age) ∧
+    (∀ w age : Nat,
+      0 < w →
+      Ruliology.CellularAutomata.Rule30EveryKStatement.Settled w age →
+      2 * Ruliology.CellularAutomata.Rule30EveryKStatement.K1 w ≤ age) := by
+  have hall : ∀ k age : Nat,
+      Ruliology.CellularAutomata.Rule30EveryKStatement.AllHistories k age → 2 * k ≤ age := by
+    intro k age hAH
+    obtain ⟨A, _, htopA, hbits⟩ :=
+      hAH 1 age (by decide : (1 : Nat) ≠ 0) (Nat.le_refl age) (fun _ => false)
+    have hlog1 : (1 : Nat).log2 = 0 := by decide
+    rw [hlog1, Nat.zero_add] at htopA
+    have htr_white : ∀ t : Nat, t < k →
+        Ruliology.CellularAutomata.Rule30PeriodTwoWidth13.tr A t = false := by
+      intro t ht
+      have hb := hbits ⟨t, ht⟩
+      rwa [← zrow_rowOfNat A t 1, zrow_rowOfNat_col1] at hb
+    have hlow_white : ∀ i : Nat, i < k → A.testBit i = false :=
+      (white_trace_prefix_inward_lowest_bit_and_width_lower_bound.1 A k).2.mp
+        ((white_trace_prefix_inward_lowest_bit_and_width_lower_bound.1 A k).1.mp htr_white)
+    have hnot_lt : ¬ (age - k < k) := by
+      intro hlt
+      have hf := hlow_white (age - k) hlt
+      rw [htopA.1] at hf
+      cases hf
+    omega
+  have htarget : ∀ k age : Nat,
+      Ruliology.CellularAutomata.Rule30EveryKStatement.TargetAt k age → 2 * k ≤ age :=
+    fun k age hT => hall k age hT.2.2
+  refine ⟨hall, htarget, fun w age hw hset => ?_⟩
+  have hT := Ruliology.CellularAutomata.Rule30EveryKInverse.capacity_at_settling_age
+    (Ruliology.CellularAutomata.Rule30EveryKStatement.K1 w) w age hw (Nat.le_refl _) hset
+  exact htarget _ age hT
+
+/-- **Global Uniqueness and `seedOfTrace` Low-Bit Decomposition of `AllHistories` Ancestors
+(`allHistories_unique_seed_and_mod_pow2_eq_seedOfTrace`).**
+Proves that whenever `Rule30EveryKStatement.AllHistories k age` holds, for every `Y ≠ 0`, every
+`t ≥ age`, and every `k`-bit trace word `w : List Bool` with `w.length = k`:
+1. There exists an integer seed `A : Nat` such that
+   `iter F k A = iter F t Y ∧ trace A k = w ∧ Rule30EveryKStatement.Top A (Y.log2 + t - k) ∧ A % 2 ^ k = seedOfTrace w`.
+2. Any two seeds `A1, A2 : Nat` satisfying `iter F k A1 = iter F t Y ∧ trace A1 k = w` and
+   `iter F k A2 = iter F t Y ∧ trace A2 k = w` are equal (`A1 = A2`). -/
+theorem allHistories_unique_seed_and_mod_pow2_eq_seedOfTrace {k age : Nat}
+    (hAH : Ruliology.CellularAutomata.Rule30EveryKStatement.AllHistories k age)
+    (Y t : Nat) (hY : Y ≠ 0) (ht : age ≤ t) (w : List Bool) (hw : w.length = k) :
+    (∃ A : Nat,
+      iter F k A = iter F t Y ∧
+      trace A k = w ∧
+      Ruliology.CellularAutomata.Rule30EveryKStatement.Top A (Y.log2 + t - k) ∧
+      A % 2 ^ k = seedOfTrace w) ∧
+    (∀ A1 A2 : Nat,
+      (iter F k A1 = iter F t Y ∧ trace A1 k = w) →
+      (iter F k A2 = iter F t Y ∧ trace A2 k = w) →
+      A1 = A2) := by
+  refine ⟨?_, fun A1 A2 h1 h2 =>
+    (iter_F_and_trace_injective_on_seeds.2 k A1 A2).mp ⟨h1.1.trans h2.1.symm, h1.2.trans h2.2.symm⟩⟩
+  obtain ⟨A, hiter, htop, hbits⟩ :=
+    hAH Y t hY ht (fun i : Fin k => w[i.val]'(by rw [hw]; exact i.isLt))
+  have htr_eq : trace A k = w := by
+    apply List.ext_getElem
+    · rw [trace_length, hw]
+    · intro i h1 h2
+      have hi : i < k := by rw [trace_length] at h1; exact h1
+      rw [trace_getElem A k i hi]
+      have hb := hbits ⟨i, hi⟩
+      rwa [← zrow_rowOfNat A i 1, zrow_rowOfNat_col1] at hb
+  have hmod : A % 2 ^ k = seedOfTrace w := by
+    have hsp := (seedOfTrace_spec w).2
+    rw [hw] at hsp
+    have hbij := (trace_eq_iff_mod_pow2_eq_and_seedOfTrace_bijection k A (seedOfTrace w) []).1.mp
+      (htr_eq.trans hsp.symm)
+    have hlt : seedOfTrace w < 2 ^ k := by
+      have h1 := (seedOfTrace_spec w).1
+      rwa [hw] at h1
+    rwa [Nat.mod_eq_of_lt hlt] at hbij
+  exact ⟨A, hiter, htr_eq, htop, hmod⟩
+
+/-- **Convergence of All `survivingSeeds k` via High-Bit Extensions to Any Settled State
+(`settled_survivingSeeds_converge_to_common_iter_F_state`).**
+Proves unconditionally for every band width `w > 0`, every horizon `k ≤ Rule30EveryKStatement.K1 w`,
+every nonzero seed `Y ≠ 0`, every time `t ≥ Rule30EveryKStatement.settlingBound w`, and every
+canonical surviving seed `y ∈ survivingSeeds k`:
+1. There exists a unique integer seed `A : Nat` such that `iter F k A = iter F t Y` and
+   `trace A k = trace y k`.
+2. That unique lift `A` satisfies `A % 2 ^ k = y`, `SurvivesTo A k`, and
+   `Rule30EveryKStatement.Top A (Y.log2 + t - k)` with `k ≤ Y.log2 + t - k`. -/
+theorem settled_survivingSeeds_converge_to_common_iter_F_state
+    (w k Y t y : Nat) (hw : 0 < w)
+    (hk : k ≤ Ruliology.CellularAutomata.Rule30EveryKStatement.K1 w)
+    (hY : Y ≠ 0)
+    (ht : Ruliology.CellularAutomata.Rule30EveryKStatement.settlingBound w ≤ t)
+    (hy : y ∈ survivingSeeds k) :
+    (∃ A : Nat,
+      iter F k A = iter F t Y ∧
+      trace A k = trace y k ∧
+      A % 2 ^ k = y ∧
+      SurvivesTo A k ∧
+      Ruliology.CellularAutomata.Rule30EveryKStatement.Top A (Y.log2 + t - k) ∧
+      k ≤ Y.log2 + t - k) ∧
+    (∀ A1 A2 : Nat,
+      (iter F k A1 = iter F t Y ∧ trace A1 k = trace y k) →
+      (iter F k A2 = iter F t Y ∧ trace A2 k = trace y k) →
+      A1 = A2) := by
+  have hT := Ruliology.CellularAutomata.Rule30EveryKInverse.capacity_at_settling_age
+    k w (Ruliology.CellularAutomata.Rule30EveryKStatement.settlingBound w) hw hk
+    (Ruliology.CellularAutomata.Rule30EveryKInverse.uniform_settling hw)
+  have h2k : 2 * k ≤ Ruliology.CellularAutomata.Rule30EveryKStatement.settlingBound w :=
+    two_mul_le_age_of_allHistories_and_settled_age_lower_bound.2.1 k _ hT
+  obtain ⟨hlt_y, hsurv_y⟩ := (mem_survivingSeeds_iff_and_survivesTo_iff k y).1.mp hy
+  have hex_uniq := allHistories_unique_seed_and_mod_pow2_eq_seedOfTrace
+    hT.2.2 Y t hY ht (trace y k) (trace_length y k)
+  refine ⟨?_, hex_uniq.2⟩
+  obtain ⟨A, hiter, htr, htop, hmod⟩ := hex_uniq.1
+  have hseed_y : seedOfTrace (trace y k) = y := by
+    rw [(trace_eq_iff_mod_pow2_eq_and_seedOfTrace_bijection k y y []).2.2,
+      Nat.mod_eq_of_lt hlt_y]
+  rw [hseed_y] at hmod
+  have hsurv_A : SurvivesTo A k := by
+    unfold SurvivesTo at hsurv_y ⊢
+    rwa [htr]
+  exact ⟨A, hiter, htr, hmod, hsurv_A, htop, by omega⟩
+
+end EveryKZeroCoastBridge
 
 end Rule30ZeroCoastBridge
 end Ruliology.CellularAutomata
