@@ -233,6 +233,10 @@ public import Ruliology.CellularAutomata.Rule30EdgeSourcePulse
 public import Ruliology.CellularAutomata.Rule30EveryKStatement
 public import Ruliology.CellularAutomata.Rule30EveryKCascade
 public import Ruliology.CellularAutomata.Rule30EveryKInverse
+public import Ruliology.CellularAutomata.Rule30ThreePhaseReturn
+public import Ruliology.CellularAutomata.Rule30RootedWhiteReturns
+public import Ruliology.CellularAutomata.Rule30RecurrentStrip
+public import Ruliology.CellularAutomata.Rule30ResetCompactness
 
 /-!
 # Rule 30 Prize: Lean snapshot
