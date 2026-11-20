@@ -284,4 +284,54 @@ theorem fixed_origin_white_past_cutoff {L X : Row} {W k : Nat}
     ⟨m+k,by omega,edge⟩ (zrow_fin hl k)
   omega
 
+/-! ## Universal sharpness of `white_record_width_lower` (`W = H + 2*k + 1`) and `fixed_origin_white_past_cutoff` (`k = W - 1`) -/
+
+private def singleCell (p : Nat) : Row := fun j => decide (j = p)
+
+private theorem zrow_singleCell_white_before (p t : Nat) (ht : t + 1 < p) :
+    zrow (singleCell p) t 1 = false := by
+  rw [zrow_light_cone t 1 (L := singleCell p) (L' := fun _ => false)
+    (fun i _ hi => by simp [singleCell, show i ≠ p by omega])]
+  exact white_row t 1
+
+/-- **Universal Sharpness of `white_record_width_lower` and `fixed_origin_white_past_cutoff` (`white_record_width_sharp_and_cutoff_tight`):**
+for every `(H, k)`, a single black start cell at depth `H + k + 1` achieves exact terminal width
+`W = H + 2*k + 1` with a `k`-step all-white past and `H`-step all-white future; and for every `W ≥ 1`,
+a single black cell at depth `W` achieves `k = W - 1` all-white steps, matching `k < W` to within `1`. -/
+theorem white_record_width_sharp_and_cutoff_tight :
+    (∀ H k : Nat, ∃ X Y : Row, FinSupp X ∧
+      (∀ t, t < k → zrow X t 1 = false) ∧
+      (∀ j, zrow X k j = Y j) ∧
+      (∀ t, t < H → zrow Y t 1 = false) ∧
+      Y (H + 2 * k + 1) = true ∧
+      (∀ j, H + 2 * k + 1 < j → Y j = false)) ∧
+    (∀ W : Nat, 1 ≤ W → ∃ L X : Row,
+      (∀ j, W < j → L j = false) ∧
+      (∃ i, 1 ≤ i ∧ L i = true) ∧
+      FinSupp X ∧
+      (∀ t, t < W - 1 → zrow X t 1 = false) ∧
+      (∀ j, zrow X (W - 1) j = zrow L (W - 1) j)) := by
+  refine ⟨fun H k => ?_, fun W hW => ?_⟩
+  · let p := H + k + 1
+    let X := singleCell p
+    let Y := zrow X k
+    have hp_edge : X p = true ∧ ∀ j, p < j → X j = false :=
+      ⟨by simp [X, singleCell], fun j hj => by simp [X, singleCell, show j ≠ p by omega]⟩
+    have hedge_k := zrow_edge (by dsimp [p]; omega : 1 ≤ p) hp_edge.1 hp_edge.2 k
+    refine ⟨X, Y, ⟨p, hp_edge.2⟩, ?_, fun _ => rfl, ?_, ?_, ?_⟩
+    · intro t ht
+      exact zrow_singleCell_white_before p t (by dsimp [p]; omega)
+    · intro t ht
+      rw [show zrow Y t 1 = zrow X (k + t) 1 from (zrow_shift X k t 1).symm]
+      exact zrow_singleCell_white_before p (k + t) (by dsimp [p]; omega)
+    · simpa [Y, show p + k = H + 2 * k + 1 by dsimp [p]; omega] using hedge_k.1
+    · intro j hj
+      exact hedge_k.2 j (by dsimp [p]; omega)
+  · let L := singleCell W
+    have hL_edge : L W = true ∧ ∀ j, W < j → L j = false :=
+      ⟨by simp [L, singleCell], fun j hj => by simp [L, singleCell, show j ≠ W by omega]⟩
+    refine ⟨L, L, hL_edge.2, ⟨W, hW, hL_edge.1⟩, ⟨W, hL_edge.2⟩, ?_, fun _ => rfl⟩
+    intro t ht
+    exact zrow_singleCell_white_before W t (by omega)
+
 end Ruliology.CellularAutomata.Rule30WallRecordAncestry

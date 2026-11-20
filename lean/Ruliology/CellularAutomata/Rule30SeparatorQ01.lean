@@ -750,5 +750,194 @@ theorem deathBounds_unrestricted_width_and_q01_sep
   refine ⟨?_, hQ, Q01_sep hQ⟩
   exact bwh_death hb (max W 16) (by omega) L (fun k hk => hL k (by omega))
 
+/-! ## Forced-bit uniqueness for `SurvivesTo` (`2^n` prefix law) and `W = 33` gap-`1` sharpness of `DeathBounds` -/
+
+private theorem iter_step_out (t x : Nat) :
+    IntegerForm.iter IntegerForm.F (t + 1) x = IntegerForm.F (IntegerForm.iter IntegerForm.F t x) := rfl
+
+private theorem F_flip_at_cutoff {x y pos : Nat} (hpos : 1 ≤ pos)
+    (hlow : ∀ j, j < pos → x.testBit j = y.testBit j)
+    (hflip : x.testBit pos = !(y.testBit pos)) :
+    (∀ j, j < pos - 1 → (IntegerForm.F x).testBit j = (IntegerForm.F y).testBit j) ∧
+    (IntegerForm.F x).testBit (pos - 1) = !((IntegerForm.F y).testBit (pos - 1)) := by
+  refine ⟨fun j hj => ?_, ?_⟩
+  · cases j with
+    | zero =>
+      rw [IntegerForm.testBit_F_zero, IntegerForm.testBit_F_zero,
+        hlow 1 (by omega), hlow 0 (by omega)]
+    | succ i =>
+      rw [IntegerForm.testBit_F_succ, IntegerForm.testBit_F_succ,
+        hlow (i + 2) (by omega), hlow (i + 1) (by omega), hlow i (by omega)]
+  · by_cases hp1 : pos = 1
+    · subst hp1
+      simp only [Nat.sub_self, IntegerForm.testBit_F_zero, hflip, hlow 0 (by omega)]
+      cases y.testBit 1 <;> cases y.testBit 0 <;> rfl
+    · obtain ⟨i, hi⟩ : ∃ i, pos - 1 = i + 1 := ⟨pos - 2, by omega⟩
+      rw [hi, IntegerForm.testBit_F_succ, IntegerForm.testBit_F_succ,
+        show i + 2 = pos by omega, hflip,
+        hlow (i + 1) (by omega), hlow i (by omega)]
+      cases y.testBit pos <;> cases (y.testBit (i + 1) || y.testBit i) <;> rfl
+
+private theorem iter_F_flip_at_cutoff :
+    ∀ (t x y pos : Nat), t ≤ pos →
+      (∀ j, j < pos → x.testBit j = y.testBit j) →
+      x.testBit pos = !(y.testBit pos) →
+      (∀ j, j < pos - t → (IntegerForm.iter IntegerForm.F t x).testBit j =
+        (IntegerForm.iter IntegerForm.F t y).testBit j) ∧
+      (IntegerForm.iter IntegerForm.F t x).testBit (pos - t) =
+        !((IntegerForm.iter IntegerForm.F t y).testBit (pos - t))
+  | 0, _, _, _, _, hlow, hflip => ⟨hlow, hflip⟩
+  | t + 1, x, y, pos, ht, hlow, hflip => by
+    obtain ⟨ih_low, ih_flip⟩ := iter_F_flip_at_cutoff t x y pos (by omega) hlow hflip
+    have hstep := F_flip_at_cutoff (pos := pos - t) (by omega) ih_low ih_flip
+    rw [iter_step_out, iter_step_out, show pos - (t + 1) = pos - t - 1 by omega]
+    exact hstep
+
+/-- **Forced-Bit Uniqueness Step for `SurvivesTo` (`survivesTo_forced_even_bit_unique`):**
+for every `s ≥ 1`, every prefix seed `Y < 2^(2*s - 1)` surviving up to `s - 1`, and every choice of
+odd-cell bit `b1 : Bool` at index `2*s - 1`, there exists a **unique** even-cell bit `b2 : Bool` at
+index `2*s` such that `Y + (b1 ? 2^(2*s-1) : 0) + (b2 ? 2^(2*s) : 0)` satisfies `SurvivesTo` up to `s`. -/
+theorem survivesTo_forced_even_bit_unique {s Y : Nat} (hs : 1 ≤ s) (hY : Y < 2 ^ (2 * s - 1))
+    (hsurv : SurvivesTo (IntegerForm.rowOfNat Y) (s - 1)) (b1 : Bool) :
+    ∃ b2 : Bool,
+      SurvivesTo (IntegerForm.rowOfNat
+        (Y + (if b1 then 2 ^ (2 * s - 1) else 0) + if b2 then 2 ^ (2 * s) else 0)) s ∧
+      ∀ b2' : Bool,
+        SurvivesTo (IntegerForm.rowOfNat
+          (Y + (if b1 then 2 ^ (2 * s - 1) else 0) + if b2' then 2 ^ (2 * s) else 0)) s →
+          b2' = b2 := by
+  let Y1 := Y + if b1 then 2 ^ (2 * s - 1) else 0
+  have hY1_lt : Y1 < 2 ^ (2 * s) := by
+    dsimp [Y1]
+    have hpow : 2 ^ (2 * s) = 2 ^ (2 * s - 1) + 2 ^ (2 * s - 1) := by
+      conv => lhs; rw [show 2 * s = (2 * s - 1) + 1 by omega, Nat.pow_succ]
+      omega
+    cases b1 <;> simp <;> omega
+  have hY1_low : ∀ j, j < 2 * s - 1 → Y1.testBit j = Y.testBit j := by
+    intro j hj
+    dsimp [Y1]
+    cases b1
+    · simp
+    · have hmod : (Y + 2 ^ (2 * s - 1)) % 2 ^ (2 * s - 1) = Y % 2 ^ (2 * s - 1) :=
+        Nat.add_mod_right Y (2 ^ (2 * s - 1))
+      have h1 := congrArg (fun z => z.testBit j) hmod
+      rw [Nat.testBit_mod_two_pow, Nat.testBit_mod_two_pow, decide_eq_true hj] at h1
+      simpa using h1
+  have htop_true : (Y1 + 2 ^ (2 * s)).testBit (2 * s) = true := by
+    have hdiv : (Y1 + 2 ^ (2 * s)) / 2 ^ (2 * s) = 1 := by
+      rw [Nat.add_div_right Y1 (Nat.two_pow_pos (2 * s)), Nat.div_eq_of_lt hY1_lt]
+    rw [Nat.testBit, Nat.shiftRight_eq_div_pow, hdiv]
+    rfl
+  have htop_false : Y1.testBit (2 * s) = false := Nat.testBit_lt_two_pow hY1_lt
+  have hcand_low : ∀ (b2 : Bool) (j : Nat), j < 2 * s →
+      (Y1 + if b2 then 2 ^ (2 * s) else 0).testBit j = Y1.testBit j := by
+    intro b2 j hj
+    cases b2
+    · simp
+    · simp only [↓reduceIte]
+      have hmod : (Y1 + 2 ^ (2 * s)) % 2 ^ (2 * s) = Y1 % 2 ^ (2 * s) :=
+        Nat.add_mod_right Y1 (2 ^ (2 * s))
+      have h1 := congrArg (fun z => z.testBit j) hmod
+      rw [Nat.testBit_mod_two_pow, Nat.testBit_mod_two_pow, decide_eq_true hj] at h1
+      simpa using h1
+  have hflip2s := iter_F_flip_at_cutoff (2 * s) (Y1 + 2 ^ (2 * s)) Y1 (2 * s) (Nat.le_refl _)
+    (fun j hj => by simpa using hcand_low true j hj)
+    (by rw [htop_true, htop_false]; rfl)
+  have hprev_ok : ∀ (b2 : Bool) (r : Nat), r < s →
+      zrow (IntegerForm.rowOfNat (Y1 + if b2 then 2 ^ (2 * s) else 0)) (2 * r) 1 = true := by
+    intro b2 r hr
+    have hcone : zrow (IntegerForm.rowOfNat (Y1 + if b2 then 2 ^ (2 * s) else 0)) (2 * r) 1 =
+        zrow (IntegerForm.rowOfNat Y) (2 * r) 1 := by
+      refine zrow_light_cone (2 * r) 1 (fun i hi1 hi2 => ?_)
+      obtain ⟨j, rfl⟩ : ∃ j, i = j + 1 := ⟨i - 1, by omega⟩
+      simp only [IntegerForm.rowOfNat]
+      rw [hcand_low b2 j (by omega), hY1_low j (by omega)]
+    rw [hcone]
+    exact hsurv r (by omega)
+  refine ⟨!((IntegerForm.iter IntegerForm.F (2 * s) Y1).testBit 0), ?_, fun b2' hsurv' => ?_⟩
+  · intro r hr
+    by_cases hrs : r < s
+    · exact hprev_ok _ r hrs
+    · have hreq : r = s := by omega
+      rw [hreq, IntegerForm.zrow_rowOfNat_col1]
+      cases hv0 : (IntegerForm.iter IntegerForm.F (2 * s) Y1).testBit 0
+      · have hf := hflip2s.2
+        simp only [Nat.sub_self, hv0] at hf
+        simpa using hf
+      · simpa using hv0
+  · change SurvivesTo (IntegerForm.rowOfNat (Y1 + if b2' then 2 ^ (2 * s) else 0)) s at hsurv'
+    have hlast := hsurv' s (Nat.le_refl s)
+    rw [IntegerForm.zrow_rowOfNat_col1] at hlast
+    cases b2' <;> cases hv0 : (IntegerForm.iter IntegerForm.F (2 * s) Y1).testBit 0
+    · simp only [Bool.false_eq_true, ↓reduceIte, Nat.add_zero] at hlast
+      rw [hv0] at hlast; cases hlast
+    · rfl
+    · rfl
+    · simp only [↓reduceIte] at hlast
+      have hf := hflip2s.2
+      simp only [Nat.sub_self, hv0] at hf
+      rw [hf] at hlast; cases hlast
+
+private def survCheck33 (Y : Nat) : Nat → Bool
+  | 0 => Y.testBit 0
+  | s + 1 => Y.testBit 0 && survCheck33 (IntegerForm.G Y) s
+
+private theorem survCheck33_sound : ∀ (s Y : Nat),
+    survCheck33 Y s = true → SurvivesTo (IntegerForm.rowOfNat Y) s
+  | 0, Y, h => by
+    intro r hr
+    have hr0 : r = 0 := by omega
+    subst hr0
+    simpa [survCheck33, IntegerForm.zrow_rowOfNat_col1, IntegerForm.iter] using h
+  | s + 1, Y, h => by
+    unfold survCheck33 at h
+    obtain ⟨h0, hrest⟩ := Bool.and_eq_true_iff.mp h
+    have ih := survCheck33_sound s (IntegerForm.G Y) hrest
+    intro r hr
+    cases r with
+    | zero => simpa [IntegerForm.zrow_rowOfNat_col1, IntegerForm.iter] using h0
+    | succ k =>
+      have hk := ih k (by omega)
+      rw [IntegerForm.zrow_rowOfNat_col1] at hk
+      rw [IntegerForm.zrow_rowOfNat_col1, show 2 * (k + 1) = 2 * k + 2 by omega]
+      change (IntegerForm.F (IntegerForm.F (IntegerForm.iter IntegerForm.F (2 * k) Y))).testBit 0 = true
+      have hcomm : ∀ n z, IntegerForm.iter IntegerForm.F n (IntegerForm.G z) =
+          IntegerForm.G (IntegerForm.iter IntegerForm.F n z) := by
+        intro n
+        induction n with
+        | zero => intro _; rfl
+        | succ n ihn =>
+          intro z
+          simp only [IntegerForm.iter]
+          rw [ihn z]
+          rfl
+      rw [hcomm (2 * k) Y] at hk
+      exact hk
+
+private theorem rowOfNat_gt_false {Y W : Nat} (hY : Y < 2 ^ W) :
+    ∀ k, W < k → IntegerForm.rowOfNat Y k = false := by
+  intro k hk
+  obtain ⟨j, rfl⟩ : ∃ j, k = j + 1 := ⟨k - 1, by omega⟩
+  simp only [IntegerForm.rowOfNat]
+  exact Nat.testBit_lt_two_pow (Nat.lt_of_lt_of_le hY (Nat.pow_le_pow_right (by decide) (by omega)))
+
+/-- **Sharp `gap = 1` Near-Miss Control at Width `W = 33` (`n = 15`) for `DeathBounds` (`odd_width_33_gap_one_sharpness`):**
+the seed `6561191253` has exact odd width `33 = 2 · 15 + 3` with top two cells black (`rowOfNat 6561191253 32 = true`),
+survives all even ticks through `s = 31` (`t = 62`), and fails at `s = 32` (`t = 64`), proving `DeathBounds` is tight
+to within `1` even step well inside the `n ≥ 7` regime. -/
+theorem odd_width_33_gap_one_sharpness :
+    ExactWidth (IntegerForm.rowOfNat 6561191253) 33 ∧
+    IntegerForm.rowOfNat 6561191253 32 = true ∧
+    SurvivesTo (IntegerForm.rowOfNat 6561191253) 31 ∧
+    ¬ SurvivesTo (IntegerForm.rowOfNat 6561191253) 32 := by
+  refine ⟨⟨by decide, rowOfNat_gt_false (W := 33) (by decide)⟩, by decide,
+    survCheck33_sound 31 6561191253 (by decide +kernel), fun h32 => ?_⟩
+  have h64 := h32 32 (Nat.le_refl 32)
+  rw [IntegerForm.zrow_rowOfNat_col1] at h64
+  have hfalse : (IntegerForm.iter IntegerForm.F 64 6561191253).testBit 0 = false := by
+    decide +kernel
+  rw [hfalse] at h64
+  cases h64
+
 end Rule30SeparatorQ01
 end Ruliology.CellularAutomata
