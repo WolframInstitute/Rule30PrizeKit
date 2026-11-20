@@ -228,6 +228,7 @@ public import Ruliology.CellularAutomata.Rule30PeriodTwoWidth13
 public import Ruliology.CellularAutomata.Rule30ZeroCoastBridge
 public import Ruliology.CellularAutomata.Rule30ResetSwap
 public import Ruliology.CellularAutomata.Rule30WallRecordAncestry
+public import Ruliology.CellularAutomata.Rule30EdgeSourcePulse
 public import Ruliology.CellularAutomata.Rule30EveryKStatement
 public import Ruliology.CellularAutomata.Rule30EveryKCascade
 public import Ruliology.CellularAutomata.Rule30EveryKInverse
