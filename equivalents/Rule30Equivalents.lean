@@ -106,5 +106,6 @@ public import Rule30Equivalents.PositiveAutomaton
 public import Rule30Equivalents.FrozenBoundary
 public import Rule30Equivalents.FrozenBoundaryPeriodTwo
 public import Rule30Equivalents.FrozenBoundaryCore
+public import Rule30Equivalents.WordCertificates
 
 @[expose] public section
