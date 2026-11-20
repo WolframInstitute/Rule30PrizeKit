@@ -237,6 +237,7 @@ public import Ruliology.CellularAutomata.Rule30ThreePhaseReturn
 public import Ruliology.CellularAutomata.Rule30RootedWhiteReturns
 public import Ruliology.CellularAutomata.Rule30RecurrentStrip
 public import Ruliology.CellularAutomata.Rule30ResetCompactness
+public import Ruliology.CellularAutomata.Rule30RelaxedWindows
 
 /-!
 # Rule 30 Prize: Lean snapshot
