@@ -25,7 +25,7 @@ sh Rule30PrizeKit/setup.sh
 
 It does not build the whole catalog. To import another catalog module, build it first, with `lake build Ruliology.CellularAutomata.<Module>`, or build everything with `bash build_all.sh`, one module at a time: the certificate modules need about 3 GB each.
 
-LeanLink needs version 1.2.0 or later, the first built for Lean 4.35.0. It loads from the kit with `LeanImportString[src, "ProjectDir" -> kit]`, following Lake path dependencies such as `lean/`, and its `"KernelCheck"` is the kernel replay described below.
+LeanLink needs a 1.2.x version, 1.2.0 to 1.2.8, the ones built for Lean 4.35.0; LeanLink 1.3.0 and later are built for Lean 4.36.0 and cannot read this build. It loads from the kit with `LeanImportString[src, "ProjectDir" -> kit]`, following Lake path dependencies such as `lean/`, and its `"KernelCheck"` is the kernel replay described below.
 
 ## The statements
 
