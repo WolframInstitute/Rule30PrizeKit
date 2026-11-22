@@ -256,6 +256,7 @@ public import Ruliology.CellularAutomata.Rule30PulseRelay
 public import Ruliology.CellularAutomata.Rule30EtherFamilies
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryDeathTimes
 public import Ruliology.CellularAutomata.Rule30ClockNearSquares
+public import Ruliology.CellularAutomata.Rule30SettledRepeats
 
 /-!
 # Rule 30 Prize: Lean snapshot
