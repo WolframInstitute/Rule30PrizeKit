@@ -254,6 +254,8 @@ public import Ruliology.CellularAutomata.Rule30GapPackets
 public import Ruliology.CellularAutomata.Rule30FiniteRoots
 public import Ruliology.CellularAutomata.Rule30PulseRelay
 public import Ruliology.CellularAutomata.Rule30EtherFamilies
+public import Ruliology.CellularAutomata.Rule30RequiredGapFactor
+public import Ruliology.CellularAutomata.Rule30ThreeGapCapture
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryDeathTimes
 public import Ruliology.CellularAutomata.Rule30ClockNearSquares
 public import Ruliology.CellularAutomata.Rule30SettledRepeats
