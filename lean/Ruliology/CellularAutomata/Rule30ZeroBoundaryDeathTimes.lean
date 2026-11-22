@@ -1,17 +1,18 @@
 module
 
 public import Ruliology.CellularAutomata.Rule30ZeroBoundarySmall
-public import Ruliology.CellularAutomata.Rule30ZeroBoundaryWidth52
 
 /-!
 # Death times of the zero-boundary left half: exact at width 52, lower bounds at 56 and 60
 
 `Rule30ZeroBoundaryWidth52.q01_width_le_52` proves that every zero-boundary start supported at depths at most 52 has
-a white depth-1 cell at some even time at most 96. This module proves that the bound 96 is exact, and gives lower
-bounds at two larger widths.
+a white depth-1 cell at some even time at most 96. This module gives a start that attains that bound, so the bound 96
+is exact, and lower bounds at two larger widths.
 
-* `death_time_52_exact`: the start `w52 = 0x7dc2ff6fcc4fd` (bits are depths 1 to 52) is black at depth 1 at every
-  even time below 96. With `q01_width_le_52`, the least uniform even death bound at width 52 is exactly 96.
+* `width52_lower`: the start `w52 = 0x7dc2ff6fcc4fd` (bits are depths 1 to 52) is black at depth 1 at every even time
+  below 96. With `Rule30ZeroBoundaryWidth52.q01_width_le_52`, the least uniform even death bound at width 52 is
+  exactly 96. This module does not import that one, so that importing it does not build the four width-52
+  certificate chunks.
 * `width56_lower`, `width60_lower`: the starts `w56` and `w60` are black at depth 1 at every even time below 100 and
   below 114. So no uniform even death bound at width 56 is below 100, and none at width 60 is below 114.
 
@@ -105,13 +106,12 @@ theorem w60_dies : zrow (toFun w60) 114 1 = false := by
 
 /-! ## The headline statements -/
 
-/-- **The death time at width 52 is exactly 96.** Every start supported at depths at most 52 has a white depth-1 cell
-at some even time at most 96 (`q01_width_le_52`), and the start `w52`, supported at depths at most 52, has none
-below 96. -/
-theorem death_time_52_exact :
-    (∀ x : Nat → Bool, (∀ k, 52 < k → x k = false) → ∃ t, t ≤ 96 ∧ t % 2 = 0 ∧ zrow x t 1 = false) ∧
-    (∃ x : Nat → Bool, (∀ k, 52 < k → x k = false) ∧ (∀ t, t < 96 → t % 2 = 0 → zrow x t 1 = true)) :=
-  ⟨Rule30ZeroBoundaryWidth52.q01_width_le_52, ⟨toFun w52, toFun_width w52_lt, w52_survives⟩⟩
+/-- **A lower bound at width 52, attaining `Rule30ZeroBoundaryWidth52.q01_width_le_52`:** a start supported at depths
+at most 52 with no even white time below 96. With that theorem, the least uniform even death bound at width 52 is
+exactly 96. -/
+theorem width52_lower :
+    ∃ x : Nat → Bool, (∀ k, 52 < k → x k = false) ∧ (∀ t, t < 96 → t % 2 = 0 → zrow x t 1 = true) :=
+  ⟨toFun w52, toFun_width w52_lt, w52_survives⟩
 
 /-- **A lower bound at width 56:** a start supported at depths at most 56 with no even white time below 100. -/
 theorem width56_lower :
