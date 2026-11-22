@@ -261,6 +261,7 @@ public import Ruliology.CellularAutomata.Rule30Rule210Clock
 public import Ruliology.CellularAutomata.Rule30RequiredGapFactor
 public import Ruliology.CellularAutomata.Rule30ThreeGapCapture
 public import Ruliology.CellularAutomata.Rule30GateTrapLadder
+public import Ruliology.CellularAutomata.Rule30GateTrapLadderCore
 
 /-!
 # Rule 30 Prize: Lean snapshot
