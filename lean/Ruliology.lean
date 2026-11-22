@@ -249,6 +249,7 @@ public import Ruliology.CellularAutomata.Rule30EveryKLine
 public import Ruliology.CellularAutomata.Rule30InverseSpatialPeriod
 public import Ruliology.CellularAutomata.Rule30InverseSixBlack
 public import Ruliology.CellularAutomata.Rule30ClockNearSquares
+public import Ruliology.CellularAutomata.Rule30SettledRepeats
 public import Ruliology.CellularAutomata.Rule30MaskedForkRate
 public import Ruliology.CellularAutomata.Rule30DelayedPastFork
 public import Ruliology.CellularAutomata.Rule30GapPackets
