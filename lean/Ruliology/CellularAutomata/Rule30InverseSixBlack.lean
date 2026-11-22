@@ -1,6 +1,7 @@
 module
 
 public import Ruliology.CellularAutomata.Rule30InverseSpatialPeriod
+public import Ruliology.CellularAutomata.Rule30Window
 
 /-!
 # Six black cells in a two-step Rule 30 image
@@ -302,5 +303,38 @@ theorem even_ancestor (x : Row) (k : Nat) {p : Nat} (hp : 0<p)
       nonconstant_before (nonconstant_before (x:=evol (evol x (2*k)) 1) hn)
     have v := ih (p:=2*p) (by omega) (period_two_step hp h hn) nc
     simpa [Nat.pow_succ,Nat.mul_assoc] using v
+
+private def packedWord (t offset width : Nat) := (List.range width).map
+  fun j => (Rule30Window.row 400 t).testBit (400-offset-j)
+
+private theorem seed_word (t offset width : Nat) (ht : t≤400) (hw : offset+width≤400) :
+    word (Rule30Jen.cell t) (-(offset:Int)) width=packedWord t offset width := by
+  apply List.map_congr_left
+  intro k hk
+  have hk' := List.mem_range.mp hk
+  have e := Rule30Window.row_testBit 400 t ht (400-offset-k)
+  exact (congrArg (Rule30Jen.cell t) (show -(offset:Int)-k=((400-offset-k:Nat):Int)-(400:Nat) by omega)).trans e.symm
+
+set_option maxRecDepth 12000 in
+set_option maxHeartbeats 2000000 in
+/-- The three-way bound on finite pieces is attained on the singleton.
+Read the nine sites from the center towards the left. The first seven
+contain six black cells. Two ticks earlier the three words at sites
+−7, −8, −9 are all different. -/
+theorem singleton_three_ancestors :
+    let output := [true,true,true,true,false,true,true,true,false]
+    word (Rule30Jen.cell 307) 0 9=output ∧ word (Rule30Jen.cell 380) 0 9=output ∧
+    word (Rule30Jen.cell 392) 0 9=output ∧
+    word (Rule30Jen.cell 305) (-7) 3=[true,true,false] ∧
+    word (Rule30Jen.cell 378) (-7) 3=[false,true,true] ∧
+    word (Rule30Jen.cell 390) (-7) 3=[false,false,true] := by
+  dsimp only
+  have at0 (t : Nat) (ht : t≤400) : word (Rule30Jen.cell t) 0 9=packedWord t 0 9 := by
+    simpa using seed_word t 0 9 ht (by decide)
+  have at7 (t : Nat) (ht : t≤400) : word (Rule30Jen.cell t) (-7) 3=packedWord t 7 3 := by
+    simpa using seed_word t 7 3 ht (by decide)
+  rw [at0 307 (by decide),at0 380 (by decide),at0 392 (by decide),
+      at7 305 (by decide),at7 378 (by decide),at7 390 (by decide)]
+  decide +kernel
 
 end Ruliology.CellularAutomata.Rule30InverseSixBlack
