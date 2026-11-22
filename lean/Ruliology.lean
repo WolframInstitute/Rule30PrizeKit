@@ -250,6 +250,7 @@ public import Ruliology.CellularAutomata.Rule30InverseSpatialPeriod
 public import Ruliology.CellularAutomata.Rule30InverseSixBlack
 public import Ruliology.CellularAutomata.Rule30MaskedForkRate
 public import Ruliology.CellularAutomata.Rule30DelayedPastFork
+public import Ruliology.CellularAutomata.Rule30GapPackets
 
 /-!
 # Rule 30 Prize: Lean snapshot
