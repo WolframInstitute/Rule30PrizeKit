@@ -245,6 +245,8 @@ public import Ruliology.CellularAutomata.Rule30RelaxedWindows
 public import Ruliology.CellularAutomata.Rule30RunTransitions
 public import Ruliology.CellularAutomata.Rule30TwoSidedInverse
 public import Ruliology.CellularAutomata.Rule30EveryKLine
+public import Ruliology.CellularAutomata.Rule30InverseSpatialPeriod
+public import Ruliology.CellularAutomata.Rule30InverseSixBlack
 
 /-!
 # Rule 30 Prize: Lean snapshot
