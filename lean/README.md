@@ -97,7 +97,7 @@ for m in Rule30Predecessors Rule30PredecessorCounts BusyBeaverLifetimes Rule30Bl
     Rule30Certificates.PeriodTwoMass Rule30PeriodTwoMass \
     Rule30PeriodTwoNoFloor Rule30PeriodTwoLadder \
     Rule30Certificates.PeriodTwoWidth13 Rule30PeriodTwoWidth13 \
-    Rule30ZeroCoastBridge Rule30RunTransitions; do
+    Rule30ZeroCoastBridge Rule30RunTransitions Rule30GapBarrier; do
   lake build Ruliology.CellularAutomata.$m || break
 done
 lake build
@@ -179,6 +179,7 @@ These modules are not in the 2026-10-15 snapshot of the catalog, and `SHA256SUMS
 
 | Module | Added | What it proves | Headline theorems |
 |---|---|---|---|
+| `Rule30GapBarrier` | 2026-11-23 | The ranking barrier of `Rule30ZeroBoundaryBarriers` inside the 3/5 gap clock. Its witnesses there (`trunc n`, free bits beginning `11111`) and those of `Rule30PeriodTwoSideways.no_finite_abstract_ranking_coupled` (`c7cut`, gaps of `2`) lie outside the gate clock of `Rule30GateTrap.Q01Gap` and `Rule30GateTrapLift.Q01GapCore`. Here the witnesses are seeds whose zero-coast trace is the period-5 gate `0 1^9` repeated (`gate5Word`): it satisfies `TwoCoreOK` at every step (`gate5_twoCoreOK`) and the `B35` clock (`accept_gate5Word`, `survivesTo_of_trace_gate5`). For every lookahead `n`, no ranking through a finite abstraction of seeds decreases over every ten-step block of every seed that follows the gate for the next `n + 1` blocks (`no_finite_abstract_ranking_gate5`). The witnesses are not counterexamples: the gate is periodic. Contributed by Katip Kurtuluş with Claude (Anthropic), ChatGPT (OpenAI) and Gemini (Google). | `no_finite_abstract_ranking_gate5`, `gate5_twoCoreOK`, `gate5_witnesses`, `survivesTo_of_trace_gate5` |
 | `Rule30InverseSpatialPeriod` | 2026-11-22 | A white output cell and one predecessor bit determine the preceding ray. White cells arbitrarily far right bound the number of predecessors by two. A periodic output window forces its predecessor to repeat at twice the shift on an explicit interior interval. Contributed by Troy Lowry with OpenAI Codex. | `two_predecessors`, `period_predecessor_window`, `period_predecessor` |
 | `Rule30InverseSixBlack` | 2026-11-22 | Six black cells with arbitrary white gaps leave at most three two-step inverse registers. Five black cells can leave four. A nonconstant spatially p-periodic row has only 2p-periodic two-step ancestors and only 2^k p-periodic ancestors after 2k steps. Contributed by Troy Lowry with OpenAI Codex. | `six_black`, `five_black_sharp`, `three_left_windows`, `three_ancestors`, `period_two_step`, `even_ancestor` |
 | `Rule30MaskedForkRate` | 2026-11-22 | Fixing 2n center bits leaves at most 2^(n+1) possible strings of masked right readings. Every proposed singleton center period P after T forces opposite past readings with 2n matching future masks by age 2M+2PQ·2^(n+1), for M ≥ T and an auxiliary clock Q. Includes the resulting scale-dependent reader criterion and a genuine eight-past collision at ages 214 and 1981. Contributed by Troy Lowry with OpenAI Codex. | `masked_word_count`, `fast_fork`, `problem1_of_read_scales`, `singleton_eight_past` |

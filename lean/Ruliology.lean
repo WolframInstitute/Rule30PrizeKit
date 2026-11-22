@@ -260,6 +260,7 @@ public import Ruliology.CellularAutomata.Rule30SettledRepeats
 public import Ruliology.CellularAutomata.Rule30Rule210Clock
 public import Ruliology.CellularAutomata.Rule30RequiredGapFactor
 public import Ruliology.CellularAutomata.Rule30ThreeGapCapture
+public import Ruliology.CellularAutomata.Rule30GapBarrier
 
 /-!
 # Rule 30 Prize: Lean snapshot
