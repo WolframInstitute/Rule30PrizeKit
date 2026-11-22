@@ -253,6 +253,7 @@ public import Ruliology.CellularAutomata.Rule30DelayedPastFork
 public import Ruliology.CellularAutomata.Rule30GapPackets
 public import Ruliology.CellularAutomata.Rule30FiniteRoots
 public import Ruliology.CellularAutomata.Rule30PulseRelay
+public import Ruliology.CellularAutomata.Rule30EtherFamilies
 
 /-!
 # Rule 30 Prize: Lean snapshot
