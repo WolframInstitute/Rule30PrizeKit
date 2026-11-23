@@ -179,6 +179,7 @@ These modules are not in the 2026-10-15 snapshot of the catalog, and `SHA256SUMS
 
 | Module | Added | What it proves | Headline theorems |
 |---|---|---|---|
+| `Rule30TrappedRuns` | 2026-11-23 | For every gate-trap ladder width W ≥ 16, the word 3 (55553)⁴ is excluded from sample two onward exactly when W ≥ 45. At these widths (55553)⁵ is excluded from entry. Physical right halves obey the same exclusions, and witnesses attain four closed runs at delay one and three at delay sixty. Contributed by Gareth Herbert with Claude (Anthropic) and GPT (OpenAI) as Rule 30 Prize submission [R30-20261123-71bab6](https://www.wolframcloud.com/obj/rule-30-prize/Agents/status/R30-20261123-71bab6). | `four_width_iff`, `no_four_on_lift`, `no_five_on_lift`, `four_at_width44`, `no_four_runs_of_four`, `no_five_runs_of_four`, `four_one_sample`, `three_sixty_samples` |
 | `Rule30InverseSpatialPeriod` | 2026-11-22 | A white output cell and one predecessor bit determine the preceding ray. White cells arbitrarily far right bound the number of predecessors by two. A periodic output window forces its predecessor to repeat at twice the shift on an explicit interior interval. Contributed by Troy Lowry with OpenAI Codex. | `two_predecessors`, `period_predecessor_window`, `period_predecessor` |
 | `Rule30InverseSixBlack` | 2026-11-22 | Six black cells with arbitrary white gaps leave at most three two-step inverse registers. Five black cells can leave four. A nonconstant spatially p-periodic row has only 2p-periodic two-step ancestors and only 2^k p-periodic ancestors after 2k steps. Contributed by Troy Lowry with OpenAI Codex. | `six_black`, `five_black_sharp`, `three_left_windows`, `three_ancestors`, `period_two_step`, `even_ancestor` |
 | `Rule30MaskedForkRate` | 2026-11-22 | Fixing 2n center bits leaves at most 2^(n+1) possible strings of masked right readings. Every proposed singleton center period P after T forces opposite past readings with 2n matching future masks by age 2M+2PQ·2^(n+1), for M ≥ T and an auxiliary clock Q. Includes the resulting scale-dependent reader criterion and a genuine eight-past collision at ages 214 and 1981. Contributed by Troy Lowry with OpenAI Codex. | `masked_word_count`, `fast_fork`, `problem1_of_read_scales`, `singleton_eight_past` |
@@ -411,6 +412,7 @@ Some theorems rest on finite checks that the kernel evaluates with `decide`. The
 
 | Data | For | What it checks |
 |---|---|---|
+| `TrappedRunMasks` | `Rule30TrappedRuns` | 98-sample masks for spatial prefixes, including both exterior inputs at width 45, with soundness proofs |
 | `White17` | `Rule30White17Runs` | masks, 423 kernel checks (371 transitions via `Rule30FastImage.fcovers`), capture/rank/profile assembly for every block 1^r 0^q, r≥1, q≥17 |
 | `ResetSwapCover` | `Rule30ResetSwap` | Spatial synchronization for both initial return orders over all 24-gap continuations |
 | `Grammar` | `Rule30GrammarRuns` | masks, finite checks and capture/rank/profile assembly for the four-category block grammar |
