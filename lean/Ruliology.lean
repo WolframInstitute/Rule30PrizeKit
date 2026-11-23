@@ -277,6 +277,7 @@ public import Ruliology.CellularAutomata.Rule30DensityOneHistory
 public import Ruliology.CellularAutomata.Rule30DensityCornerHistories
 public import Ruliology.CellularAutomata.Rule30DensityMixtures
 public import Ruliology.CellularAutomata.Rule30TrappedRuns
+public import Ruliology.CellularAutomata.Rule30GoldenHalfCircle
 
 /-!
 # Rule 30 Prize: Lean snapshot
