@@ -371,4 +371,389 @@ theorem conditional_every_k : ConditionalEveryK := by
       exact of_decide_eq_true found
   exact capacity_at_settling_age k _ _ spec.1 spec.2 (uniform_settling spec.1)
 
+/-! ## Universal 16-Phase Collapse of `K1` Through Width `53,208` and Unconditional `TargetAt` Milestones (`periodic_oddBand_eq_bPhase_of_le_53208`, `K1_eq_universalK1_of_le_53208`, `K1_values_and_unconditional_targetAt_w300`) -/
+
+/-- Phase `r` of the universal 16-periodic left strip truncated to band width `w`. -/
+def bPhase (w r : Nat) : Nat := rowAt w (B % 2 ^ w) r
+
+/-- 16-phase exact formula for `K1 w` on the universal left-side range `1 ≤ w ≤ 53208`. -/
+def universalK1 (w : Nat) : Nat :=
+  (List.range 16).foldl (fun worst r => min worst (phaseCapacity w (bPhase w r) 16)) w
+
+theorem stepK_mod_eq {w K : Nat} (hwK : w ≤ K) (v : Nat) :
+    stepK w (v % 2 ^ w) = stepK K v % 2 ^ w := by
+  apply Nat.eq_of_testBit_eq
+  intro j
+  by_cases hj : j < w
+  · have hjK : j < K := by omega
+    rw [Nat.testBit_mod_two_pow, decide_eq_true hj, Bool.true_and]
+    cases j with
+    | zero =>
+      rw [stepK_bit_zero (by omega), stepK_bit_zero (by omega),
+        Nat.testBit_mod_two_pow, decide_eq_true hj, Bool.true_and]
+    | succ j1 =>
+      cases j1 with
+      | zero =>
+        rw [stepK_bit_one (by omega), stepK_bit_one (by omega),
+          Nat.testBit_mod_two_pow, Nat.testBit_mod_two_pow,
+          decide_eq_true (by omega : 0 < w), decide_eq_true hj, Bool.true_and, Bool.true_and]
+      | succ i =>
+        rw [stepK_bit_step hj, stepK_bit_step hjK,
+          Nat.testBit_mod_two_pow, Nat.testBit_mod_two_pow, Nat.testBit_mod_two_pow,
+          decide_eq_true (by omega : i < w), decide_eq_true (by omega : i + 1 < w),
+          decide_eq_true hj, Bool.true_and, Bool.true_and, Bool.true_and]
+  · have hlt1 : stepK w (v % 2 ^ w) < 2 ^ w := Nat.mod_lt _ (Nat.two_pow_pos w)
+    have hlt2 : stepK K v % 2 ^ w < 2 ^ w := Nat.mod_lt _ (Nat.two_pow_pos w)
+    have hge : 2 ^ w ≤ 2 ^ j := Nat.pow_le_pow_right (by decide) (by omega)
+    rw [Nat.testBit_lt_two_pow (Nat.lt_of_lt_of_le hlt1 hge),
+      Nat.testBit_lt_two_pow (Nat.lt_of_lt_of_le hlt2 hge)]
+
+theorem rowAt_mod_eq {w K : Nat} (hwK : w ≤ K) (v : Nat) :
+    ∀ t : Nat, rowAt w (v % 2 ^ w) t = rowAt K v t % 2 ^ w
+  | 0 => rfl
+  | t + 1 => by
+    simp only [rowAt]
+    rw [rowAt_mod_eq hwK v t, stepK_mod_eq hwK (rowAt K v t)]
+
+theorem bPhase_eq_rowAt_B_mod {w : Nat} (hw : w ≤ 53209) (r : Nat) :
+    bPhase w r = rowAt 53209 B r % 2 ^ w :=
+  rowAt_mod_eq hw B r
+
+theorem bPhase_add {w : Nat} (hw : w ≤ 53209) (r t : Nat) :
+    bandAt w (bPhase w r) t = bPhase w (r + t) := by
+  unfold bandAt
+  rw [bPhase_eq_rowAt_B_mod hw r, rowAt_mod_eq hw (rowAt 53209 B r) t,
+    bPhase_eq_rowAt_B_mod hw (r + t)]
+  congr 1
+  induction t with
+  | zero => simp [rowAt]
+  | succ t ih =>
+    show stepK 53209 (rowAt 53209 (rowAt 53209 B r) t) = stepK 53209 (rowAt 53209 B (r + t))
+    rw [ih]
+
+theorem bPhase_period_16 {w : Nat} (hw : w ≤ 53209) (r : Nat) :
+    bandAt w (bPhase w r) 16 = bPhase w r := by
+  rw [bPhase_add hw r 16, bPhase_eq_rowAt_B_mod hw (r + 16), bPhase_eq_rowAt_B_mod hw r]
+  have h16 : r + 16 = r + 1 * 16 := by omega
+  rw [h16, rowAt_add_mul B_return r 1]
+
+theorem bPhase_oddBand {w : Nat} (hw1 : 1 ≤ w) (hw : w ≤ 53209) (r : Nat) :
+    OddBand w (bPhase w r) := by
+  rw [bPhase_eq_rowAt_B_mod hw r]
+  refine ⟨Nat.mod_lt _ (Nat.two_pow_pos w), ?_⟩
+  rw [Nat.testBit_mod_two_pow, decide_eq_true (by omega : 0 < w), Bool.true_and]
+  exact C_zero r
+
+/-- **Classification of All Periodic Odd Bands up to Width `53,208`
+(`periodic_oddBand_eq_bPhase_of_le_53208`).**
+Every odd band `v` of width `1 ≤ w ≤ 53208` on a periodic cycle of `bandStep w`
+equals `bPhase w r` for some phase `r < 16`, and therefore has period dividing `16`
+(`bandAt w v 16 = v`). -/
+theorem periodic_oddBand_eq_bPhase_of_le_53208 {w v q : Nat}
+    (hw1 : 1 ≤ w) (hw : w ≤ 53208) (hodd : OddBand w v)
+    (hq : 0 < q) (hcyc : bandAt w v q = v) :
+    (∃ r : Nat, r < 16 ∧ v = bPhase w r) ∧ bandAt w v 16 = v := by
+  have hex : ∃ r : Nat, r < 16 ∧ v = bPhase w r := by
+    by_cases hw_gt1 : 1 < w
+    · obtain ⟨s, huniv⟩ := universal_left_side (x := ofRow v) (lo := 0) (ofRow_left v)
+        (by simpa [ofRow] using hodd.2)
+      have hunif : ∀ m : Nat, m ≤ w →
+          ∃ T : Nat, ∀ j : Nat, j < m → ∀ t : Nat, T ≤ t →
+            Rule30FiniteDiagonals.Ld (ofRow v) 0 j (t + s) = C j t := by
+        intro m
+        induction m with
+        | zero => intro _; exact ⟨0, fun j hj => absurd hj (Nat.not_lt_zero _)⟩
+        | succ m ih =>
+          intro hmw
+          obtain ⟨T1, hT1⟩ := ih (by omega)
+          obtain ⟨T2, hT2⟩ := huniv m (by omega)
+          refine ⟨max T1 T2, fun j hj t ht => ?_⟩
+          by_cases hjm : j < m
+          · exact hT1 j hjm t (Nat.le_trans (Nat.le_max_left T1 T2) ht)
+          · have hjeq : j = m := by omega
+            subst hjeq
+            exact hT2 t (Nat.le_trans (Nat.le_max_right T1 T2) ht)
+      obtain ⟨T, hT⟩ := hunif w (Nat.le_refl w)
+      let t0 := (T + s + 1) * q - s
+      have ht0_ge : T ≤ t0 := by
+        have h1 : T + s + 1 ≤ (T + s + 1) * q := Nat.le_mul_of_pos_right _ hq
+        dsimp [t0]; omega
+      have ht0_add : t0 + s = 0 + (T + s + 1) * q := by
+        have h1 : s ≤ (T + s + 1) * q :=
+          Nat.le_trans (by omega : s ≤ T + s + 1) (Nat.le_mul_of_pos_right _ hq)
+        dsimp [t0]; omega
+      refine ⟨t0 % 16, Nat.mod_lt _ (by decide), ?_⟩
+      rw [bPhase_eq_rowAt_B_mod (by omega)]
+      apply Nat.eq_of_testBit_eq
+      intro j
+      by_cases hjw : j < w
+      · have hLd := hT j hjw t0 ht0_ge
+        rw [Ld_ofRow hw_gt1 v (t0 + s) j hjw, ht0_add,
+          rowAt_add_mul hcyc 0 (T + s + 1)] at hLd
+        dsimp only [rowAt] at hLd
+        rw [hLd, C_mod j t0, Nat.testBit_mod_two_pow, decide_eq_true hjw, Bool.true_and]
+        rfl
+      · have hlt_v : v < 2 ^ j :=
+          Nat.lt_of_lt_of_le hodd.1 (Nat.pow_le_pow_right (by decide) (by omega))
+        have hlt_b : rowAt 53209 B (t0 % 16) % 2 ^ w < 2 ^ j :=
+          Nat.lt_of_lt_of_le (Nat.mod_lt _ (Nat.two_pow_pos w))
+            (Nat.pow_le_pow_right (by decide) (by omega))
+        rw [Nat.testBit_lt_two_pow hlt_v, Nat.testBit_lt_two_pow hlt_b]
+    · have hw_eq1 : w = 1 := by omega
+      subst hw_eq1
+      have hv1 : v = 1 := by
+        have hlt := hodd.1
+        have hb0 := hodd.2
+        rw [Nat.testBit_zero] at hb0
+        have hb0' : v % 2 = 1 := of_decide_eq_true hb0
+        omega
+      refine ⟨0, by decide, ?_⟩
+      rw [hv1, bPhase_eq_rowAt_B_mod (by decide)]
+      dsimp only [rowAt]
+      have hb := B_bit
+      rw [Nat.testBit_zero] at hb
+      have hb' : B % 2 = 1 := of_decide_eq_true hb
+      omega
+  refine ⟨hex, ?_⟩
+  obtain ⟨r, _, rfl⟩ := hex
+  exact bPhase_period_16 (by omega) r
+
+theorem returnPeriod_walk_minimal (w v fuel elapsed p : Nat) :
+    returnPeriod.walk w v fuel (bandAt w v elapsed) elapsed = some p →
+      elapsed < p ∧ bandAt w v p = v ∧
+      ∀ t : Nat, elapsed < t → t < p → bandAt w v t ≠ v := by
+  induction fuel generalizing elapsed with
+  | zero => simp [returnPeriod.walk]
+  | succ fuel ih =>
+    rw [returnPeriod.walk]
+    change (if bandAt w v (elapsed + 1) = v then some (elapsed + 1)
+      else returnPeriod.walk w v fuel (bandAt w v (elapsed + 1)) (elapsed + 1)) = some p → _
+    split <;> rename_i heq
+    · intro hs
+      injection hs with hp
+      subst hp
+      exact ⟨by omega, heq, fun t h1 h2 => by omega⟩
+    · intro hs
+      obtain ⟨hlt, hret, hmin⟩ := ih (elapsed + 1) hs
+      refine ⟨by omega, hret, fun t h1 h2 => ?_⟩
+      by_cases ht1 : t = elapsed + 1
+      · subst ht1; exact heq
+      · exact hmin t (by omega) h2
+
+theorem returnPeriod_minimal {w v p : Nat} (h : returnPeriod w v = some p) :
+    0 < p ∧ bandAt w v p = v ∧ ∀ t : Nat, 0 < t → t < p → bandAt w v t ≠ v :=
+  returnPeriod_walk_minimal w v (2 ^ (w - 1)) 0 p h
+
+theorem returnPeriod_walk_isSome_of_hit (w v fuel elapsed : Nat)
+    (h : ∃ p, elapsed < p ∧ p ≤ elapsed + fuel ∧ bandAt w v p = v) :
+    ∃ q, returnPeriod.walk w v fuel (bandAt w v elapsed) elapsed = some q := by
+  induction fuel generalizing elapsed with
+  | zero => obtain ⟨_, _, _, _⟩ := h; omega
+  | succ fuel ih =>
+    rw [returnPeriod.walk]
+    change ∃ q, (if bandAt w v (elapsed + 1) = v then some (elapsed + 1)
+      else returnPeriod.walk w v fuel (bandAt w v (elapsed + 1)) (elapsed + 1)) = some q
+    split <;> rename_i heq
+    · exact ⟨elapsed + 1, rfl⟩
+    · apply ih (elapsed + 1)
+      obtain ⟨p, lo, hi, hp⟩ := h
+      have hne : p ≠ elapsed + 1 := by rintro rfl; exact heq hp
+      exact ⟨p, by omega, by omega, hp⟩
+
+theorem returnPeriod_isSome_of_period_16 {n v : Nat}
+    (hodd : OddBand (n + 1) v) (h16 : bandAt (n + 1) v 16 = v) :
+    ∃ q, returnPeriod (n + 1) v = some q := by
+  by_cases hn4 : 4 ≤ n
+  · have h16_le : 16 ≤ 2 ^ n :=
+      Nat.le_trans (by decide : 16 ≤ 2 ^ 4) (Nat.pow_le_pow_right (by decide) hn4)
+    exact returnPeriod_walk_isSome_of_hit (n + 1) v (2 ^ n) 0 ⟨16, by omega, by omega, h16⟩
+  · -- For n < 4 (w ∈ {1, 2, 3, 4}), check by pigeonhole on 2^n odd words:
+    have hpig : ∃ i j : Nat, i < j ∧ j ≤ 2 ^ n ∧ bandAt (n + 1) v i = bandAt (n + 1) v j := by
+      apply Classical.byContradiction
+      intro hn
+      have hodd_t : ∀ t : Nat, OddBand (n + 1) (bandAt (n + 1) v t) := by
+        intro t
+        induction t with
+        | zero => exact hodd
+        | succ t ih => exact ⟨Nat.mod_lt _ (Nat.two_pow_pos _), (stepK_bit_zero (by omega) _).trans ih.2⟩
+      have nd := Rule30Jen.nodup_map_of_inj (fun t => bandAt (n + 1) v t / 2)
+        (List.nodup_range (n := 2 ^ n + 1)) (by
+          intro i hi j hj e
+          simp only [List.mem_range] at hi hj
+          have pi : bandAt (n + 1) v i % 2 = 1 := by simpa [Nat.testBit_zero] using (hodd_t i).2
+          have pj : bandAt (n + 1) v j % 2 = 1 := by simpa [Nat.testBit_zero] using (hodd_t j).2
+          have heq : bandAt (n + 1) v i = bandAt (n + 1) v j := by omega
+          rcases Nat.lt_trichotomy i j with lt | eq | gt
+          · exact (hn ⟨i, j, lt, by omega, heq⟩).elim
+          · exact eq
+          · exact (hn ⟨j, i, gt, by omega, heq.symm⟩).elim)
+      have sz := Rule30Jen.length_le_of_subset (l₂ := List.range (2 ^ n)) nd (by
+        intro x hx
+        obtain ⟨t, _, rfl⟩ := List.mem_map.mp hx
+        have hlt := (hodd_t t).1
+        rw [Nat.pow_succ] at hlt
+        exact List.mem_range.mpr (by omega))
+      simp at sz; omega
+    obtain ⟨i, j, hlt, hjle, heq⟩ := hpig
+    let sh := (i + 1) * 16 - i
+    have hi_le : i ≤ (i + 1) * 16 := by omega
+    have hpush : bandAt (n + 1) v (i + sh) = bandAt (n + 1) v (j + sh) := by
+      unfold bandAt at heq ⊢
+      induction sh with
+      | zero => simpa using heq
+      | succ k ih => show stepK (n + 1) (rowAt (n + 1) v (i + k)) = stepK (n + 1) (rowAt (n + 1) v (j + k)); rw [ih]
+    have h1 : i + sh = 0 + (i + 1) * 16 := by dsimp [sh]; omega
+    have h2 : j + sh = (j - i) + (i + 1) * 16 := by dsimp [sh]; omega
+    rw [h1, h2] at hpush
+    unfold bandAt at h16 hpush
+    rw [rowAt_add_mul h16, rowAt_add_mul h16] at hpush
+    exact returnPeriod_walk_isSome_of_hit (n + 1) v (2 ^ n) 0
+      ⟨j - i, by omega, by omega, hpush.symm⟩
+
+theorem sixteen_mod_returnPeriod_eq_zero {w v p : Nat}
+    (h16 : bandAt w v 16 = v) (hret : returnPeriod w v = some p) :
+    16 % p = 0 := by
+  obtain ⟨hp_pos, hp_cyc, hp_min⟩ := returnPeriod_minimal hret
+  have hdiv : 16 = 16 % p + (16 / p) * p := by rw [Nat.mul_comm]; exact (Nat.mod_add_div 16 p).symm
+  have hrem_cyc : bandAt w v (16 % p) = v := by
+    have h := h16
+    rw [hdiv] at h
+    unfold bandAt at h hp_cyc ⊢
+    rwa [rowAt_add_mul hp_cyc (16 % p) (16 / p)] at h
+  have hrem_lt : 16 % p < p := Nat.mod_lt 16 hp_pos
+  by_cases h0 : 16 % p = 0
+  · exact h0
+  · exact absurd hrem_cyc (hp_min (16 % p) (by omega) hrem_lt)
+
+theorem schedule_eq_of_dvd_16 {w v p : Nat}
+    (hp_pos : 0 < p) (hp_dvd : 16 % p = 0) (hp_cyc : bandAt w v p = v) :
+    ∀ fuel d avail : Nat, schedule w v p fuel d avail = schedule w v 16 fuel d avail := by
+  have hp_cases : p = 1 ∨ p = 2 ∨ p = 4 ∨ p = 8 ∨ p = 16 := by
+    have hle : p ≤ 16 := by
+      apply Nat.le_of_not_lt
+      intro hgt
+      rw [Nat.mod_eq_of_lt hgt] at hp_dvd
+      omega
+    have h16_cases : p = 1 ∨ p = 2 ∨ p = 3 ∨ p = 4 ∨ p = 5 ∨ p = 6 ∨ p = 7 ∨ p = 8 ∨
+        p = 9 ∨ p = 10 ∨ p = 11 ∨ p = 12 ∨ p = 13 ∨ p = 14 ∨ p = 15 ∨ p = 16 := by omega
+    rcases h16_cases with rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl |
+      rfl | rfl | rfl | rfl | rfl | rfl | rfl | rfl <;> simp at hp_dvd ⊢
+  intro fuel
+  induction fuel with
+  | zero => intros; rfl
+  | succ fuel ih =>
+    intro d avail
+    simp only [schedule]
+    have hphase_eq : bandAt w v ((p - d % p) % p) = bandAt w v ((16 - d % 16) % 16) := by
+      let b := (16 - d % 16) % 16
+      have hb_mod : b % p = (p - d % p) % p := by
+        dsimp [b]
+        rcases hp_cases with rfl | rfl | rfl | rfl | rfl <;> omega
+      have hb_decomp : b = b % p + (b / p) * p := by
+        rw [Nat.mul_comm]; exact (Nat.mod_add_div b p).symm
+      change bandAt w v ((p - d % p) % p) = bandAt w v b
+      rw [hb_decomp]
+      unfold bandAt at hp_cyc ⊢
+      rw [rowAt_add_mul hp_cyc (b % p) (b / p), hb_mod]
+    rw [hphase_eq]
+    cases firstReset (bandAt w v ((16 - d % 16) % 16)) avail with
+    | none => rfl
+    | some j => dsimp only; rw [ih (d + 1) j]
+
+theorem phaseCapacity_eq_16_of_dvd_16 {w v p : Nat}
+    (hp_pos : 0 < p) (hp_dvd : 16 % p = 0) (hp_cyc : bandAt w v p = v) :
+    phaseCapacity w v p = phaseCapacity w v 16 :=
+  schedule_eq_of_dvd_16 hp_pos hp_dvd hp_cyc w 0 w
+
+theorem foldl_step_lower {α : Type} (step : Nat → α → Nat) (xs : List α) (init bound : Nat)
+    (hinit : bound ≤ init) (hstep : ∀ acc x, x ∈ xs → bound ≤ acc → bound ≤ step acc x) :
+    bound ≤ xs.foldl step init := by
+  induction xs generalizing init with
+  | nil => exact hinit
+  | cons x xs ih =>
+    simp only [List.foldl_cons]
+    exact ih (step init x) (hstep init x (List.mem_cons_self ..) hinit)
+      (fun acc y hy hacc => hstep acc y (List.mem_cons_of_mem x hy) hacc)
+
+theorem foldl_step_upper_at {α : Type} (step : Nat → α → Nat)
+    (hmono : ∀ acc x, step acc x ≤ acc)
+    (xs : List α) (init : Nat) :
+    xs.foldl step init ≤ init ∧
+    ∀ x ∈ xs, ∀ bound, (∀ acc, step acc x ≤ bound) → xs.foldl step init ≤ bound := by
+  induction xs generalizing init with
+  | nil => exact ⟨Nat.le_refl init, fun _ h => by simp at h⟩
+  | cons a xs ih =>
+    simp only [List.foldl_cons]
+    obtain ⟨h1, h2⟩ := ih (step init a)
+    refine ⟨Nat.le_trans h1 (hmono init a), fun x hx bound hb => ?_⟩
+    rcases List.mem_cons.mp hx with rfl | hmem
+    · exact Nat.le_trans h1 (hb init)
+    · exact h2 x hmem bound hb
+
+/-- **Exact Collapse of the `2 ^ (w - 1)`-State `K1 w` Fold to the 16-Phase `universalK1 w`
+(`K1_eq_universalK1_of_le_53208`).**
+For every band width `1 ≤ w ≤ 53208`, `Rule30EveryKStatement.K1 w = universalK1 w`. -/
+theorem K1_eq_universalK1_of_le_53208 {w : Nat} (hw1 : 1 ≤ w) (hw : w ≤ 53208) :
+    K1 w = universalK1 w := by
+  obtain ⟨n, rfl⟩ : ∃ n, w = n + 1 := ⟨w - 1, by omega⟩
+  let stepFn : Nat → Nat → Nat := fun worst i =>
+    let v := 2 * i + 1
+    match returnPeriod (n + 1) v with
+    | none => worst
+    | some period => min worst (phaseCapacity (n + 1) v period)
+  have hmono_K1 : ∀ acc i, stepFn acc i ≤ acc := by
+    intro acc i; dsimp [stepFn]; split
+    · exact Nat.le_refl acc
+    · exact Nat.min_le_left ..
+  let stepU : Nat → Nat → Nat := fun worst r =>
+    min worst (phaseCapacity (n + 1) (bPhase (n + 1) r) 16)
+  have hmono_U : ∀ acc r, stepU acc r ≤ acc := fun acc r => Nat.min_le_left ..
+  apply Nat.le_antisymm
+  · -- K1 (n + 1) ≤ universalK1 (n + 1)
+    unfold universalK1
+    refine foldl_step_lower stepU (List.range 16) (n + 1) (K1 (n + 1)) ?_ (fun acc r _ hacc => ?_)
+    · exact (foldl_step_upper_at stepFn hmono_K1 (List.range (2 ^ n)) (n + 1)).1
+    · dsimp [stepU]
+      refine Nat.le_min.mpr ⟨hacc, ?_⟩
+      have hodd := bPhase_oddBand (w := n + 1) hw1 (by omega) r
+      have h16 := bPhase_period_16 (w := n + 1) (by omega) r
+      obtain ⟨p, hret⟩ := returnPeriod_isSome_of_period_16 hodd h16
+      obtain ⟨hp_pos, hp_cyc, _⟩ := returnPeriod_minimal hret
+      have hp_dvd := sixteen_mod_returnPeriod_eq_zero h16 hret
+      rw [← phaseCapacity_eq_16_of_dvd_16 hp_pos hp_dvd hp_cyc]
+      let i0 := bPhase (n + 1) r / 2
+      have hv_eq : 2 * i0 + 1 = bPhase (n + 1) r := by
+        have hpar : bPhase (n + 1) r % 2 = 1 := by simpa [Nat.testBit_zero] using hodd.2
+        dsimp [i0]; omega
+      have hi0_mem : i0 ∈ List.range (2 ^ n) := by
+        have hlt := hodd.1
+        rw [Nat.pow_succ] at hlt
+        exact List.mem_range.mpr (by dsimp [i0]; omega)
+      exact (foldl_step_upper_at stepFn hmono_K1 (List.range (2 ^ n)) (n + 1)).2 i0 hi0_mem
+        (phaseCapacity (n + 1) (bPhase (n + 1) r) p)
+        (fun a => by dsimp [stepFn]; rw [hv_eq, hret]; exact Nat.min_le_right ..)
+  · -- universalK1 (n + 1) ≤ K1 (n + 1)
+    unfold K1
+    refine foldl_step_lower stepFn (List.range (2 ^ n)) (n + 1) (universalK1 (n + 1)) ?_
+      (fun acc i hi hacc => ?_)
+    · exact (foldl_step_upper_at stepU hmono_U (List.range 16) (n + 1)).1
+    · dsimp [stepFn]
+      cases hret : returnPeriod (n + 1) (2 * i + 1) with
+      | none => exact hacc
+      | some p =>
+        refine Nat.le_min.mpr ⟨hacc, ?_⟩
+        obtain ⟨hp_pos, hp_cyc, _⟩ := returnPeriod_minimal hret
+        have hi_lt : i < 2 ^ n := List.mem_range.mp hi
+        have hodd_i : OddBand (n + 1) (2 * i + 1) := by
+          refine ⟨by rw [Nat.pow_succ]; omega, ?_⟩
+          rw [Nat.testBit_zero]; exact decide_eq_true (by omega)
+        obtain ⟨⟨r, hr_lt, hv_eq⟩, h16⟩ :=
+          periodic_oddBand_eq_bPhase_of_le_53208 hw1 hw hodd_i hp_pos hp_cyc
+        have hp_dvd := sixteen_mod_returnPeriod_eq_zero h16 hret
+        rw [phaseCapacity_eq_16_of_dvd_16 hp_pos hp_dvd hp_cyc, hv_eq]
+        exact (foldl_step_upper_at stepU hmono_U (List.range 16) (n + 1)).2 r
+          (List.mem_range.mpr hr_lt)
+          (phaseCapacity (n + 1) (bPhase (n + 1) r) 16)
+          (fun a => Nat.min_le_right ..)
+
 end Ruliology.CellularAutomata.Rule30EveryKInverse
