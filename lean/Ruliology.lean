@@ -263,6 +263,19 @@ public import Ruliology.CellularAutomata.Rule30ThreeGapCapture
 public import Ruliology.CellularAutomata.Rule30GapBarrier
 public import Ruliology.CellularAutomata.Rule30GateTrapLadder
 public import Ruliology.CellularAutomata.Rule30GateTrapLadderCore
+public import Ruliology.CellularAutomata.Rule30SourceDensityRegion
+public import Ruliology.CellularAutomata.Rule30SourceDensityCorners
+public import Ruliology.CellularAutomata.Rule30DensitySharpness
+public import Ruliology.CellularAutomata.Rule30SourceTransitions
+public import Ruliology.CellularAutomata.Rule30DensityPolygon
+public import Ruliology.CellularAutomata.Rule30DensityEscape
+public import Ruliology.CellularAutomata.Rule30DensityMargin
+public import Ruliology.CellularAutomata.Rule30DensityControl
+public import Ruliology.CellularAutomata.Rule30DensityModes
+public import Ruliology.CellularAutomata.Rule30DensityVertices
+public import Ruliology.CellularAutomata.Rule30DensityOneHistory
+public import Ruliology.CellularAutomata.Rule30DensityCornerHistories
+public import Ruliology.CellularAutomata.Rule30DensityMixtures
 
 /-!
 # Rule 30 Prize: Lean snapshot
