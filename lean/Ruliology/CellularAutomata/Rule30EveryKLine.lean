@@ -309,4 +309,22 @@ theorem every_k_line_of_dlMinusOne (h : Rule30RelaxedWindows.DLMinusOne) (k : Na
         V (lo - t + k) = true ∧ ∀ p, p < lo - t + k → V p = false :=
   every_k_line_of_lInfinity (Rule30RelaxedWindows.lInfinity_of_dlMinusOne h) k
 
+
+theorem every_k_line_of_dl_and_edge_agreement :
+    (Rule30RelaxedWindows.DL → ∀ k : Nat, ∃ age : Nat,
+      ∀ (x : Int → Bool) (lo : Int), x lo = true → (∀ p, p < lo → x p = false) →
+        ∀ t, age ≤ t → ∀ V : Int → Bool, (∀ p, evol V k p = evol x t p) →
+          V (lo - t + k) = true ∧ ∀ p, p < lo - t + k → V p = false) ∧
+    (∀ {x : Int → Bool} {lo : Int}, x lo = true → (∀ p, p < lo → x p = false) →
+      ∀ (k w : Nat), 0 < w → k ≤ K1 w → ∀ t, 2 ^ w ≤ t →
+        ∀ V1 V2 : Int → Bool, (∀ p, evol V1 k p = evol x t p) → (∀ p, evol V2 k p = evol x t p) →
+          ∀ p, p ≤ lo - t + k → V1 p = V2 p) := by
+  refine ⟨fun h k => every_k_line_of_dlMinusOne (Rule30RelaxedWindows.dlMinusOne_of_dl h) k, ?_⟩
+  intro x lo hlo hzero k w hw hk t ht V1 V2 hV1 hV2 p hp
+  have e1 := kTick_edge_line hlo hzero k w hw hk t ht V1 hV1
+  have e2 := kTick_edge_line hlo hzero k w hw hk t ht V2 hV2
+  by_cases heq : p = lo - t + k
+  · subst heq; exact e1.1.trans e2.1.symm
+  · exact (e1.2 p (by omega)).trans (e2.2 p (by omega)).symm
+
 end Ruliology.CellularAutomata.Rule30EveryKLine

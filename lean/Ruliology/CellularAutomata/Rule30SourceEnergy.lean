@@ -730,5 +730,99 @@ if `Ttot (2 ^ n) n = o(2^n n²)` (`TotalEnergySmallO`), then `Problem2` holds. -
 theorem problem2_of_total_energy (hTE : TotalEnergySmallO) : Problem2 :=
   problem2_of_source_energy (source_energy_o_iff_total_energy_o.mpr hTE)
 
+
+def Ediag (n : Nat) : Int :=
+  rsum (2 ^ n) (fun u => zext (2 ^ n) u ^ 2 +
+    rsum (n - 1) (fun j => zext (2 ^ n) (u + ((2 ^ j : Nat) : Int)) ^ 2))
+
+def OffDiag (n : Nat) : Int := Esrc n - Ediag n
+
+def OffDiagUpperSmallO : Prop :=
+  ∀ k : Nat, 0 < k → ∃ n0 : Nat, ∀ n : Nat, n0 ≤ n →
+    (k : Int) ^ 2 * OffDiag n * 8 ≤ 2 ^ n * (n : Int) ^ 2
+
+private theorem rsum_zext_shift_sq (N s : Nat) (hs : s ≤ N) :
+    rsum N (fun u => zext N ((u : Int) + (s : Int)) ^ 2) = (N : Int) - (s : Int) := by
+  have hNs : (N - s) + s = N := by omega
+  rw [← hNs, rsum_split (N - s) s]
+  have h1 : rsum (N - s) (fun u => zext ((N - s) + s) ((u : Int) + (s : Int)) ^ 2) = ((N - s : Nat) : Int) := by
+    rw [rsum_congr (N - s) (g := fun _ => 1), rsum_const]; · omega
+    intro i hi; unfold zext z; split
+    · split <;> rfl
+    · exfalso; omega
+  have h2 : rsum s (fun i => zext ((N - s) + s) ((((N - s) + i : Nat) : Int) + (s : Int)) ^ 2) = 0 := by
+    rw [rsum_congr s (g := fun _ => 0), rsum_const]; · omega
+    intro i _; unfold zext; split
+    · exfalso; omega
+    · rfl
+  rw [h1, h2]; omega
+
+theorem Ediag_eq_closed_form (n : Nat) (hn : 2 ≤ n) :
+    Ediag n = (2 * (n : Int) - 1) * 2 ^ (n - 1) + 1 ∧
+    0 ≤ Ediag n ∧ Ediag n ≤ (n : Int) * 2 ^ n := by
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 2 := ⟨n - 2, by omega⟩
+  have hsub : m + 2 - 1 = m + 1 := by omega
+  unfold Ediag; rw [hsub, rsum_add]
+  have h0 : rsum (2 ^ (m + 2)) (fun u => zext (2 ^ (m + 2)) (u : Int) ^ 2) = (2 ^ (m + 2) : Int) := by
+    have h := rsum_zext_shift_sq (2 ^ (m + 2)) 0 (Nat.zero_le _)
+    simp at h; exact h
+  rw [h0, rsum_comm (2 ^ (m + 2)) (m + 1)]
+  have hinner : rsum (m + 1) (fun j => rsum (2 ^ (m + 2)) (fun u => zext (2 ^ (m + 2)) ((u : Int) + ((2 ^ j : Nat) : Int)) ^ 2)) =
+      ((m + 1 : Nat) : Int) * (2 ^ (m + 2) : Int) - (2 ^ (m + 1) - 1) := by
+    have hstep : ∀ k, k ≤ m + 1 →
+        rsum k (fun j => rsum (2 ^ (m + 2)) (fun u => zext (2 ^ (m + 2)) ((u : Int) + ((2 ^ j : Nat) : Int)) ^ 2)) =
+        (k : Int) * (2 ^ (m + 2) : Int) - rsum k (fun j => ((2 ^ j : Nat) : Int)) := by
+      intro k; induction k with
+      | zero => intro _; simp
+      | succ k ih =>
+        intro hk
+        have hpow : 2 ^ k ≤ 2 ^ (m + 2) := Nat.pow_le_pow_right (by omega) (by omega)
+        rw [rsum_succ, rsum_succ, ih (by omega), rsum_zext_shift_sq (2 ^ (m + 2)) (2 ^ k) hpow]
+        grind
+    rw [hstep (m + 1) (Nat.le_refl _), rsum_pow_two (m + 1)]
+  rw [hinner]
+  have hp2 : (2 : Int) ^ (m + 2) = 2 * (2 : Int) ^ (m + 1) := by rw [Int.pow_succ]; omega
+  have hpos : (0 : Int) < (2 : Int) ^ (m + 1) := Int.pow_pos (by decide : (0 : Int) < 2)
+  rw [hp2]
+  refine ⟨by grind, by grind, by grind⟩
+
+theorem sourceEnergySmallO_iff_offDiagUpper_and_problem2 :
+    (SourceEnergySmallO ↔ OffDiagUpperSmallO) ∧ (OffDiagUpperSmallO → Problem2) := by
+  have hiff : SourceEnergySmallO ↔ OffDiagUpperSmallO := by
+    constructor
+    · intro hS k hk
+      obtain ⟨n0, hn0⟩ := hS k hk
+      refine ⟨n0 + 2, fun n hn => ?_⟩
+      have hd := (Ediag_eq_closed_form n (by omega)).2.1
+      have hle : OffDiag n ≤ Esrc n := by unfold OffDiag; omega
+      have hk8 : (0 : Int) ≤ (k : Int) ^ 2 * 8 := by have := Int.sq_nonneg (k : Int); omega
+      have hm := Int.mul_le_mul_of_nonneg_left hle hk8
+      have hE := hn0 n (by omega)
+      grind
+    · intro hO k hk
+      obtain ⟨n0, hn0⟩ := hO (2 * k) (by omega)
+      refine ⟨n0 + 16 * k * k + 2, fun n hn => ?_⟩
+      have hd := (Ediag_eq_closed_form n (by omega)).2.2
+      have hOn := hn0 n (by omega)
+      have hsplit : Esrc n = OffDiag n + Ediag n := by unfold OffDiag; omega
+      have hkn : (16 * (k : Int) ^ 2) ≤ (n : Int) := by
+        have : 16 * k * k ≤ n := by omega
+        grind
+      have hpow_pos : (0 : Int) ≤ 2 ^ n := Int.le_of_lt (Int.pow_pos (by decide : (0 : Int) < 2))
+      have hsq : 16 * (k : Int) ^ 2 * (n : Int) ≤ (n : Int) ^ 2 := by
+        have := Int.mul_le_mul_of_nonneg_right hkn (show (0 : Int) ≤ (n : Int) by omega)
+        grind
+      have hd_scaled : 4 * (k : Int) ^ 2 * Ediag n * 8 ≤ 2 * (2 ^ n * (n : Int) ^ 2) := by
+        have hk32 : (0 : Int) ≤ 32 * (k : Int) ^ 2 := by have := Int.sq_nonneg (k : Int); omega
+        have h1 := Int.mul_le_mul_of_nonneg_left hd hk32
+        have h2 := Int.mul_le_mul_of_nonneg_left hsq hpow_pos
+        grind
+      have hO_scaled : 4 * (k : Int) ^ 2 * OffDiag n * 8 ≤ 2 ^ n * (n : Int) ^ 2 := by
+        have : ((2 * k : Nat) : Int) ^ 2 = 4 * (k : Int) ^ 2 := by grind
+        rw [← this]; exact hOn
+      rw [hsplit]
+      grind
+  exact ⟨hiff, fun hO => problem2_of_source_energy (hiff.mpr hO)⟩
+
 end Rule30SourceEnergy
 end Ruliology.CellularAutomata
