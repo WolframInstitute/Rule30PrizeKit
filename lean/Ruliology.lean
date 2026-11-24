@@ -287,6 +287,7 @@ public import Ruliology.CellularAutomata.Rule30FirstLossBounds
 public import Ruliology.CellularAutomata.Rule30EtherThreeDeparture
 public import Ruliology.CellularAutomata.Rule30EtherThreeNoFifteen
 public import Ruliology.CellularAutomata.Rule30EtherThreeGate
+public import Ruliology.CellularAutomata.Rule30EtherThreeGateLanguage
 public import Ruliology.CellularAutomata.Rule30PeriodThreeEntry
 public import Ruliology.CellularAutomata.Rule30IsolatedBlackQP
 public import Ruliology.CellularAutomata.Rule30LeftRichness
