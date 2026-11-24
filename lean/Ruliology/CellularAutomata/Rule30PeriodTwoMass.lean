@@ -21,11 +21,11 @@ the same from any positive linear floor `H ≤ q·A + d`.
 
 **Part 2 (Conjecture S).** `ConjS`: every G word of length `H ≥ 2` has seed weight
 `7·A ≥ H + 4`; `ConjSEven` is the form `7·A ≥ H + 5` at even `H`, which implies it
-(`ConjS_of_even`). Both are **open**. `not_eventually_period_two_of_S`: S excludes period 2.
+(`ConjS_of_even`). `Rule30MassCounterexamples.sharp_mass_conjectures_false` refutes both. `not_eventually_period_two_of_S`: S excludes period 2.
 `S_upto_90`: S holds for every `H ≤ 90`, by a kernel-checked exhaustive search: the kernel
 evaluates the search `fdfs` of `Rule30Certificates.PeriodTwoMass` (`fcert90`), `fdfs_dfs` turns it
 into the plain search `dfs` (`cert90`), and `dfs_sound` reads off the bound. `sharp_86`,
-`sharp_198`, `sharp_310`: the constant is attained.
+`sharp_198`, `sharp_310`: equality is attained at these finite lengths.
 Exhaustive computation beyond `H = 90` (to `H = 300`) supports S but is not checked here.
 
 **Part 3 (the tail law).** The preimage transducer of the zero-wall map has 4 states; the
@@ -71,12 +71,12 @@ def MassBound (c d : Nat) : Prop :=
 def MassFloor (q d : Nat) : Prop :=
   ∀ H Y : Nat, Y < 2 ^ H → GWord (tr Y) H → H ≤ q * wt H Y + d
 
-/-- **Conjecture S** (open): every G word of length `H ≥ 2` has seed weight at least
+/-- **Conjecture S**, refuted in `Rule30MassCounterexamples`: every G word of length `H ≥ 2` has seed weight at least
 `(H + 4) / 7`. -/
 def ConjS : Prop :=
   ∀ H Y : Nat, 2 ≤ H → Y < 2 ^ H → GWord (tr Y) H → H + 4 ≤ 7 * wt H Y
 
-/-- **Conjecture S, even form** (open): at even length `H = 2m ≥ 2` the weight is at least
+/-- **Conjecture S, even form**, refuted in `Rule30MassCounterexamples`: at even length `H = 2m ≥ 2` the weight is at least
 `(H + 5) / 7`. Equality at `H = 2, 86, 198`. -/
 def ConjSEven : Prop :=
   ∀ m Y : Nat, 1 ≤ m → Y < 2 ^ (2 * m) → GWord (tr Y) (2 * m) → 2 * m + 5 ≤ 7 * wt (2 * m) Y
