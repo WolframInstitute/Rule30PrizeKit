@@ -251,6 +251,9 @@ public import Ruliology.CellularAutomata.Rule30TwoSidedInverse
 public import Ruliology.CellularAutomata.Rule30EveryKLine
 public import Ruliology.CellularAutomata.Rule30InverseSpatialPeriod
 public import Ruliology.CellularAutomata.Rule30InverseSixBlack
+public import Ruliology.CellularAutomata.Rule30MarkedGaps
+public import Ruliology.CellularAutomata.Rule30GapBirthArrival
+public import Ruliology.CellularAutomata.Rule30OffCenterEcho
 public import Ruliology.CellularAutomata.Rule30MaskedForkRate
 public import Ruliology.CellularAutomata.Rule30DelayedPastFork
 public import Ruliology.CellularAutomata.Rule30GapPackets
