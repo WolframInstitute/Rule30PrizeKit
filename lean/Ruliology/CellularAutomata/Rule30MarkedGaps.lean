@@ -165,6 +165,38 @@ theorem accepting_phase_of_late_gaps {T P : Nat} (pos : 0<P)
     (fun p lo neg => white p (by omega) neg) t (by omega) (-1) (by omega) (by decide)
   exact bad.2 (eq.symm.trans (black_reading s t bad.1))
 
+/-- After the first period passes, the only possible obstruction is
+visibility on a black tick of the difference between the white start
+and the state it reaches one period later under the same driver. -/
+theorem periodic_restart_iff (c : Nat → Bool) (P : Nat) (pos : 0<P)
+    (per : ∀ t, c (t+P)=c t) :
+    (∀ t, ¬Failed c t) ↔
+      (∀ t, t<P → ¬Failed c t) ∧
+      ∀ t, c t=true → L c (fun _ => false) (t+P) (-1)=L c (fun _ => false) t (-1) := by
+  have val (t : Nat) (on : c t=true) (ok : ¬Failed c t) :
+      L c (fun _ => false) t (-1) = !(c (t+1)) :=
+    Classical.byContradiction (fun bad => ok ⟨on,bad⟩)
+  have next (t : Nat) : c (t+P+1)=c (t+1) := by
+    rw [show t+P+1=t+1+P by omega,per]
+  constructor
+  · intro ok
+    refine ⟨fun t _ => ok t,fun t on => ?_⟩
+    rw [val t on (ok t),val (t+P) ((per t).trans on) (ok (t+P)),next t]
+  · rintro ⟨early,stable⟩ t
+    induction t using Nat.strongRecOn with
+    | ind t ih =>
+      by_cases small : t<P
+      · exact early t small
+      · let u := t-P
+        have eq : t=u+P := by dsimp [u]; omega
+        have prior := ih u (by dsimp [u]; omega)
+        rw [eq]
+        intro fail
+        have on : c u=true := (per u).symm.trans fail.1
+        apply fail.2
+        rw [stable u on,next u]
+        exact val u on prior
+
 private instance (c : Nat → Bool) (t : Nat) : Decidable (Failed c t) := by
   unfold Failed
   infer_instance
