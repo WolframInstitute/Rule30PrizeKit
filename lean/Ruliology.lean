@@ -176,6 +176,7 @@ public import Ruliology.CellularAutomata.Rule30MovingWaves
 public import Ruliology.CellularAutomata.Rule30TernaryWaves
 public import Ruliology.CellularAutomata.Rule30GateClocks
 public import Ruliology.CellularAutomata.Rule30ResetMixtures
+public import Ruliology.CellularAutomata.Rule30MixedGapClocks
 
 public import Ruliology.CellularAutomata.Rule30White17Runs
 public import Ruliology.CellularAutomata.Rule30GrammarRuns
