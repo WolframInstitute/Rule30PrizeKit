@@ -288,6 +288,7 @@ public import Ruliology.CellularAutomata.Rule30EtherThreeDeparture
 public import Ruliology.CellularAutomata.Rule30EtherThreeNoFifteen
 public import Ruliology.CellularAutomata.Rule30EtherThreeGate
 public import Ruliology.CellularAutomata.Rule30IsolatedBlackQP
+public import Ruliology.CellularAutomata.Rule30LeftRichness
 
 /-!
 # Rule 30 Prize: Lean snapshot
