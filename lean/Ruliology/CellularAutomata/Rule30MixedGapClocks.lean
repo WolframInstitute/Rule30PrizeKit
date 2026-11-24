@@ -154,4 +154,7 @@ theorem two_gaps (q : Nat) (h : 22 ≤ q) : ¬ EventuallyWord (blocks [7, q]) :=
     omega
   · exact ⟨q, by simp, h⟩
 
+/-- The singleton center cannot eventually repeat the pure seven-white clock. -/
+theorem seven_white_one_black : ¬ EventuallyWord Seven.clock := Seven.seven_white_one_black
+
 end Ruliology.CellularAutomata.Rule30MixedGapClocks
