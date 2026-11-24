@@ -169,6 +169,8 @@ public import Ruliology.CellularAutomata.Rule30FrontLaw
 public import Ruliology.CellularAutomata.Rule30SettledBarrierEffective
 public import Ruliology.CellularAutomata.Rule30WhiteSpacing
 public import Ruliology.CellularAutomata.Rule30PairedColumnRuns
+public import Ruliology.CellularAutomata.Rule30PulsePairs
+public import Ruliology.CellularAutomata.Rule30PulsePairSupport
 public import Ruliology.CellularAutomata.Rule30RightProfiles
 public import Ruliology.CellularAutomata.Rule30UniversalStart
 public import Ruliology.CellularAutomata.Rule30RingOrbits
