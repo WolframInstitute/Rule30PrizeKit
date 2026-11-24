@@ -292,6 +292,7 @@ public import Ruliology.CellularAutomata.Rule30PeriodThreeEntry
 public import Ruliology.CellularAutomata.Rule30AlternatingArrivals
 public import Ruliology.CellularAutomata.Rule30IsolatedBlackQP
 public import Ruliology.CellularAutomata.Rule30LeftRichness
+public import Ruliology.CellularAutomata.Rule30StripCertificateTableTwo
 
 /-!
 # Rule 30 Prize: Lean snapshot
