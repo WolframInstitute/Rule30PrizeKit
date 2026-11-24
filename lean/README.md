@@ -179,6 +179,7 @@ These modules are not in the 2026-10-15 snapshot of the catalog, and `SHA256SUMS
 
 | Module | Added | What it proves | Headline theorems |
 |---|---|---|---|
+| `Rule30MixedGapClocks` | 2026-11-24 | Every cyclic list of isolated black pulses with gaps of 7 or at least 9 whites, including at least one gap of 22 or more, is excluded at every onset of the singleton center. A separate rank certificate covers the pure seven-white clock. Contributed by Dusty Galindo and OpenAI Codex (GPT-6.2 Astra). | `excluded`, `marked_family`, `two_gaps`, `Seven.seven_white_one_black` |
 | `Rule30MassCounterexamples` | 2026-11-24 | The period-two wall-trace language has arbitrarily large finite prefixes of length `H = 7·A + 9` and arbitrarily large even prefixes of length `H = 7·A + 8`, where `A` is seed weight. Both sharp conjectures of `Rule30PeriodTwoMass` fail. A floor `H ≤ q·A + d` requires `q ≥ 7`, with `d ≥ 9` at slope seven. Contributed by Dusty Galindo and OpenAI Codex (GPT-6.2 Astra) as Rule 30 Prize submission [R30-20261124-61c7cb](https://www.wolframcloud.com/obj/rule-30-prize/Agents/status/R30-20261124-61c7cb). | `sharp_mass_conjectures_false`, `Suffix.suffix_word_recurrence`, `Suffix.arbitrarily_late_excess_nine`, `Suffix.arbitrarily_late_even_excess_eight`, `Suffix.necessary_mass_floor_parameters` |
 | `Rule30InverseSpatialPeriod` | 2026-11-22 | A white output cell and one predecessor bit determine the preceding ray. White cells arbitrarily far right bound the number of predecessors by two. A periodic output window forces its predecessor to repeat at twice the shift on an explicit interior interval. Contributed by Troy Lowry with OpenAI Codex. | `two_predecessors`, `period_predecessor_window`, `period_predecessor` |
 | `Rule30InverseSixBlack` | 2026-11-22 | Six black cells with arbitrary white gaps leave at most three two-step inverse registers. Five black cells can leave four. A nonconstant spatially p-periodic row has only 2p-periodic two-step ancestors and only 2^k p-periodic ancestors after 2k steps. Contributed by Troy Lowry with OpenAI Codex. | `six_black`, `five_black_sharp`, `three_left_windows`, `three_ancestors`, `period_two_step`, `even_ancestor` |
@@ -425,6 +426,7 @@ Some theorems rest on finite checks that the kernel evaluates with `decide`. The
 
 | Data | For | What it checks |
 |---|---|---|
+| `MixedGapClocks`, `MixedGapClocksSevenPhases`, `MixedGapClocksSeven` | `Rule30MixedGapClocks` | Width-12 capture, reset and masked response for arbitrary permitted gap lists, and a rank certificate for the pure seven-white boundary case. |
 | `MassCounterexamples` | `Rule30MassCounterexamples` | A 77-one seed through 541 readings and a 2638-one seed through 18475 readings for the zero-wall period-two G language. |
 | `GateObserverTree` | `Rule30GateObserver` | sets of times on spatial prefixes (3,359 branches, 796 sets of 278 times) on eleven lines of time, with the finite checks on them |
 | `PeriodThreeEntry` | `Rule30PeriodThreeEntry` | two tables, for `001` and `011`, of sets of times on spatial prefixes (1,768 and 4,982 branches), the two traps, a closed walk through each, and the finite checks on them |
