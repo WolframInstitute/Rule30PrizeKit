@@ -282,6 +282,7 @@ public import Ruliology.CellularAutomata.Rule30TrappedRuns
 public import Ruliology.CellularAutomata.Rule30GoldenHalfCircle
 public import Ruliology.CellularAutomata.Rule30LockPrefixCertificates
 public import Ruliology.CellularAutomata.Rule30DoublingLanes
+public import Ruliology.CellularAutomata.Rule30FirstLossBounds
 public import Ruliology.CellularAutomata.Rule30EtherThreeDeparture
 public import Ruliology.CellularAutomata.Rule30EtherThreeNoFifteen
 public import Ruliology.CellularAutomata.Rule30EtherThreeGate
