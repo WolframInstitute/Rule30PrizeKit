@@ -14,7 +14,7 @@ to arbitrary physical right tails. Bit zero represents site +1.
 
 Under the imposed clock 001, sample +1 at physical time 3k+1. The empty right half
 first follows its final seven-sample phase without interruption at k = 100.
-A finite right half that agrees with the empty orbit's first 38 cells at tick 4800
+A finite right half that agrees with the empty orbit's first 39 cells at tick 4800
 can leave that gate phase and then recover it permanently. Its sharp local recovery
 index is 3351. At that restart the reference index is 1600.
 
@@ -257,20 +257,33 @@ theorem from40_black {F : Nat → Nat → Bool} (hf : IsR30 F) (T r : Nat)
 
 
 set_option maxRecDepth 131072 in
-/-- These are windows on the empty-start orbit. The alternative agrees on the first
-38 cells at the original restart and disagrees on the 42-cell test. -/
+/-- These are windows on the empty-start orbit. The alternative agrees through
+site 39 at the original restart and differs at site 40. -/
 theorem observed_windows :
     rowN drive 0 4800 % 2^42 = 0x2a2af7c7428 ∧
     rowN drive 0 4813 % 2^40 = 0xaaa20c596e ∧
     rowN drive 0 4814 % 2^40 = 0xaab716cf23 ∧
-    alternative % 2^38 = rowN drive 0 4800 % 2^38 ∧
-    alternative % 2^42 ≠ rowN drive 0 4800 % 2^42 := by decide +kernel
+    alternative % 2^39 = rowN drive 0 4800 % 2^39 ∧
+    alternative % 2^40 ≠ rowN drive 0 4800 % 2^40 := by decide +kernel
 
 /-- Three local entry conditions, including their clock phases. -/
 def EntryWindow (phase r : Nat) : Prop :=
   (phase%3 = 0 ∧ r % 2^42 = 0x2a2af7c7428) ∨
   (phase%3 = 1 ∧ r % 2^40 = 0xaaa20c596e) ∨
   (phase%3 = 2 ∧ r % 2^40 = 0xaab716cf23)
+
+/-- Matching the reference's first 42 cells at the phase-zero restart fixes the
+gate from its very first sample forever, for an arbitrary finite or infinite tail. -/
+theorem gate_from42 (x : Nat → Bool) (r : Nat)
+    (hr : EncF (drv drive x) 47 0 0 r) (low : r % 2^42 = 0x2a2af7c7428) (k : Nat) :
+    drv drive x (3*k+1) 1 = pattern (k+1600) := by
+  obtain ⟨i, hi, lab, enc⟩ := from42 (drv_isR30 _ _) 0 r hr low (drv_col0 _ _ 0)
+  have out := late_read (drv_isR30 _ _) (drv_col0 _ _) hi (by rw [lab]) enc k (by omega)
+  rw [out, lab]
+  have h := label_word ⟨(k+1600)%7, by omega⟩
+  dsimp only at h
+  rw [show (16+(3*k+1-(0+1)))%21 = (3*((k+1600)%7)+4)%21 by omega, h]
+  simp [pattern]
 
 /-- A finite-left realization of a permanently imposed 001 clock cannot encounter
 any of the three displayed near fields in its indicated phase, at any later tick. -/
