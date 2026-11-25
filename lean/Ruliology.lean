@@ -300,6 +300,7 @@ public import Ruliology.CellularAutomata.Rule30EtherThreeGateLanguage
 public import Ruliology.CellularAutomata.Rule30PeriodThreeEntry
 public import Ruliology.CellularAutomata.Rule30AlternatingArrivals
 public import Ruliology.CellularAutomata.Rule30UniformEntry
+public import Ruliology.CellularAutomata.Rule30RotationBlocks
 public import Ruliology.CellularAutomata.Rule30IsolatedBlackQP
 public import Ruliology.CellularAutomata.Rule30LeftRichness
 
