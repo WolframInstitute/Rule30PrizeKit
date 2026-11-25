@@ -2995,14 +2995,19 @@ is 2 log₂ n (1 + o(1)) ([MaxOrderComplexity](Rule30Equivalents/MaxOrderComplex
     column pairs are themselves a factor, so the entropy is exactly the growth rate of their
     words. [PairTraceEntropy](Rule30Equivalents/PairTraceEntropy.lean) formalizes this equality
     (`entropy_eq_pair_growth`) and bounds the entropy by log(N(k))/k for each k > 0, where N(k)
-    counts the realized pair words of length k (`entropy_le_block_root`). A weighted reverse
-    cover of a five-site strip gives h ≤ log(1679211/714866), or less than 1.232039 bits per
-    tick (`FiveSite.entropy_width_5`). Over n ≤ 16 steps a column-0 word has at most about n²/4
-    column-1 partners (6², 7², 8² for the alternating word at n = 14, 16, 18), so the column-pair
-    words number about 2^n n², not 3^n, which suggests h = log 2. Exact counts for n = 17 to 23
-    exceed n²/4 (at most 73, 88, 104, 119, 136, 155 and 177 partners; own computation), so whether
-    the number of partners is polynomial in n is open. Wolfram's notes give evidence that the spacetime
-    entropy is 1 bit ([NKS] note to p. 960). Proving h = log 2 is open (own computation); and for
+    counts the realized pair words of length k (`entropy_le_block_root`). A weighted reverse cover
+    of a five-site strip gives h ≤ log(1679211/714866), or less than 1.232039 bits per tick
+    (`FiveSite.entropy_width_5`). Since the pair word at columns -1 and 0 is fixed by column 0, one
+    tick longer, and the OR of columns 0 and 1, the core bounds on that OR word beside any fixed
+    column-0 word, 2^(n+1) for 2n ticks (`Rule30MaskedForkRate.masked_word_count`) and 9(39/32)^n
+    (`Rule30HorizontalDiversity.five_cell_mask_bound`), give h ≤ log(2√2), 1.5 bits, and
+    h ≤ log(39/16), about 1.2854 bits, with this identity. Over n ≤ 16 steps a column-0 word has at
+    most about n²/4 column-1 partners (6², 7², 8² for the alternating word at n = 14, 16, 18), so
+    the column-pair words number about 2^n n², not 3^n, which suggests h = log 2. Exact counts for
+    n = 17 to 23 exceed n²/4 (at most 73, 88, 104, 119, 136, 155 and 177 partners; own computation),
+    so whether the number of partners is polynomial in n is open. Wolfram's notes give evidence that
+    the spacetime entropy is 1 bit ([NKS] note to p. 960). Proving h = log 2 is open (own
+    computation); and for
     μ-almost every configuration every column of the space-time diagram is normal, and so is the
     right half of every row (`ae_isNormal_columns`, `ae_isNormal_rows`). More generally, cells
     whose feet i − t are pairwise distinct are independent fair coins (`measure_cells`,
