@@ -259,6 +259,7 @@ public import Ruliology.CellularAutomata.Rule30GapBirthArrival
 public import Ruliology.CellularAutomata.Rule30OffCenterEcho
 public import Ruliology.CellularAutomata.Rule30RestartVisibility
 public import Ruliology.CellularAutomata.Rule30PeriodicGapControl
+public import Ruliology.CellularAutomata.Rule30HorizontalDiversity
 public import Ruliology.CellularAutomata.Rule30MaskedForkRate
 public import Ruliology.CellularAutomata.Rule30DelayedPastFork
 public import Ruliology.CellularAutomata.Rule30GapPackets
