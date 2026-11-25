@@ -2993,9 +2993,15 @@ is 2 log₂ n (1 + o(1)) ([MaxOrderComplexity](Rule30Equivalents/MaxOrderComplex
     a black cell in column N + 1 is followed by the complement of its left neighbor, so each word
     extends backward in time by at most three of the four letters (`card_pairWords_le`). The
     column pairs are themselves a factor, so the entropy is exactly the growth rate of their
-    words. Numerically it is log 2: over n steps (n ≤ 15) a column-0 word has at most about n²/4
+    words. [PairTraceEntropy](Rule30Equivalents/PairTraceEntropy.lean) formalizes this equality
+    (`entropy_eq_pair_growth`) and bounds the entropy by log(N(k))/k for each k > 0, where N(k)
+    counts the realized pair words of length k (`entropy_le_block_root`). A weighted reverse
+    cover of a five-site strip gives h ≤ log(1679211/714866), or less than 1.232039 bits per
+    tick (`FiveSite.entropy_width_5`). Over n ≤ 16 steps a column-0 word has at most about n²/4
     column-1 partners (6², 7², 8² for the alternating word at n = 14, 16, 18), so the column-pair
-    words number about 2^n n², not 3^n. Wolfram's notes give evidence that the spacetime
+    words number about 2^n n², not 3^n, which suggests h = log 2. Exact counts for n = 17 to 23
+    exceed n²/4 (at most 73, 88, 104, 119, 136, 155 and 177 partners; own computation), so whether
+    the number of partners is polynomial in n is open. Wolfram's notes give evidence that the spacetime
     entropy is 1 bit ([NKS] note to p. 960). Proving h = log 2 is open (own computation); and for
     μ-almost every configuration every column of the space-time diagram is normal, and so is the
     right half of every row (`ae_isNormal_columns`, `ae_isNormal_rows`). More generally, cells
