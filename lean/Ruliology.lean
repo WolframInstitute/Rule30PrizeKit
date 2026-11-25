@@ -190,6 +190,7 @@ public import Ruliology.CellularAutomata.Rule30GateTrap
 public import Ruliology.CellularAutomata.Rule30GatePulseReturn
 public import Ruliology.CellularAutomata.Rule30GateObserver
 public import Ruliology.CellularAutomata.Rule30SidewaysLocks
+public import Ruliology.CellularAutomata.Rule30LockedSeedEdge
 public import Ruliology.CellularAutomata.Rule30PeriodThreeLanguage
 public import Ruliology.CellularAutomata.Rule30GateTrapWords
 public import Ruliology.CellularAutomata.Rule30GateTrapLift
