@@ -50,6 +50,7 @@ public import Ruliology.CellularAutomata.Rule30ZeroBoundaryStripeFront
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryStripeFamily
 public import Ruliology.CellularAutomata.Rule30EtherTrap
 public import Ruliology.CellularAutomata.Rule30EtherTrapWidth20
+public import Ruliology.CellularAutomata.Rule30EasternRealizability
 public import Ruliology.CellularAutomata.Rule30PeriodTwoLanguage
 public import Ruliology.CellularAutomata.Rule30PeriodTwoWidth5
 public import Ruliology.CellularAutomata.Rule30PeriodTwoWidth6
