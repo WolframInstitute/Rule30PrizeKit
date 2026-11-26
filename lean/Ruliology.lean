@@ -263,6 +263,7 @@ public import Ruliology.CellularAutomata.Rule30RestartVisibility
 public import Ruliology.CellularAutomata.Rule30PeriodicGapControl
 public import Ruliology.CellularAutomata.Rule30HorizontalDiversity
 public import Ruliology.CellularAutomata.Rule30TerminalCensus
+public import Ruliology.CellularAutomata.Rule30TerminalHearing
 public import Ruliology.CellularAutomata.Rule30MaskedForkRate
 public import Ruliology.CellularAutomata.Rule30DelayedPastFork
 public import Ruliology.CellularAutomata.Rule30GapPackets
