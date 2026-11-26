@@ -3001,7 +3001,10 @@ is 2 log₂ n (1 + o(1)) ([MaxOrderComplexity](Rule30Equivalents/MaxOrderComplex
     tick longer, and the OR of columns 0 and 1, the core bounds on that OR word beside any fixed
     column-0 word, 2^(n+1) for 2n ticks (`Rule30MaskedForkRate.masked_word_count`) and 9(39/32)^n
     (`Rule30HorizontalDiversity.five_cell_mask_bound`), give h ≤ log(2√2), 1.5 bits, and
-    h ≤ log(39/16), about 1.2854 bits, with this identity. Over n ≤ 16 steps a column-0 word has at
+    h ≤ log(39/16), about 1.2854 bits, with this identity. [PairHearing](Rule30Equivalents/PairHearing.lean) proves this bridge and the exact form,
+    entropy = log 2 + the growth of the mean number of OR words per wall (`entropy_eq_mask_growth`), and
+    [LookaheadHearing](Rule30Equivalents/LookaheadHearing.lean) shows that every rate above the worst wall has a finite
+    integer certificate (`strict_rate_has_certificate`). Over n ≤ 16 steps a column-0 word has at
     most about n²/4 column-1 partners (6², 7², 8² for the alternating word at n = 14, 16, 18), so
     the column-pair words number about 2^n n², not 3^n, which suggests h = log 2. Exact counts for
     n = 17 to 23 exceed n²/4 (at most 73, 88, 104, 119, 136, 155 and 177 partners; own computation),
