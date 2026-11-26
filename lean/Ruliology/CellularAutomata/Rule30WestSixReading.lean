@@ -201,4 +201,117 @@ theorem no_period_three_of_alternating_five
   · exact kill false s w
   · exact kill true s w
 
+/-! ## Compositional left inversion, uniqueness of `10101`, and the `9 × 16` split forbidden 5-word family -/
+
+/-- **Left-inversion composition law (`back_comp`):** reconstructing `d1` and `d1 + 1` steps west,
+then `d2` further steps west, equals reconstructing `d1 + 1 + d2` steps west in one pass. -/
+theorem back_comp (r a : Nat → Bool) (d1 d2 n : Nat) :
+    back (back r a d1) (back r a (d1 + 1)) d2 n = back r a (d1 + 1 + d2) n := by
+  induction d1 generalizing r a with
+  | zero =>
+    rw [Nat.zero_add, Nat.add_comm 1 d2]
+    rfl
+  | succ d1 ih =>
+    let a' := fun j => rule (a (j + 1)) (a j) (r j)
+    rw [show d1 + 1 + 1 + d2 = (d1 + 1 + d2) + 1 by omega]
+    exact ih a a'
+
+/-- Match a 5-bit low-bit-first pattern `p : Fin 32` at offset `j`. -/
+def matchesFive (p : Fin 32) (f : Nat → Bool) (j : Nat) : Prop :=
+  ∀ k : Fin 5, f (j + k.val) = p.val.testBit k.val
+
+instance (p : Fin 32) (f : Nat → Bool) (j : Nat) : Decidable (matchesFive p f j) :=
+  inferInstanceAs (Decidable (∀ k : Fin 5, f (j + k.val) = p.val.testBit k.val))
+
+/-- Clock-specific 5-bit words never emitted by `obs hi w` at any phase `j : Fin 3` (`9` for `001`, `16` for `011`). -/
+def forbiddenFiveAt (hi : Bool) (p : Fin 32) : Bool :=
+  (List.finRange 16).all fun w =>
+    (List.finRange 3).all fun j => !decide (matchesFive p (obs hi w) j.val)
+
+/-- **`10101` (`code = 21`) is the unique universally forbidden 5-tick word six cells west
+(`alternating_five_unique_universal_west6`).** -/
+theorem alternating_five_unique_universal_west6 (p : Fin 32) :
+    (∀ (hi : Bool) (w : Fin 16) (j : Fin 3), ¬ matchesFive p (obs hi w) j.val) ↔ p.val = 21 := by
+  revert p
+  decide +kernel
+
+private theorem forbiddenFiveAt_sound : ∀ (hi : Bool) (p : Fin 32) (w : Fin 16) (j : Fin 3),
+    forbiddenFiveAt hi p = true → ¬ matchesFive p (obs hi w) j.val := by
+  decide +kernel
+
+/-- **Clock-specific 5-word exclusion six cells west (`avoids_clock_specific_five_west6`):**
+under `001` (`hi = false`) column `-6` eventually avoids all `9` words with `forbiddenFiveAt false p = true`,
+and under `011` (`hi = true`) it eventually avoids all `16` words with `forbiddenFiveAt true p = true`. -/
+theorem avoids_clock_specific_five_west6 (hi : Bool) (p : Fin 32)
+    (hp : forbiddenFiveAt hi p = true) (T : Nat)
+    (clock : ∀ t, T ≤ t → cell t 0 = wordAt3 (if hi then w011 else w001) (t - T)) :
+    ∃ U, ∀ t, U ≤ t → ¬ matchesFive p (fun n => cell n (-6)) t := by
+  obtain ⟨U, hU, sh⟩ := shape hi T clock
+  refine ⟨U + 2, fun t ht hpat => ?_⟩
+  let j : Fin 3 := ⟨(t - T) % 3, by omega⟩
+  let s := t - j.val
+  have js : s + j.val = t := by dsimp [s]; omega
+  obtain ⟨w, hw⟩ := choose_bits (fun k => cell (s + 3 * k + free hi) (-1))
+  have windows (n : Nat) (hn : n < 12) :
+      cell (s + n) 0 = centerWord hi n ∧ cell (s + n) (-1) = westWord hi w n := by
+    have ph : (s + n - T) % 3 = n % 3 := by dsimp [s, j]; omega
+    obtain ⟨a, b⟩ := sh (s + n) (by dsimp [s, j]; omega)
+    refine ⟨by simpa [centerWord, ph] using a, ?_⟩
+    rw [ph] at b
+    by_cases h : n % 3 = free hi
+    · have g := hw (n / 3) (by omega)
+      have eq : s + 3 * (n / 3) + free hi = s + n := by omega
+      rw [eq] at g
+      have nf : free hi ≠ 2 := by cases hi <;> decide
+      change cell (s + n) (-1) = (decide (n % 3 = 2) || decide (n % 3 = free hi) && _)
+      simp only [nf, h, decide_false, decide_true, Bool.true_and, Bool.false_or]
+      exact g.symm
+    · change cell (s + n) (-1) = (decide (n % 3 = 2) || decide (n % 3 = free hi) && _)
+      simpa only [h, decide_false, Bool.false_and, Bool.or_false] using b h
+  apply forbiddenFiveAt_sound hi p w j hp
+  intro k
+  have eqn := local_back (r := fun n => cell (s + n) 0) (a := fun n => cell (s + n) (-1))
+    (R := centerWord hi) (A := westWord hi w) 5 (j.val + k.val)
+    (fun n _ _ => windows n (by have := j.isLt; have := k.isLt; omega))
+  have eqp := physical s (-1) 5 (j.val + k.val)
+  change back (fun n => cell (s + n) 0) (fun n => cell (s + n) (-1)) 5 (j.val + k.val) =
+    cell (s + (j.val + k.val)) (-6) at eqp
+  rw [eqp] at eqn
+  unfold obs
+  rw [← eqn, ← Nat.add_assoc, js]
+  exact hpat k
+
+/-- **`9 × 16` split recurrence criterion excluding period 3 (`no_period_three_of_split_five_west6`):**
+if column `-6` hits some `001`-forbidden 5-word `p0` infinitely often and some `011`-forbidden
+5-word `p1` infinitely often, then center is not eventually period-3. -/
+theorem no_period_three_of_split_five_west6 (p0 p1 : Fin 32)
+    (hp0 : forbiddenFiveAt false p0 = true) (hp1 : forbiddenFiveAt true p1 = true)
+    (hits0 : ∀ U, ∃ t, U ≤ t ∧ matchesFive p0 (fun n => cell n (-6)) t)
+    (hits1 : ∀ U, ∃ t, U ≤ t ∧ matchesFive p1 (fun n => cell n (-6)) t) :
+    ¬ ∃ T, ∀ t, T ≤ t → center (t + 3) = center t := by
+  rintro ⟨T, h⟩
+  rcases normalize_period_three h with ⟨s, _, w0⟩ | ⟨s, _, w1⟩
+  · obtain ⟨U, avoid0⟩ := avoids_clock_specific_five_west6 false p0 hp0 s w0
+    obtain ⟨t, ht, found0⟩ := hits0 U
+    exact avoid0 t ht found0
+  · obtain ⟨U, avoid1⟩ := avoids_clock_specific_five_west6 true p1 hp1 s w1
+    obtain ⟨t, ht, found1⟩ := hits1 U
+    exact avoid1 t ht found1
+
+/-- **Monochrome 5-run exclusion six cells west (`no_period_three_of_both_five_runs_west6`):**
+if column `-6` has arbitrarily late `00000` (`⟨0, _⟩`) and arbitrarily late `11111` (`⟨31, _⟩`),
+then center is not eventually period-3. -/
+theorem no_period_three_of_both_five_runs_west6
+    (runs : ∀ (b : Bool) (U : Nat), ∃ t, U ≤ t ∧ ∀ k : Fin 5, cell (t + k.val) (-6) = b) :
+    ¬ ∃ T, ∀ t, T ≤ t → center (t + 3) = center t := by
+  apply no_period_three_of_split_five_west6 ⟨31, by decide⟩ ⟨0, by decide⟩ (by decide +kernel) (by decide +kernel)
+  · intro U
+    obtain ⟨t, ht, hr⟩ := runs true U
+    refine ⟨t, ht, fun k => (hr k).trans ?_⟩
+    revert k; decide
+  · intro U
+    obtain ⟨t, ht, hr⟩ := runs false U
+    refine ⟨t, ht, fun k => (hr k).trans ?_⟩
+    revert k; decide
+
 end Ruliology.CellularAutomata.Rule30WestSixReading
