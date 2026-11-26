@@ -573,5 +573,481 @@ theorem u_R2n_and_not_finSupp_Psi_of_R2n (k : Nat) (R : Nat → Bool) :
     · unfold R2n at h
       exact (ih R).2 (not_finSupp_Psi_of_R2 (R2n k R) h)
 
+/-! ### Coupled integer operators `(FR1, FR0, GR)`, four-diagonal frontier asymmetry, integer truncation death, and integer `CQ01` / `CQ01Empty` equivalences -/
+
+open Ruliology.CellularAutomata.Rule30ZeroBoundary.IntegerForm
+
+/-- One step of `drv altCol` on packed right-half integer `Z` at even time (`altCol = true`). -/
+def FR1 (Z : Nat) : Nat := ((Z <<< 1) ||| 1) ^^^ (Z ||| (Z >>> 1))
+
+/-- One step of `drv altCol` on packed right-half integer `Z` at odd time (`altCol = false`). -/
+def FR0 (Z : Nat) : Nat := (Z <<< 1) ^^^ (Z ||| (Z >>> 1))
+
+/-- Double step of `drv altCol` from even time `2 * s` to `2 * (s + 1)`, dual to `G = F ∘ F`. -/
+def GR (Z : Nat) : Nat := FR0 (FR1 Z)
+
+/-- `IsTopBit Y n`: bit `n` of `Y` is `true` and every bit strictly above `n` is `false`. -/
+def IsTopBit (Y n : Nat) : Prop :=
+  Y.testBit n = true ∧ ∀ k, n < k → Y.testBit k = false
+
+theorem testBit_shiftLeft_one_zero (X : Nat) : (X <<< 1).testBit 0 = false := by
+  simp
+
+theorem testBit_shiftLeft_one_succ (X m : Nat) : (X <<< 1).testBit (m + 1) = X.testBit m := by
+  simp [Nat.testBit_shiftLeft]
+
+theorem testBit_shiftRight_one (X k : Nat) : (X >>> 1).testBit k = X.testBit (k + 1) := by
+  rw [Nat.testBit_shiftRight, Nat.add_comm]
+
+theorem one_testBit_succ (m : Nat) : (1 : Nat).testBit (m + 1) = false := by
+  apply Nat.testBit_lt_two_pow
+  have : 2 ^ 1 ≤ 2 ^ (m + 1) := Nat.pow_le_pow_right (by omega) (by omega)
+  omega
+
+theorem isTopBit_F {Y n : Nat} (h : IsTopBit Y n) : IsTopBit (F Y) (n + 1) := by
+  rcases h with ⟨hn, hgt⟩
+  refine ⟨?_, ?_⟩
+  · unfold F
+    rw [Nat.testBit_xor, Nat.testBit_or, testBit_shiftRight_one, testBit_shiftLeft_one_succ,
+      hgt (n + 2) (by omega), hgt (n + 1) (by omega), hn]
+    rfl
+  · intro k hk
+    obtain ⟨m, rfl⟩ : ∃ m, k = m + 1 := ⟨k - 1, by omega⟩
+    unfold F
+    rw [Nat.testBit_xor, Nat.testBit_or, testBit_shiftRight_one, testBit_shiftLeft_one_succ,
+      hgt (m + 2) (by omega), hgt (m + 1) (by omega), hgt m (by omega)]
+    rfl
+
+theorem isTopBit_G {Y n : Nat} (h : IsTopBit Y n) : IsTopBit (G Y) (n + 2) := by
+  unfold G
+  simpa [Nat.add_assoc] using isTopBit_F (isTopBit_F h)
+
+/-- **Left-Frontier Three-Diagonal Erasure (`top_three_G`):** for any `Y` with top bit `n ≥ 1`,
+`G Y` locks bits `(n + 2, n + 1, n)` to `(true, true, false)`. -/
+theorem top_three_G {Y n : Nat} (hn1 : 1 ≤ n) (h : IsTopBit Y n) :
+    (G Y).testBit (n + 2) = true ∧
+    (G Y).testBit (n + 1) = true ∧
+    (G Y).testBit n = false := by
+  have hF_top : IsTopBit (F Y) (n + 1) := isTopBit_F h
+  have hG_top : IsTopBit (G Y) (n + 2) := isTopBit_G h
+  rcases h with ⟨hn, hgt⟩
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
+  have hFn : (F Y).testBit (m + 1) = true := by
+    rw [testBit_F_succ, hgt (m + 2) (by omega), hn]
+    simp
+  have hGn1 : (G Y).testBit (m + 2) = true := by
+    unfold G
+    rw [testBit_F_succ, hF_top.2 (m + 3) (by omega), hF_top.1, hFn]
+    rfl
+  have hGn : (G Y).testBit (m + 1) = false := by
+    unfold G
+    rw [testBit_F_succ, hF_top.1, hFn]
+    simp
+  exact ⟨hG_top.1, hGn1, hGn⟩
+
+/-- **Left Fourth-Diagonal Conservation (`fourthBit_G_invariant`):** once `(n, n - 1, n - 2)` is
+`(true, true, false)`, `G` preserves `Y.testBit (n - 3)` at index `n - 1`. -/
+theorem fourthBit_G_invariant {Y n : Nat} (hn3 : 3 ≤ n) (h : IsTopBit Y n)
+    (hsec : Y.testBit (n - 1) = true) (hthd : Y.testBit (n - 2) = false) :
+    (G Y).testBit (n - 1) = Y.testBit (n - 3) := by
+  rcases h with ⟨hn, hgt⟩
+  obtain ⟨k, rfl⟩ : ∃ k, n = k + 3 := ⟨n - 3, by omega⟩
+  simp only [show k + 3 - 1 = k + 2 by omega, show k + 3 - 2 = k + 1 by omega,
+    show k + 3 - 3 = k by omega] at hsec hthd ⊢
+  have hU3 : (F Y).testBit (k + 3) = true := by
+    rw [testBit_F_succ, hgt (k + 4) (by omega), hn, hsec]
+    rfl
+  have hU2 : (F Y).testBit (k + 2) = false := by
+    rw [testBit_F_succ, hn, hsec, hthd]
+    rfl
+  have hU1 : (F Y).testBit (k + 1) = !Y.testBit k := by
+    rw [testBit_F_succ, hsec, hthd]
+    cases Y.testBit k <;> rfl
+  unfold G
+  rw [testBit_F_succ, hU3, hU2, hU1]
+  cases Y.testBit k <;> rfl
+
+theorem isTopBit_FR1 {Z n : Nat} (h : IsTopBit Z n) : IsTopBit (FR1 Z) (n + 1) := by
+  rcases h with ⟨hn, hgt⟩
+  refine ⟨?_, ?_⟩
+  · unfold FR1
+    rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_or, testBit_shiftLeft_one_succ,
+      testBit_shiftRight_one, one_testBit_succ n, hn, hgt (n + 1) (by omega), hgt (n + 2) (by omega)]
+    rfl
+  · intro k hk
+    obtain ⟨m, rfl⟩ : ∃ m, k = m + 1 := ⟨k - 1, by omega⟩
+    unfold FR1
+    rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_or, testBit_shiftLeft_one_succ,
+      testBit_shiftRight_one, one_testBit_succ m, hgt m (by omega), hgt (m + 1) (by omega), hgt (m + 2) (by omega)]
+    rfl
+
+theorem isTopBit_FR0 {Z n : Nat} (h : IsTopBit Z n) : IsTopBit (FR0 Z) (n + 1) := by
+  rcases h with ⟨hn, hgt⟩
+  refine ⟨?_, ?_⟩
+  · unfold FR0
+    rw [Nat.testBit_xor, Nat.testBit_or, testBit_shiftLeft_one_succ, testBit_shiftRight_one,
+      hn, hgt (n + 1) (by omega), hgt (n + 2) (by omega)]
+    rfl
+  · intro k hk
+    obtain ⟨m, rfl⟩ : ∃ m, k = m + 1 := ⟨k - 1, by omega⟩
+    unfold FR0
+    rw [Nat.testBit_xor, Nat.testBit_or, testBit_shiftLeft_one_succ, testBit_shiftRight_one,
+      hgt m (by omega), hgt (m + 1) (by omega), hgt (m + 2) (by omega)]
+    rfl
+
+/-- **Right-Frontier `+2` Top-Bit Expansion (`isTopBit_GR`):** `GR` advances `IsTopBit Z n` to `n + 2`. -/
+theorem isTopBit_GR {Z n : Nat} (h : IsTopBit Z n) : IsTopBit (GR Z) (n + 2) := by
+  unfold GR
+  simpa [Nat.add_assoc] using isTopBit_FR0 (isTopBit_FR1 h)
+
+/-- **Right Second-Diagonal Conservation (`secondBit_GR_invariant`):** unlike `G`, `GR` preserves
+`Z.testBit (n - 1)` at `n + 1`. -/
+theorem secondBit_GR_invariant {Z n : Nat} (hn1 : 1 ≤ n) (h : IsTopBit Z n) :
+    (GR Z).testBit (n + 1) = Z.testBit (n - 1) := by
+  have h1_top : IsTopBit (FR1 Z) (n + 1) := isTopBit_FR1 h
+  rcases h with ⟨hn, hgt⟩
+  obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
+  simp only [Nat.add_sub_cancel]
+  have hFR1 : (FR1 Z).testBit (m + 1) = !Z.testBit m := by
+    unfold FR1
+    rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_or, testBit_shiftLeft_one_succ,
+      testBit_shiftRight_one, one_testBit_succ m, hn, hgt (m + 2) (by omega)]
+    cases Z.testBit m <;> rfl
+  unfold GR FR0
+  rw [Nat.testBit_xor, Nat.testBit_or, testBit_shiftLeft_one_succ, testBit_shiftRight_one,
+    hFR1, h1_top.1, h1_top.2 (m + 3) (by omega)]
+  cases Z.testBit m <;> rfl
+
+/-- **Right Third-Diagonal Conservation (`thirdBit_GR_invariant`):** when `Z.testBit (n - 1) = true`,
+`GR` also preserves `Z.testBit (n - 2)` at `n`. -/
+theorem thirdBit_GR_invariant {Z n : Nat} (hn2 : 2 ≤ n) (h : IsTopBit Z n)
+    (hsec : Z.testBit (n - 1) = true) :
+    (GR Z).testBit n = Z.testBit (n - 2) := by
+  have h1_top : IsTopBit (FR1 Z) (n + 1) := isTopBit_FR1 h
+  rcases h with ⟨hn, _⟩
+  obtain ⟨k, rfl⟩ : ∃ k, n = k + 2 := ⟨n - 2, by omega⟩
+  simp only [show k + 2 - 1 = k + 1 by omega, show k + 2 - 2 = k by omega] at hsec ⊢
+  have hFR1 : (FR1 Z).testBit (k + 1) = !Z.testBit k := by
+    unfold FR1
+    rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_or, testBit_shiftLeft_one_succ,
+      testBit_shiftRight_one, one_testBit_succ k, hsec, hn]
+    cases Z.testBit k <;> rfl
+  unfold GR FR0
+  rw [Nat.testBit_xor, Nat.testBit_or, testBit_shiftLeft_one_succ, testBit_shiftRight_one,
+    hFR1, h1_top.1, Bool.or_true]
+  cases Z.testBit k <;> rfl
+
+/-- **Right Fourth-Diagonal Flip (`fourthBit_GR_flip`):** when the top three bits `(n, n - 1, n - 2)`
+are `(true, true, true)`, `GR` complements `Z.testBit (n - 3)` at `n - 1`. -/
+theorem fourthBit_GR_flip {Z n : Nat} (hn3 : 3 ≤ n) (h : IsTopBit Z n)
+    (hsec : Z.testBit (n - 1) = true) (hthd : Z.testBit (n - 2) = true) :
+    (GR Z).testBit (n - 1) = !Z.testBit (n - 3) := by
+  rcases h with ⟨hn, hgt⟩
+  obtain ⟨k, rfl⟩ : ∃ k, n = k + 3 := ⟨n - 3, by omega⟩
+  simp only [show k + 3 - 1 = k + 2 by omega, show k + 3 - 2 = k + 1 by omega,
+    show k + 3 - 3 = k by omega] at hsec hthd ⊢
+  have hW3 : (FR1 Z).testBit (k + 3) = false := by
+    unfold FR1
+    rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_or, testBit_shiftLeft_one_succ,
+      testBit_shiftRight_one, one_testBit_succ (k + 2), hsec, hn, hgt (k + 4) (by omega)]
+    rfl
+  have hW2 : (FR1 Z).testBit (k + 2) = false := by
+    unfold FR1
+    rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_or, testBit_shiftLeft_one_succ,
+      testBit_shiftRight_one, one_testBit_succ (k + 1), hthd, hsec, hn]
+    rfl
+  have hW1 : (FR1 Z).testBit (k + 1) = !Z.testBit k := by
+    unfold FR1
+    rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_or, testBit_shiftLeft_one_succ,
+      testBit_shiftRight_one, one_testBit_succ k, hthd, hsec]
+    cases Z.testBit k <;> rfl
+  unfold GR FR0
+  rw [Nat.testBit_xor, Nat.testBit_or, testBit_shiftLeft_one_succ, testBit_shiftRight_one,
+    hW1, hW2, hW3]
+  cases Z.testBit k <;> rfl
+
+theorem top_two_iter_GR_empty (s : Nat) :
+    IsTopBit (iter GR (s + 1) 0) (2 * s + 1) ∧
+    (iter GR (s + 1) 0).testBit (2 * s) = true := by
+  induction s with
+  | zero =>
+    have h3 : iter GR 1 0 = 3 := by decide
+    rw [h3]
+    refine ⟨⟨by decide, fun k hk => ?_⟩, by decide⟩
+    apply Nat.testBit_lt_two_pow
+    have : 2 ^ 2 ≤ 2 ^ k := Nat.pow_le_pow_right (by omega) (by omega)
+    omega
+  | succ s ih =>
+    rcases ih with ⟨htop, hsec⟩
+    rw [show iter GR (s + 1 + 1) 0 = GR (iter GR (s + 1) 0) from rfl]
+    refine ⟨?_, ?_⟩
+    · rw [show 2 * (s + 1) + 1 = (2 * s + 1) + 2 by omega]
+      exact isTopBit_GR htop
+    · rw [show 2 * (s + 1) = (2 * s + 1) + 1 by omega,
+        secondBit_GR_invariant (by omega) htop,
+        show 2 * s + 1 - 1 = 2 * s by omega]
+      exact hsec
+
+/-- **Locked `(1, 1, 1)` Right-Cone Frontier of `empty` (`top_three_iter_GR_empty`):** for every `s`,
+`iter GR (s + 2) 0` has top bit `2 * s + 3` and bits `(2 * s + 3, 2 * s + 2, 2 * s + 1) = (true, true, true)`. -/
+theorem top_three_iter_GR_empty (s : Nat) :
+    IsTopBit (iter GR (s + 2) 0) (2 * s + 3) ∧
+    (iter GR (s + 2) 0).testBit (2 * s + 2) = true ∧
+    (iter GR (s + 2) 0).testBit (2 * s + 1) = true := by
+  induction s with
+  | zero =>
+    have h2 := top_two_iter_GR_empty 1
+    refine ⟨h2.1, h2.2, ?_⟩
+    have h14 : iter GR 2 0 = 14 := by decide
+    rw [h14]
+    decide
+  | succ s ih =>
+    rcases ih with ⟨htop, hsec, hthd⟩
+    have hnext := top_two_iter_GR_empty (s + 2)
+    refine ⟨hnext.1, hnext.2, ?_⟩
+    rw [show iter GR (s + 1 + 2) 0 = GR (iter GR (s + 2) 0) from rfl,
+      show 2 * (s + 1) + 1 = 2 * s + 3 by omega,
+      thirdBit_GR_invariant (by omega) htop (by simpa [show 2 * s + 3 - 1 = 2 * s + 2 by omega] using hsec)]
+    simpa [show 2 * s + 3 - 2 = 2 * s + 1 by omega] using hthd
+
+/-- **Fourth-Diagonal Period-2 Alternation of `empty` (`fourthBit_iter_GR_empty`):** bit `2 * s` of
+`iter GR (s + 2) 0` alternates as `decide (s % 2 = 1)`. -/
+theorem fourthBit_iter_GR_empty (s : Nat) :
+    (iter GR (s + 2) 0).testBit (2 * s) = decide (s % 2 = 1) := by
+  induction s with
+  | zero =>
+    have h14 : iter GR 2 0 = 14 := by decide
+    rw [h14]
+    decide
+  | succ s ih =>
+    have h3 := top_three_iter_GR_empty s
+    rw [show iter GR (s + 1 + 2) 0 = GR (iter GR (s + 2) 0) from rfl,
+      show 2 * (s + 1) = (2 * s + 3) - 1 by omega,
+      fourthBit_GR_flip (by omega) h3.1
+        (by simpa [show 2 * s + 3 - 1 = 2 * s + 2 by omega] using h3.2.1)
+        (by simpa [show 2 * s + 3 - 2 = 2 * s + 1 by omega] using h3.2.2),
+      show 2 * s + 3 - 3 = 2 * s by omega, ih]
+    rcases Nat.mod_two_eq_zero_or_one s with h0 | h1
+    · simp [h0, Nat.add_mod]
+    · simp [h1, Nat.add_mod]
+
+theorem rowOfNat_FR1_one (Z : Nat) :
+    rowOfNat (FR1 Z) 1 = bne true (rowOfNat Z 1 || rowOfNat Z 2) := by
+  change (FR1 Z).testBit 0 = bne true (Z.testBit 0 || Z.testBit 1)
+  unfold FR1
+  rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_or,
+    testBit_shiftLeft_one_zero, testBit_shiftRight_one]
+  rfl
+
+theorem rowOfNat_FR1_add_two (Z m : Nat) :
+    rowOfNat (FR1 Z) (m + 2) = bne (rowOfNat Z (m + 1)) (rowOfNat Z (m + 2) || rowOfNat Z (m + 3)) := by
+  change (FR1 Z).testBit (m + 1) = bne (Z.testBit m) (Z.testBit (m + 1) || Z.testBit (m + 2))
+  unfold FR1
+  rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_or,
+    testBit_shiftLeft_one_succ, one_testBit_succ m, Bool.or_false, testBit_shiftRight_one]
+
+theorem rowOfNat_FR0_one (Z : Nat) :
+    rowOfNat (FR0 Z) 1 = bne false (rowOfNat Z 1 || rowOfNat Z 2) := by
+  change (FR0 Z).testBit 0 = bne false (Z.testBit 0 || Z.testBit 1)
+  unfold FR0
+  rw [Nat.testBit_xor, Nat.testBit_or, testBit_shiftLeft_one_zero, testBit_shiftRight_one]
+
+theorem rowOfNat_FR0_add_two (Z m : Nat) :
+    rowOfNat (FR0 Z) (m + 2) = bne (rowOfNat Z (m + 1)) (rowOfNat Z (m + 2) || rowOfNat Z (m + 3)) := by
+  change (FR0 Z).testBit (m + 1) = bne (Z.testBit m) (Z.testBit (m + 1) || Z.testBit (m + 2))
+  unfold FR0
+  rw [Nat.testBit_xor, Nat.testBit_or, testBit_shiftLeft_one_succ, testBit_shiftRight_one]
+
+/-- **Multi-Step Right-Half Integer Conjugation (`drv_altCol_rowOfNat_even_odd`):** conjugates
+`drv altCol (rowOfNat Z)` at `2 * s` and `2 * s + 1` with `iter GR s Z` and `FR1 (iter GR s Z)`. -/
+theorem drv_altCol_rowOfNat_even_odd (Z s : Nat) :
+    (∀ k, drv altCol (rowOfNat Z) (2 * s) (k + 1) = rowOfNat (iter GR s Z) (k + 1)) ∧
+    (∀ k, drv altCol (rowOfNat Z) (2 * s + 1) (k + 1) = rowOfNat (FR1 (iter GR s Z)) (k + 1)) := by
+  induction s with
+  | zero =>
+    refine ⟨fun k => drv_init altCol (rowOfNat Z) (k + 1) (by omega), fun k => ?_⟩
+    cases k with
+    | zero =>
+      change bne (drv altCol (rowOfNat Z) 0 0)
+        (drv altCol (rowOfNat Z) 0 1 || drv altCol (rowOfNat Z) 0 2) = rowOfNat (FR1 Z) 1
+      rw [drv_col0, altCol_even 0, drv_init _ _ 1 (by omega), drv_init _ _ 2 (by omega)]
+      exact (rowOfNat_FR1_one Z).symm
+    | succ m =>
+      change bne (drv altCol (rowOfNat Z) 0 (m + 1))
+        (drv altCol (rowOfNat Z) 0 (m + 2) || drv altCol (rowOfNat Z) 0 (m + 3)) =
+        rowOfNat (FR1 Z) (m + 2)
+      rw [drv_init _ _ (m + 1) (by omega), drv_init _ _ (m + 2) (by omega),
+        drv_init _ _ (m + 3) (by omega)]
+      exact (rowOfNat_FR1_add_two Z m).symm
+  | succ s ih =>
+    rcases ih with ⟨_, iho⟩
+    have heven : ∀ k, drv altCol (rowOfNat Z) (2 * (s + 1)) (k + 1) =
+        rowOfNat (iter GR (s + 1) Z) (k + 1) := by
+      intro k
+      rw [show 2 * (s + 1) = (2 * s + 1) + 1 by omega,
+        show iter GR (s + 1) Z = GR (iter GR s Z) from rfl]
+      cases k with
+      | zero =>
+        change bne (drv altCol (rowOfNat Z) (2 * s + 1) 0)
+          (drv altCol (rowOfNat Z) (2 * s + 1) 1 || drv altCol (rowOfNat Z) (2 * s + 1) 2) =
+          rowOfNat (GR (iter GR s Z)) 1
+        rw [drv_col0, altCol_odd s, iho 0, iho 1]
+        exact (rowOfNat_FR0_one (FR1 (iter GR s Z))).symm
+      | succ m =>
+        change bne (drv altCol (rowOfNat Z) (2 * s + 1) (m + 1))
+          (drv altCol (rowOfNat Z) (2 * s + 1) (m + 2) || drv altCol (rowOfNat Z) (2 * s + 1) (m + 3)) =
+          rowOfNat (GR (iter GR s Z)) (m + 2)
+        rw [iho m, iho (m + 1), iho (m + 2)]
+        exact (rowOfNat_FR0_add_two (FR1 (iter GR s Z)) m).symm
+    refine ⟨heven, fun k => ?_⟩
+    cases k with
+    | zero =>
+      change bne (drv altCol (rowOfNat Z) (2 * (s + 1)) 0)
+        (drv altCol (rowOfNat Z) (2 * (s + 1)) 1 || drv altCol (rowOfNat Z) (2 * (s + 1)) 2) =
+        rowOfNat (FR1 (iter GR (s + 1) Z)) 1
+      rw [drv_col0, altCol_even (s + 1), heven 0, heven 1]
+      exact (rowOfNat_FR1_one (iter GR (s + 1) Z)).symm
+    | succ m =>
+      change bne (drv altCol (rowOfNat Z) (2 * (s + 1)) (m + 1))
+        (drv altCol (rowOfNat Z) (2 * (s + 1)) (m + 2) || drv altCol (rowOfNat Z) (2 * (s + 1)) (m + 3)) =
+        rowOfNat (FR1 (iter GR (s + 1) Z)) (m + 2)
+      rw [heven m, heven (m + 1), heven (m + 2)]
+      exact (rowOfNat_FR1_add_two (iter GR (s + 1) Z) m).symm
+
+/-- **Two-Step Right-Half Shift Conjugation (`R2_rowOfNat`):** `R2 (rowOfNat Z)` agrees with
+`rowOfNat (GR Z)` on every positive column `p ≥ 1`. -/
+theorem R2_rowOfNat (Z p : Nat) (hp : 1 ≤ p) :
+    R2 (rowOfNat Z) p = rowOfNat (GR Z) p := by
+  obtain ⟨k, rfl⟩ : ∃ k, p = k + 1 := ⟨p - 1, by omega⟩
+  exact (drv_altCol_rowOfNat_even_odd Z 1).1 k
+
+/-- **Bitwise Gate Formula for Finite Right Halves (`u_rowOfNat_eq`):** `u (rowOfNat Z) s` is bit `0`
+of `FR1 (iter GR s Z)`. -/
+theorem u_rowOfNat_eq (Z s : Nat) :
+    u (rowOfNat Z) s = (FR1 (iter GR s Z)).testBit 0 := by
+  unfold u
+  rw [(drv_altCol_rowOfNat_even_odd Z s).2 0]
+  rfl
+
+/-- **Bitwise Gate Formula for `empty` (`u_empty_eq_FR1_iter_GR`):** `u empty s` is bit `0` of
+`FR1 (iter GR s 0)`. -/
+theorem u_empty_eq_FR1_iter_GR (s : Nat) :
+    u empty s = (FR1 (iter GR s 0)).testBit 0 := by
+  have hc : ∀ p, 1 ≤ p → empty p = rowOfNat 0 p := by
+    intro p hp
+    obtain ⟨k, rfl⟩ : ∃ k, p = k + 1 := ⟨p - 1, by omega⟩
+    simp [empty, rowOfNat]
+  unfold u
+  rw [drv_congr hc, ← u_rowOfNat_eq]
+  rfl
+
+/-- **Integer Truncation Exact-Death Law (`integer_truncation_exact_death`):** if `d > W` is the
+first black cell of `Psi R` beyond `W`, then `natOfRow (Psi R) W` meets bit-`0` coupling under
+`iter F` for every `t < d - 1` and violates it at exact step `t = d - 1`. -/
+theorem integer_truncation_exact_death (R : Nat → Bool) {W d : Nat} (hWd : W < d)
+    (hd : Psi R d = true) (hz : ∀ k, W < k → k < d → Psi R k = false) :
+    (∀ t, t + 1 < d → (iter F t (natOfRow (Psi R) W)).testBit 0 = alt (fun s => !u R s) t) ∧
+    (iter F (d - 1) (natOfRow (Psi R) W)).testBit 0 ≠ alt (fun s => !u R s) (d - 1) := by
+  let Y := natOfRow (Psi R) W
+  have hd1 : 1 ≤ d := by omega
+  have hag : ∀ i, 1 ≤ i → i < d → rowOfNat Y i = Psi R i := by
+    intro i hi hid
+    obtain ⟨j, rfl⟩ : ∃ j, i = j + 1 := ⟨i - 1, by omega⟩
+    show Y.testBit j = Psi R (j + 1)
+    rw [testBit_natOfRow]
+    by_cases hj : j < W
+    · simp [hj]
+    · rw [hz (j + 1) (by omega) hid]
+      simp
+  have hne : rowOfNat Y d ≠ Psi R d := by
+    obtain ⟨j, rfl⟩ : ∃ j, d = j + 1 := ⟨d - 1, by omega⟩
+    show Y.testBit j ≠ Psi R (j + 1)
+    rw [testBit_natOfRow, hd]
+    simp [show ¬ j < W by omega]
+  obtain ⟨h1, h2⟩ := exact_death (R := R) hd1 hag hne
+  refine ⟨fun t ht => ?_, fun heq => h2 ?_⟩
+  · have hm := h1 t ht
+    unfold Meets at hm
+    rwa [zrow_rowOfNat_col1] at hm
+  · unfold Meets
+    rwa [zrow_rowOfNat_col1]
+
+/-- **Single-Integer Bitwise Characterization of Open `CQ01Empty` (`CQ01Empty_iff_integer`):**
+`CQ01Empty` holds iff no `Y : Nat` satisfies `(iter G s Y).testBit 0 = true` and
+`(F (iter G s Y)).testBit 0 = !(FR1 (iter GR s 0)).testBit 0` for all `s : Nat`. -/
+theorem CQ01Empty_iff_integer :
+    CQ01Empty ↔ ∀ Y : Nat, ¬ ∀ s : Nat,
+      (iter G s Y).testBit 0 = true ∧
+      (F (iter G s Y)).testBit 0 = !(FR1 (iter GR s 0)).testBit 0 := by
+  constructor
+  · intro hE Y hall
+    rcases finSupp_rowOfNat Y with ⟨WL, hWL⟩
+    have hX : InX (rowOfNat Y) := by
+      intro s
+      rw [zrow_rowOfNat_col1, ← iter_G_eq_iter_F_two_mul]
+      exact (hall s).1
+    have hC : ∀ s, zrow (rowOfNat Y) (2 * s + 1) 1 = !drv altCol empty (2 * s + 1) 1 := by
+      intro s
+      rw [zrow_rowOfNat_col1, show iter F (2 * s + 1) Y = F (iter F (2 * s) Y) from rfl,
+        ← iter_G_eq_iter_F_two_mul, (hall s).2, ← u_empty_eq_FR1_iter_GR]
+      rfl
+    refine hE ⟨WL, fun k hk => ?_⟩
+    rw [← Psi_unique hX hC, zrow_zero_of_pos _ (by omega)]
+    exact hWL k hk
+  · intro hall ⟨WL, hWL⟩
+    let Y := natOfRow (Psi empty) WL
+    have hY := rowOfNat_natOfRow hWL
+    apply hall Y
+    intro s
+    refine ⟨?_, ?_⟩
+    · rw [iter_G_eq_iter_F_two_mul, ← zrow_rowOfNat_col1, zrow_congr hY (2 * s) 1]
+      exact Psi_inX empty s
+    · rw [iter_G_eq_iter_F_two_mul,
+        show F (iter F (2 * s) Y) = iter F (2 * s + 1) Y from rfl,
+        ← zrow_rowOfNat_col1, zrow_congr hY (2 * s + 1) 1,
+        Psi_free empty s, ← u_empty_eq_FR1_iter_GR]
+      rfl
+
+/-- **Two-Integer Bitwise Characterization of Open `CQ01` (`CQ01_iff_integer`):** `CQ01` holds iff
+no pair `Y Z : Nat` satisfies `(iter G s Y).testBit 0 = true` and
+`(F (iter G s Y)).testBit 0 = !(FR1 (iter GR s Z)).testBit 0` for all `s : Nat`. -/
+theorem CQ01_iff_integer :
+    CQ01 ↔ ∀ Y Z : Nat, ¬ ∀ s : Nat,
+      (iter G s Y).testBit 0 = true ∧
+      (F (iter G s Y)).testBit 0 = !(FR1 (iter GR s Z)).testBit 0 := by
+  constructor
+  · intro hCQ Y Z hall
+    rcases finSupp_rowOfNat Y with ⟨WL, hWL⟩
+    have hR : FinSupp (rowOfNat Z) := finSupp_rowOfNat Z
+    have hX : InX (rowOfNat Y) := by
+      intro s
+      rw [zrow_rowOfNat_col1, ← iter_G_eq_iter_F_two_mul]
+      exact (hall s).1
+    have hC : ∀ s, zrow (rowOfNat Y) (2 * s + 1) 1 = !drv altCol (rowOfNat Z) (2 * s + 1) 1 := by
+      intro s
+      rw [zrow_rowOfNat_col1, show iter F (2 * s + 1) Y = F (iter F (2 * s) Y) from rfl,
+        ← iter_G_eq_iter_F_two_mul, (hall s).2, ← u_rowOfNat_eq]
+      rfl
+    refine CQ01_iff_Psi.1 hCQ (rowOfNat Z) hR ⟨WL, fun k hk => ?_⟩
+    rw [← Psi_unique hX hC, zrow_zero_of_pos _ (by omega)]
+    exact hWL k hk
+  · intro hall
+    rw [CQ01_iff_Psi]
+    intro R ⟨WR, hWR⟩ ⟨WL, hWL⟩
+    let Y := natOfRow (Psi R) WL
+    let Z := natOfRow R WR
+    have hY := rowOfNat_natOfRow hWL
+    have hZ := rowOfNat_natOfRow hWR
+    apply hall Y Z
+    intro s
+    refine ⟨?_, ?_⟩
+    · rw [iter_G_eq_iter_F_two_mul, ← zrow_rowOfNat_col1, zrow_congr hY (2 * s) 1]
+      exact Psi_inX R s
+    · rw [iter_G_eq_iter_F_two_mul,
+        show F (iter F (2 * s) Y) = iter F (2 * s + 1) Y from rfl,
+        ← zrow_rowOfNat_col1, zrow_congr hY (2 * s + 1) 1,
+        Psi_free R s, ← drv_congr hZ (2 * s + 1) 1, ← u_rowOfNat_eq]
+      rfl
+
 end Rule30PeriodTwoSideways
 end Ruliology.CellularAutomata
