@@ -387,5 +387,213 @@ theorem lock_families_period_incompatibility :
   · rw [(u_lock7_family h 9).1, (u_lock7_family h 4).1]; decide
   · rw [(u_lock7b_family h 8).1, (u_lock7b_family h 3).1]; decide
 
+/-! ## The period-2 lock `lock2` (`W = 19`), permanent trap avoidance, and the `Q01Gap → CQ01` dichotomy bridge -/
+
+/-- The windows of `lock2` (`W = 19, p = 2`), as codes in 2 classes (`word2 = [true, false]`). -/
+def lock2Codes : List (List Nat) := [
+  [2329, 6809, 10521, 39577, 43289, 72345, 76057, 105113, 108825, 141593,
+   170649, 174361, 236185, 239897, 256281, 268953, 272665, 301721, 305433, 334489,
+   338201, 367257, 370969, 387353, 403737, 432793, 436505, 498329, 502041, 518425],
+  [8352, 10784, 24736, 27168, 41120, 43552, 73888, 76320, 106656, 141856,
+   172192, 223776, 237728, 270496, 272928, 286880, 289312, 303264, 305696, 336032,
+   338464, 368800, 401568, 404000, 417952, 420384, 434336, 469536, 499872]
+]
+
+/-- Column `1` of the classes of `lock2`: period `2` (`true, false`). -/
+def word2 : List Bool := [true, false]
+
+/-- Kernel verification that `lock2Codes` (`59` windows of width `19`) is closed of period `2`. -/
+theorem lock2_ok : lockCheck 19 2 word2 lock2Codes = true := by decide +kernel
+
+/-- The 3-black-cell start `rh 112` (`0000111`) enters class `0` of `lock2` at tick `5` (`s0 = 2`). -/
+theorem lock2_entry_112 : winW 19 (rh 112) 5 ∈ cls 19 lock2Codes 0 := by
+  rw [winW_prefix (rh_prefix 112 _)]; decide +kernel
+
+/-- The 5-black-cell start `rh 31` (`11111`) enters class `0` of `lock2` at tick `7` (`s0 = 3`). -/
+theorem lock2_entry_31 : winW 19 (rh 31) 7 ∈ cls 19 lock2Codes 0 := by
+  rw [winW_prefix (rh_prefix 31 _)]; decide +kernel
+
+/-- **`CQ01` for every right half that starts like `112`** (`0000111` followed by `17` zeros, cells `1..24`). -/
+theorem CQ01_lock2_112_family {R : Nat → Bool}
+    (h : ∀ i, i < 24 → R (i + 1) = (112 : Nat).testBit i) :
+    ¬ Rule30ZeroBoundary.FinSupp (Psi R) := by
+  have hw : winW 19 R (2 * 2 + 1) ∈ cls 19 lock2Codes 0 := by
+    rw [winW_prefix h, ← winW_prefix (rh_prefix 112 _)]; exact lock2_entry_112
+  exact not_finSupp_Psi_of_lock (V := 18) lock2_ok (by decide) R (by decide) hw
+
+/-- **`CQ01` for every right half that starts like `31`** (`11111` followed by `21` zeros, cells `1..26`). -/
+theorem CQ01_lock2_31_family {R : Nat → Bool}
+    (h : ∀ i, i < 26 → R (i + 1) = (31 : Nat).testBit i) :
+    ¬ Rule30ZeroBoundary.FinSupp (Psi R) := by
+  have hw : winW 19 R (2 * 3 + 1) ∈ cls 19 lock2Codes 0 := by
+    rw [winW_prefix h, ← winW_prefix (rh_prefix 31 _)]; exact lock2_entry_31
+  exact not_finSupp_Psi_of_lock (V := 18) lock2_ok (by decide) R (by decide) hw
+
+/-- Unconditional `CQ01` (`¬ FinSupp (Psi (rh 112))`) for the canonical 3-cell witness `rh 112`. -/
+theorem CQ01_112 : ¬ Rule30ZeroBoundary.FinSupp (Psi (rh 112)) :=
+  CQ01_lock2_112_family (rh_prefix 112 24)
+
+/-- Unconditional `CQ01` (`¬ FinSupp (Psi (rh 31))`) for the canonical 5-cell witness `rh 31`. -/
+theorem CQ01_31 : ¬ Rule30ZeroBoundary.FinSupp (Psi (rh 31)) :=
+  CQ01_lock2_31_family (rh_prefix 31 26)
+
+theorem word2_mod_two (m : Nat) : word2.getD (m % 2) false = decide (m % 2 = 0) := by
+  rcases Nat.mod_two_eq_zero_or_one m with h0 | h1
+  · simp [word2, h0]
+  · simp [word2, h1]
+
+/-- **Exact All-Time Period-2 Gate Law for the `112` Family (`u_lock2_112_family`):** every right
+half matching `112` on cells `1..24` reads `u R n = decide (n % 2 = 0)` for **all** `n : Nat` (from `n = 0`). -/
+theorem u_lock2_112_family {R : Nat → Bool}
+    (h : ∀ i, i < 24 → R (i + 1) = (112 : Nat).testBit i) (n : Nat) :
+    u R n = decide (n % 2 = 0) := by
+  match n with
+  | 0 =>
+    have h0 : winW 1 R 1 = Rule30GateTrap.evolve 0 1 (decodeW 2 112) :=
+      winW_prefix (fun i hi => h i (by omega))
+    have hh := winW_head 0 R 1
+    rw [h0] at hh
+    exact hh.symm.trans (by decide)
+  | 1 =>
+    have h1 : winW 1 R 3 = Rule30GateTrap.evolve 0 3 (decodeW 4 112) :=
+      winW_prefix (fun i hi => h i (by omega))
+    have hh := winW_head 0 R 3
+    rw [h1] at hh
+    exact hh.symm.trans (by decide)
+  | m + 2 =>
+    have hw : winW 19 R (2 * 2 + 1) ∈ cls 19 lock2Codes 0 := by
+      rw [winW_prefix h, ← winW_prefix (rh_prefix 112 _)]; exact lock2_entry_112
+    have hu := u_of_lock (V := 18) lock2_ok (by decide) R (s0 := 2) (k := 0) (by decide) hw m
+    rw [Nat.zero_add, show 2 + m = m + 2 by omega, word2_mod_two] at hu
+    simpa [Nat.add_mod] using hu
+
+/-- **Exact All-Time Period-2 Gate Law for the `31` Family (`u_lock2_31_family`):** every right
+half matching `31` on cells `1..26` reads `u R n = decide (n % 2 = 1)` for **all** `n : Nat` (from `n = 0`). -/
+theorem u_lock2_31_family {R : Nat → Bool}
+    (h : ∀ i, i < 26 → R (i + 1) = (31 : Nat).testBit i) (n : Nat) :
+    u R n = decide (n % 2 = 1) := by
+  match n with
+  | 0 =>
+    have h0 : winW 1 R 1 = Rule30GateTrap.evolve 0 1 (decodeW 2 31) :=
+      winW_prefix (fun i hi => h i (by omega))
+    have hh := winW_head 0 R 1
+    rw [h0] at hh
+    exact hh.symm.trans (by decide)
+  | 1 =>
+    have h1 : winW 1 R 3 = Rule30GateTrap.evolve 0 3 (decodeW 4 31) :=
+      winW_prefix (fun i hi => h i (by omega))
+    have hh := winW_head 0 R 3
+    rw [h1] at hh
+    exact hh.symm.trans (by decide)
+  | 2 =>
+    have h2 : winW 1 R 5 = Rule30GateTrap.evolve 0 5 (decodeW 6 31) :=
+      winW_prefix (fun i hi => h i (by omega))
+    have hh := winW_head 0 R 5
+    rw [h2] at hh
+    exact hh.symm.trans (by decide)
+  | m + 3 =>
+    have hw : winW 19 R (2 * 3 + 1) ∈ cls 19 lock2Codes 0 := by
+      rw [winW_prefix h, ← winW_prefix (rh_prefix 31 _)]; exact lock2_entry_31
+    have hu := u_of_lock (V := 18) lock2_ok (by decide) R (s0 := 3) (k := 0) (by decide) hw m
+    rw [Nat.zero_add, show 3 + m = m + 3 by omega, word2_mod_two] at hu
+    rcases Nat.mod_two_eq_zero_or_one m with hm0 | hm1
+    · have hmod : (m + 3) % 2 = 1 := by omega
+      simp [hm0, hmod] at hu ⊢
+      exact hu
+    · have hmod : (m + 3) % 2 = 0 := by omega
+      simp [hm1, hmod] at hu ⊢
+      exact hu
+
+/-- Zero-preperiod opposite-phase period-2 gates for `rh 112` and `rh 31`. -/
+theorem u_112_and_31 (n : Nat) :
+    u (rh 112) n = decide (n % 2 = 0) ∧ u (rh 31) n = decide (n % 2 = 1) :=
+  ⟨u_lock2_112_family (rh_prefix 112 24) n, u_lock2_31_family (rh_prefix 31 26) n⟩
+
+/-- **Recurring `2`-Gap Trap Obstruction (`not_mem_trap_of_recurring_two_gap`):** if `u R` has
+arbitrarily late pairs of black pulses separated by `2` (`u R s = true ∧ u R (s + 2) = true`),
+then `R` never enters `Rule30GateTrap.trap` at any odd time `t0`. -/
+theorem not_mem_trap_of_recurring_two_gap {R : Nat → Bool}
+    (h2 : ∀ N, ∃ s, N ≤ s ∧ u R s = true ∧ u R (s + 2) = true)
+    (t0 : Nat) (h0 : t0 % 2 = 1) :
+    Rule30GateTrap.win R t0 ∉ Rule30GateTrap.trap := by
+  intro hw
+  obtain ⟨s, hs, hp0, hp2⟩ := h2 t0
+  rcases Rule30GateTrap.gaps_of_entry R h0 hw s (by omega) hp0 with ⟨_, h2f, _⟩ | ⟨_, h2f, _, _, _⟩ <;>
+    exact Bool.noConfusion (h2f.symm.trans hp2)
+
+/-- **Permanent Trap Avoidance of the `lock2`, `lock7`, and `lock7b` Families (`exterior_locks_never_enter_trap`):**
+unlike `lock5` (`lock5_family_trap_forever`), no right half in the `112` (`lock2`), `31` (`lock2`),
+`1891` (`lock7`), or `3793493` (`lock7b`) prefix families ever enters `Rule30GateTrap.trap` at any odd time `t0`. -/
+theorem exterior_locks_never_enter_trap (t0 : Nat) (h0 : t0 % 2 = 1) :
+    (∀ R, (∀ i, i < 24 → R (i + 1) = (112 : Nat).testBit i) → Rule30GateTrap.win R t0 ∉ Rule30GateTrap.trap) ∧
+    (∀ R, (∀ i, i < 26 → R (i + 1) = (31 : Nat).testBit i) → Rule30GateTrap.win R t0 ∉ Rule30GateTrap.trap) ∧
+    (∀ R, (∀ i, i < 57 → R (i + 1) = (1891 : Nat).testBit i) → Rule30GateTrap.win R t0 ∉ Rule30GateTrap.trap) ∧
+    (∀ R, (∀ i, i < 74 → R (i + 1) = (3793493 : Nat).testBit i) → Rule30GateTrap.win R t0 ∉ Rule30GateTrap.trap) := by
+  refine ⟨?_, ?_, ?_, ?_⟩
+  · intro R h
+    refine not_mem_trap_of_recurring_two_gap (fun N => ⟨2 * N, by omega, ?_, ?_⟩) t0 h0
+    · rw [u_lock2_112_family h]; exact decide_eq_true (by omega)
+    · rw [u_lock2_112_family h]; exact decide_eq_true (by omega)
+  · intro R h
+    refine not_mem_trap_of_recurring_two_gap (fun N => ⟨2 * N + 1, by omega, ?_, ?_⟩) t0 h0
+    · rw [u_lock2_31_family h]; exact decide_eq_true (by omega)
+    · rw [u_lock2_31_family h]; exact decide_eq_true (by omega)
+  · intro R h
+    refine not_mem_trap_of_recurring_two_gap (fun N => ⟨13 + (7 * N + 4), by omega, ?_, ?_⟩) t0 h0
+    · rw [(u_lock7_family h (7 * N + 4)).1]
+      have hm : (4 + (7 * N + 4)) % 7 = 1 := by omega
+      rw [hm]; rfl
+    · rw [show 13 + (7 * N + 4) + 2 = 13 + (7 * N + 6) by omega, (u_lock7_family h (7 * N + 6)).1]
+      have hm : (4 + (7 * N + 6)) % 7 = 3 := by omega
+      rw [hm]; rfl
+  · intro R h
+    refine not_mem_trap_of_recurring_two_gap (fun N => ⟨14 + (7 * N + 3), by omega, ?_, ?_⟩) t0 h0
+    · rw [(u_lock7b_family h (7 * N + 3)).1]
+      have hm : (6 + (7 * N + 3)) % 7 = 2 := by omega
+      rw [hm]; rfl
+    · rw [show 14 + (7 * N + 3) + 2 = 14 + (7 * N + 5) by omega, (u_lock7b_family h (7 * N + 5)).1]
+      have hm : (6 + (7 * N + 5)) % 7 = 4 := by omega
+      rw [hm]; rfl
+
+/-- **Not Every Finite Right Half Enters the Gate Trap (`not_all_finSupp_enter_trap`):**
+witnessed already by the 3-black-cell right half `rh 112`. -/
+theorem not_all_finSupp_enter_trap :
+    ¬ ∀ R : Nat → Bool, Rule30ZeroBoundary.FinSupp R →
+      ∃ t0, t0 % 2 = 1 ∧ Rule30GateTrap.win R t0 ∈ Rule30GateTrap.trap := by
+  intro hall
+  obtain ⟨t0, h0, hw⟩ := hall (rh 112) (Rule30ZeroBoundary.IntegerForm.finSupp_rowOfNat 112)
+  exact (exterior_locks_never_enter_trap t0 h0).1 (rh 112) (rh_prefix 112 24) hw
+
+/-- **Period-2 Incompatibility Against `lock5`, `lock7`, and `lock7b` (`lock2_period_incompatibility`):**
+every `lock2` trajectory satisfies `u R (n + 2) = u R n`, whereas `lock5` (`u R 9 ≠ u R 7`),
+`lock7` (`u R 21 ≠ u R 19`), and `lock7b` (`u R 21 ≠ u R 19`) violate period `2`. -/
+theorem lock2_period_incompatibility :
+    (∀ R, (∀ i, i < 24 → R (i + 1) = (112 : Nat).testBit i) → ∀ n, u R (n + 2) = u R n) ∧
+    (∀ R, (∀ i, i < 26 → R (i + 1) = (31 : Nat).testBit i) → ∀ n, u R (n + 2) = u R n) ∧
+    (∀ R, (∀ i, i < 49 → R (i + 1) = (28998 : Nat).testBit i) → u R (7 + 2) ≠ u R (7 + 0)) ∧
+    (∀ R, (∀ i, i < 57 → R (i + 1) = (1891 : Nat).testBit i) → u R (13 + 8) ≠ u R (13 + 6)) ∧
+    (∀ R, (∀ i, i < 74 → R (i + 1) = (3793493 : Nat).testBit i) → u R (14 + 7) ≠ u R (14 + 5)) := by
+  refine ⟨fun R h n => ?_, fun R h n => ?_, fun R h => ?_, fun R h => ?_, fun R h => ?_⟩
+  · rw [u_lock2_112_family h (n + 2), u_lock2_112_family h n, Nat.add_mod_right]
+  · rw [u_lock2_31_family h (n + 2), u_lock2_31_family h n, Nat.add_mod_right]
+  · rw [(u_lock5_family h 2).1, (u_lock5_family h 0).1]; decide
+  · rw [(u_lock7_family h 8).1, (u_lock7_family h 6).1]; decide
+  · rw [(u_lock7b_family h 7).1, (u_lock7b_family h 5).1]; decide
+
+/-- **Full Two-Sided `CQ01` from Open Right-Half Dichotomy and Open `Q01Gap`
+(`CQ01_of_dichotomy_and_Q01Gap`):** upgrades `Rule30GateTrap.CQ01Empty_of_Q01Gap` from `CQ01Empty`
+to full `CQ01` when combined with the right-half trap-or-periodic dichotomy. -/
+theorem CQ01_of_dichotomy_and_Q01Gap
+    (hdich : ∀ R : Nat → Bool, Rule30ZeroBoundary.FinSupp R →
+      (∃ t0, t0 % 2 = 1 ∧ Rule30GateTrap.win R t0 ∈ Rule30GateTrap.trap) ∨
+        EventuallyPeriodic (u R))
+    (hQ : Rule30GateTrap.Q01Gap) :
+    Rule30PeriodTwoCoupled.CQ01 := by
+  rw [CQ01_iff_Psi]
+  intro R hfin
+  rcases hdich R hfin with ⟨t0, h0, hw⟩ | hper
+  · exact Rule30GateTrap.not_finSupp_Psi_of_Q01Gap hQ R h0 hw
+  · exact not_finSupp_Psi_of_eventuallyPeriodic R hper
+
 end Rule30SidewaysLocks
 end Ruliology.CellularAutomata
