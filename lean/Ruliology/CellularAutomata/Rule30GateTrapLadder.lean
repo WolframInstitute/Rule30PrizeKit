@@ -426,4 +426,61 @@ theorem ladder {W W' : Nat} (hW : 16 ≤ W) (hWW : W ≤ W') :
   ⟨Q01GapLift_of_Q01Gap hW, Q01GapLift_mono hW hWW, Q01GapLift_of_massDivergesLift,
     CQ01Empty_of_Q01GapLift (Nat.le_trans hW hWW), CQ01Empty_of_Q01GapLiftCore (Nat.le_trans hW hWW)⟩
 
+/-! ## Shift invariance, horizon monotonicity, and the conditional `Q01GapLift`-to-`CQ01` dichotomy bridge -/
+
+/-- **Shift invariance of width-`W` lift paths (`LiftPath_shift`):** shifting any width-`W` lift
+path (`W ≥ 16`) by `d` double steps preserves `LiftPath W`. -/
+theorem LiftPath_shift {W : Nat} (hW : 16 ≤ W) {ws : Nat → List Bool}
+    (hp : LiftPath W ws) (d : Nat) : LiftPath W (fun k => ws (d + k)) := by
+  refine ⟨hp.length d, ?_, fun k => ?_⟩
+  · show (ws (d + 0)).take 16 ∈ trap
+    rw [Nat.add_zero]
+    exact hp.take16_mem hW d
+  · exact hp.2.2 (d + k)
+
+/-- **Zero-horizon acceptance (`AcceptLift_zero`):** every seed `y` is accepted by a width-`W` lift
+path (`W ≥ 16`) for horizon `0`. -/
+theorem AcceptLift_zero {W y : Nat} (hW : 16 ≤ W) : AcceptLift W y 0 := by
+  refine ⟨fun k => winW Rule30PeriodTwoSideways.empty W (293 + 2 * k),
+    winW_liftPath Rule30PeriodTwoSideways.empty hW (by decide) entry_empty, fun t ht => ?_⟩
+  omega
+
+/-- **Horizon monotonicity (`AcceptLift_mono_horizon`):** `AcceptLift W y H2` implies `AcceptLift W y H1` for `H1 ≤ H2`. -/
+theorem AcceptLift_mono_horizon {W y H1 H2 : Nat} (hle : H1 ≤ H2)
+    (h : AcceptLift W y H2) : AcceptLift W y H1 := by
+  obtain ⟨ws, hp, ht⟩ := h
+  exact ⟨ws, hp, fun t ht1 => ht t (by omega)⟩
+
+/-- **Even-step shift invariance (`AcceptLift_shift_even`):** advancing `y` by `2 * d` zero-coast
+steps shifts `AcceptLift W y H` to `AcceptLift W (iter F (2 * d) y) (H - 2 * d)`. -/
+theorem AcceptLift_shift_even {W y H d : Nat} (hW : 16 ≤ W)
+    (h : AcceptLift W y H) : AcceptLift W (iter F (2 * d) y) (H - 2 * d) := by
+  obtain ⟨ws, hp, ht⟩ := h
+  refine ⟨fun k => ws (d + k), LiftPath_shift hW hp d, fun t htH => ?_⟩
+  have hlt : 2 * d + t < H := by omega
+  have hrow := ht (2 * d + t) hlt
+  rw [← Rule30ZeroCoastBridge.iter_F_add, hrow]
+  by_cases hodd : (2 * d + t) % 2 = 1
+  · have htodd : t % 2 = 1 := by omega
+    simp [hodd, htodd]
+  · have hteven : t % 2 = 0 := by omega
+    simp only [hodd, ↓reduceIte, hteven]
+    have hdiv : (2 * d + t) / 2 = d + t / 2 := by omega
+    rw [hdiv]
+    rfl
+
+/-- **Full two-sided `CQ01` from open right-half dichotomy and open `Q01GapLift W`
+(`CQ01_of_dichotomy_and_Q01GapLift`):** upgrades `CQ01Empty_of_Q01GapLift` from `CQ01Empty` to full
+two-sided `CQ01` at every width `W ≥ 16` under the right-half trap-or-periodic dichotomy. -/
+theorem CQ01_of_dichotomy_and_Q01GapLift {W : Nat} (hW : 16 ≤ W)
+    (hdich : ∀ R : Nat → Bool, FinSupp R →
+      (∃ t0, t0 % 2 = 1 ∧ win R t0 ∈ trap) ∨ Rule30Jen.EventuallyPeriodic (Rule30PeriodTwoSideways.u R))
+    (hQ : Q01GapLift W) :
+    Rule30PeriodTwoCoupled.CQ01 := by
+  rw [Rule30PeriodTwoSideways.CQ01_iff_Psi]
+  intro R hfin
+  rcases hdich R hfin with ⟨t0, h0, hw⟩ | hper
+  · exact not_finSupp_Psi_of_Q01GapLift hW hQ R h0 hw
+  · exact Rule30PeriodTwoSideways.not_finSupp_Psi_of_eventuallyPeriodic R hper
+
 end Ruliology.CellularAutomata.Rule30GateTrapLadder

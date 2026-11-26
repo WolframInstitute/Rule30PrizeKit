@@ -146,4 +146,81 @@ theorem coreLadder {W W' : Nat} (hW : 16 ≤ W) (hWW : W ≤ W') :
   ⟨massDivergesLiftCore_of_massDivergesLift, MassDivergesLiftCore_mono hW hWW,
     Q01GapLiftCore_of_massDivergesLiftCore, CQ01Empty_of_massDivergesLiftCore (Nat.le_trans hW hWW)⟩
 
+/-! ## Horizon monotonicity, shift invariance, mod-`2^H` locality, and bounded-seed equivalence for `MassDivergesLiftCore` -/
+
+/-- **Zero-horizon core acceptance (`AcceptLiftCore_zero`):** every seed `y` satisfies `AcceptLiftCore W y 0` for `W ≥ 16`. -/
+theorem AcceptLiftCore_zero {W y : Nat} (hW : 16 ≤ W) : AcceptLiftCore W y 0 := by
+  refine ⟨fun k => winW Rule30PeriodTwoSideways.empty W (293 + 2 * k),
+    winW_liftPath Rule30PeriodTwoSideways.empty hW (by decide) entry_empty,
+    fun t ht => by omega, fun s hs => by omega⟩
+
+/-- **Core horizon monotonicity (`AcceptLiftCore_mono_horizon`):** `AcceptLiftCore W y H2` implies
+`AcceptLiftCore W y H1` whenever `H1 ≤ H2`. -/
+theorem AcceptLiftCore_mono_horizon {W y H1 H2 : Nat} (hle : H1 ≤ H2)
+    (h : AcceptLiftCore W y H2) : AcceptLiftCore W y H1 := by
+  obtain ⟨ws, hp, ht, hc⟩ := h
+  exact ⟨ws, hp, fun t ht1 => ht t (by omega), fun s hs1 => hc s (by omega)⟩
+
+/-- **Even-step shift invariance (`AcceptLiftCore_shift_even`):** advancing `y` by `2 * d` steps
+maps `AcceptLiftCore W y H` to `AcceptLiftCore W (iter F (2 * d) y) (H - 2 * d)`. -/
+theorem AcceptLiftCore_shift_even {W y H d : Nat} (hW : 16 ≤ W)
+    (h : AcceptLiftCore W y H) : AcceptLiftCore W (iter F (2 * d) y) (H - 2 * d) := by
+  obtain ⟨ws, hp, ht, hc⟩ := h
+  refine ⟨fun k => ws (d + k), LiftPath_shift hW hp d, fun t htH => ?_, fun s hs => ?_⟩
+  · have hlt : 2 * d + t < H := by omega
+    have hrow := ht (2 * d + t) hlt
+    rw [← Rule30ZeroCoastBridge.iter_F_add, hrow]
+    by_cases hodd : (2 * d + t) % 2 = 1
+    · have htodd : t % 2 = 1 := by omega
+      simp [hodd, htodd]
+    · have hteven : t % 2 = 0 := by omega
+      simp only [hodd, ↓reduceIte, hteven]
+      have hdiv : (2 * d + t) / 2 = d + t / 2 := by omega
+      rw [hdiv]
+      rfl
+  · exact twoCoreOK_congr (fun i _ => by simp only [Nat.add_assoc]) (hc (d + s) (by omega))
+
+/-- **Finite-horizon mod-`2^H` locality (`AcceptLiftCore_mod_pow2`):** `AcceptLiftCore W y H`
+depends only on the low `H` bits `y % 2 ^ H`. -/
+theorem AcceptLiftCore_mod_pow2 {W y H : Nat} :
+    AcceptLiftCore W (y % 2 ^ H) H ↔ AcceptLiftCore W y H := by
+  have hbit (x : Nat) : x.testBit 0 = decide (x % 2 ^ 1 = 1) := by
+    rw [Nat.testBit_zero, Nat.pow_one]
+  constructor
+  · rintro ⟨ws, hp, ht, hc⟩
+    refine ⟨ws, hp, fun t htH => ?_, hc⟩
+    have hm := ht t htH
+    have hmod := Rule30ZeroCoastBridge.iter_F_mod_pow2 t y 1
+    have hmod2 := Rule30ZeroCoastBridge.iter_F_mod_pow2 t (y % 2 ^ H) 1
+    have hsub : (y % 2 ^ H) % 2 ^ (1 + t) = y % 2 ^ (1 + t) :=
+      Nat.mod_mod_of_dvd y (Nat.pow_dvd_pow 2 (by omega))
+    rw [hbit, hmod, ← hsub, ← hmod2, ← hbit, hm]
+  · rintro ⟨ws, hp, ht, hc⟩
+    refine ⟨ws, hp, fun t htH => ?_, hc⟩
+    have hm := ht t htH
+    have hmod := Rule30ZeroCoastBridge.iter_F_mod_pow2 t y 1
+    have hmod2 := Rule30ZeroCoastBridge.iter_F_mod_pow2 t (y % 2 ^ H) 1
+    have hsub : (y % 2 ^ H) % 2 ^ (1 + t) = y % 2 ^ (1 + t) :=
+      Nat.mod_mod_of_dvd y (Nat.pow_dvd_pow 2 (by omega))
+    rw [hbit, hmod2, hsub, ← hmod, ← hbit, hm]
+
+/-- **Bounded-seed reduction for open `MassDivergesLiftCore W` (`MassDivergesLiftCore_iff_bounded_seed`):**
+quantifying over all `y : Nat` in `MassDivergesLiftCore W` is equivalent to quantifying over the
+finite box `y < 2 ^ H`. -/
+theorem MassDivergesLiftCore_iff_bounded_seed {W : Nat} :
+    MassDivergesLiftCore W ↔
+      ∀ M : Nat, ∃ H : Nat, ∀ y : Nat, y < 2 ^ H →
+        Rule30ZeroCoastBridge.popcount y ≤ M → ¬ AcceptLiftCore W y H := by
+  constructor
+  · intro hM M
+    obtain ⟨H, hH⟩ := hM M
+    exact ⟨H, fun y _ hy ha => hH y hy ha⟩
+  · intro hb M
+    obtain ⟨H, hH⟩ := hb M
+    refine ⟨H, fun y hy ha => ?_⟩
+    have hlt : y % 2 ^ H < 2 ^ H := Nat.mod_lt y (Nat.pow_pos (by decide : 0 < 2))
+    have hpc : Rule30ZeroCoastBridge.popcount (y % 2 ^ H) ≤ M :=
+      Nat.le_trans (Rule30ZeroCoastBridge.popcount_mod_pow2_le y H) hy
+    exact hH (y % 2 ^ H) hlt hpc (AcceptLiftCore_mod_pow2.mpr ha)
+
 end Ruliology.CellularAutomata.Rule30GateTrapLadderCore
