@@ -289,6 +289,7 @@ public import Ruliology.CellularAutomata.Rule30SourceTransitions
 public import Ruliology.CellularAutomata.Rule30DensityPolygon
 public import Ruliology.CellularAutomata.Rule30DensityEscape
 public import Ruliology.CellularAutomata.Rule30DensityMargin
+public import Ruliology.CellularAutomata.Rule30OneThirdClock
 public import Ruliology.CellularAutomata.Rule30DensityControl
 public import Ruliology.CellularAutomata.Rule30DensityModes
 public import Ruliology.CellularAutomata.Rule30DensityVertices
