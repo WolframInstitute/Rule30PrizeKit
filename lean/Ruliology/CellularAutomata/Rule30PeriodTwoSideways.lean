@@ -1049,5 +1049,117 @@ theorem CQ01_iff_integer :
         Psi_free R s, ← drv_congr hZ (2 * s + 1) 1, ← u_rowOfNat_eq]
       rfl
 
+/-! ### Algebraic normal forms, rank-1 `FR0` perturbation, and modulo-4 `CQ01` / `CQ01Empty` laws -/
+
+open Ruliology.CellularAutomata.Rule30PeriodTwoCoupled
+open Ruliology.CellularAutomata.Rule30ZeroBoundary.IntegerForm
+
+/-- **Rank-1 Bit-`0` Perturbation Identity (`FR1_eq_FR0_xor_one`):** `FR1 Z` differs from pure
+zero-boundary `FR0 Z` solely by complementing bit `0`. -/
+theorem FR1_eq_FR0_xor_one (Z : Nat) : FR1 Z = FR0 Z ^^^ 1 := by
+  apply Nat.eq_of_testBit_eq
+  intro i
+  cases i with
+  | zero =>
+    unfold FR1 FR0
+    simp only [Nat.testBit_xor, Nat.testBit_or, testBit_shiftLeft_one_zero]
+    have h10 : (1 : Nat).testBit 0 = true := rfl
+    rw [h10]
+    cases Z.testBit 0 <;> cases (Z >>> 1).testBit 0 <;> rfl
+  | succ m =>
+    unfold FR1 FR0
+    simp [Nat.testBit_xor, Nat.testBit_or, one_testBit_succ m]
+
+/-- **Degree-2 Algebraic Normal Form of `F` (`F_eq_anf`):** `F Y` decomposes into the linear
+Rule-150 operator `(Y >>> 1) ^^^ Y ^^^ (Y <<< 1)` XOR the quadratic carry `Y &&& (Y <<< 1)`. -/
+theorem F_eq_anf (Y : Nat) :
+    F Y = (Y >>> 1) ^^^ Y ^^^ (Y <<< 1) ^^^ (Y &&& (Y <<< 1)) := by
+  apply Nat.eq_of_testBit_eq
+  intro i
+  unfold F
+  simp only [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_and]
+  cases (Y >>> 1).testBit i <;> cases Y.testBit i <;> cases (Y <<< 1).testBit i <;> rfl
+
+/-- **Degree-2 Algebraic Normal Form of `FR0` (`FR0_eq_anf`):** `FR0 Z` decomposes into the linear
+Rule-150 operator `(Z <<< 1) ^^^ Z ^^^ (Z >>> 1)` XOR the quadratic carry `Z &&& (Z >>> 1)`. -/
+theorem FR0_eq_anf (Z : Nat) :
+    FR0 Z = (Z <<< 1) ^^^ Z ^^^ (Z >>> 1) ^^^ (Z &&& (Z >>> 1)) := by
+  apply Nat.eq_of_testBit_eq
+  intro i
+  unfold FR0
+  simp only [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_and]
+  cases (Z <<< 1).testBit i <;> cases Z.testBit i <;> cases (Z >>> 1).testBit i <;> rfl
+
+/-- **Interior Agreement of `GR` with `FR0 ∘ FR0` (`GR_testBit_add_two_eq_FR0_FR0`):** in a single
+double step, `GR Z` agrees with unforced `FR0 (FR0 Z)` at every bit index `k + 2 ≥ 2`. -/
+theorem GR_testBit_add_two_eq_FR0_FR0 (Z k : Nat) :
+    (GR Z).testBit (k + 2) = (FR0 (FR0 Z)).testBit (k + 2) := by
+  unfold GR
+  rw [FR1_eq_FR0_xor_one]
+  unfold FR0
+  simp only [Nat.testBit_xor, Nat.testBit_or, testBit_shiftLeft_one_succ, testBit_shiftRight_one,
+    one_testBit_succ k, one_testBit_succ (k + 1), one_testBit_succ (k + 2), Bool.xor_false]
+
+theorem FR1_testBit_zero_eq_decide_mod_four (X : Nat) :
+    (FR1 X).testBit 0 = decide (X % 4 = 0) := by
+  unfold FR1
+  rw [Nat.testBit_xor, Nat.testBit_or, Nat.testBit_or, testBit_shiftLeft_one_zero,
+    testBit_shiftRight_one]
+  have h10 : (1 : Nat).testBit 0 = true := rfl
+  rw [h10, Bool.false_or, Nat.testBit_succ, Nat.testBit_zero, Nat.testBit_zero]
+  by_cases h0 : X % 2 = 1 <;> by_cases h1 : X / 2 % 2 = 1 <;>
+    simp [h0, h1, show (X % 4 = 0) ↔ (X % 2 ≠ 1 ∧ X / 2 % 2 ≠ 1) by omega]
+
+/-- **Modulo-4 Gate Pulse Formula (`u_rowOfNat_eq_decide_mod_four`):** column `1` at odd step
+`2 * s + 1` is black (`u (rowOfNat Z) s = true`) iff `iter GR s Z % 4 = 0`. -/
+theorem u_rowOfNat_eq_decide_mod_four (Z s : Nat) :
+    u (rowOfNat Z) s = decide (iter GR s Z % 4 = 0) := by
+  rw [u_rowOfNat_eq, FR1_testBit_zero_eq_decide_mod_four]
+
+/-- **Modulo-4 Gate Pulse Formula for `empty` (`u_empty_eq_decide_mod_four`):** `u empty s = true`
+iff `iter GR s 0 % 4 = 0`. -/
+theorem u_empty_eq_decide_mod_four (s : Nat) :
+    u empty s = decide (iter GR s 0 % 4 = 0) := by
+  rw [u_empty_eq_FR1_iter_GR, FR1_testBit_zero_eq_decide_mod_four]
+
+theorem coupled_step_iff_mod_four (X Z : Nat) :
+    (X.testBit 0 = true ∧ (F X).testBit 0 = !(FR1 Z).testBit 0) ↔
+      X % 4 = (if Z % 4 = 0 then 3 else 1) := by
+  rw [testBit_F_zero, FR1_testBit_zero_eq_decide_mod_four,
+    Nat.testBit_succ, Nat.testBit_zero, Nat.testBit_zero]
+  by_cases hx0 : X % 2 = 1 <;> by_cases hx1 : X / 2 % 2 = 1 <;> by_cases hz : Z % 4 = 0 <;>
+    simp [hx0, hx1, hz] <;> omega
+
+/-- **Modulo-4 Characterization of Open `CQ01Empty` (`CQ01Empty_iff_mod_four`):** dual to
+`Q01_iff_integer` (`% 2 = 0`), `CQ01Empty` holds iff every `Y : Nat` eventually violates
+`iter G s Y % 4 = (if iter GR s 0 % 4 = 0 then 3 else 1)`. -/
+theorem CQ01Empty_iff_mod_four :
+    CQ01Empty ↔ ∀ Y : Nat, ∃ s : Nat,
+      iter G s Y % 4 ≠ (if iter GR s 0 % 4 = 0 then 3 else 1) := by
+  rw [CQ01Empty_iff_integer]
+  constructor
+  · intro h Y
+    refine Classical.byContradiction fun hne => h Y fun s => ?_
+    rw [coupled_step_iff_mod_four]
+    exact Classical.not_not.mp (not_exists.mp hne s)
+  · intro h Y hall
+    obtain ⟨s, hs⟩ := h Y
+    exact hs ((coupled_step_iff_mod_four _ _).1 (hall s))
+
+/-- **Modulo-4 Characterization of Open `CQ01` (`CQ01_iff_mod_four`):** `CQ01` holds iff every pair
+`Y Z : Nat` eventually violates `iter G s Y % 4 = (if iter GR s Z % 4 = 0 then 3 else 1)`. -/
+theorem CQ01_iff_mod_four :
+    CQ01 ↔ ∀ Y Z : Nat, ∃ s : Nat,
+      iter G s Y % 4 ≠ (if iter GR s Z % 4 = 0 then 3 else 1) := by
+  rw [CQ01_iff_integer]
+  constructor
+  · intro h Y Z
+    refine Classical.byContradiction fun hne => h Y Z fun s => ?_
+    rw [coupled_step_iff_mod_four]
+    exact Classical.not_not.mp (not_exists.mp hne s)
+  · intro h Y Z hall
+    obtain ⟨s, hs⟩ := h Y Z
+    exact hs ((coupled_step_iff_mod_four _ _).1 (hall s))
+
 end Rule30PeriodTwoSideways
 end Ruliology.CellularAutomata
