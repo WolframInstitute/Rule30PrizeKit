@@ -58,6 +58,7 @@ public import Rule30Equivalents.OrbitFrequencies
 public import Rule30Equivalents.QueryComplexity
 public import Rule30Equivalents.BoundedRemainder
 public import Rule30Equivalents.Fluctuations
+public import Rule30Equivalents.RealDensityRegion
 public import Rule30Equivalents.Computability
 public import Rule30Equivalents.Invertibility
 public import Rule30Equivalents.PeriodicPoints

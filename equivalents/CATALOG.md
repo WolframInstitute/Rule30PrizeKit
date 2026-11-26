@@ -2640,6 +2640,13 @@ with the central limit theorem for positive probability). So random fluctuations
 for every K, and √(n log n). That is the yardstick for the data: the first 10⁹ bits contain
 500,025,038 ones, about 1.6 standard deviations from half [W19].
 
+Away from the single seed, the black density at a site can be prescribed. With the run ends at the
+site (a black cell whose right neighbour is white), the joint limiting frequencies (c, a) at one site
+are exactly the closed pentagon 0 ≤ a ≤ c, 3c ≤ 1 + 5a, 2c ≤ 1 + 2a, 6c ≤ 5 + a, from any prescribed
+right half, with square-root count errors at every tick ([RealDensityRegion](Rule30Equivalents/RealDensityRegion.lean),
+`real_density_region`; the inequalities and the rational points are the core `Rule30SourceDensityRegion`
+and `Rule30DensityMixtures`). So density 1/2 alone is reached by many rows; Problem 2 asks it of the seed.
+
 ### 6.2 Problem 3: computational effort
 
 Prize Problem 3 asks whether computing c(n) requires at least O(n) effort [W19]. Wolfram's formal
