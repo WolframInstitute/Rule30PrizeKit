@@ -252,6 +252,7 @@ public import Ruliology.CellularAutomata.Rule30RecurrentStrip
 public import Ruliology.CellularAutomata.Rule30ResetCompactness
 public import Ruliology.CellularAutomata.Rule30RelaxedWindows
 public import Ruliology.CellularAutomata.Rule30RunTransitions
+public import Ruliology.CellularAutomata.Rule30RunTransitionWindows
 public import Ruliology.CellularAutomata.Rule30TwoSidedInverse
 public import Ruliology.CellularAutomata.Rule30DrivenLeftInverse
 public import Ruliology.CellularAutomata.Rule30EveryKLine
