@@ -2,6 +2,8 @@ module
 
 public import Ruliology.CellularAutomata.Rule30ZeroCoastBridge
 public import Ruliology.CellularAutomata.Rule30ZeroBoundaryBarriers
+public import Ruliology.CellularAutomata.Rule30GateTrapLadderCore
+public import Ruliology.CellularAutomata.Rule30SidewaysLocks
 
 /-!
 # Rule 30, period 2: barrier B1 inside the gap clock
@@ -193,6 +195,95 @@ theorem gate5_witnesses (n : Nat) :
   obtain ⟨hlt, htr⟩ := seedOfTrace_spec (gate5Word n)
   rw [gate5Word_length] at hlt htr
   exact ⟨hlt, survivesTo_of_trace_gate5 _ n htr⟩
+
+/-! ### Barrier B1 at every width `W ≥ 16` of the gate-trap ladder (`AcceptLift` and `AcceptLiftCore`) -/
+
+private theorem word5_mod5_eq (k : Nat) :
+    Rule30SidewaysLocks.word5.getD (k % 5) false = decide (k % 5 = 0) := by
+  have hm : k % 5 < 5 := Nat.mod_lt k (by decide)
+  rcases (by omega : k % 5 = 0 ∨ k % 5 = 1 ∨ k % 5 = 2 ∨ k % 5 = 3 ∨ k % 5 = 4) with
+    r | r | r | r | r <;> simp [Rule30SidewaysLocks.word5, r]
+
+private theorem gate5Word_getD (n t : Nat) (ht : t < 10 * n) :
+    (gate5Word n).getD t false = decide (t % 10 ≠ 0) := by
+  induction n generalizing t with
+  | zero => omega
+  | succ n ih =>
+    match t with
+    | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 => rfl
+    | t + 10 =>
+      change (gate5Word n).getD t false = decide ((t + 10) % 10 ≠ 0)
+      simpa [Nat.add_mod_right] using ih t (by omega)
+
+/-- **All-width lift realizability of the period-5 gate (`liftPath_gate5_all_widths`):** at every
+width `W ≥ 16`, the physical windows of `Rule30SidewaysLocks.rh 28998` from tick `15` form a
+`LiftPath W` whose first cells read `decide (k % 5 = 0)`. -/
+theorem liftPath_gate5_all_widths {W : Nat} (hW : 16 ≤ W) :
+    ∃ ws, Rule30GateTrapLadder.LiftPath W ws ∧ ∀ k, (ws k).headD false = decide (k % 5 = 0) := by
+  have htrap : Rule30GateTrap.win (Rule30SidewaysLocks.rh 28998) 15 ∈ Rule30GateTrap.trap :=
+    Rule30SidewaysLocks.lock5_win_trap (k := 0) (by decide) Rule30SidewaysLocks.lock5_entry
+  refine ⟨fun k => Rule30GateTrapLadder.winW (Rule30SidewaysLocks.rh 28998) W (15 + 2 * k),
+    Rule30GateTrapLadder.winW_liftPath (Rule30SidewaysLocks.rh 28998) hW (by decide) htrap, fun k => ?_⟩
+  rw [Rule30GateTrapLadder.winW_head (Rule30SidewaysLocks.rh 28998) (by omega) (15 + 2 * k),
+    show 15 + 2 * k = 2 * (7 + k) + 1 by omega]
+  change Rule30PeriodTwoSideways.u (Rule30SidewaysLocks.rh 28998) (7 + k) = decide (k % 5 = 0)
+  rw [Rule30SidewaysLocks.u_28998 k, word5_mod5_eq k]
+
+/-- **All-width core lift acceptance of period-5 gate traces (`acceptLiftCore_of_trace_gate5`):**
+every seed `y` whose trace is `gate5Word n` satisfies `AcceptLiftCore W y (10 * n)` for every `W ≥ 16`. -/
+theorem acceptLiftCore_of_trace_gate5 {W y n : Nat} (hW : 16 ≤ W)
+    (htr : trace y (10 * n) = gate5Word n) :
+    Rule30GateTrapLadderCore.AcceptLiftCore W y (10 * n) := by
+  obtain ⟨ws, hp, hhead⟩ := liftPath_gate5_all_widths hW
+  refine ⟨ws, hp, fun t ht => ?_, fun s _ => ?_⟩
+  · have htrD : ∀ H y t, t < H → (trace y H).getD t false = (iter F t y).testBit 0 := by
+      intro H
+      induction H with
+      | zero => intro _ _ ht0; omega
+      | succ H ih =>
+        intro y t htH
+        cases t with
+        | zero => rfl
+        | succ t =>
+          change (trace (F y) H).getD t false = (iter F (t + 1) y).testBit 0
+          rw [ih (F y) t (by omega), iter_succ_apply]
+    rw [← htrD (10 * n) y t ht, htr, gate5Word_getD n t ht, hhead (t / 2)]
+    by_cases hodd : t % 2 = 1
+    · simp only [hodd, ↓reduceIte, decide_eq_true_eq]
+      omega
+    · have hiff : (t / 2 % 5 = 0) ↔ (t % 10 = 0) := by omega
+      by_cases h10 : t % 10 = 0 <;> simp [hodd, h10, hiff]
+  · exact Rule30GateTrapLadderCore.twoCoreOK_congr (fun i _ => (hhead (s + i)).symm) (gate5_twoCoreOK s)
+
+/-- **Explicit all-width `AcceptLiftCore` witnesses (`gate5_acceptLiftCore_witnesses`):** for every
+width `W ≥ 16` and `n : Nat`, `seedOfTrace (gate5Word n) < 2 ^ (10 * n)` is accepted by `AcceptLiftCore W` for `10 * n` steps. -/
+theorem gate5_acceptLiftCore_witnesses {W n : Nat} (hW : 16 ≤ W) :
+    seedOfTrace (gate5Word n) < 2 ^ (10 * n) ∧
+      Rule30GateTrapLadderCore.AcceptLiftCore W (seedOfTrace (gate5Word n)) (10 * n) := by
+  obtain ⟨hlt, htr⟩ := seedOfTrace_spec (gate5Word n)
+  rw [gate5Word_length] at hlt htr
+  exact ⟨hlt, acceptLiftCore_of_trace_gate5 hW htr⟩
+
+/-- **Barrier B1 at every width `W ≥ 16` of `AcceptLiftCore` (`no_finite_abstract_ranking_acceptLiftCore`):**
+no finite-abstraction ranking decreases over every ten-step block of every seed accepted by
+`AcceptLiftCore W` for `10 * (n + 1)` steps, at any finite width `W ≥ 16`. -/
+theorem no_finite_abstract_ranking_acceptLiftCore {A : Type} {W : Nat} (hW : 16 ≤ W)
+    (Ls : List A) (α : Nat → A) (hα : ∀ y, α y ∈ Ls) (rank : A → Nat) (n : Nat) :
+    ¬ ∀ y : Nat, Rule30GateTrapLadderCore.AcceptLiftCore W y (10 * (n + 1)) →
+      rank (α (iter F 10 y)) < rank (α y) := by
+  intro hall
+  refine no_finite_abstract_ranking_gate5 Ls α hα rank n fun y htr => ?_
+  exact hall y (acceptLiftCore_of_trace_gate5 hW htr)
+
+/-- **Barrier B1 at every width `W ≥ 16` of `AcceptLift` (`no_finite_abstract_ranking_acceptLift`):**
+the corresponding impossibility for the unrestricted width-`W` lift language `AcceptLift W`. -/
+theorem no_finite_abstract_ranking_acceptLift {A : Type} {W : Nat} (hW : 16 ≤ W)
+    (Ls : List A) (α : Nat → A) (hα : ∀ y, α y ∈ Ls) (rank : A → Nat) (n : Nat) :
+    ¬ ∀ y : Nat, Rule30GateTrapLadder.AcceptLift W y (10 * (n + 1)) →
+      rank (α (iter F 10 y)) < rank (α y) := by
+  intro hall
+  refine no_finite_abstract_ranking_acceptLiftCore hW Ls α hα rank n fun y hac => ?_
+  exact hall y hac.acceptLift
 
 end Rule30GapBarrier
 end Ruliology.CellularAutomata
