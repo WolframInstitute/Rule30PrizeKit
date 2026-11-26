@@ -188,4 +188,159 @@ theorem no_period_three_of_four_runs
   · exact kill false t0 h0
   · exact kill true t0 h1
 
+/-! ## Additivity of `count`, explicit-onset aligned triple weights, and `±2` sliding-window bounds at column `-2` -/
+
+/-- **Additivity and upper bound of `count` (`count_add_and_le`).** -/
+theorem count_add_and_le (f : Nat → Bool) (t m n : Nat) :
+    count f t (m + n) = count f t m + count f (t + m) n ∧ count f t n ≤ n := by
+  constructor
+  · induction n with
+    | zero => simp [count]
+    | succ n ih =>
+      rw [Nat.add_succ, count, count, ih, Nat.add_assoc, Nat.add_assoc]
+  · induction n with
+    | zero => simp [count]
+    | succ n ih =>
+      rw [count]
+      cases f (t + n) <;> simp <;> omega
+
+/-- **Explicit-onset aligned triple-weight law at column `-2` (`period_three_aligned_block_weight_m2`):**
+under normalized clock `hi` from `T`, starting directly at `s0 = T + (if hi then 1 else 2)` (with
+no `skeleton_001` wait), `count (col -2) s0 (3 * n) = n * (if hi then 1 else 2)`. -/
+theorem period_three_aligned_block_weight_m2 (hi : Bool) (T n : Nat)
+    (period : ∀ t, T ≤ t → cell t 0 = wordAt3 (if hi then w011 else w001) (t - T)) :
+    count (fun j => cell j (-2)) (T + (if hi then 1 else 2)) (3 * n) =
+      n * (if hi then 1 else 2) := by
+  have hevol : Valid cell := fun _ _ => rfl
+  apply block_weight hevol (T + (if hi then 1 else 2)) 0 hi n
+  intro k _
+  cases hi with
+  | false =>
+    simp only [Bool.false_eq_true, ↓reduceIte]
+    have h0 := period (T + 2 + 3 * k) (by omega)
+    have h1 := period (T + 2 + 3 * k + 1) (by omega)
+    have h2 := period (T + 2 + 3 * k + 2) (by omega)
+    have h3 := period (T + 2 + 3 * k + 3) (by omega)
+    have h4 := period (T + 2 + 3 * k + 4) (by omega)
+    simp only [Bool.false_eq_true, ↓reduceIte, wordAt3_001] at h0 h1 h2 h3 h4
+    exact ⟨by simpa [show (T + 2 + 3 * k - T) % 3 = 2 by omega] using h0,
+           by simpa [show (T + 2 + 3 * k + 1 - T) % 3 = 0 by omega] using h1,
+           by simpa [show (T + 2 + 3 * k + 2 - T) % 3 = 1 by omega] using h2,
+           by simpa [show (T + 2 + 3 * k + 3 - T) % 3 = 2 by omega] using h3,
+           by simpa [show (T + 2 + 3 * k + 4 - T) % 3 = 0 by omega] using h4⟩
+  | true =>
+    simp only [↓reduceIte]
+    have h0 := period (T + 1 + 3 * k) (by omega)
+    have h1 := period (T + 1 + 3 * k + 1) (by omega)
+    have h2 := period (T + 1 + 3 * k + 2) (by omega)
+    have h3 := period (T + 1 + 3 * k + 3) (by omega)
+    have h4 := period (T + 1 + 3 * k + 4) (by omega)
+    simp only [↓reduceIte, wordAt3_011] at h0 h1 h2 h3 h4
+    exact ⟨by simpa [show (T + 1 + 3 * k - T) % 3 = 1 by omega] using h0,
+           by simpa [show (T + 1 + 3 * k + 1 - T) % 3 = 2 by omega] using h1,
+           by simpa [show (T + 1 + 3 * k + 2 - T) % 3 = 0 by omega] using h2,
+           by simpa [show (T + 1 + 3 * k + 3 - T) % 3 = 1 by omega] using h3,
+           by simpa [show (T + 1 + 3 * k + 4 - T) % 3 = 2 by omega] using h4⟩
+
+/-- **Uniform `±2` sliding-window black-population bounds at column `-2`
+(`period_three_sliding_count_bounds_m2`):** for every start `t ≥ T + 2` and every `n : Nat`,
+`count (col -2) t (3 * n)` lies within `±2` of `n * (if hi then 1 else 2)`. -/
+theorem period_three_sliding_count_bounds_m2 (hi : Bool) (T t n : Nat)
+    (period : ∀ s, T ≤ s → cell s 0 = wordAt3 (if hi then w011 else w001) (s - T))
+    (ht : T + 2 ≤ t) :
+    let w := if hi then 1 else 2
+    n * w ≤ count (fun j => cell j (-2)) t (3 * n) + 2 ∧
+      count (fun j => cell j (-2)) t (3 * n) ≤ n * w + 2 := by
+  dsimp only
+  let s0 := T + (if hi then 1 else 2)
+  have hs0 : s0 ≤ t := by cases hi <;> simp [s0] <;> omega
+  let q := (t - s0) / 3
+  let r := (t - s0) % 3
+  have htr : t = s0 + 3 * q + r := by dsimp [q, r]; omega
+  have hrlt : r < 3 := by dsimp [r]; omega
+  have hal (m : Nat) : count (fun j => cell j (-2)) (s0 + 3 * m) 3 = (if hi then 1 else 2) := by
+    have h1 := period_three_aligned_block_weight_m2 hi T (m + 1) period
+    have h0 := period_three_aligned_block_weight_m2 hi T m period
+    change count (fun j => cell j (-2)) s0 (3 * (m + 1)) = _ at h1
+    change count (fun j => cell j (-2)) s0 (3 * m) = _ at h0
+    have hsp := (count_add_and_le (fun j => cell j (-2)) s0 (3 * m) 3).1
+    rw [show 3 * (m + 1) = 3 * m + 3 by omega, hsp, h0, Nat.succ_mul m] at h1
+    exact Nat.add_left_cancel h1
+  have halN (m k : Nat) : count (fun j => cell j (-2)) (s0 + 3 * m) (3 * k) =
+      k * (if hi then 1 else 2) := by
+    induction k with
+    | zero => simp [count]
+    | succ k ih =>
+      rw [show 3 * (k + 1) = 3 * k + 3 by omega,
+          (count_add_and_le (fun j => cell j (-2)) (s0 + 3 * m) (3 * k) 3).1, ih,
+          show s0 + 3 * m + 3 * k = s0 + 3 * (m + k) by omega, hal (m + k), Nat.succ_mul]
+  cases n with
+  | zero => simp [count]
+  | succ n =>
+    -- Decompose `s0 + 3 * q` .. `s0 + 3 * (q + n + 2)` of length `3 * (n + 2) = r + 3 * (n + 1) + (3 - r)`
+    have htot := halN q (n + 2)
+    have hsp1 := (count_add_and_le (fun j => cell j (-2)) (s0 + 3 * q) r (3 * (n + 1) + (3 - r))).1
+    have hsp2 := (count_add_and_le (fun j => cell j (-2)) (s0 + 3 * q + r) (3 * (n + 1)) (3 - r)).1
+    have hlen : 3 * (n + 2) = r + (3 * (n + 1) + (3 - r)) := by omega
+    rw [hlen, hsp1, hsp2, ← htr] at htot
+    have hb1 := (count_add_and_le (fun j => cell j (-2)) (s0 + 3 * q) 0 r).2
+    have hb2 := (count_add_and_le (fun j => cell j (-2)) (t + 3 * (n + 1)) 0 (3 - r)).2
+    -- Also compare with `3 * n` inside `t`: `r + (3 - r) = 3` and the single block `hal q` has sum `w`!
+    have hfirst := hal q
+    have hfirst_sp := (count_add_and_le (fun j => cell j (-2)) (s0 + 3 * q) r (3 - r)).1
+    rw [show r + (3 - r) = 3 by omega] at hfirst_sp
+    have hcr_le_w : count (fun j => cell j (-2)) (s0 + 3 * q) r ≤ (if hi then 1 else 2) := by omega
+    have htail := hal (q + n + 1)
+    have htail_sp := (count_add_and_le (fun j => cell j (-2)) (s0 + 3 * (q + n + 1)) r (3 - r)).1
+    rw [show r + (3 - r) = 3 by omega,
+        show s0 + 3 * (q + n + 1) + r = t + 3 * (n + 1) by omega] at htail_sp
+    have htail_le_w : count (fun j => cell j (-2)) (t + 3 * (n + 1)) (3 - r) ≤ (if hi then 1 else 2) := by omega
+    cases hi <;> simp only [↓reduceIte, Bool.false_eq_true] at htot hcr_le_w htail_le_w ⊢ <;> omega
+
+/-- **Density-escape exclusion of period 3 at column `-2` (`no_period_three_of_density_escape_m2`):**
+if for each `w ∈ {1, 2}` and every `U`, some late `3 * n`-window at column `-2` deviates from
+`n * w` by more than `2`, then center is not eventually period-3. -/
+theorem no_period_three_of_density_escape_m2
+    (esc : ∀ (hi : Bool) (U : Nat), ∃ t n, U ≤ t ∧
+      (count (fun j => cell j (-2)) t (3 * n) + 2 < n * (if hi then 1 else 2) ∨
+       n * (if hi then 1 else 2) + 2 < count (fun j => cell j (-2)) t (3 * n))) :
+    ¬ ∃ T, ∀ t, T ≤ t → center (t + 3) = center t := by
+  rintro ⟨T, h⟩
+  rcases normalize_period_three h with ⟨t0, _, h0⟩ | ⟨t0, _, h1⟩
+  · obtain ⟨t, n, ht, hbad⟩ := esc false (t0 + 2)
+    have hb := period_three_sliding_count_bounds_m2 false t0 t n h0 ht
+    dsimp only at hb
+    omega
+  · obtain ⟨t, n, ht, hbad⟩ := esc true (t0 + 2)
+    have hb := period_three_sliding_count_bounds_m2 true t0 t n h1 ht
+    dsimp only at hb
+    omega
+
+/-- **Phase-wise aligned-triple deviation exclusion of period 3 (`no_period_three_of_phase_triple_deviations_m2`):**
+if at every phase `r : Fin 3` and each target weight `w ∈ {1, 2}`, column `-2` has arbitrarily late
+triples `3 * k + r.val` of weight `≠ w`, then center is not eventually period-3. -/
+theorem no_period_three_of_phase_triple_deviations_m2
+    (dev : ∀ (r : Fin 3) (hi : Bool) (K : Nat), ∃ k, K ≤ k ∧
+      count (fun j => cell j (-2)) (3 * k + r.val) 3 ≠ (if hi then 1 else 2)) :
+    ¬ ∃ T, ∀ t, T ≤ t → center (t + 3) = center t := by
+  rintro ⟨T, h⟩
+  have kill (hi : Bool) (t0 : Nat)
+      (period : ∀ t, t0 ≤ t → cell t 0 = wordAt3 (if hi then w011 else w001) (t - t0)) : False := by
+    let s0 := t0 + (if hi then 1 else 2)
+    let r : Fin 3 := ⟨s0 % 3, by omega⟩
+    obtain ⟨k, hk, hne⟩ := dev r hi (s0 / 3 + 1)
+    have hm : ∃ m, 3 * k + r.val = s0 + 3 * m := ⟨k - s0 / 3, by dsimp [r]; omega⟩
+    obtain ⟨m, heq⟩ := hm
+    have h1 := period_three_aligned_block_weight_m2 hi t0 (m + 1) period
+    have h0 := period_three_aligned_block_weight_m2 hi t0 m period
+    change count (fun j => cell j (-2)) s0 (3 * (m + 1)) = _ at h1
+    change count (fun j => cell j (-2)) s0 (3 * m) = _ at h0
+    have hsp := (count_add_and_le (fun j => cell j (-2)) s0 (3 * m) 3).1
+    rw [show 3 * (m + 1) = 3 * m + 3 by omega, hsp, h0, Nat.succ_mul m] at h1
+    rw [heq] at hne
+    exact hne (Nat.add_left_cancel h1)
+  rcases normalize_period_three h with ⟨t0, _, h0⟩ | ⟨t0, _, h1⟩
+  · exact kill false t0 h0
+  · exact kill true t0 h1
+
 end Ruliology.CellularAutomata.Rule30WestTripleWeight
