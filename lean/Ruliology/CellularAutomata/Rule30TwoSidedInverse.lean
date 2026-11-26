@@ -20,6 +20,12 @@ leftmost black cell, at the place of the true one. No wall appears.
 * `predecessor_edge_fails_at_age_seven`: the age 8 cannot be lowered. The configuration with black cells
   at `0` and `3` has, at age 7, a predecessor black on `(-∞, -9]` and on `[11, ∞)`: it has no leftmost
   black cell.
+* `two_step_predecessor_edge_fails_at_age_twenty_three`, `age_twenty_four_sharp`: the age 24 cannot be
+  lowered. The configuration with black cells at `0, 3, 4, 6, 7, 10, 11, 12` and `14` has, at age 23, a
+  predecessor of its image with the true edge, and a predecessor of that one which is black on all of
+  `(-∞, -24]`: it has no leftmost black cell.
+* `one_tick_least_age`, `two_tick_least_age`: so 8 and 24 are the least ages. Each conclusion holds at
+  every age from `a` on exactly when `8 ≤ a`, and when `24 ≤ a`.
 
 **The proof is Hughes's** (`Rule30AgeEightInverse`, `Rule30AgeTwentyFourInverse`), read on the line.
 The outer cells of a configuration with a leftmost black cell move out by one and update by themselves:
@@ -353,5 +359,247 @@ theorem predecessor_edge_fails_at_age_seven :
       · have := sharp_middle (p + 9).toNat (by omega)
         rwa [show -9 + (((p + 9).toNat : Nat) : Int) = p by omega] at this
   · simp only [sharpZ, show min (q - 1) (-9) ≤ -9 by omega, ↓reduceIte]
+
+/-! ## Age 24 is sharp
+
+Age 23 does not suffice for `two_step_predecessor_edge_from_age_twenty_four`. The configuration `X23`, black
+at 0, 3, 4, 6, 7, 10, 11, 12 and 14, has at age 23 a predecessor `W23` of its image, and a predecessor `V23`
+of `W23` that is black on all of `(-∞, -24]`, so `V23` has no leftmost black cell
+(`two_step_predecessor_edge_fails_at_age_twenty_three`, `age_twenty_four_sharp`). `W23` has the true edge,
+at `-22`, as the age-8 theorem requires; it is black on `[37, ∞)`, and `V23` repeats `001` from 36 on.
+
+`evol` is computed through rows written as lists (`evol_listRow`): `listRow L lo` is the row whose cell
+`lo + i` is entry `i` of `L`, white elsewhere, and `listStep` is one tick on such rows (`step_listRow`).
+-/
+
+/-! ### Rows as lists -/
+
+/-- Entry `k` of `L`, white outside `0 ≤ k < L.length`. -/
+def listGet (L : List Bool) (k : Int) : Bool := if 0 ≤ k then L.getD k.toNat false else false
+
+/-- The row whose cell `lo + i` is entry `i` of `L`, white elsewhere. -/
+def listRow (L : List Bool) (lo : Int) (p : Int) : Bool := listGet L (p - lo)
+
+/-- One tick on a row written as a list; the row moves one cell left and grows by two. -/
+def listStep (L : List Bool) : List Bool :=
+  (List.range (L.length + 2)).map fun (i : Nat) =>
+    rule (listGet L ((i : Int) - 2)) (listGet L ((i : Int) - 1)) (listGet L i)
+
+theorem listGet_neg {L : List Bool} {k : Int} (h : k < 0) : listGet L k = false := by
+  simp only [listGet, show ¬ (0 ≤ k) by omega, ↓reduceIte]
+
+theorem listGet_ge {L : List Bool} {k : Int} (h : (L.length : Int) ≤ k) : listGet L k = false := by
+  simp only [listGet, show 0 ≤ k by omega, ↓reduceIte]
+  rw [List.getD_eq_getElem?_getD, List.getElem?_eq_none (by omega)]
+  rfl
+
+theorem length_listStep (L : List Bool) : (listStep L).length = L.length + 2 := by
+  simp [listStep]
+
+theorem listGet_listStep {L : List Bool} {k : Int} (h0 : 0 ≤ k) (h1 : k < L.length + 2) :
+    listGet (listStep L) k = rule (listGet L (k - 2)) (listGet L (k - 1)) (listGet L k) := by
+  have hk : k.toNat < L.length + 2 := by omega
+  show (if 0 ≤ k then (listStep L).getD k.toNat false else false) = _
+  simp only [h0, ↓reduceIte]
+  rw [listStep, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hk]
+  simp only [Option.map_some, Option.getD_some, Int.toNat_of_nonneg h0]
+
+/-- **One tick on a list row.** -/
+theorem step_listRow (L : List Bool) (lo p : Int) :
+    rule (listRow L lo (p - 1)) (listRow L lo p) (listRow L lo (p + 1)) = listRow (listStep L) (lo - 1) p := by
+  simp only [listRow]
+  by_cases h0 : p - (lo - 1) < 0
+  · rw [listGet_neg h0, listGet_neg (by omega), listGet_neg (by omega), listGet_neg (by omega)]
+    rfl
+  · by_cases h1 : p - (lo - 1) < L.length + 2
+    · rw [listGet_listStep (by omega) h1, show p - (lo - 1) - 2 = p - 1 - lo by omega,
+        show p - (lo - 1) - 1 = p - lo by omega, show p - (lo - 1) = p + 1 - lo by omega]
+    · have hs : ((listStep L).length : Int) ≤ p - (lo - 1) := by rw [length_listStep]; push_cast; omega
+      rw [listGet_ge hs, listGet_ge (by omega), listGet_ge (by omega), listGet_ge (by omega)]
+      rfl
+
+/-- `t` ticks on a list row. -/
+def listIter : Nat → List Bool → List Bool
+  | 0, L => L
+  | t + 1, L => listStep (listIter t L)
+
+/-- **`evol` on a list row**, tick by tick. -/
+theorem evol_listRow (L : List Bool) (lo : Int) : ∀ (t : Nat) (p : Int),
+    evol (listRow L lo) t p = listRow (listIter t L) (lo - t) p
+  | 0, p => by simp [evol, listIter]
+  | t + 1, p => by
+    show rule (evol (listRow L lo) t (p - 1)) (evol (listRow L lo) t p) (evol (listRow L lo) t (p + 1)) = _
+    rw [evol_listRow L lo t, evol_listRow L lo t, evol_listRow L lo t, step_listRow,
+      show lo - (t : Int) - 1 = lo - ((t + 1 : Nat) : Int) by push_cast; omega]
+    rfl
+
+/-! ### The witness -/
+
+/-- The seed, cells `0, …, 14`. -/
+def seed23 : List Bool :=
+  [true, false, false, true, true, false, true, true, false, false, true, true, true, false, true]
+
+/-- Black at 0, 3, 4, 6, 7, 10, 11, 12 and 14. -/
+def X23 : Int → Bool := listRow seed23 0
+
+/-- Its row at age 23, cells `-23, …, 37`. -/
+def R23 : List Bool :=
+  [true, true, false, true, true, true, true, false, true, true, false, false, true, true, true, false, false,
+    false, false, true, true, true, true, true, false, false, false, false, false, false, false, true, true,
+    false, false, false, true, true, true, true, true, false, false, true, true, true, false, true, true, true,
+    false, false, true, true, true, true, true, false, false, true, true]
+
+theorem R23_eq : listIter 23 seed23 = R23 := by decide +kernel
+
+/-- The middle of the one-step predecessor, cells `-22, …, 36`. -/
+def W23mid : List Bool :=
+  [true, false, true, false, false, true, false, true, false, false, false, false, true, false, false, false,
+    false, false, false, true, false, false, true, true, true, true, true, true, true, false, true, false, false,
+    false, false, false, true, false, false, true, true, true, false, false, true, true, false, false, true,
+    true, false, true, false, false, true, false, false, false, false]
+
+/-- A predecessor of `evol X23 23`: white on `(-∞, -23]`, black on `[37, ∞)`. -/
+def W23 (p : Int) : Bool := if p ≤ -23 then false else if 37 ≤ p then true else W23mid.getD (p + 22).toNat false
+
+/-- The middle of the two-step predecessor, cells `-23, …, 35`. -/
+def V23mid : List Bool :=
+  [false, true, false, true, true, false, true, false, true, true, true, true, false, true, true, true, true,
+    true, true, false, true, true, false, true, false, false, true, false, false, true, false, true, true, true,
+    true, true, false, true, true, true, false, false, true, true, false, true, false, false, false, false,
+    true, false, true, true, true, false, false, false, false]
+
+/-- A predecessor of `W23`: black on `(-∞, -24]`, and `001` repeated from 36 on. -/
+def V23 (p : Int) : Bool :=
+  if p ≤ -24 then true else if 36 ≤ p then (p - 36) % 3 == 2 else V23mid.getD (p + 23).toNat false
+
+theorem W23_middle : ∀ k : Nat, k < 61 →
+    rule (W23 (-23 + k - 1)) (W23 (-23 + k)) (W23 (-23 + k + 1)) = listGet R23 k := by
+  decide +kernel
+
+theorem V23_middle : ∀ k : Nat, k < 61 →
+    rule (V23 (-24 + k - 1)) (V23 (-24 + k)) (V23 (-24 + k + 1)) = W23 (-24 + k) := by
+  decide +kernel
+
+theorem X23_zero : X23 0 = true := by decide
+
+theorem X23_left : ∀ p, p < 0 → X23 p = false := fun _ hp => listGet_neg (by omega)
+
+theorem X23_right : ∀ p, 14 < p → X23 p = false := fun _ hp => listGet_ge (by simp only [seed23]; simp; omega)
+
+theorem evol_X23 (p : Int) : evol X23 23 p = listGet R23 (p + 23) := by
+  rw [X23, evol_listRow, R23_eq]
+  simp only [listRow]
+  congr 1
+
+theorem W23_left {p : Int} (h : p ≤ -23) : W23 p = false := by simp [W23, h]
+
+theorem W23_right {p : Int} (h : 37 ≤ p) : W23 p = true := by
+  simp [W23, show ¬ p ≤ -23 by omega, h]
+
+theorem V23_left {p : Int} (h : p ≤ -24) : V23 p = true := by simp [V23, h]
+
+theorem V23_right {p : Int} (h : 36 ≤ p) : V23 p = ((p - 36) % 3 == 2) := by
+  simp [V23, show ¬ p ≤ -24 by omega, h]
+
+/-- `W23` is a predecessor of the image at age 23. -/
+theorem W23_pred : ∀ p, rule (W23 (p - 1)) (W23 p) (W23 (p + 1)) = evol X23 23 p := by
+  intro p
+  by_cases h1 : p ≤ -24
+  · rw [W23_left (p := p - 1) (by omega), W23_left (p := p) (by omega), W23_left (p := p + 1) (by omega),
+      evol_eq_false_of_lt X23_left 23 p (by omega)]
+    rfl
+  · by_cases h2 : 38 ≤ p
+    · rw [W23_right (p := p - 1) (by omega), W23_right (p := p) (by omega), W23_right (p := p + 1) (by omega),
+        evol_eq_false_of_gt X23_right 23 p (by omega)]
+      rfl
+    · have hk := W23_middle (p + 23).toNat (by omega)
+      rw [show (-23 : Int) + ((p + 23).toNat : Int) = p by omega] at hk
+      rw [hk, evol_X23, Int.toNat_of_nonneg (by omega)]
+
+/-- `V23` is a predecessor of `W23`. -/
+theorem V23_pred : ∀ p, rule (V23 (p - 1)) (V23 p) (V23 (p + 1)) = W23 p := by
+  intro p
+  by_cases h1 : p ≤ -25
+  · rw [V23_left (p := p - 1) (by omega), V23_left (p := p) (by omega), V23_left (p := p + 1) (by omega),
+      W23_left (by omega)]
+    rfl
+  · by_cases h2 : 37 ≤ p
+    · rw [V23_right (p := p - 1) (by omega), V23_right (p := p) (by omega), V23_right (p := p + 1) (by omega),
+        W23_right h2]
+      have h3 : (p - 1 - 36) % 3 = 0 ∨ (p - 1 - 36) % 3 = 1 ∨ (p - 1 - 36) % 3 = 2 := by omega
+      rcases h3 with h | h | h
+      · rw [h, show (p - 36) % 3 = 1 by omega, show (p + 1 - 36) % 3 = 2 by omega]
+        rfl
+      · rw [h, show (p - 36) % 3 = 2 by omega, show (p + 1 - 36) % 3 = 0 by omega]
+        rfl
+      · rw [h, show (p - 36) % 3 = 0 by omega, show (p + 1 - 36) % 3 = 1 by omega]
+        rfl
+    · have hk := V23_middle (p + 24).toNat (by omega)
+      rw [show (-24 : Int) + ((p + 24).toNat : Int) = p by omega] at hk
+      exact hk
+
+/-- `V23` has no leftmost black cell. -/
+theorem V23_no_left_edge : ∀ q : Int, ∃ p, p < q ∧ V23 p = true :=
+  fun q => ⟨min (q - 1) (-24), by omega, V23_left (by omega)⟩
+
+/-- `W23` has the true edge, `0 - 23 + 1`. -/
+theorem W23_edge : W23 (-22) = true ∧ ∀ p, p < -22 → W23 p = false :=
+  ⟨by decide, fun _ hp => W23_left (by omega)⟩
+
+/-- **Age 23 fails.** A configuration with its leftmost black cell at 0 has, at age 23, a two-step
+predecessor with no leftmost black cell. -/
+theorem two_step_predecessor_edge_fails_at_age_twenty_three :
+    X23 0 = true ∧ (∀ p, p < 0 → X23 p = false) ∧
+    (∀ p, rule (W23 (p - 1)) (W23 p) (W23 (p + 1)) = evol X23 23 p) ∧
+    (∀ p, rule (V23 (p - 1)) (V23 p) (V23 (p + 1)) = W23 p) ∧
+    ∀ q : Int, ∃ p, p < q ∧ V23 p = true :=
+  ⟨X23_zero, X23_left, W23_pred, V23_pred, V23_no_left_edge⟩
+
+/-- **The age 24 of `two_step_predecessor_edge_from_age_twenty_four` is sharp:** its conclusion fails at 23. -/
+theorem age_twenty_four_sharp : ¬ ∀ (x : Int → Bool) (lo : Int), x lo = true → (∀ p, p < lo → x p = false) →
+    ∀ w v : Int → Bool, (∀ p, rule (w (p - 1)) (w p) (w (p + 1)) = evol x 23 p) →
+      (∀ p, rule (v (p - 1)) (v p) (v (p + 1)) = w p) → ∀ p, p < lo - 23 + 2 → v p = false := by
+  intro h
+  have h' := h X23 0 X23_zero X23_left W23 V23 W23_pred V23_pred (-24) (by omega)
+  rw [V23_left (by omega)] at h'
+  exact absurd h' (by decide)
+
+/-! ## The least ages -/
+
+/-- The conclusion of `predecessor_edge_from_age_eight` at age `t`, for every configuration with a leftmost
+black cell and every predecessor of its image. -/
+def OneTickEdge (t : Nat) : Prop :=
+  ∀ (x : Int → Bool) (lo : Int), x lo = true → (∀ p, p < lo → x p = false) →
+    ∀ z : Int → Bool, (∀ p, rule (z (p - 1)) (z p) (z (p + 1)) = evol x t p) →
+      z (lo - t + 1) = true ∧ ∀ p, p < lo - t + 1 → z p = false
+
+/-- The conclusion of `two_step_predecessor_edge_from_age_twenty_four` at age `t`. -/
+def TwoTickEdge (t : Nat) : Prop :=
+  ∀ (x : Int → Bool) (lo : Int), x lo = true → (∀ p, p < lo → x p = false) →
+    ∀ w v : Int → Bool, (∀ p, rule (w (p - 1)) (w p) (w (p + 1)) = evol x t p) →
+      (∀ p, rule (v (p - 1)) (v p) (v (p + 1)) = w p) →
+        v (lo - t + 2) = true ∧ ∀ p, p < lo - t + 2 → v p = false
+
+/-- **8 is the least age.** The one-tick conclusion holds at every age from `a` on exactly when `8 ≤ a`. -/
+theorem one_tick_least_age (a : Nat) : (∀ t, a ≤ t → OneTickEdge t) ↔ 8 ≤ a := by
+  refine ⟨fun h => ?_, fun ha t ht x lo hlo hzero z hz =>
+    predecessor_edge_from_age_eight hlo hzero t (by omega) z hz⟩
+  rcases Nat.lt_or_ge a 8 with ha | ha
+  · obtain ⟨h0, hl, hz, hb⟩ := predecessor_edge_fails_at_age_seven
+    obtain ⟨p, hp, hpb⟩ := hb (-6)
+    have h' := (h 7 (by omega) sharpX 0 h0 hl sharpZ hz).2 p (by omega)
+    rw [hpb] at h'
+    exact absurd h' (by decide)
+  · exact ha
+
+/-- **24 is the least age.** The two-tick conclusion holds at every age from `a` on exactly when `24 ≤ a`. -/
+theorem two_tick_least_age (a : Nat) : (∀ t, a ≤ t → TwoTickEdge t) ↔ 24 ≤ a := by
+  refine ⟨fun h => ?_, fun ha t ht x lo hlo hzero w v hw hv =>
+    two_step_predecessor_edge_from_age_twenty_four hlo hzero t (by omega) w v hw hv⟩
+  rcases Nat.lt_or_ge a 24 with ha | ha
+  · have h' := (h 23 (by omega) X23 0 X23_zero X23_left W23 V23 W23_pred V23_pred).2 (-24) (by omega)
+    rw [V23_left (p := -24) (by omega)] at h'
+    exact absurd h' (by decide)
+  · exact ha
 
 end Ruliology.CellularAutomata.Rule30TwoSidedInverse
