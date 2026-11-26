@@ -247,4 +247,160 @@ theorem singleton_clock_break (a d : Nat) (pulse : Rule30Jen.cell (a+3) 1=true)
   intro j hj
   exact Classical.byContradiction fun mismatch => noBreak ⟨j,hj,mismatch⟩
 
+/-! ### 1-bit gate-trap pulse forecast and exact `mod 8 = 4` (`v_2 = 2`) pulse valuation -/
+
+open Ruliology.CellularAutomata.Rule30ZeroBoundary.IntegerForm
+
+/-- **Site-`2` Locking Under `GapOK` (`site_two_true_of_gapOK`):** at every pulse `s ≥ 1` where
+`GapOK (u R) s` holds, site `2` at `2 * s + 1` is forced black (`true`), excluding gaps `2` and `4`. -/
+theorem site_two_true_of_gapOK {R : Nat → Bool} {s : Nat} (late : 1 ≤ s)
+    (pulse : u R s = true) (hg : GapOK (u R) s) :
+    drv altCol R (2 * s + 1) 2 = true := by
+  have hret := next_gap_from_second_white R s late pulse
+  cases hb2 : drv altCol R (2 * s + 1) 2 with
+  | true => rfl
+  | false =>
+    rw [hb2] at hret
+    cases hb5 : drv altCol R (2 * s + 1) 5 with
+    | true =>
+      rw [hb5] at hret
+      change GapAt R s 2 at hret
+      rcases hg pulse with ⟨_, h2, _⟩ | ⟨_, h2, _, _, _⟩ <;>
+        exact False.elim (Bool.noConfusion (h2.symm.trans hret.2.2))
+    | false =>
+      rw [hb5] at hret
+      change GapAt R s 4 at hret
+      rcases hg pulse with ⟨_, _, h3⟩ | ⟨_, _, _, h4, _⟩
+      · exact False.elim (Bool.noConfusion ((hret.2.1 3 (by decide) (by decide)).symm.trans h3))
+      · exact False.elim (Bool.noConfusion (h4.symm.trans hret.2.2))
+
+/-- **1-Bit Pulse Forecast Under `GapOK` (`one_bit_forecast_of_gapOK`):** converse to
+`no_one_bit_forecast`, once `GapOK (u R) s` holds (`1 ≤ s`), site `5` alone determines whether the
+next pulse return is `3` or `5`. -/
+theorem one_bit_forecast_of_gapOK {R : Nat → Bool} {s : Nat} (late : 1 ≤ s)
+    (pulse : u R s = true) (hg : GapOK (u R) s) :
+    GapAt R s (if drv altCol R (2 * s + 1) 5 then 3 else 5) := by
+  have hret := next_gap_from_second_white R s late pulse
+  have hb2 := site_two_true_of_gapOK late pulse hg
+  rw [hb2] at hret
+  simpa [nearGap] using hret
+
+/-- **Exact `3`-Gap and `5`-Gap Site-`5` Characterizations (`three_and_five_gap_iff_site_five`):**
+under `GapOK (u R) s` (`1 ≤ s`), `GapAt R s 3` and `GapAt R s 5` are decided by `drv altCol R (2 * s + 1) 5`. -/
+theorem three_and_five_gap_iff_site_five {R : Nat → Bool} {s : Nat} (late : 1 ≤ s)
+    (hg : GapOK (u R) s) :
+    (GapAt R s 3 ↔ u R s = true ∧ drv altCol R (2 * s + 1) 5 = true) ∧
+    (GapAt R s 5 ↔ u R s = true ∧ drv altCol R (2 * s + 1) 5 = false) := by
+  refine ⟨⟨fun h => ⟨h.1, ?_⟩, fun ⟨hp, h5⟩ => ?_⟩, ⟨fun h => ⟨h.1, ?_⟩, fun ⟨hp, h5⟩ => ?_⟩⟩
+  · have hf := one_bit_forecast_of_gapOK late h.1 hg
+    cases hb5 : drv altCol R (2 * s + 1) 5 with
+    | true => rfl
+    | false =>
+      rw [hb5] at hf
+      exact False.elim (Bool.noConfusion ((hf.2.1 3 (by decide) (by decide)).symm.trans h.2.2))
+  · have hf := one_bit_forecast_of_gapOK late hp hg
+    rwa [h5] at hf
+  · have hf := one_bit_forecast_of_gapOK late h.1 hg
+    cases hb5 : drv altCol R (2 * s + 1) 5 with
+    | false => rfl
+    | true =>
+      rw [hb5] at hf
+      exact False.elim (Bool.noConfusion ((h.2.1 3 (by decide) (by decide)).symm.trans hf.2.2))
+  · have hf := one_bit_forecast_of_gapOK late hp hg
+    rwa [h5] at hf
+
+/-- **1-Bit Pulse Forecast Across the Gate Trap (`one_bit_forecast_of_trap_entry`):** for any `R`
+entering `trap` at odd time `t0`, every pulse `s ≥ 1` with `t0 ≤ 2 * s + 1` has site `2` black and
+next return forecast by site `5` alone. -/
+theorem one_bit_forecast_of_trap_entry (R : Nat → Bool) {t0 s : Nat}
+    (h0 : t0 % 2 = 1) (hw : win R t0 ∈ trap) (hs : t0 ≤ 2 * s + 1) (late : 1 ≤ s)
+    (pulse : u R s = true) :
+    drv altCol R (2 * s + 1) 2 = true ∧
+    GapAt R s (if drv altCol R (2 * s + 1) 5 then 3 else 5) := by
+  have hg : GapOK (u R) s := fun hp => gaps_of_entry R h0 hw s hs hp
+  exact ⟨site_two_true_of_gapOK late pulse hg, one_bit_forecast_of_gapOK late pulse hg⟩
+
+/-- **Exact 2-Adic Valuation `v_2 = 2` (`% 8 = 4`) at Gate-Trap Pulses (`pulse_mod_eight_eq_four_of_gapOK`):**
+under `GapOK (u (seed Z)) s` (`1 ≤ s`), `u (seed Z) s = true` iff `iter GR s Z % 8 = 4`. -/
+theorem pulse_mod_eight_eq_four_of_gapOK {Z s : Nat} (late : 1 ≤ s)
+    (hg : GapOK (u (seed Z)) s) :
+    u (seed Z) s = true ↔ iter GR s Z % 8 = 4 := by
+  constructor
+  · intro hpulse
+    have hmod4 : iter GR s Z % 4 = 0 := by
+      have h := u_rowOfNat_eq_decide_mod_four Z s
+      rw [show rowOfNat Z = seed Z from rfl, hpulse] at h
+      exact of_decide_eq_true h.symm
+    have hb2 : drv altCol (rowOfNat Z) (2 * s + 1) 2 = true :=
+      site_two_true_of_gapOK late hpulse hg
+    rw [(drv_altCol_rowOfNat_even_odd Z s).2 1] at hb2
+    change (FR1 (iter GR s Z)).testBit 1 = true at hb2
+    have hX := rowOfNat_FR1_add_two (iter GR s Z) 0
+    change (FR1 (iter GR s Z)).testBit 1 =
+      bne ((iter GR s Z).testBit 0) ((iter GR s Z).testBit 1 || (iter GR s Z).testBit 2) at hX
+    rw [hb2] at hX
+    have hb0 : (iter GR s Z).testBit 0 = false := by
+      rw [Nat.testBit_zero]; simp [show iter GR s Z % 2 ≠ 1 by omega]
+    have hb1 : (iter GR s Z).testBit 1 = false := by
+      rw [Nat.testBit_succ, Nat.testBit_zero]; simp [show iter GR s Z / 2 % 2 ≠ 1 by omega]
+    rw [hb0, hb1, Bool.false_or, Bool.false_bne] at hX
+    have hb2_val : iter GR s Z / 4 % 2 = 1 := by
+      have h2 := hX.symm
+      rw [Nat.testBit_succ, Nat.testBit_succ, Nat.testBit_zero, decide_eq_true_iff] at h2
+      simpa [Nat.div_div_eq_div_mul] using h2
+    omega
+  · intro hmod8
+    have hmod4 : iter GR s Z % 4 = 0 := by omega
+    rw [show seed Z = rowOfNat Z from rfl, u_rowOfNat_eq_decide_mod_four]
+    exact decide_eq_true hmod4
+
+/-- **Even-Step 6-Bit `3`-Gap vs `5`-Gap Classification (`even_seed_three_and_five_gap_iff`):**
+classifies `GapAt (seed Z) s 3` and `GapAt (seed Z) s 5` directly from `iter GR s Z % 8 = 4` and bits `3, 4, 5` of `iter GR s Z`. -/
+theorem even_seed_three_and_five_gap_iff {Z s : Nat} (late : 1 ≤ s)
+    (hg : GapOK (u (seed Z)) s) :
+    (GapAt (seed Z) s 3 ↔
+      iter GR s Z % 8 = 4 ∧
+      bne ((iter GR s Z).testBit 3) ((iter GR s Z).testBit 4 || (iter GR s Z).testBit 5) = true) ∧
+    (GapAt (seed Z) s 5 ↔
+      iter GR s Z % 8 = 4 ∧
+      bne ((iter GR s Z).testBit 3) ((iter GR s Z).testBit 4 || (iter GR s Z).testBit 5) = false) := by
+  have hsite5 : drv altCol (seed Z) (2 * s + 1) 5 =
+      bne ((iter GR s Z).testBit 3) ((iter GR s Z).testBit 4 || (iter GR s Z).testBit 5) := by
+    change drv altCol (rowOfNat Z) (2 * s + 1) (3 + 2) = _
+    rw [(drv_altCol_rowOfNat_even_odd Z s).2 4, rowOfNat_FR1_add_two (iter GR s Z) 3]
+    rfl
+  have hmod8 := pulse_mod_eight_eq_four_of_gapOK late hg
+  have h35 := three_and_five_gap_iff_site_five late hg
+  rw [hsite5, hmod8] at h35
+  exact h35
+
+/-- **Unconditional `mod 8 = 4` Pulse Valuation and Even-Step Gap Law for `empty`
+(`u_empty_iff_mod_eight_and_even_gap_iff`):** for all `s ≥ 146`, `u empty s = true ↔ iter GR s 0 % 8 = 4`,
+with `GapAt empty s 3` and `GapAt empty s 5` decided by `bne ((iter GR s 0).testBit 3) ((iter GR s 0).testBit 4 || (iter GR s 0).testBit 5)`. -/
+theorem u_empty_iff_mod_eight_and_even_gap_iff {s : Nat} (hs : 146 ≤ s) :
+    (u empty s = true ↔ iter GR s 0 % 8 = 4) ∧
+    (GapAt empty s 3 ↔
+      iter GR s 0 % 8 = 4 ∧
+      bne ((iter GR s 0).testBit 3) ((iter GR s 0).testBit 4 || (iter GR s 0).testBit 5) = true) ∧
+    (GapAt empty s 5 ↔
+      iter GR s 0 % 8 = 4 ∧
+      bne ((iter GR s 0).testBit 3) ((iter GR s 0).testBit 4 || (iter GR s 0).testBit 5) = false) := by
+  have hc : ∀ p, 1 ≤ p → empty p = seed 0 p := by
+    intro p hp
+    obtain ⟨k, rfl⟩ : ∃ k, p = k + 1 := ⟨p - 1, by omega⟩
+    simp [empty, seed, rowOfNat]
+  have hu_eq : ∀ r, u empty r = u (seed 0) r := fun r => drv_congr hc (2 * r + 1) 1
+  have hgap_congr : ∀ d, GapAt empty s d ↔ GapAt (seed 0) s d := by
+    intro d
+    unfold GapAt
+    simp only [hu_eq]
+  have hg : GapOK (u (seed 0)) s := by
+    intro hp
+    have he : u empty s = true := (hu_eq s).trans hp
+    simpa only [hu_eq] using u_empty_gaps s hs he
+  rw [hu_eq s, hgap_congr 3, hgap_congr 5]
+  exact ⟨pulse_mod_eight_eq_four_of_gapOK (by omega) hg,
+    (even_seed_three_and_five_gap_iff (by omega) hg).1,
+    (even_seed_three_and_five_gap_iff (by omega) hg).2⟩
+
 end Ruliology.CellularAutomata.Rule30GatePulseReturn
