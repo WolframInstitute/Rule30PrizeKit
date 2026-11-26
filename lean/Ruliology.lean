@@ -312,6 +312,7 @@ public import Ruliology.CellularAutomata.Rule30PeriodThreeDepthTwelve
 public import Ruliology.CellularAutomata.Rule30AlternatingArrivals
 public import Ruliology.CellularAutomata.Rule30UniformEntry
 public import Ruliology.CellularAutomata.Rule30RotationBlocks
+public import Ruliology.CellularAutomata.Rule30RotationFreePhase
 public import Ruliology.CellularAutomata.Rule30IsolatedBlackQP
 public import Ruliology.CellularAutomata.Rule30LeftRichness
 public import Ruliology.CellularAutomata.Rule30LongRunTails
