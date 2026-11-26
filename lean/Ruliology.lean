@@ -257,6 +257,8 @@ public import Ruliology.CellularAutomata.Rule30RunTransitionWindows
 public import Ruliology.CellularAutomata.Rule30TwoSidedInverse
 public import Ruliology.CellularAutomata.Rule30DrivenLeftInverse
 public import Ruliology.CellularAutomata.Rule30EveryKLine
+public import Ruliology.CellularAutomata.Rule30DrivenLeftDepthTwo
+public import Ruliology.CellularAutomata.Rule30DrivenParentBand
 public import Ruliology.CellularAutomata.Rule30InverseSpatialPeriod
 public import Ruliology.CellularAutomata.Rule30InverseSixBlack
 public import Ruliology.CellularAutomata.Rule30MarkedGaps
