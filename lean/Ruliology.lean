@@ -309,6 +309,7 @@ public import Ruliology.CellularAutomata.Rule30UniformEntry
 public import Ruliology.CellularAutomata.Rule30RotationBlocks
 public import Ruliology.CellularAutomata.Rule30IsolatedBlackQP
 public import Ruliology.CellularAutomata.Rule30LeftRichness
+public import Ruliology.CellularAutomata.Rule30LongRunTails
 
 /-!
 # Rule 30 Prize: Lean snapshot
