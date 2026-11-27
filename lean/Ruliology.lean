@@ -184,6 +184,7 @@ public import Ruliology.CellularAutomata.Rule30GateClocks
 public import Ruliology.CellularAutomata.Rule30ResetMixtures
 public import Ruliology.CellularAutomata.Rule30MixedGapClocks
 public import Ruliology.CellularAutomata.Rule30SevenNineReset
+public import Ruliology.CellularAutomata.Rule30SevenNineLanguage
 
 public import Ruliology.CellularAutomata.Rule30White17Runs
 public import Ruliology.CellularAutomata.Rule30GrammarRuns
