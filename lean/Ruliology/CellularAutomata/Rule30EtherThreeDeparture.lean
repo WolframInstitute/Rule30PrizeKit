@@ -568,5 +568,141 @@ theorem exitWait_add_twelve {N : Nat} (hN : 4 ≤ N) (g : Nat) (u : Bool) :
   · omega
   · split <;> omega
 
+set_option maxRecDepth 200000
+set_option maxHeartbeats 800000
+
+def recStates13 : List (Nat × Bool) := [(0, false), (0, true), (1, false), (1, true), (2, false), (2, true), (3, true), (4, true), (5, false), (6, false), (8, false), (8, true), (9, false)]
+def recShift13 : List Nat := [0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 2, 1, 2]
+def recWakeNext : List (List Nat) := [[6], [6], [7], [7], [8], [8], [9], [11], [10], [12], [2, 3], [0, 1], [4, 5]]
+
+def recWakePaths (k : Nat) : Nat → List (List Nat)
+  | 0 => [[]]
+  | n + 1 => (recWakeNext.getD k []).flatMap (fun k' => (recWakePaths k' n).map (k' :: ·))
+
+theorem recWake_step_iff_exists_east :
+    ∀ c : Fin 12, ∀ φ : Fin 3, ∀ x1 : Bool,
+      let g := (c.val + 4 * φ.val) % 12
+      let u := uC c.val φ.val x1
+      isRec g u = true →
+      ∃ k, k < 13 ∧ recStates13.getD k (99, false) = (g, u) ∧
+        (∀ x2 x3 x4 : Bool,
+          let i := recShift13.getD k 0
+          (∀ j, j < i → dC c.val φ.val x1 x2 x3 x4 j = false) ∧
+          dC c.val φ.val x1 x2 x3 x4 i = true ∧
+          ∃ k' ∈ recWakeNext.getD k [],
+            recStates13.getD k' (99, false) = ((g + i + 3) % 12, dC c.val φ.val x1 x2 x3 x4 (i + 1))) ∧
+        (∀ k' ∈ recWakeNext.getD k [], ∃ x2 x3 x4 : Bool,
+          let i := recShift13.getD k 0
+          recStates13.getD k' (99, false) = ((g + i + 3) % 12, dC c.val φ.val x1 x2 x3 x4 (i + 1))) := by
+  decide +kernel
+
+theorem recWake_physical_step {F : Nat → Nat → Bool} (hF : IsR30 F) {j0 s t D : Nat}
+    (h0 : F (t + 1) 0 = eth j0 s 0 (t + 1)) (hD2 : 2 ≤ D)
+    (hfr : Front F j0 s t D) (hrec : IsRec F j0 s t D) :
+    ∃ k, k < 13 ∧ recStates13.getD k (99, false) = (cls j0 s D t, ubit F j0 s t D) ∧
+      let D' := D - 1 + recShift13.getD k 0
+      Front F j0 s (t + 1) D' ∧ IsRec F j0 s (t + 1) D' ∧
+      ∃ k' ∈ recWakeNext.getD k [],
+        recStates13.getD k' (99, false) = (cls j0 s D' (t + 1), ubit F j0 s (t + 1) D') := by
+  obtain ⟨c, φ, x1, x2, x3, x4, hc, hφ, hcls, hub, hstep⟩ := local_step hF h0 hD2 hfr
+  have hr' : isRec ((c + 4 * φ) % 12) (uC c φ x1) = true := by
+    unfold IsRec at hrec; rwa [hcls, hub] at hrec
+  obtain ⟨k, hk_lt, hk_st, hsound, _⟩ := recWake_step_iff_exists_east ⟨c, hc⟩ ⟨φ, hφ⟩ x1 hr'
+  obtain ⟨hclear, hhit, k', hk'_mem, hk'_st⟩ := hsound x2 x3 x4
+  have hi_lt : recShift13.getD k 0 < 3 := by
+    have hlt3 : (List.range 13).all (fun q => decide (recShift13.getD q 0 < 3)) = true := by decide +kernel
+    exact decide_eq_true_eq.mp (List.all_eq_true.mp hlt3 k (List.mem_range.mpr hk_lt))
+  obtain ⟨hfr', hcls', hubit'⟩ := hstep (recShift13.getD k 0) hi_lt hclear hhit
+  have hk'_isrec : isRec (cls j0 s (D - 1 + recShift13.getD k 0) (t + 1)) (ubit F j0 s (t + 1) (D - 1 + recShift13.getD k 0)) = true := by
+    have hall_rec : ∀ j ∈ recWakeNext.getD k [], isRec (recStates13.getD j (99, false)).1 (recStates13.getD j (99, false)).2 = true := by
+      have hchk : (List.range 13).all (fun q => (recWakeNext.getD q []).all (fun j =>
+          isRec (recStates13.getD j (99, false)).1 (recStates13.getD j (99, false)).2)) = true := by decide +kernel
+      intro j hj; exact List.all_eq_true.mp (List.all_eq_true.mp hchk k (List.mem_range.mpr hk_lt)) j hj
+    have hmod12 : ((c + 4 * φ) % 12 + recShift13.getD k 0 + 3) % 12 = (c + 4 * φ + recShift13.getD k 0 + 3) % 12 := by omega
+    dsimp only at hk'_st
+    rw [hmod12] at hk'_st
+    have hrec_j := hall_rec k' hk'_mem
+    rw [hk'_st] at hrec_j
+    dsimp only at hrec_j
+    rwa [hcls', hubit']
+  have hmod12 : ((c + 4 * φ) % 12 + recShift13.getD k 0 + 3) % 12 = (c + 4 * φ + recShift13.getD k 0 + 3) % 12 := by omega
+  dsimp only at hk_st hk'_st
+  rw [hmod12] at hk'_st
+  refine ⟨k, hk_lt, ?_, hfr', hk'_isrec, k', hk'_mem, ?_⟩
+  · rw [hcls, hub]; exact hk_st
+  · rw [hcls', hubit']; exact hk'_st
+
+theorem recWake_diamond_merge :
+    recStates13.getD 0 (99, false) = (0, false) ∧ recStates13.getD 1 (99, false) = (0, true) ∧
+    recWakeNext.getD 0 [] = [6] ∧ recWakeNext.getD 1 [] = [6] ∧
+    recStates13.getD 2 (99, false) = (1, false) ∧ recStates13.getD 3 (99, false) = (1, true) ∧
+    recWakeNext.getD 2 [] = [7] ∧ recWakeNext.getD 3 [] = [7] ∧
+    recStates13.getD 4 (99, false) = (2, false) ∧ recStates13.getD 5 (99, false) = (2, true) ∧
+    recWakeNext.getD 4 [] = [8] ∧ recWakeNext.getD 5 [] = [8] := by decide +kernel
+
+theorem recWake_ten_step_necklace :
+    ∀ k : Fin 13, ∀ p ∈ recWakePaths k.val 10,
+      (((k.val :: p).take 10).map (fun q => recShift13.getD q 0)).sum = 6 ∧
+      (recStates13.getD (p.getLastD k.val) (99, false)).1 = (recStates13.getD k.val (99, false)).1 := by
+  decide +kernel
+
+def recWakeCount : Nat → Nat → Nat
+  | 0, _ => 1
+  | n + 1, k => (recWakeNext.getD k []).foldr (fun k' acc => recWakeCount n k' + acc) 0
+
+private theorem recWakePaths_length (n k : Nat) : (recWakePaths k n).length = recWakeCount n k := by
+  induction n generalizing k with
+  | zero => rfl
+  | succ n ih =>
+    unfold recWakePaths recWakeCount
+    have hfl : ∀ (xs : List Nat), (xs.flatMap (fun k' => (recWakePaths k' n).map (k' :: ·))).length =
+        xs.foldr (fun k' acc => recWakeCount n k' + acc) 0 := by
+      intro xs; induction xs with
+      | nil => rfl
+      | cons x xs ihx => simp [List.flatMap_cons, ih x, ihx]
+    exact hfl (recWakeNext.getD k [])
+
+private theorem recWakeNext_lt : ∀ k < 13, ∀ k' ∈ recWakeNext.getD k [], k' < 13 := by
+  have hok : (List.range 13).all (fun k => (recWakeNext.getD k []).all (fun k' => decide (k' < 13))) = true := by
+    decide +kernel
+  intro k hk k'
+  intro hk'
+  exact decide_eq_true_eq.mp (List.all_eq_true.mp (List.all_eq_true.mp hok k (List.mem_range.mpr hk)) k' hk')
+
+private theorem recWakeCount_scale (a b c : Nat) (h : ∀ j < 13, recWakeCount b j = c) :
+    ∀ k < 13, recWakeCount (a + b) k = recWakeCount a k * c := by
+  induction a with
+  | zero => intro k hk; simp [recWakeCount, h k hk]
+  | succ a ih =>
+    intro k hk
+    rw [show a + 1 + b = (a + b) + 1 by omega]
+    unfold recWakeCount
+    have hlt := recWakeNext_lt k hk
+    have hfl : ∀ (xs : List Nat), (∀ x ∈ xs, x < 13) →
+        xs.foldr (fun k' acc => recWakeCount (a + b) k' + acc) 0 =
+        xs.foldr (fun k' acc => recWakeCount a k' + acc) 0 * c := by
+      intro xs; induction xs with
+      | nil => intro _; simp
+      | cons x xs ihx =>
+        intro hxs
+        simp only [List.foldr_cons, ih x (hxs x List.mem_cons_self),
+          ihx (fun y hy => hxs y (List.mem_cons_of_mem _ hy)), Nat.add_mul]
+    exact hfl (recWakeNext.getD k []) hlt
+
+theorem recWake_exact_count_eight_pow (k : Fin 13) (m : Nat) :
+    (recWakePaths k.val (10 * m)).length = 8 ^ m := by
+  rw [recWakePaths_length]
+  have h10 : ∀ j < 13, recWakeCount 10 j = 8 := by
+    have hchk : (List.range 13).all (fun j => recWakeCount 10 j == 8) = true := by decide +kernel
+    intro j hj; exact beq_iff_eq.mp (List.all_eq_true.mp hchk j (List.mem_range.mpr hj))
+  have hall : ∀ m' j, j < 13 → recWakeCount (10 * m') j = 8 ^ m' := by
+    intro m'; induction m' with
+    | zero => intro j _; rfl
+    | succ m' ih =>
+      intro j hj
+      rw [show 10 * (m' + 1) = 10 + 10 * m' by omega]
+      rw [recWakeCount_scale 10 (10 * m') (8 ^ m') (fun u hu => ih u hu) j hj, h10 j hj, Nat.pow_succ, Nat.mul_comm]
+  exact hall m k.val k.isLt
+
 end Rule30EtherThreeDeparture
 end Ruliology.CellularAutomata
