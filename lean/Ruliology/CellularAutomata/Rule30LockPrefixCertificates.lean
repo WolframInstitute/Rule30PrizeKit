@@ -101,10 +101,14 @@ theorem locked_later {R : Nat → Bool} {j J : Nat} (le : j ≤ J) (hit : Locked
   exact ⟨⟨(k.val + (J-j))%7, by omega⟩,
     by simpa only [show 1+2*j+2*(J-j) = 1+2*J by omega] using future⟩
 
-/-- The phase at the common deadline is allowed to depend on the completion. -/
-theorem uniform_lock_iff (m c : Nat) :
-    (∀ R, HasPrefix m c R → ∃ j, Locked R j) ↔
-    ∃ J, ∀ R, HasPrefix m c R → Locked R J := by
+/-- For a persistent property of an odd-tick window, pointwise entry on a
+prefix cylinder implies entry by one common sample. The property can include
+several phases, with a different phase on each completion. -/
+theorem uniform_window_iff (W : Nat) (P : List Bool → Prop)
+    (later : ∀ {R j J}, j ≤ J → P (winW W R (1+2*j)) → P (winW W R (1+2*J)))
+    (m c : Nat) :
+    (∀ R, HasPrefix m c R → ∃ j, P (winW W R (1+2*j))) ↔
+    ∃ J, ∀ R, HasPrefix m c R → P (winW W R (1+2*J)) := by
   constructor
   · intro each
     classical
@@ -112,21 +116,27 @@ theorem uniform_lock_iff (m c : Nat) :
     intro bad
     simp only [not_exists, Classical.not_forall] at bad
     let rows := fun j => (bad j).choose
-    have avoid (j : Nat) : HasPrefix m c (rows j) ∧ ¬Locked (rows j) j := ⟨(bad j).choose_spec.choose, (bad j).choose_spec.choose_spec⟩
+    have avoid (j : Nat) : HasPrefix m c (rows j) ∧ ¬P (winW W (rows j) (1+2*j)) :=
+      ⟨(bad j).choose_spec.choose, (bad j).choose_spec.choose_spec⟩
     obtain ⟨R, often⟩ := limit_prefix rows
     have pref : HasPrefix m c R := by
       obtain ⟨s, _, agree⟩ := often (m+1) 0
       intro i hi
       exact (agree (i+1) (by omega)).symm.trans ((avoid s).1 i hi)
     obtain ⟨j, hit⟩ := each R pref
-    obtain ⟨s, hs, agree⟩ := often (30+(1+2*j)+1) j
-    have same : winW 30 R (1+2*j) = winW 30 (rows s) (1+2*j) :=
+    obtain ⟨s, hs, agree⟩ := often (W+(1+2*j)+1) j
+    have same : winW W R (1+2*j) = winW W (rows s) (1+2*j) :=
       window_congr _ _ _ _ (fun i hi => (agree (i+1) (by omega)).symm)
-    obtain ⟨k, hk⟩ := hit
-    exact (avoid s).2 (locked_later hs ⟨k, same ▸ hk⟩)
+    exact (avoid s).2 (later hs (same ▸ hit))
   · rintro ⟨J,h⟩ R hR
     exact ⟨J,h R hR⟩
 
+/-- The phase at the common deadline is allowed to depend on the completion. -/
+theorem uniform_lock_iff (m c : Nat) :
+    (∀ R, HasPrefix m c R → ∃ j, Locked R j) ↔
+    ∃ J, ∀ R, HasPrefix m c R → Locked R J :=
+  uniform_window_iff 30 (fun w => ∃ k : Fin 7, w ∈ cls 30 lock7Codes k.val)
+    (fun h hit => locked_later h hit) m c
 
 /-- Site zero is the imposed driver. Positive cells below m are the fixed prefix;
 the free suffix is read least-significant-bit first and zero-filled beyond q. -/
@@ -307,28 +317,34 @@ def Certificate.hasHit (j : Nat) (k : Fin 7) : Certificate → Prop
 /-- A fully specified cone is evaluated directly. For a partial cone, ternary
 evolution overapproximates its outputs. A lock class can contain all of them only
 when it has at least as many words as there are fillings of the unknown cells. -/
-def checkLeaf (m c j : Nat) (k : Fin 7) : Bool :=
-  let tick := 1+2*j
-  let words := cls 30 lock7Codes k.val
-  if 30+tick ≤ m then
-    words.contains (Rule30GateTrap.evolve 0 tick (decodeW (30+tick) c))
+def checkWindowClass (W tick m c : Nat) (words : List (List Bool)) : Bool :=
+  if W+tick ≤ m then
+    words.contains (Rule30GateTrap.evolve 0 tick (decodeW (W+tick) c))
   else
-    let cube := Rule30LockCube.run 0 tick (Rule30LockCube.input m c (30+tick))
+    let cube := Rule30LockCube.run 0 tick (Rule30LockCube.input m c (W+tick))
     decide (2^(cube.count .any) ≤ words.length) &&
       (Rule30LockCube.expand cube).all words.contains
 
-private theorem leaf_sound {m c j : Nat} {k : Fin 7} (pass : checkLeaf m c j k = true)
-    {R : Nat → Bool} (pref : HasPrefix m c R) :
-    winW 30 R (1+2*j) ∈ cls 30 lock7Codes k.val := by
-  simp only [checkLeaf] at pass
+theorem checkWindowClass_sound {W tick m c : Nat} {words : List (List Bool)}
+    (pass : checkWindowClass W tick m c words = true) {R : Nat → Bool}
+    (pref : HasPrefix m c R) : winW W R tick ∈ words := by
+  simp only [checkWindowClass] at pass
   split at pass
   · rename_i full
     rw [winW_prefix (c := c) (fun i hi => pref i (by omega))]
     simpa using pass
   · have ok := (Bool.and_eq_true_iff.mp pass).2
-    have hit := Rule30LockCube.check_sound (W := 30) (t := 1+2*j) (m := m) (c := c)
-      (target := fun w => (cls 30 lock7Codes k.val).contains w) ok R pref
+    have hit := Rule30LockCube.check_sound (W := W) (t := tick) (m := m) (c := c)
+      (target := fun w => words.contains w) ok R pref
     simpa using hit
+
+def checkLeaf (m c j : Nat) (k : Fin 7) : Bool :=
+  checkWindowClass 30 (1+2*j) m c (cls 30 lock7Codes k.val)
+
+private theorem leaf_sound {m c j : Nat} {k : Fin 7} (pass : checkLeaf m c j k = true)
+    {R : Nat → Bool} (pref : HasPrefix m c R) :
+    winW 30 R (1+2*j) ∈ cls 30 lock7Codes k.val :=
+  checkWindowClass_sound pass pref
 
 def verify : Certificate → Nat → Nat → Bool
   | .hit j k, m, c => checkLeaf m c j k
@@ -337,7 +353,7 @@ def verify : Certificate → Nat → Nat → Bool
 /-- Bits above the supplied prefix length are ignored. -/
 def accepts (tree : Certificate) (m c : Nat) : Bool := verify tree m (c%2^m)
 
-private theorem prefix_mod (R : Nat → Bool) (m c : Nat) :
+theorem prefix_mod (R : Nat → Bool) (m c : Nat) :
     HasPrefix m (c%2^m) R ↔ HasPrefix m c R := by
   constructor <;> intro h i hi <;> simpa [Nat.testBit_mod_two_pow,hi] using h i hi
 
@@ -383,7 +399,7 @@ private theorem complete_at (j n m c : Nat) (enough : 30+(1+2*j) ≤ m+n)
     obtain ⟨k,hit⟩ := all (rh c) (rh_prefix c m)
     have full : 30+(1+2*j) ≤ m := by omega
     rw [winW_prefix (c := c) (rh_prefix c (30+(1+2*j)))] at hit
-    exact ⟨.hit j k, by simpa [verify,checkLeaf,full] using hit, rfl⟩
+    exact ⟨.hit j k, by simpa [verify,checkLeaf,checkWindowClass,full] using hit, rfl⟩
   | succ n ih =>
     obtain ⟨l,pl,dl⟩ := ih (m+1) c (by omega) (fun R h => all R (fun i hi => h i (by omega)))
     obtain ⟨r,pr,dr⟩ := ih (m+1) (2^m+c) (by omega) (fun R h => all R (fun i hi => by
