@@ -1385,4 +1385,386 @@ theorem not_finSupp_Psi_of_Q01TwoWords (hQ : Q01TwoWords) (R : Nat → Bool) {t0
 theorem CQ01Empty_of_Q01TwoWords (hQ : Q01TwoWords) : Rule30PeriodTwoSideways.CQ01Empty :=
   not_finSupp_Psi_of_Q01TwoWords hQ _ (t0 := 293) (by decide) entry_empty
 
+set_option maxRecDepth 200000
+set_option maxHeartbeats 1600000
+
+private theorem list_snoc_ind {α : Type} {P : List α → Prop}
+    (h0 : P []) (hs : ∀ xs x, P xs → P (xs ++ [x])) (l : List α) : P l := by
+  suffices ∀ r : List α, P r.reverse by simpa using this l.reverse
+  intro r; induction r with
+  | nil => exact h0
+  | cons x xs ih => simpa using hs xs.reverse x ih
+/-! ## Exact completeness of the five forbidden gap words (closing the 'not in Lean' characterization) -/
+
+def IsThreeFive (gs : List Nat) : Prop := ∀ g ∈ gs, g = 3 ∨ g = 5
+
+def HasFactor (f gs : List Nat) : Prop := ∃ pre suf : List Nat, gs = pre ++ f ++ suf
+
+def forb5GapList : List (List Nat) := [[3, 3, 3], [3, 3, 5, 3], [3, 5, 3, 3], [3, 5, 5, 3], [5, 5, 3, 3]]
+
+def Forb5Free (gs : List Nat) : Prop := ∀ f ∈ forb5GapList, ¬ HasFactor f gs
+
+private def last3 (gs : List Nat) : List Nat := gs.drop (gs.length - 3)
+
+private def forb5StepOk (h : List Nat) (g : Nat) : Bool :=
+  let nh := h ++ [g]
+  !(forb5GapList.any (fun f => f.isSuffixOf nh))
+
+private def reach20Pairs : List (List Nat × Nat) := [([], 0), ([3], 8), ([5], 9), ([3, 3], 19), ([3, 5], 28), ([5, 3], 17), ([5, 5], 25), ([3, 3, 5], 42), ([3, 5, 3], 41), ([3, 5, 5], 48), ([5, 3, 3], 31), ([5, 3, 5], 39), ([5, 5, 3], 32), ([5, 5, 5], 25), ([3, 5, 5], 59), ([5, 3, 5], 58), ([5, 5, 5], 63), ([5, 5, 5], 71), ([3, 5, 3], 66), ([3, 5, 5], 70)]
+
+private def gapStepBits (g : Nat) : List Bool := true :: List.replicate (g - 1) false
+
+private theorem reach20_inv_ok :
+    ([], 0) ∈ reach20Pairs ∧
+    reach20Pairs.all (fun (h, q) =>
+      (Rule30GateTrap.trapDfaStep q true).isSome &&
+      ([3, 5].all (fun g =>
+        if forb5StepOk h g then
+          match Rule30GateTrap.trapDfaRun q (gapStepBits g) with
+          | some q' => reach20Pairs.contains (last3 (h ++ [g]), q')
+          | none => false
+        else true))) = true := by decide +kernel
+
+/-- **Uniform Rejection of All Five Forbidden Gap Words from Every State of `trapDFA`
+(`trapDfa_avoids_forb5_uniformly`).** -/
+theorem trapDfa_avoids_forb5_uniformly :
+    ∀ q : Fin 75, ∀ f ∈ forb5GapList, Rule30GateTrap.trapDfaAccepts q.val (gapWord f) = false := by
+  decide +kernel
+
+private theorem trapDfaRun_append (q : Nat) (a b : List Bool) :
+    Rule30GateTrap.trapDfaRun q (a ++ b) =
+      match Rule30GateTrap.trapDfaRun q a with
+      | some q' => Rule30GateTrap.trapDfaRun q' b
+      | none => none := by
+  induction a generalizing q with
+  | nil => rfl
+  | cons x xs ih =>
+    simp only [List.cons_append, Rule30GateTrap.trapDfaRun]
+    cases Rule30GateTrap.trapDfaStep q x with
+    | none => rfl
+    | some q1 => exact ih q1
+
+private def gapPrefix : List Nat → List Bool
+  | [] => []
+  | g :: gs => gapStepBits g ++ gapPrefix gs
+
+private theorem gapPrefix_append (a b : List Nat) : gapPrefix (a ++ b) = gapPrefix a ++ gapPrefix b := by
+  induction a with
+  | nil => rfl
+  | cons g gs ih => simp [gapPrefix, ih, List.append_assoc]
+
+private theorem gapWord_eq_gapPrefix (gs : List Nat) : gapWord gs = gapPrefix gs ++ [true] := by
+  induction gs with
+  | nil => rfl
+  | cons g gs ih =>
+    simp only [gapWord, gapPrefix, gapStepBits, ih, List.cons_append, List.append_assoc]
+
+private theorem trapDfaRun_lt_75 (w : List Bool) :
+    ∀ q q', q < 75 → Rule30GateTrap.trapDfaRun q w = some q' → q' < 75 := by
+  induction w with
+  | nil => intro q q' hq h; simp [Rule30GateTrap.trapDfaRun] at h; omega
+  | cons b bs ih =>
+    intro q q' hq h
+    simp only [Rule30GateTrap.trapDfaRun] at h
+    cases hst : Rule30GateTrap.trapDfaStep q b with
+    | none => rw [hst] at h; cases h
+    | some q1 =>
+      rw [hst] at h
+      have hq1 : q1 < 75 := by
+        have hchk : (List.range 75).all (fun s => [false, true].all (fun bit =>
+            match Rule30GateTrap.trapDfaStep s bit with | none => true | some s' => s' < 75)) = true := by decide +kernel
+        have hs := List.all_eq_true.mp (List.all_eq_true.mp hchk q (List.mem_range.mpr hq)) b (by cases b <;> simp)
+        rw [hst] at hs; exact decide_eq_true_eq.mp hs
+      exact ih q1 q' hq1 h
+
+private theorem last3_snoc (gs : List Nat) (g : Nat) :
+    last3 (gs ++ [g]) = last3 (last3 gs ++ [g]) := by
+  unfold last3
+  have hlen : (gs ++ [g]).length = gs.length + 1 := by simp
+  have hdrop : ∀ (l : List Nat) (k : Nat), (l ++ [g]).drop k = l.drop k ++ (if k ≤ l.length then [g] else []) := by
+    intro l k
+    induction l generalizing k with
+    | nil => cases k <;> simp
+    | cons x xs ih => cases k with | zero => simp | succ k => simp [ih]
+  by_cases h3 : gs.length ≤ 2
+  · have h1 : gs.length - 3 = 0 := by omega
+    have h2 : (gs ++ [g]).length - 3 = 0 := by simp; omega
+    rw [h1, h2, List.drop_zero, List.drop_zero]
+    simp [show gs.length - 2 = 0 by omega]
+  · have hge : 3 ≤ gs.length := by omega
+    have hld : (gs.drop (gs.length - 3)).length = 3 := by simp; omega
+    have hc1 : gs.length + 1 - 3 ≤ gs.length := by omega
+    have hc2 : 1 ≤ (gs.drop (gs.length - 3)).length := by omega
+    rw [hlen, hdrop gs (gs.length + 1 - 3)]
+    simp only [hc1, ↓reduceIte]
+    rw [show ((gs.drop (gs.length - 3) ++ [g]).length - 3) = 1 by simp [hld], hdrop (gs.drop (gs.length - 3)) 1]
+    simp only [hc2, ↓reduceIte, List.drop_drop]
+    rw [show gs.length + 1 - 3 = gs.length - 3 + 1 by omega]
+
+private theorem suffix_in_last3_snoc {f gs : List Nat} {g : Nat}
+    (hflen : f.length ≤ 4) (hsuf : f.isSuffixOf (gs ++ [g]) = true) :
+    f.isSuffixOf (last3 gs ++ [g]) = true := by
+  obtain ⟨pre, hpre⟩ := List.isSuffixOf_iff_suffix.mp hsuf
+  apply List.isSuffixOf_iff_suffix.mpr
+  have hlen_eq : pre.length + f.length = gs.length + 1 := by
+    have := congrArg List.length hpre; simp at this; omega
+  by_cases h3 : gs.length ≤ 3
+  · unfold last3; rw [show gs.length - 3 = 0 by omega, List.drop_zero]; exact ⟨pre, hpre⟩
+  · have hk : gs.length - 3 ≤ pre.length := by omega
+    refine ⟨pre.drop (gs.length - 3), ?_⟩
+    have hd := congrArg (List.drop (gs.length - 3)) hpre
+    rw [List.drop_append_of_le_length hk] at hd
+    have hdrop : (gs ++ [g]).drop (gs.length - 3) = last3 gs ++ [g] := by
+      unfold last3; rw [List.drop_append_of_le_length (by omega)]
+    rw [← hdrop]; exact hd
+
+private theorem reach20_run_snoc (gs : List Nat) :
+    IsThreeFive gs → Forb5Free gs →
+    ∃ q, Rule30GateTrap.trapDfaRun 0 (gapPrefix gs) = some q ∧ (last3 gs, q) ∈ reach20Pairs := by
+  induction gs using list_snoc_ind with
+  | h0 =>
+    intro _ _
+    exact ⟨0, rfl, reach20_inv_ok.1⟩
+  | hs gs g ih =>
+    intro h35 hfree
+    have h35' : IsThreeFive gs := fun x hx => h35 x (List.mem_append_left _ hx)
+    have hfree' : Forb5Free gs := fun f hf ⟨p, s, heq⟩ => hfree f hf ⟨p, s ++ [g], by simp [heq, List.append_assoc]⟩
+    obtain ⟨q, hrun, hmem⟩ := ih h35' hfree'
+    have hg : g ∈ [3, 5] := by rcases h35 g (by simp) with rfl | rfl <;> simp
+    have hok : forb5StepOk (last3 gs) g = true := by
+      unfold forb5StepOk
+      cases hany : forb5GapList.any (fun f => f.isSuffixOf (last3 gs ++ [g])) with
+      | false => simp [hany]
+      | true =>
+        obtain ⟨f, hf, hsuf⟩ := List.any_eq_true.mp hany
+        obtain ⟨p, hp⟩ := List.isSuffixOf_iff_suffix.mp hsuf
+        have hgs_eq : gs.take (gs.length - 3) ++ last3 gs = gs := List.take_append_drop _ _
+        exfalso
+        refine hfree f hf ⟨gs.take (gs.length - 3) ++ p, [], ?_⟩
+        rw [List.append_nil, List.append_assoc, hp, ← List.append_assoc, hgs_eq]
+    have hall := List.all_eq_true.mp reach20_inv_ok.2 (last3 gs, q) hmem
+    dsimp only at hall; simp only [Bool.and_eq_true] at hall
+    have hstep := List.all_eq_true.mp hall.2 g hg
+    simp only [hok, ↓reduceIte] at hstep
+    cases hrun2 : Rule30GateTrap.trapDfaRun q (gapStepBits g) with
+    | none => rw [hrun2] at hstep; exact Bool.noConfusion hstep
+    | some q' =>
+      rw [hrun2] at hstep
+      refine ⟨q', ?_, ?_⟩
+      · rw [gapPrefix_append, trapDfaRun_append, hrun]
+        simpa [gapPrefix] using hrun2
+      · rw [last3_snoc]; exact List.contains_iff_mem.mp hstep
+
+/-- **Complete Characterization of the Five Forbidden Gap Words (`gapWord_in_trap_iff_forb5Free`):**
+closes the computational assertion in the header of `Rule30GateTrapWords`: for every `{3, 5}` gap
+list `gs`, `gapWord gs` is emitted along a walk of the 829-state closed set `trap` **if and only if**
+`gs` avoids the five minimal forbidden gap words `333`, `3353`, `3533`, `3553`, and `5533`. -/
+theorem gapWord_in_trap_iff_forb5Free {gs : List Nat} (h35 : IsThreeFive gs) :
+    Rule30GateTrap.TrapPath (gapWord gs) ↔ Forb5Free gs := by
+  rw [Rule30GateTrap.trapPath_iff_trapDfaAccepts]
+  constructor
+  · intro hacc f hf ⟨pre, suf, hgs⟩
+    subst hgs
+    -- Direct prefix decomposition: `gapWord (pre ++ f ++ suf) = gapPrefix pre ++ gapWord f ++ tail`!
+    have htail : ∃ tail, gapWord (pre ++ f ++ suf) = gapPrefix pre ++ gapWord f ++ tail := by
+      cases suf with
+      | nil => exact ⟨[], by simp [gapWord_eq_gapPrefix, gapPrefix_append, List.append_assoc]⟩
+      | cons g rest =>
+        refine ⟨List.replicate (g - 1) false ++ gapPrefix rest ++ [true], ?_⟩
+        simp [gapWord_eq_gapPrefix, gapPrefix_append, gapPrefix, gapStepBits, List.append_assoc]
+    obtain ⟨tail, hdecomp⟩ := htail
+    rw [hdecomp] at hacc
+    unfold Rule30GateTrap.trapDfaAccepts at hacc
+    rw [List.append_assoc, trapDfaRun_append] at hacc
+    cases h1 : Rule30GateTrap.trapDfaRun 0 (gapPrefix pre) with
+    | none => rw [h1] at hacc; simp at hacc
+    | some q1 =>
+      rw [h1] at hacc; dsimp only at hacc; rw [trapDfaRun_append] at hacc
+      have hq1 : q1 < 75 := trapDfaRun_lt_75 _ 0 q1 (by decide) h1
+      have hav := trapDfa_avoids_forb5_uniformly ⟨q1, hq1⟩ f hf
+      unfold Rule30GateTrap.trapDfaAccepts at hav
+      cases h2 : Rule30GateTrap.trapDfaRun q1 (gapWord f) with
+      | none => rw [h2] at hacc; simp at hacc
+      | some q2 => rw [h2] at hav; simp at hav
+  · intro hfree
+    obtain ⟨q, hrun, hmem⟩ := reach20_run_snoc gs h35 hfree
+    have hall := List.all_eq_true.mp reach20_inv_ok.2 (last3 gs, q) hmem
+    dsimp only at hall; simp only [Bool.and_eq_true] at hall
+    rw [gapWord_eq_gapPrefix, Rule30GateTrap.trapDfaAccepts, trapDfaRun_append, hrun]
+    cases hst : Rule30GateTrap.trapDfaStep q true with
+    | none => rw [hst] at hall; simp at hall
+    | some q' => simp [Rule30GateTrap.trapDfaRun, hst]
+
+/-- **Right-Extension Closure of `Forb5Free` by Gap `5` (`forb5Free_snoc_five`):**
+every `Forb5Free` gap list extends by `5` while remaining `Forb5Free`, since none of the five
+forbidden gap words ends in `5`. -/
+private theorem snoc_inj {α : Type} : ∀ (u v : List α) (x y : α), u ++ [x] = v ++ [y] → u = v ∧ x = y
+  | [], [], x, y, h => ⟨rfl, by simpa using h⟩
+  | [], b :: bs, x, y, h => by cases bs <;> simp at h
+  | a :: as, [], x, y, h => by cases as <;> simp at h
+  | a :: as, b :: bs, x, y, h => by
+    simp only [List.cons_append, List.cons.injEq] at h
+    obtain ⟨h1, h2⟩ := snoc_inj as bs x y h.2
+    exact ⟨by rw [h.1, h1], h2⟩
+
+theorem forb5Free_snoc_five {gs : List Nat} (hfree : Forb5Free gs) : Forb5Free (gs ++ [5]) := by
+  intro f hf ⟨pre, suf, heq⟩
+  induction suf using list_snoc_ind with
+  | h0 =>
+    rw [List.append_nil] at heq
+    simp [forb5GapList] at hf
+    rcases hf with rfl | rfl | rfl | rfl | rfl
+    · have h := (snoc_inj gs (pre ++ [3, 3]) 5 3 (by simpa [List.append_assoc] using heq)).2; omega
+    · have h := (snoc_inj gs (pre ++ [3, 3, 5]) 5 3 (by simpa [List.append_assoc] using heq)).2; omega
+    · have h := (snoc_inj gs (pre ++ [3, 5, 3]) 5 3 (by simpa [List.append_assoc] using heq)).2; omega
+    · have h := (snoc_inj gs (pre ++ [3, 5, 5]) 5 3 (by simpa [List.append_assoc] using heq)).2; omega
+    · have h := (snoc_inj gs (pre ++ [5, 5, 3]) 5 3 (by simpa [List.append_assoc] using heq)).2; omega
+  | hs s' x _ =>
+    have h := (snoc_inj gs (pre ++ f ++ s') 5 x (by simpa [List.append_assoc] using heq)).1
+    exact hfree f hf ⟨pre, s', h⟩
+
+/-- **Free Binary Tile Embedding into `Forb5Free` `{3, 5}` Gap Sequences (`forb5Free_free_binary_tiles`):**
+every binary list `bs` maps injectively to a `Forb5Free` `{3, 5}` gap sequence of sum `23 * bs.length`
+by concatenating `[5, 5, 5, 3, 5]` and `[5, 5, 3, 5, 5]`. -/
+def gapTileCode (bs : List Bool) : List Nat :=
+  bs.flatMap (fun b => if b then [5, 5, 3, 5, 5] else [5, 5, 5, 3, 5])
+
+theorem forb5Free_free_binary_tiles (bs : List Bool) :
+    IsThreeFive (gapTileCode bs) ∧ Forb5Free (gapTileCode bs) ∧ (gapTileCode bs).sum = 23 * bs.length := by
+  have h35 : IsThreeFive (gapTileCode bs) := by
+    intro g hg; simp only [gapTileCode, List.mem_flatMap] at hg
+    obtain ⟨b, _, hb⟩ := hg; cases b <;> simp at hb <;> omega
+  have hsum : (gapTileCode bs).sum = 23 * bs.length := by
+    clear h35
+    induction bs with
+    | nil => rfl
+    | cons b rest ih =>
+      have hs0 : ([5, 5, 5, 3, 5] : List Nat).sum = 23 := rfl
+      have hs1 : ([5, 5, 3, 5, 5] : List Nat).sum = 23 := rfl
+      cases b
+      · change ([5, 5, 5, 3, 5] ++ gapTileCode rest).sum = 23 * (rest.length + 1); rw [List.sum_append, hs0, ih]; omega
+      · change ([5, 5, 3, 5, 5] ++ gapTileCode rest).sum = 23 * (rest.length + 1); rw [List.sum_append, hs1, ih]; omega
+  have hfree : Forb5Free (gapTileCode bs) := by
+    rw [← gapWord_in_trap_iff_forb5Free h35, Rule30GateTrap.trapPath_iff_trapDfaAccepts]
+    let S : List Nat := [0, 39, 48]
+    have hS : 0 ∈ S ∧ S.all (fun q => (Rule30GateTrap.trapDfaStep q true).isSome &&
+        (match Rule30GateTrap.trapDfaRun q (gapPrefix [5, 5, 5, 3, 5]) with | some q' => S.contains q' | none => false) &&
+        (match Rule30GateTrap.trapDfaRun q (gapPrefix [5, 5, 3, 5, 5]) with | some q' => S.contains q' | none => false)) = true := by decide +kernel
+    have hrun : ∀ (l : List Bool) (q : Nat), q ∈ S → ∃ q' ∈ S, Rule30GateTrap.trapDfaRun q (gapPrefix (gapTileCode l)) = some q' := by
+      intro l
+      induction l with
+      | nil => intro q hq; exact ⟨q, hq, rfl⟩
+      | cons b rest ih =>
+        intro q hq
+        have hqok := List.all_eq_true.mp hS.2 q hq
+        simp only [Bool.and_eq_true] at hqok
+        cases b
+        · simp only [gapTileCode, List.flatMap_cons, Bool.false_eq_true, ↓reduceIte, gapPrefix_append, trapDfaRun_append]
+          cases h1 : Rule30GateTrap.trapDfaRun q (gapPrefix [5, 5, 5, 3, 5]) with
+          | none => rw [h1] at hqok; simp at hqok
+          | some q1 =>
+            rw [h1] at hqok
+            exact ih q1 (List.contains_iff_mem.mp hqok.1.2)
+        · simp only [gapTileCode, List.flatMap_cons, ↓reduceIte, gapPrefix_append, trapDfaRun_append]
+          cases h1 : Rule30GateTrap.trapDfaRun q (gapPrefix [5, 5, 3, 5, 5]) with
+          | none => rw [h1] at hqok; simp at hqok
+          | some q1 =>
+            rw [h1] at hqok
+            exact ih q1 (List.contains_iff_mem.mp hqok.2)
+    obtain ⟨q', hq', hr⟩ := hrun bs 0 hS.1
+    have hqok := List.all_eq_true.mp hS.2 q' hq'
+    simp only [Bool.and_eq_true] at hqok
+    rw [gapWord_eq_gapPrefix, Rule30GateTrap.trapDfaAccepts, trapDfaRun_append, hr]
+    cases hst : Rule30GateTrap.trapDfaStep q' true with
+    | none => rw [hst] at hqok; simp at hqok
+    | some q'' => simp [Rule30GateTrap.trapDfaRun, hst]
+  exact ⟨h35, hfree, hsum⟩
+/-- **Exponential Upper Count on `Forb5Free` `{3, 5}` Gap Words (`forb5Free_gapWord_count_le_34_31`):**
+any duplicate-free list `L` of `Forb5Free` `{3, 5}` gap sequences all summing to `n` satisfies
+`L.length * 31 ^ (n + 1) ≤ 2972 * 34 ^ (n + 1)`. -/
+theorem forb5Free_gapWord_count_le_34_31 (n : Nat) (L : List (List Nat))
+    (hnd : L.Nodup) (hmem : ∀ gs ∈ L, IsThreeFive gs ∧ Forb5Free gs ∧ gs.sum = n) :
+    L.length * 31 ^ (n + 1) ≤ 2972 * 34 ^ (n + 1) := by
+  have hgw_len : ∀ gs : List Nat, IsThreeFive gs → (gapWord gs).length = gs.sum + 1 := by
+    intro gs
+    induction gs with
+    | nil => intro _; rfl
+    | cons g rest ih =>
+      intro h35
+      have hg : 1 ≤ g := by rcases h35 g List.mem_cons_self with rfl | rfl <;> decide
+      have hr := ih (fun x hx => h35 x (List.mem_cons_of_mem _ hx))
+      have hsc : (g :: rest).sum = g + rest.sum := List.sum_cons
+      simp only [gapWord, List.length_cons, List.length_append, List.length_replicate, hr, hsc]
+      omega
+  have hgw_inj : ∀ (a b : List Nat), IsThreeFive a → IsThreeFive b → gapWord a = gapWord b → a = b := by
+    intro a
+    induction a with
+    | nil =>
+      intro b _ hb heq
+      cases b with
+      | nil => rfl
+      | cons g rest =>
+        have h1 := congrArg List.length heq
+        rw [hgw_len (g :: rest) hb] at h1
+        have hg : 1 ≤ g := by rcases hb g List.mem_cons_self with rfl | rfl <;> decide
+        simp [gapWord] at h1; omega
+    | cons g1 r1 ih =>
+      intro b ha hb heq
+      cases b with
+      | nil =>
+        have h1 := congrArg List.length heq
+        rw [hgw_len (g1 :: r1) ha] at h1
+        have hg : 1 ≤ g1 := by rcases ha g1 List.mem_cons_self with rfl | rfl <;> decide
+        simp [gapWord] at h1; omega
+      | cons g2 r2 =>
+        have h1 : g1 = 3 ∨ g1 = 5 := ha g1 List.mem_cons_self
+        have h2 : g2 = 3 ∨ g2 = 5 := hb g2 List.mem_cons_self
+        have hge : g1 = g2 := by
+          rcases h1 with rfl | rfl <;> rcases h2 with rfl | rfl
+          · rfl
+          · cases r1 <;> simp [gapWord] at heq
+          · cases r2 <;> simp [gapWord] at heq
+          · rfl
+        subst hge
+        simp only [gapWord, List.cons.injEq] at heq
+        have hrest : gapWord r1 = gapWord r2 := (Rule30GateTrap.list_append_eq_of_length_eq rfl heq.2).2
+        rw [ih r2 (fun x hx => ha x (List.mem_cons_of_mem _ hx)) (fun x hx => hb x (List.mem_cons_of_mem _ hx)) hrest]
+  have hnd_img : (L.map gapWord).Nodup := by
+    have aux : ∀ (xs : List (List Nat)), xs.Nodup → (∀ gs ∈ xs, IsThreeFive gs) → (xs.map gapWord).Nodup := by
+      intro xs
+      induction xs with
+      | nil => intro _ _; exact List.nodup_nil
+      | cons a rest ih =>
+        intro hnd_x h35_x
+        obtain ⟨ha, hnd_r⟩ := List.nodup_cons.mp hnd_x
+        apply List.nodup_cons.mpr
+        refine ⟨?_, ih hnd_r (fun z hz => h35_x z (List.mem_cons_of_mem _ hz))⟩
+        intro hm
+        obtain ⟨b, hb, heq⟩ := List.mem_map.mp hm
+        exact ha ((hgw_inj b a (h35_x b (List.mem_cons_of_mem _ hb)) (h35_x a List.mem_cons_self) heq) ▸ hb)
+    exact aux L hnd (fun gs hgs => (hmem gs hgs).1)
+  have hsub : ∀ w ∈ L.map gapWord, w ∈ Rule30GateTrap.trapDfaWords 0 (n + 1) := by
+    intro w hw
+    obtain ⟨gs, hgs, rfl⟩ := List.mem_map.mp hw
+    obtain ⟨h35, hfr, hsm⟩ := hmem gs hgs
+    have htp := (gapWord_in_trap_iff_forb5Free h35).mpr hfr
+    exact (Rule30GateTrap.mem_trapDfaWords_iff (n + 1) 0 (gapWord gs)).mpr
+      ⟨by rw [hgw_len gs h35, hsm], (Rule30GateTrap.trapPath_iff_trapDfaAccepts _).mp htp⟩
+  have hle : L.length ≤ (Rule30GateTrap.trapDfaWords 0 (n + 1)).length := by
+    have aux_le : ∀ (xs ys : List (List Bool)), xs.Nodup → (∀ x ∈ xs, x ∈ ys) → xs.length ≤ ys.length := by
+      intro xs
+      induction xs with
+      | nil => intro _ _ _; exact Nat.zero_le _
+      | cons x xs ih =>
+        intro ys hndx hsubx
+        obtain ⟨hxn, hndxs⟩ := List.nodup_cons.mp hndx
+        have hxmem := hsubx x List.mem_cons_self
+        have hrec := ih (ys.erase x) hndxs (fun z hz =>
+          (List.mem_erase_of_ne (fun e => hxn (by subst e; exact hz))).mpr (hsubx z (List.mem_cons_of_mem _ hz)))
+        have her : (ys.erase x).length + 1 = ys.length := by
+          rw [List.length_erase_of_mem hxmem]; have := List.length_pos_of_mem hxmem; omega
+        simp only [List.length_cons]; omega
+    simpa [List.length_map] using aux_le (L.map gapWord) _ hnd_img hsub
+  exact Nat.le_trans (Nat.mul_le_mul_right _ hle) (Rule30GateTrap.trapDfa_wordCount_le_34_31 (n + 1))
+
 end Ruliology.CellularAutomata.Rule30GateTrapWords

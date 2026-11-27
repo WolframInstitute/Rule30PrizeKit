@@ -500,5 +500,372 @@ theorem cell_col_pred_constraints6 (a : Int) (T : Nat)
   rw [show t - 2 + 2 + 2 * i = t + 2 * i by omega]
   exact hr i hi
 
+set_option maxRecDepth 200000
+set_option maxHeartbeats 1600000
+
+/-! ## Universal width-6 closed-system entropy (`15/11`) and left-word diversity bridge -/
+
+def dec6 (c : Nat) : List Bool := (List.range 6).map (fun i => c.testBit i)
+def enc6 : List Bool → Nat
+  | [] => 0
+  | b :: bs => (if b then 1 else 0) + 2 * enc6 bs
+
+def img6TwoCodesPack : Nat := 0x3e3c3a3837343231302e2d2a2827242221201e1c1a1918171412100e0d0a080704020100
+def img6TwoIdxPack : Nat := 0x240023002200212000001f001e1d1c001b1a000019001817000016001514130012001100100f0e0d00000c000b000a00090800000700060500000400030201
+def img6TwoSuccPack : Nat := 0x1503150318061806200d200d1f0c1f0c0f210f210a1d0a1d0012001205170517071907191e1e1e1e222222221717171716161616080808080202020209090909101010100e0e0e0e15031e1e18062121200d17171b0912121f0c16160f210f0f0a1d0a0a0012000007190707101010220b0b0b1e05050517040404161a1a231114141d0a202017051e1e15031c1c1301
+def onset6DfaStepPack : Nat := 0x90a1c001b0006001a1300081918000017001600150e1413090a1200110010000f0e0d000c0300000b0a06030908070306000503040302
+def onset6DfaMasksPack : Nat := 0x10084222102a15014440540a1200803219426650a04028100001048401206637144dc00804010100000840021084ca70328010080202000230044c00110cc623302814010400448040a000221940465050081200004632144c8020000810000924850920c4c060b0003a1d436650192cc72b30763f164dc03b3dc76f70e4ca78b2807f3fd76ff0fffffffff
+def onset6DfaWtPack : Nat := 0x39003200250063001c004b008a001500370066001000580084001400410061000f0077000b004d0058006b0086008f00b0006900cf00e5
+
+def img6CodeAt (i : Nat) : Nat := (img6TwoCodesPack >>> (8 * i)) % 256
+def img6IdxOf (c : Nat) : Nat := (img6TwoIdxPack >>> (8 * c)) % 256
+def img6SuccAt (i : Nat) (x1 x2 : Bool) : Nat :=
+  let idx := 4 * i + (if x1 then 2 else 0) + (if x2 then 1 else 0)
+  (img6TwoSuccPack >>> (8 * idx)) % 256
+
+def onset6DfaStep (q : Nat) (b : Bool) : Option Nat :=
+  let v := (onset6DfaStepPack >>> (16 * q + (if b then 8 else 0))) % 256
+  if v = 0 then none else some (v - 1)
+
+def onset6DfaHas (q i : Nat) : Bool := onset6DfaMasksPack.testBit (40 * q + i)
+def onset6DfaWtAt (q : Nat) : Nat := (onset6DfaWtPack >>> (16 * q)) % 65536
+
+def onset6DfaRun : Nat → List Bool → Option Nat
+  | q, [] => some q
+  | q, b :: bs => match onset6DfaStep q b with
+    | some q' => onset6DfaRun q' bs
+    | none => none
+
+def onset6DfaAccepts (q : Nat) (w : List Bool) : Bool := (onset6DfaRun q w).isSome
+
+def onset6DfaWords (q : Nat) : Nat → List (List Bool)
+  | 0 => [[]]
+  | n + 1 =>
+    let l0 := match onset6DfaStep q false with
+      | some q' => (onset6DfaWords q' n).map (false :: ·)
+      | none => []
+    let l1 := match onset6DfaStep q true with
+      | some q' => (onset6DfaWords q' n).map (true :: ·)
+      | none => []
+    l0 ++ l1
+
+private theorem img6Two_entry_ok :
+    (List.range 64).all (fun c =>
+      let w0 := dec6 c
+      ([false, true].all (fun a1 => [false, true].all (fun a2 =>
+        let w1 := dstep a1 a2 w0
+        ([false, true].all (fun b1 => [false, true].all (fun b2 =>
+          let c2 := enc6 (dstep b1 b2 w1)
+          let u := img6IdxOf c2
+          1 ≤ u && u ≤ 36 && (img6CodeAt (u - 1) == c2)))))))) = true := by decide +kernel
+
+private theorem img6Two_succ_ok :
+    (List.range 36).all (fun i =>
+      let w := dec6 (img6CodeAt i)
+      let j00 := img6SuccAt i false false
+      let j01 := img6SuccAt i false true
+      let j10 := img6SuccAt i true false
+      let j11 := img6SuccAt i true true
+      j00 < 36 && j01 < 36 && j10 < 36 && j11 < 36 &&
+      (enc6 (dstep false false w) == img6CodeAt j00) &&
+      (enc6 (dstep false true w) == img6CodeAt j01) &&
+      (enc6 (dstep true false w) == img6CodeAt j10) &&
+      (enc6 (dstep true true w) == img6CodeAt j11)) = true := by decide +kernel
+
+private theorem onset6Dfa_sound_ok :
+    (List.range 28).all (fun q =>
+      (List.range 36).all (fun i =>
+        if onset6DfaHas q i then
+          let b := img6CodeAt i % 2 == 1
+          match onset6DfaStep q b with
+          | some q' =>
+            q' < 28 &&
+            onset6DfaHas q' (img6SuccAt i false false) &&
+            onset6DfaHas q' (img6SuccAt i false true) &&
+            onset6DfaHas q' (img6SuccAt i true false) &&
+            onset6DfaHas q' (img6SuccAt i true true)
+          | none => false
+        else true)) = true := by decide +kernel
+
+private theorem onset6Dfa_init_all : (List.range 36).all (fun i => onset6DfaHas 0 i) = true := by decide +kernel
+
+private theorem onset6Dfa_weights_ok :
+    (List.range 28).all (fun q =>
+      let wq := onset6DfaWtAt q
+      let s0 := match onset6DfaStep q false with | some q' => onset6DfaWtAt q' | none => 0
+      let s1 := match onset6DfaStep q true with | some q' => onset6DfaWtAt q' | none => 0
+      (match onset6DfaStep q false with | none => true | some q' => q' < 28) &&
+      (match onset6DfaStep q true with | none => true | some q' => q' < 28) &&
+      1 ≤ wq && 11 * (s0 + s1) ≤ 15 * wq) = true := by decide +kernel
+
+private theorem dec6_enc6 (w : List Bool) (hw : w.length = 6) : dec6 (enc6 w) = w := by
+  rcases w with _ | ⟨a, _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | _⟩⟩⟩⟩⟩⟩ <;> simp at hw
+  cases a <;> cases b <;> cases c <;> cases d <;> cases e <;> cases f <;> decide
+
+private theorem enc6_lt_64 (w : List Bool) (hw : w.length = 6) : enc6 w < 64 := by
+  rcases w with _ | ⟨a, _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | _⟩⟩⟩⟩⟩⟩ <;> simp at hw
+  cases a <;> cases b <;> cases c <;> cases d <;> cases e <;> cases f <;> decide
+
+private theorem dstep_len6 (w : List Bool) (hw : w.length = 6) (x1 x2 : Bool) : (dstep x1 x2 w).length = 6 := by
+  rcases w with _ | ⟨a, _ | ⟨b, _ | ⟨c, _ | ⟨d, _ | ⟨e, _ | ⟨f, _ | _⟩⟩⟩⟩⟩⟩ <;> simp at hw
+  rfl
+
+theorem onset6_two_step_closed {H : Nat → Int → Bool} (hH : Obeys 6 H) (s : Nat)
+    (h0 : H s 0 = false) (h1 : H (s + 1) 0 = true)
+    (h2 : H (s + 2) 0 = false) (h3 : H (s + 3) 0 = true) :
+    ∃ i, i < 36 ∧ seg H (s + 4) 1 6 = dec6 (img6CodeAt i) := by
+  have hw1 : seg H (s + 2) 1 6 = dstep (H s 7) (H (s + 1) 7) (seg H s 1 6) := win_dstep hH h0 h1
+  have hw2 : seg H (s + 4) 1 6 = dstep (H (s + 2) 7) (H (s + 3) 7) (seg H (s + 2) 1 6) := by
+    simpa [Nat.add_assoc] using win_dstep hH h2 h3
+  have hlen0 : (seg H s 1 6).length = 6 := length_seg H s 1 6
+  have hlt : enc6 (seg H s 1 6) < 64 := enc6_lt_64 _ hlen0
+  have hall := List.all_eq_true.mp img6Two_entry_ok (enc6 (seg H s 1 6)) (List.mem_range.mpr hlt)
+  have hm (b : Bool) : b ∈ [false, true] := by cases b <;> simp
+  have hcont := List.all_eq_true.mp (List.all_eq_true.mp (List.all_eq_true.mp (List.all_eq_true.mp hall _ (hm (H s 7))) _ (hm (H (s + 1) 7))) _ (hm (H (s + 2) 7))) _ (hm (H (s + 3) 7))
+  dsimp only at hcont; simp only [Bool.and_eq_true, decide_eq_true_eq, beq_iff_eq] at hcont
+  rw [dec6_enc6 _ hlen0, ← hw1, ← hw2] at hcont
+  exact ⟨img6IdxOf (enc6 (seg H (s + 4) 1 6)) - 1, by omega, by rw [hcont.2, dec6_enc6 _ (length_seg H (s + 4) 1 6)]⟩
+
+theorem onset6Dfa_sound_of_obeys6 {H : Nat → Int → Bool} (hH : Obeys 6 H) (s m : Nat)
+    (hc : ∀ i, i < 2 * m + 4 → H (s + i) 0 = (i % 2 == 1)) :
+    onset6DfaAccepts 0 ((List.range m).map (fun k => H (s + 4 + 2 * k) 1)) = true := by
+  obtain ⟨i0, hi0, hseg0⟩ := onset6_two_step_closed hH s (hc 0 (by omega)) (hc 1 (by omega)) (hc 2 (by omega)) (hc 3 (by omega))
+  have hrec : ∀ k t q i, q < 28 → i < 36 → onset6DfaHas q i = true →
+      seg H t 1 6 = dec6 (img6CodeAt i) →
+      (∀ j, j < 2 * k → H (t + j) 0 = (j % 2 == 1)) →
+      onset6DfaAccepts q ((List.range k).map (fun j => H (t + 2 * j) 1)) = true := by
+    intro k; induction k with
+    | zero => intro t q i _ _ _ _ _; rfl
+    | succ k ih =>
+      intro t q i hq hi hm hseg hct
+      have hsnd := List.all_eq_true.mp (List.all_eq_true.mp onset6Dfa_sound_ok q (List.mem_range.mpr hq)) i (List.mem_range.mpr hi)
+      dsimp only at hsnd; simp only [hm, ↓reduceIte] at hsnd
+      have hbit : H t 1 = (img6CodeAt i % 2 == 1) := by
+        have hh := congrArg (fun l => l.headD false) hseg
+        have hd0 : (dec6 (img6CodeAt i)).headD false = (img6CodeAt i % 2 == 1) := by
+          show (img6CodeAt i).testBit 0 = _; rw [Nat.testBit_zero]; cases h : (img6CodeAt i % 2 == 1) <;> simp_all
+        rw [hd0] at hh; exact hh
+      rw [List.range_succ_eq_map, List.map_cons, List.map_map]
+      simp only [onset6DfaAccepts, onset6DfaRun, Nat.mul_zero, Nat.add_zero, hbit]
+      cases hst : onset6DfaStep q (img6CodeAt i % 2 == 1) with
+      | none => rw [hst] at hsnd; exact Bool.noConfusion hsnd
+      | some q' =>
+        rw [hst] at hsnd; simp only [Bool.and_eq_true, decide_eq_true_eq] at hsnd
+        have hw_next : seg H (t + 2) 1 6 = dstep (H t 7) (H (t + 1) 7) (dec6 (img6CodeAt i)) := by
+          rw [← hseg]; exact win_dstep hH (hct 0 (by omega)) (hct 1 (by omega))
+        have hsu := List.all_eq_true.mp img6Two_succ_ok i (List.mem_range.mpr hi)
+        dsimp only at hsu; simp only [Bool.and_eq_true, beq_iff_eq, decide_eq_true_eq] at hsu
+        have hlen_d : (dstep (H t 7) (H (t + 1) 7) (dec6 (img6CodeAt i))).length = 6 := dstep_len6 _ (by simp [dec6]) _ _
+        have hstep_to : ∃ i', i' < 36 ∧ onset6DfaHas q' i' = true ∧ seg H (t + 2) 1 6 = dec6 (img6CodeAt i') := by
+          cases hx1 : H t 7 <;> cases hx2 : H (t + 1) 7 <;> rw [hx1, hx2] at hw_next hlen_d
+          · exact ⟨_, hsu.1.1.1.1.1.1.1, hsnd.1.1.1.2, hw_next.trans ((dec6_enc6 _ hlen_d).symm.trans (congrArg dec6 hsu.1.1.1.2))⟩
+          · exact ⟨_, hsu.1.1.1.1.1.1.2, hsnd.1.1.2, hw_next.trans ((dec6_enc6 _ hlen_d).symm.trans (congrArg dec6 hsu.1.1.2))⟩
+          · exact ⟨_, hsu.1.1.1.1.1.2, hsnd.1.2, hw_next.trans ((dec6_enc6 _ hlen_d).symm.trans (congrArg dec6 hsu.1.2))⟩
+          · exact ⟨_, hsu.1.1.1.1.2, hsnd.2, hw_next.trans ((dec6_enc6 _ hlen_d).symm.trans (congrArg dec6 hsu.2))⟩
+        obtain ⟨i', hi', hm', hseg'⟩ := hstep_to
+        have hmap : (List.map ((fun j => H (t + 2 * j) 1) ∘ Nat.succ) (List.range k)) =
+            (List.range k).map (fun j => H (t + 2 + 2 * j) 1) := by
+          apply List.map_congr_left; intro j _; simp only [Function.comp_apply]; congr 1; omega
+        rw [hmap]
+        exact ih (t + 2) q' i' hsnd.1.1.1.1 hi' hm' hseg' (fun j hj => by
+          have h := hct (j + 2) (by omega); rw [show t + (j + 2) = t + 2 + j by omega] at h
+          simpa [show (j + 2) % 2 = j % 2 by omega] using h)
+  exact hrec m (s + 4) 0 i0 (by decide) hi0 (List.all_eq_true.mp onset6Dfa_init_all i0 (List.mem_range.mpr hi0)) hseg0 (fun j hj => by
+    have h := hc (j + 4) (by omega); rw [show s + (j + 4) = s + 4 + j by omega] at h
+    simpa [show (j + 4) % 2 = j % 2 by omega] using h)
+
+private theorem mem_onset6DfaWords_iff (n : Nat) :
+    ∀ q w, w ∈ onset6DfaWords q n ↔ w.length = n ∧ onset6DfaAccepts q w = true := by
+  induction n with
+  | zero => intro q w; cases w <;> simp [onset6DfaWords, onset6DfaAccepts, onset6DfaRun]
+  | succ n ih =>
+    intro q w; constructor
+    · intro hw; simp only [onset6DfaWords, List.mem_append] at hw
+      rcases hw with h0 | h1
+      · cases hst : onset6DfaStep q false with
+        | none => rw [hst] at h0; simp at h0
+        | some q' => rw [hst] at h0; obtain ⟨u, hu, rfl⟩ := List.mem_map.mp h0; obtain ⟨hl, ha⟩ := (ih q' u).mp hu; exact ⟨by simp [hl], by simp [onset6DfaAccepts, onset6DfaRun, hst]; exact ha⟩
+      · cases hst : onset6DfaStep q true with
+        | none => rw [hst] at h1; simp at h1
+        | some q' => rw [hst] at h1; obtain ⟨u, hu, rfl⟩ := List.mem_map.mp h1; obtain ⟨hl, ha⟩ := (ih q' u).mp hu; exact ⟨by simp [hl], by simp [onset6DfaAccepts, onset6DfaRun, hst]; exact ha⟩
+    · rintro ⟨hlen, hacc⟩; cases w with
+      | nil => simp at hlen
+      | cons b bs =>
+        simp only [onset6DfaAccepts, onset6DfaRun] at hacc
+        cases hst : onset6DfaStep q b with
+        | none => rw [hst] at hacc; simp at hacc
+        | some q' =>
+          rw [hst] at hacc; have hm := (ih q' bs).mpr ⟨by simpa using hlen, hacc⟩
+          simp only [onset6DfaWords, List.mem_append]; cases b
+          · left; rw [hst]; exact List.mem_map_of_mem hm
+          · right; rw [hst]; exact List.mem_map_of_mem hm
+
+theorem onset6Dfa_wordCount_le_15_11 (m : Nat) :
+    (onset6DfaWords 0 m).length * 11 ^ m ≤ 229 * 15 ^ m := by
+  have hgen : ∀ n q, q < 28 → (onset6DfaWords q n).length * 11 ^ n ≤ onset6DfaWtAt q * 15 ^ n := by
+    intro n; induction n with
+    | zero =>
+      intro q hq; have hw := List.all_eq_true.mp onset6Dfa_weights_ok q (List.mem_range.mpr hq)
+      dsimp only at hw; simp only [Bool.and_eq_true, decide_eq_true_eq] at hw; simp [onset6DfaWords]; exact hw.1.2
+    | succ n ih =>
+      intro q hq; have hw := List.all_eq_true.mp onset6Dfa_weights_ok q (List.mem_range.mpr hq)
+      dsimp only at hw; simp only [Bool.and_eq_true, decide_eq_true_eq] at hw
+      have h0 : (match onset6DfaStep q false with | some q' => (onset6DfaWords q' n).length | none => 0) * 11 ^ n ≤
+          (match onset6DfaStep q false with | some q' => onset6DfaWtAt q' | none => 0) * 15 ^ n := by
+        cases hst : onset6DfaStep q false with | none => simp | some q' => rw [hst] at hw; exact ih q' (by simpa using hw.1.1.1)
+      have h1 : (match onset6DfaStep q true with | some q' => (onset6DfaWords q' n).length | none => 0) * 11 ^ n ≤
+          (match onset6DfaStep q true with | some q' => onset6DfaWtAt q' | none => 0) * 15 ^ n := by
+        cases hst : onset6DfaStep q true with | none => simp | some q' => rw [hst] at hw; exact ih q' (by simpa using hw.1.1.2)
+      have hlen : (onset6DfaWords q (n + 1)).length =
+          (match onset6DfaStep q false with | some q' => (onset6DfaWords q' n).length | none => 0) +
+          (match onset6DfaStep q true with | some q' => (onset6DfaWords q' n).length | none => 0) := by
+        simp only [onset6DfaWords, List.length_append]; congr 1 <;> cases onset6DfaStep q _ <;> simp
+      rw [hlen, Nat.pow_succ, Nat.pow_succ]
+      calc ((match onset6DfaStep q false with | some q' => (onset6DfaWords q' n).length | none => 0) +
+            (match onset6DfaStep q true with | some q' => (onset6DfaWords q' n).length | none => 0)) * (11 ^ n * 11)
+          = ((match onset6DfaStep q false with | some q' => (onset6DfaWords q' n).length | none => 0) * 11 ^ n +
+             (match onset6DfaStep q true with | some q' => (onset6DfaWords q' n).length | none => 0) * 11 ^ n) * 11 := by
+            rw [← Nat.mul_assoc, Nat.add_mul]
+        _ ≤ ((match onset6DfaStep q false with | some q' => onset6DfaWtAt q' | none => 0) * 15 ^ n +
+             (match onset6DfaStep q true with | some q' => onset6DfaWtAt q' | none => 0) * 15 ^ n) * 11 :=
+            Nat.mul_le_mul_right 11 (Nat.add_le_add h0 h1)
+        _ = (11 * ((match onset6DfaStep q false with | some q' => onset6DfaWtAt q' | none => 0) +
+                   (match onset6DfaStep q true with | some q' => onset6DfaWtAt q' | none => 0))) * 15 ^ n := by
+            rw [← Nat.add_mul, Nat.mul_right_comm, Nat.mul_comm _ 11]
+        _ ≤ (15 * onset6DfaWtAt q) * 15 ^ n := Nat.mul_le_mul_right _ hw.2
+        _ = onset6DfaWtAt q * (15 ^ n * 15) := by rw [Nat.mul_comm 15 _, Nat.mul_assoc, Nat.mul_comm 15 (15 ^ n)]
+  have h0 : onset6DfaWtAt 0 = 229 := by decide +kernel
+  rw [← h0]; exact hgen m 0 (by decide)
+
+private theorem obeys_left_inv {H : Nat → Int → Bool} {j : Int} (hj : ObeysAt H j) (t : Nat) :
+    H t (j - 1) = xor (H (t + 1) j) (H t j || H t (j + 1)) := by
+  rw [hj t]; unfold rule; cases H t (j - 1) <;> cases (H t j || H t (j + 1)) <;> rfl
+
+/-- **Leftward Spatial Reconstruction from Alternating Column `0` and White-Tick Column `1`
+(`leftSeg_determined_by_white_col1`):** in any Rule 30 spacetime obeying columns `-2*m .. 0`, two
+white-phase ages sharing `m` white-tick readings of column `1` share their entire `2*m`-cell spatial
+word immediately west of column `0`. -/
+theorem leftSeg_determined_by_white_col1 {H : Nat → Int → Bool} {m s1 s2 : Nat}
+    (hwest : ∀ j : Int, -((2 * m : Nat) : Int) ≤ j → j ≤ 0 → ObeysAt H j)
+    (hc1 : ∀ k, k ≤ 2 * m → H (s1 + k) 0 = (k % 2 == 1))
+    (hc2 : ∀ k, k ≤ 2 * m → H (s2 + k) 0 = (k % 2 == 1))
+    (hr : ∀ k, k < m → H (s1 + 2 * k) 1 = H (s2 + 2 * k) 1) :
+    seg H s1 (-((2 * m : Nat) : Int)) (2 * m) = seg H s2 (-((2 * m : Nat) : Int)) (2 * m) := by
+  have hor : ∀ k, k < 2 * m → (H (s1 + k) 0 || H (s1 + k) 1) = (H (s2 + k) 0 || H (s2 + k) 1) := by
+    intro k hk
+    rw [hc1 k (by omega), hc2 k (by omega)]
+    by_cases he : k % 2 = 0
+    · have h0 : (k % 2 == 1) = false := beq_eq_false_iff_ne.mpr (by omega)
+      rw [h0, Bool.false_or, Bool.false_or, show k = 2 * (k / 2) by omega]
+      exact hr (k / 2) (by omega)
+    · have h1 : (k % 2 == 1) = true := beq_iff_eq.mpr (by omega)
+      rw [h1, Bool.true_or, Bool.true_or]
+  have htri : ∀ d : Nat, d ≤ 2 * m →
+      (∀ k, k + d ≤ 2 * m → H (s1 + k) (-(d : Int)) = H (s2 + k) (-(d : Int))) ∧
+      (d < 2 * m → ∀ k, k + (d + 1) ≤ 2 * m → H (s1 + k) (-((d + 1 : Nat) : Int)) = H (s2 + k) (-((d + 1 : Nat) : Int))) := by
+    intro d
+    induction d with
+    | zero =>
+      intro _
+      refine ⟨fun k hk => by simpa using (hc1 k hk).trans (hc2 k hk).symm, fun _ k hk => ?_⟩
+      have e : (-((1 : Nat) : Int)) = 0 - 1 := rfl
+      rw [e, obeys_left_inv (hwest 0 (by omega) (by omega)), obeys_left_inv (hwest 0 (by omega) (by omega))]
+      rw [show s1 + k + 1 = s1 + (k + 1) by omega, show s2 + k + 1 = s2 + (k + 1) by omega,
+          hc1 (k + 1) (by omega), hc2 (k + 1) (by omega), show (0 : Int) + 1 = 1 by rfl, hor k (by omega)]
+    | succ d ih =>
+      intro hd
+      obtain ⟨hprev, hcur⟩ := ih (by omega)
+      refine ⟨hcur (by omega), fun hdlt k hk => ?_⟩
+      have e1 : (-((d + 1 + 1 : Nat) : Int)) = (-((d + 1 : Nat) : Int)) - 1 := by omega
+      have e2 : (-((d + 1 : Nat) : Int)) + 1 = -(d : Int) := by omega
+      rw [e1, obeys_left_inv (hwest (-((d + 1 : Nat) : Int)) (by omega) (by omega)),
+          obeys_left_inv (hwest (-((d + 1 : Nat) : Int)) (by omega) (by omega)), e2,
+          show s1 + k + 1 = s1 + (k + 1) by omega, show s2 + k + 1 = s2 + (k + 1) by omega,
+          hcur (by omega) (k + 1) (by omega), hcur (by omega) k (by omega), hprev k (by omega)]
+  have hseg_eq : ∀ (n : Nat) (a : Int), (∀ j, j < n → H s1 (a + j) = H s2 (a + j)) → seg H s1 a n = seg H s2 a n := by
+    intro n
+    induction n with
+    | zero => intro _ _; rfl
+    | succ n ih =>
+      intro a h
+      simp only [seg]
+      congr 1
+      · simpa using h 0 (by omega)
+      · exact ih (a + 1) (fun j hj => by simpa [show a + 1 + (j : Int) = a + ((j + 1 : Nat) : Int) by omega] using h (j + 1) (by omega))
+  apply hseg_eq
+  intro j hj
+  have hd : 2 * m - j ≤ 2 * m := by omega
+  have hcell := (htri (2 * m - j) hd).1 0 (by omega)
+  rw [show -((2 * m : Nat) : Int) + (j : Int) = -((2 * m - j : Nat) : Int) by omega]; exact hcell
+
+/-- **Universal Alternating-Column Spatial Diversity Bound (`alternating_leftWord_diversity_15_11`):**
+in **any** Rule 30 spacetime `H` obeying columns `-2*m .. 6` whose column `0` alternates from `T` on,
+every list `ts` of white-phase ages `≥ T + 4` with pairwise distinct `2*m`-cell spatial words west of
+column `0` satisfies `ts.length * 11 ^ m ≤ 229 * 15 ^ m` (below `0.22373` bits per spatial cell,
+with zero trap assumption and explicit `T + 4` onset). -/
+theorem alternating_leftWord_diversity_15_11 {H : Nat → Int → Bool} {T m : Nat}
+    (hwest : ∀ j : Int, -((2 * m : Nat) : Int) ≤ j → j ≤ 0 → ObeysAt H j)
+    (heast : Obeys 6 H)
+    (halt : ∀ t, T ≤ t → H t 0 = ((t - T) % 2 == 1))
+    (ts : List Nat)
+    (hts : ∀ t ∈ ts, T + 4 ≤ t ∧ (t - T) % 2 = 0)
+    (hnd : (ts.map (fun t => seg H t (-((2 * m : Nat) : Int)) (2 * m))).Nodup) :
+    ts.length * 11 ^ m ≤ 229 * 15 ^ m := by
+  let obs : Nat → List Bool := fun t => (List.range m).map (fun k => H (t + 2 * k) 1)
+  have hobs_in : ∀ t ∈ ts, obs t ∈ onset6DfaWords 0 m := by
+    intro t ht
+    obtain ⟨ht4, hpar⟩ := hts t ht
+    have hc : ∀ i, i < 2 * m + 4 → H ((t - 4) + i) 0 = (i % 2 == 1) := by
+      intro i hi
+      rw [halt ((t - 4) + i) (by omega)]
+      have : ((t - 4) + i - T) % 2 = i % 2 := by omega
+      rw [this]
+    have hacc := onset6Dfa_sound_of_obeys6 heast (t - 4) m hc
+    have hshift : (List.range m).map (fun k => H ((t - 4) + 4 + 2 * k) 1) = obs t := by
+      apply List.map_congr_left; intro k _; rw [show t - 4 + 4 = t by omega]
+    rw [hshift] at hacc
+    exact (mem_onset6DfaWords_iff m 0 (obs t)).mpr ⟨by simp [obs], hacc⟩
+  have hobs_nd : (ts.map obs).Nodup := by
+    have aux : ∀ (l : List Nat), (∀ t ∈ l, T + 4 ≤ t ∧ (t - T) % 2 = 0) →
+        (l.map (fun t => seg H t (-((2 * m : Nat) : Int)) (2 * m))).Nodup → (l.map obs).Nodup := by
+      intro l
+      induction l with
+      | nil => intro _ _; exact List.nodup_nil
+      | cons a rest ih =>
+        intro hl hndl
+        obtain ⟨ha_not, hnd_r⟩ := List.nodup_cons.mp hndl
+        apply List.nodup_cons.mpr
+        refine ⟨?_, ih (fun x hx => hl x (List.mem_cons_of_mem _ hx)) hnd_r⟩
+        intro hm
+        obtain ⟨b, hb, hobs_eq⟩ := List.mem_map.mp hm
+        have ha_p := hl a List.mem_cons_self
+        have hb_p := hl b (List.mem_cons_of_mem _ hb)
+        have hr : ∀ k, k < m → H (b + 2 * k) 1 = H (a + 2 * k) 1 := by
+          intro k hk
+          have hg := congrArg (fun u => u.getD k false) hobs_eq
+          simpa [obs, List.getD_eq_getElem?_getD, List.getElem?_map, List.getElem?_range hk] using hg
+        have hseg_eq := leftSeg_determined_by_white_col1 hwest
+          (fun k _ => by rw [halt (b + k) (by omega), show (b + k - T) % 2 = k % 2 by omega])
+          (fun k _ => by rw [halt (a + k) (by omega), show (a + k - T) % 2 = k % 2 by omega]) hr
+        exact ha_not (List.mem_map.mpr ⟨b, hb, hseg_eq⟩)
+    exact aux ts hts hnd
+  have hle : ts.length ≤ (onset6DfaWords 0 m).length := by
+    have aux_le : ∀ (xs ys : List (List Bool)), xs.Nodup → (∀ x ∈ xs, x ∈ ys) → xs.length ≤ ys.length := by
+      intro xs
+      induction xs with
+      | nil => intro _ _ _; exact Nat.zero_le _
+      | cons x xs ih =>
+        intro ys hndx hsubx
+        obtain ⟨hxn, hndxs⟩ := List.nodup_cons.mp hndx
+        have hxmem := hsubx x List.mem_cons_self
+        have hrec := ih (ys.erase x) hndxs (fun z hz =>
+          (List.mem_erase_of_ne (fun e => hxn (by subst e; exact hz))).mpr (hsubx z (List.mem_cons_of_mem _ hz)))
+        have her : (ys.erase x).length + 1 = ys.length := by
+          rw [List.length_erase_of_mem hxmem]; have := List.length_pos_of_mem hxmem; omega
+        simp only [List.length_cons]; omega
+    simpa [List.length_map] using aux_le (ts.map obs) (onset6DfaWords 0 m) hobs_nd (fun w hw => by
+      obtain ⟨t, ht, rfl⟩ := List.mem_map.mp hw; exact hobs_in t ht)
+  exact Nat.le_trans (Nat.mul_le_mul_right _ hle) (onset6Dfa_wordCount_le_15_11 m)
+
 end Rule30PeriodTwoOnset
 end Ruliology.CellularAutomata
