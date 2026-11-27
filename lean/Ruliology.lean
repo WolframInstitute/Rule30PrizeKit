@@ -61,6 +61,7 @@ public import Ruliology.CellularAutomata.Rule30EtherThreeNotAbsorption
 public import Ruliology.CellularAutomata.Rule30EtherThreeReach
 public import Ruliology.CellularAutomata.Rule30EtherThreeLeft
 public import Ruliology.CellularAutomata.Rule30EtherThreeSkeleton
+public import Ruliology.CellularAutomata.Rule30ThirdTick
 public import Ruliology.CellularAutomata.Rule30WestTripleWeight
 public import Ruliology.CellularAutomata.Rule30WestSixReading
 public import Ruliology.CellularAutomata.Rule30WhiteRunEight
