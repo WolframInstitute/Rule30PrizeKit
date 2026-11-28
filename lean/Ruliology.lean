@@ -325,6 +325,7 @@ public import Ruliology.CellularAutomata.Rule30IsolatedBlackQP
 public import Ruliology.CellularAutomata.Rule30LeftRichness
 public import Ruliology.CellularAutomata.Rule30LongRunTails
 public import Ruliology.CellularAutomata.Rule30TemporalDifference
+public import Ruliology.CellularAutomata.Rule30FallResidues
 
 /-!
 # Rule 30 Prize: Lean snapshot
