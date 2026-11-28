@@ -50,6 +50,10 @@ public import Rule30Equivalents.Genericity
 public import Rule30Equivalents.Preimages
 public import Rule30Equivalents.RandomConfigurations
 public import Rule30Equivalents.Mixing
+public import Rule30Equivalents.PairTraceEntropy
+public import Rule30Equivalents.PairHearing
+public import Rule30Equivalents.ExactHearingStrip
+public import Rule30Equivalents.LookaheadHearing
 public import Rule30Equivalents.HolderMeans
 public import Rule30Equivalents.BlackTimes
 public import Rule30Equivalents.CesaroMeans

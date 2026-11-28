@@ -1198,8 +1198,9 @@ theorem card_pairWords_le (a : ℤ) (L : ℕ) : (pairWords a (L + 1)).card ≤ 4
 
 /-- **A dynamical cover**: agreement on `[-N, N]` for `n` steps of rule 30 needs at most one
 configuration per pair word of the columns `N, N + 1` over `n + 2N + 1` steps. -/
-theorem coverMincard_le (N n : ℕ) :
-    coverMincard (fun x : ℤ → Bool => evol x 1) Set.univ (windowRel N) n ≤ 4 * 3 ^ (n + 2 * N) := by
+theorem coverMincard_le_card_pairWords (N n : ℕ) :
+    coverMincard (fun x : ℤ → Bool => evol x 1) Set.univ (windowRel N) n ≤
+      (pairWords N (n + 2 * N + 1)).card := by
   classical
   let L := n + 2 * N + 1
   -- a configuration with each pair word that occurs
@@ -1229,7 +1230,13 @@ theorem coverMincard_le (N n : ℕ) :
     rw [show (N : ℤ) - ((N - i).toNat : ℕ) = i by omega] at h
     exact h
   refine hcov.coverMincard_le_card.trans ?_
-  exact_mod_cast Finset.card_image_le.trans (card_pairWords_le N (n + 2 * N))
+  exact_mod_cast (Finset.card_image_le : ((pairWords N L).image rep).card ≤ (pairWords N L).card)
+
+/-- The three-letter backward extension bound applied to the dynamical window cover. -/
+theorem coverMincard_le (N n : ℕ) :
+    coverMincard (fun x : ℤ → Bool => evol x 1) Set.univ (windowRel N) n ≤ 4 * 3 ^ (n + 2 * N) := by
+  refine (coverMincard_le_card_pairWords N n).trans ?_
+  exact_mod_cast card_pairWords_le N (n + 2 * N)
 
 /-- **Rule 30 has topological entropy at most `log 3`** (Mathlib's `coverEntropy`), so
 `log 2 ≤ h(rule 30) ≤ log 3` with `log_two_le_coverEntropy`: every entourage contains agreement on
