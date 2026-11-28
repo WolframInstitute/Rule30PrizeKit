@@ -483,4 +483,281 @@ theorem exclude_three_of_unbounded (h : ∀ D, ∃ d, D ≤ d ∧ Covers d) : ¬
     rw [show T+1+3*k=T+3*k+1 by omega,w] at b
     contradiction
 
+/-! ## Residue-refined `CoversAt` channels, branching `HitTree` certificates, and sharpness witnesses -/
+
+/-- Single-residue coverage at distance `d` and time residue `s`. -/
+def CoversAt (d s : Nat) : Prop :=
+  ∀ x, EdgeRow x → ∃ k, evol x (s + 3 * k) (d : Int) = true
+
+/-- **Residue Decomposition of `Covers` and `(d + s) % 3`-Preserving Descent (`covers_iff_and_coversAt_previous`).** -/
+theorem covers_iff_and_coversAt_previous :
+    (∀ d : Nat, Covers d ↔ CoversAt d 0 ∧ CoversAt d 1 ∧ CoversAt d 2) ∧
+    (∀ d s : Nat, CoversAt (d + 1) ((s + 2) % 3) → CoversAt d (s % 3)) := by
+  refine ⟨fun d => ⟨fun h => ⟨fun x hx => h x hx 0 (by decide),
+                              fun x hx => h x hx 1 (by decide),
+                              fun x hx => h x hx 2 (by decide)⟩,
+                    fun ⟨h0, h1, h2⟩ x hx s hs => ?_⟩, fun d s h x hx => ?_⟩
+  · have hsc : s = 0 ∨ s = 1 ∨ s = 2 := by omega
+    rcases hsc with rfl | rfl | rfl
+    · exact h0 x hx
+    · exact h1 x hx
+    · exact h2 x hx
+  · let y (z : Int) := evol x 1 (z + (-1))
+    have edge : EdgeRow y := by
+      constructor
+      · change rule (x (-2)) (x (-1)) (x 0) = true
+        rw [hx.2 _ (by decide), hx.2 _ (by decide), hx.1]; rfl
+      · intro z hz
+        change rule (x (z + -1 - 1)) (x (z + -1)) (x (z + -1 + 1)) = false
+        rw [hx.2 _ (by omega), hx.2 _ (by omega), hx.2 _ (by omega)]; rfl
+    let r := (s + 2) % 3
+    obtain ⟨k, hit⟩ := h y edge
+    rw [show y = (fun z => evol x 1 (z + (-1))) from rfl, restart_at] at hit
+    have hd1 : ((d + 1 : Nat) : Int) + (-1 : Int) = (d : Int) := by omega
+    rw [hd1] at hit
+    refine ⟨(1 + (r + 3 * k) - s % 3) / 3, ?_⟩
+    have ht1 : s % 3 + 3 * ((1 + (r + 3 * k) - s % 3) / 3) = 1 + (r + 3 * k) := by dsimp [r]; omega
+    rw [ht1]; exact hit
+
+/-- **Single-Diagonal Unbounded Coverage Forces Infinitely Late `-1` Blacks on Its Residue (`hit_at_minus_one_of_unbounded_diag`).** -/
+theorem hit_at_minus_one_of_unbounded_diag (r : Nat) (hr : r < 3)
+    (h : ∀ D, ∃ d, D ≤ d ∧ CoversAt d ((3 + r - d % 3) % 3))
+    (T : Nat) (hTr : (T + 2) % 3 = r) :
+    ∃ k, cell (T + 3 * k) (-1) = true := by
+  obtain ⟨d, hd, cover⟩ := h T
+  let S := d + 1
+  let y (z : Int) := evol seed S (z + -(S : Int))
+  have edge : EdgeRow y := by
+    constructor
+    · simp only [y, evol_seed, Int.zero_add, cell_left_edge]
+    · intro z hz
+      rw [show y z = cell S (z + -(S : Int)) by simp [y, evol_seed]]
+      exact cell_eq_false_of_lt S _ (by omega)
+  let s := (3 + r - d % 3) % 3
+  obtain ⟨k, hit⟩ := cover y edge
+  rw [show y = (fun z => evol seed S (z + -(S : Int))) from rfl, restart_at, evol_seed] at hit
+  have hdS : (d : Int) + -(S : Int) = -1 := by dsimp [S]; omega
+  rw [hdS] at hit
+  refine ⟨(S + (s + 3 * k) - T) / 3, ?_⟩
+  have htS : T + 3 * ((S + (s + 3 * k) - T) / 3) = S + (s + 3 * k) := by dsimp [S, s]; omega
+  rw [htS]; exact hit
+
+def maskEdgeRow (mask : Nat) (p : Int) : Bool :=
+  if p < 0 then false else if p = 0 then true else mask.testBit p.toNat
+
+theorem edgeRow_maskEdgeRow (mask : Nat) : EdgeRow (maskEdgeRow mask) :=
+  ⟨by simp [maskEdgeRow], fun p hp => by simp [maskEdgeRow, hp]⟩
+
+def initConeBits (d t mask : Nat) : Nat :=
+  let base := 1 + 2 * (mask / 2)
+  if d ≤ t then base <<< (t - d) else base >>> (d - t)
+
+def stepConeBits (cur : Nat) : Nat :=
+  cur ^^^ ((cur >>> 1) ||| (cur >>> 2))
+
+def topConeBits (cur0 : Nat) : Nat → Nat
+  | 0 => cur0
+  | t + 1 => stepConeBits (topConeBits cur0 t)
+
+def coneMaskHit (d t mask : Nat) : Bool :=
+  (topConeBits (initConeBits d t mask) t).testBit 0
+
+private theorem base_testBit_eq_maskEdgeRow (mask q : Nat) :
+    (1 + 2 * (mask / 2)).testBit q = maskEdgeRow mask (q : Int) := by
+  cases q with
+  | zero => simp [maskEdgeRow, Nat.testBit_zero, Nat.add_mul_mod_self_left]
+  | succ i =>
+    rw [Nat.testBit_succ, Nat.add_mul_div_left _ _ (by decide : 0 < 2)]
+    have h12 : 1 / 2 = 0 := rfl
+    rw [h12, Nat.zero_add, ← Nat.testBit_succ]
+    unfold maskEdgeRow
+    rw [ite_eq_right (by omega), ite_eq_right (by omega)]
+    simp
+
+private theorem initConeBits_testBit (d t mask u : Nat) :
+    (initConeBits d t mask).testBit u = maskEdgeRow mask ((d : Int) - (t : Int) + (u : Int)) := by
+  unfold initConeBits
+  by_cases hdt : d ≤ t
+  · simp only [hdt, ↓reduceIte, Nat.testBit_shiftLeft]
+    by_cases hu : t - d ≤ u
+    · simp only [hu, decide_true, Bool.true_and, base_testBit_eq_maskEdgeRow]
+      congr 1; omega
+    · simp only [hu, decide_false, Bool.false_and]
+      have hneg : (d : Int) - (t : Int) + (u : Int) < 0 := by omega
+      simp [maskEdgeRow, hneg]
+  · simp only [hdt, ↓reduceIte, Nat.testBit_shiftRight, base_testBit_eq_maskEdgeRow]
+    congr 1; omega
+
+private theorem topConeBits_spec (x : Int → Bool) (i : Int) (cur0 : Nat) (T : Nat)
+    (h0 : ∀ u, u ≤ 2 * T → cur0.testBit u = x (i + (u : Int))) :
+    ∀ t, t ≤ T → ∀ j, j + 2 * t ≤ 2 * T →
+      (topConeBits cur0 t).testBit j = evol x t (i + (j : Int) + (t : Int)) := by
+  intro t
+  induction t with
+  | zero => intro _ j hj; simpa [topConeBits, evol] using h0 j (by omega)
+  | succ t ih =>
+    intro ht j hj
+    simp only [topConeBits, stepConeBits, Nat.testBit_xor, Nat.testBit_or, Nat.testBit_shiftRight]
+    rw [show 1 + j = j + 1 by omega, show 2 + j = j + 2 by omega,
+        ih (by omega) j (by omega), ih (by omega) (j + 1) (by omega), ih (by omega) (j + 2) (by omega)]
+    change rule _ _ _ = rule (evol x t (i + (j : Int) + ((t + 1 : Nat) : Int) - 1))
+                              (evol x t (i + (j : Int) + ((t + 1 : Nat) : Int)))
+                              (evol x t (i + (j : Int) + ((t + 1 : Nat) : Int) + 1))
+    congr 1 <;> congr 1 <;> omega
+
+private theorem evol_congr_cone {x y : Int → Bool} :
+    ∀ (t : Nat) (p : Int), (∀ z, p - (t : Int) ≤ z → z ≤ p + (t : Int) → x z = y z) →
+      evol x t p = evol y t p
+  | 0, p, h => h p (by omega) (by omega)
+  | t + 1, p, h => by
+    change rule (evol x t (p - 1)) (evol x t p) (evol x t (p + 1)) =
+           rule (evol y t (p - 1)) (evol y t p) (evol y t (p + 1))
+    rw [evol_congr_cone t (p - 1) (fun z h1 h2 => h z (by omega) (by omega)),
+        evol_congr_cone t p (fun z h1 h2 => h z (by omega) (by omega)),
+        evol_congr_cone t (p + 1) (fun z h1 h2 => h z (by omega) (by omega))]
+
+private theorem coneMaskHit_eq_evol {x : Int → Bool} (hx : EdgeRow x)
+    {d t pos mask : Nat} (hreq : d + t ≤ pos)
+    (hagree : ∀ q, q ≤ pos → maskEdgeRow mask (q : Int) = x (q : Int)) :
+    coneMaskHit d t mask = evol x t (d : Int) := by
+  unfold coneMaskHit
+  have hsp := topConeBits_spec (maskEdgeRow mask) ((d : Int) - (t : Int)) (initConeBits d t mask) t
+    (fun u _ => initConeBits_testBit d t mask u) t (Nat.le_refl _) 0 (by omega)
+  have he0 : (d : Int) - (t : Int) + ((0 : Nat) : Int) + (t : Int) = (d : Int) := by omega
+  rw [hsp, he0]
+  exact evol_congr_cone t (d : Int) (fun z _ hz2 => by
+    by_cases hzn : z < 0
+    · rw [hx.2 z hzn]; simp [maskEdgeRow, hzn]
+    · let q : Nat := z.toNat
+      have hqz : (q : Int) = z := by dsimp [q]; omega
+      rw [← hqz]; exact hagree q (by dsimp [q]; omega))
+
+def packEastBits (x : Int → Bool) (start : Nat) : Nat → Nat
+  | 0 => 0
+  | rem + 1 => (if x (start : Int) then 1 else 0) + 2 * packEastBits x (start + 1) rem
+
+private theorem packEastBits_spec (x : Int → Bool) (start rem : Nat) :
+    packEastBits x start rem < 2 ^ rem ∧
+    ∀ j, j < rem → (packEastBits x start rem).testBit j = x ((start + j : Nat) : Int) := by
+  induction rem generalizing start with
+  | zero => exact ⟨by simp [packEastBits], fun _ hj => by omega⟩
+  | succ n ih =>
+    obtain ⟨hlt, hbit⟩ := ih (start + 1)
+    refine ⟨by unfold packEastBits; rw [Nat.pow_succ]; cases x (start : Int) <;> (simp only [Bool.false_eq_true, ↓reduceIte]; omega), fun j hj => ?_⟩
+    unfold packEastBits
+    cases j with
+    | zero =>
+      cases x (start : Int) <;> simp [Nat.testBit_zero, Nat.add_mul_mod_self_left]
+    | succ j =>
+      cases x (start : Int) <;>
+        simp only [↓reduceIte, Nat.testBit_succ, Nat.add_mul_div_left _ _ (by decide : 0 < 2)]
+      · simpa [Nat.zero_add, show start + 1 + j = start + (j + 1) by omega] using hbit j (by omega)
+      · have h12 : 1 / 2 = 0 := rfl
+        rw [h12, Nat.zero_add, hbit j (by omega)]; congr 1; omega
+
+def checkLeafAllExt (d t pos mask : Nat) : Bool :=
+  let rem := (d + t) - pos
+  (List.range (2 ^ rem)).all fun ext =>
+    coneMaskHit d t (mask + ext * 2 ^ (pos + 1))
+
+private theorem checkLeafAllExt_sound {x : Int → Bool} (hx : EdgeRow x)
+    {d t pos mask : Nat} (hlt : mask < 2 ^ (pos + 1))
+    (hagree : ∀ q, q ≤ pos → maskEdgeRow mask (q : Int) = x (q : Int))
+    (hchk : checkLeafAllExt d t pos mask = true) : evol x t (d : Int) = true := by
+  unfold checkLeafAllExt at hchk
+  let rem := (d + t) - pos
+  let ext := packEastBits x (pos + 1) rem
+  obtain ⟨hext_lt, hext_bit⟩ := packEastBits_spec x (pos + 1) rem
+  have hcone := List.all_eq_true.mp hchk ext (List.mem_range.mpr hext_lt)
+  let mask' := mask + ext * 2 ^ (pos + 1)
+  have hagree' : ∀ q, q ≤ pos + rem → maskEdgeRow mask' (q : Int) = x (q : Int) := by
+    intro q hq
+    by_cases hqp : q ≤ pos
+    · by_cases hq0 : q = 0
+      · subst hq0; simp [maskEdgeRow, hx.1]
+      · have hmod : mask' % 2 ^ (pos + 1) = mask := by
+          dsimp [mask']; rw [Nat.add_mul_mod_self_right, Nat.mod_eq_of_lt hlt]
+        have htb : mask'.testBit q = mask.testBit q := by
+          have hm := Nat.testBit_mod_two_pow mask' (pos + 1) q
+          rw [hmod, decide_eq_true (by omega : q < pos + 1), Bool.true_and] at hm
+          exact hm.symm
+        have hprev := hagree q hqp
+        unfold maskEdgeRow at hprev ⊢
+        rw [ite_eq_right (by omega), ite_eq_right (by omega)] at hprev ⊢
+        simp only [Int.toNat_natCast] at hprev ⊢
+        rw [htb]; exact hprev
+    · let j := q - (pos + 1)
+      have hqj : q = pos + 1 + j := by dsimp [j]; omega
+      have hjrem : j < rem := by dsimp [j]; omega
+      have hdiv : mask' / 2 ^ (pos + 1) = ext := by
+        dsimp [mask']; rw [Nat.add_mul_div_right _ _ (Nat.two_pow_pos _), Nat.div_eq_of_lt hlt, Nat.zero_add]
+      have htb : mask'.testBit q = ext.testBit j := by
+        rw [hqj, ← Nat.testBit_shiftRight, Nat.shiftRight_eq_div_pow, hdiv]
+      unfold maskEdgeRow
+      rw [ite_eq_right (by omega), ite_eq_right (by omega)]
+      simp only [Int.toNat_natCast]
+      rw [htb, hext_bit j hjrem, ← hqj]
+  have hev := coneMaskHit_eq_evol hx (d := d) (t := t) (pos := pos + rem) (mask := mask') (by dsimp [rem]; omega) hagree'
+  rw [← hev]; exact hcone
+
+inductive HitTree where
+  | hit (k : Nat)
+  | split (lo hi : HitTree)
+  deriving DecidableEq, Repr
+
+def verifyHitTree (d s kMax pos mask : Nat) : HitTree → Bool
+  | .hit k => decide (k ≤ kMax) && checkLeafAllExt d (s + 3 * k) pos mask
+  | .split lo hi =>
+    verifyHitTree d s kMax (pos + 1) mask lo &&
+    verifyHitTree d s kMax (pos + 1) (mask + 2 ^ (pos + 1)) hi
+
+private theorem verifyHitTree_aux (tr : HitTree) (d s kMax pos mask : Nat) (x : Int → Bool)
+    (hx : EdgeRow x) (hlt : mask < 2 ^ (pos + 1))
+    (hagree : ∀ q, q ≤ pos → maskEdgeRow mask (q : Int) = x (q : Int))
+    (hv : verifyHitTree d s kMax pos mask tr = true) :
+    ∃ k, k ≤ kMax ∧ evol x (s + 3 * k) (d : Int) = true := by
+  induction tr generalizing pos mask with
+  | hit k =>
+    unfold verifyHitTree at hv
+    simp only [Bool.and_eq_true, decide_eq_true_eq] at hv
+    exact ⟨k, hv.1, checkLeafAllExt_sound hx hlt hagree hv.2⟩
+  | split lo hi ih_lo ih_hi =>
+    unfold verifyHitTree at hv
+    simp only [Bool.and_eq_true] at hv
+    cases hbit : x ((pos + 1 : Nat) : Int)
+    · refine ih_lo (pos + 1) mask (Nat.lt_trans hlt (Nat.pow_lt_pow_right (by decide) (by omega)))
+        (fun q hq => ?_) hv.1
+      by_cases hqp : q ≤ pos
+      · exact hagree q hqp
+      · have hqe : q = pos + 1 := by omega
+        subst hqe; rw [hbit]
+        unfold maskEdgeRow; rw [ite_eq_right (by omega), ite_eq_right (by omega)]
+        simp only [Int.toNat_natCast]; exact Nat.testBit_lt_two_pow hlt
+    · refine ih_hi (pos + 1) (mask + 2 ^ (pos + 1)) (by rw [Nat.pow_succ]; omega)
+        (fun q hq => ?_) hv.2
+      by_cases hqp : q ≤ pos
+      · have hprev := hagree q hqp
+        by_cases hq0 : q = 0
+        · subst hq0; simpa [maskEdgeRow] using hprev
+        · unfold maskEdgeRow at hprev ⊢
+          rw [ite_eq_right (by omega), ite_eq_right (by omega)] at hprev ⊢
+          simp only [Int.toNat_natCast] at hprev ⊢
+          rw [Nat.add_comm, Nat.testBit_two_pow_add_gt (by omega)]; exact hprev
+      · have hqe : q = pos + 1 := by omega
+        subst hqe; rw [hbit]
+        unfold maskEdgeRow; rw [ite_eq_right (by omega), ite_eq_right (by omega)]
+        simp only [Int.toNat_natCast]
+        rw [Nat.add_comm, Nat.testBit_two_pow_add_eq, Nat.testBit_lt_two_pow hlt]; rfl
+
+/-- **Soundness of Branching Eastern Prefix-Certificate Trees (`coversAt_of_hitTree`).** -/
+theorem coversAt_of_hitTree {d s kMax : Nat} {tr : HitTree}
+    (hv : verifyHitTree d s kMax 0 1 tr = true) :
+    (∀ x, EdgeRow x → ∃ k, k ≤ kMax ∧ evol x (s + 3 * k) (d : Int) = true) ∧ CoversAt d s := by
+  have hmain : ∀ x, EdgeRow x → ∃ k, k ≤ kMax ∧ evol x (s + 3 * k) (d : Int) = true := by
+    intro x hx
+    refine verifyHitTree_aux tr d s kMax 0 1 x hx (by decide) (fun q hq => ?_) hv
+    have hq0 : q = 0 := by omega
+    subst hq0; simp [maskEdgeRow, hx.1]
+  exact ⟨hmain, fun x hx => let ⟨k, _, hk⟩ := hmain x hx; ⟨k, hk⟩⟩
+
 end Ruliology.CellularAutomata.Rule30ThirdTick

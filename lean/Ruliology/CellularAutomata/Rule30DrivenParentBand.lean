@@ -237,4 +237,248 @@ theorem unique_parent_of_every_k (uniform : ∀ k, ∃ T, ExactAt k 2 T)
     have e := congrArg (fun v : Nat => v.testBit j) (bands (j+1))
     simpa only [testBit_bandK, Nat.lt_succ_self, decide_true, Bool.true_and, hj] using e
 
+/-! ### Unconditional recurrent ancestor edges, parent band cycles, and the `ExactAt → TargetAt` bridge -/
+
+open Rule30ZeroBoundary Rule30ZeroBoundary.IntegerForm Rule30EveryKStatement
+
+private theorem ancestor_edge_of_exactAt {k T : Nat} (h : ExactAt k 2 T)
+    (y z : Int → Bool) (edgePos : Int)
+    (black : y edgePos = true) (white : ∀ p, p < edgePos → y p = false)
+    (recur : RecurrentAt y edgePos) (anc : evol z k = y) :
+    z (edgePos + (k : Int)) = true ∧ ∀ p, p < edgePos + (k : Int) → z p = false := by
+  let y0 : Int → Bool := fun p => y (p + edgePos)
+  have hy0_b : y0 0 = true := by simpa [y0] using black
+  have hy0_w : ∀ p, p < 0 → y0 p = false := fun p hp => white (p + edgePos) (by omega)
+  have hband_eq : ∀ w, bandK y0 0 w = bandK y edgePos w := by
+    intro w; apply Nat.eq_of_testBit_eq; intro j
+    simp only [testBit_bandK, y0, show (0 : Int) + (j : Int) + edgePos = edgePos + (j : Int) by omega]
+  have hrec0 : RecurrentAt y0 0 := fun w => by rw [hband_eq w]; exact recur w
+  obtain ⟨wall, s, hs, hw, matchRow⟩ := realize_recurrent y0 hy0_b hy0_w T (hrec0 (T + 2))
+  let chain : Nat → Int → Bool := fun i p =>
+    if i = 0 then L wall s T p else evol z (k - i) (p + edgePos + 2 + (T : Int))
+  have hsteps : ∀ i, i < k → ∀ p, p < 0 → stepLine (chain (i + 1)) p = chain i p := by
+    intro i hi p hp
+    by_cases hi0 : i = 0
+    · subst hi0
+      simp only [chain, ↓reduceIte, show (1 : Nat) ≠ 0 by decide]
+      rw [matchRow p hp]
+      have hkeq : k = (k - 1) + 1 := by omega
+      have hev : y (p + 2 + (T : Int) + edgePos) = stepLine (evol z (k - 1)) (p + edgePos + 2 + (T : Int)) := by
+        rw [← anc, hkeq, evol_succ]; congr 1; omega
+      dsimp [y0]; rw [hev]
+      simp only [stepLine, show p - 1 + edgePos + 2 + (T : Int) = p + edgePos + 2 + (T : Int) - 1 by omega,
+        show p + 1 + edgePos + 2 + (T : Int) = p + edgePos + 2 + (T : Int) + 1 by omega]
+    · simp only [chain, hi0, Nat.succ_ne_zero, ↓reduceIte]
+      have hsub : k - i = (k - (i + 1)) + 1 := by omega
+      rw [hsub, evol_succ]
+      simp only [stepLine, show p - 1 + edgePos + 2 + (T : Int) = p + edgePos + 2 + (T : Int) - 1 by omega,
+        show p + 1 + edgePos + 2 + (T : Int) = p + edgePos + 2 + (T : Int) + 1 by omega]
+  by_cases hk0 : k = 0
+  · subst hk0
+    have heq : z = y := anc
+    subst heq
+    simpa using And.intro black white
+  · obtain ⟨hit, clear⟩ := h wall s chain hs (by simpa using hw) (fun _ _ => by simp [chain]) hsteps
+    simp only [chain, hk0, ↓reduceIte, Nat.sub_self, evol] at hit clear
+    refine ⟨?_, fun p hp => ?_⟩
+    · have he1 : -((2 : Nat) : Int) - (T : Int) + (k : Int) + edgePos + 2 + (T : Int) = edgePos + (k : Int) := by omega
+      rw [he1] at hit; exact hit
+    · have hc := clear (p - edgePos - 2 - (T : Int)) (by omega)
+      have he2 : p - edgePos - 2 - (T : Int) + edgePos + 2 + (T : Int) = p := by omega
+      rw [he2] at hc; exact hc
+
+/-- **Unconditional 1-, 2-, and 3-Step Full-Line Ancestor Edges of Recurrent Rows (`recurrent_ancestors_edge_up_to_three`).** -/
+theorem recurrent_ancestors_edge_up_to_three (y z : Int → Bool) (edgePos : Int)
+    (black : y edgePos = true) (white : ∀ p, p < edgePos → y p = false)
+    (recur : RecurrentAt y edgePos) :
+    (stepLine z = y → z (edgePos + 1) = true ∧ ∀ p, p < edgePos + 1 → z p = false) ∧
+    (evol z 2 = y → z (edgePos + 2) = true ∧ ∀ p, p < edgePos + 2 → z p = false) ∧
+    (evol z 3 = y → z (edgePos + 3) = true ∧ ∀ p, p < edgePos + 3 → z p = false) :=
+  ⟨fun h1 => ancestor_edge_of_exactAt exactAt_one_eight_and_two_twentyFour_sharp.1.1 y z edgePos black white recur h1,
+   fun h2 => ancestor_edge_of_exactAt exactAt_one_eight_and_two_twentyFour_sharp.2.1 y z edgePos black white recur h2,
+   fun h3 => ancestor_edge_of_exactAt exactAt_three_thirtyOne_sharp.1 y z edgePos black white recur h3⟩
+
+/-- **Unconditional 1-Step and 2-Step Autonomous Histories of Driven Parent Bands (`parent_band_history_one_and_two`).** -/
+theorem parent_band_history_one_and_two :
+    (∀ {w t : Nat}, 24 ≤ t → w + 1 ≤ t → ∀ (wall : Nat → Bool) (s z : Int → Bool),
+      s (-2) = true → (∀ p, p < -2 → s p = false) → (∀ p, p < 0 → stepLine z p = L wall s t p) →
+      ∃ v < 2 ^ w, bandK z (-1 - (t : Int)) w = rowAt w v 1) ∧
+    (∀ {w t : Nat}, 31 ≤ t → w + 2 ≤ t → ∀ (wall : Nat → Bool) (s z : Int → Bool),
+      s (-2) = true → (∀ p, p < -2 → s p = false) → (∀ p, p < 0 → stepLine z p = L wall s t p) →
+      ∃ v < 2 ^ w, bandK z (-1 - (t : Int)) w = rowAt w v 2) :=
+  ⟨fun {w t} ht hroom wall s z hb hw hp =>
+    parent_band_history (exactAt_zero_and_age_mono.2 2 24 t (by decide) ht
+      exactAt_one_eight_and_two_twentyFour_sharp.2.1) hroom wall s z hb hw hp,
+   fun {w t} ht hroom wall s z hb hw hp =>
+    parent_band_history (exactAt_zero_and_age_mono.2 3 31 t (by decide) ht
+      exactAt_three_thirtyOne_sharp.1) hroom wall s z hb hw hp⟩
+
+/-- **Unconditional Width-1 Parent Band Periodicity from Age `31` (`parent_band_width_one_on_cycle_from_31`).** -/
+theorem parent_band_width_one_on_cycle_from_31 {t : Nat} (ht : 31 ≤ t)
+    (wall : Nat → Bool) (s z : Int → Bool) (black : s (-2) = true)
+    (white : ∀ p, p < -2 → s p = false)
+    (parent : ∀ p, p < 0 → stepLine z p = L wall s t p) :
+    ∃ q, 0 < q ∧ rowAt 1 (bandK z (-1 - (t : Int)) 1) q = bandK z (-1 - (t : Int)) 1 :=
+  parent_band_on_cycle
+    (exactAt_zero_and_age_mono.2 3 31 t (by decide) ht exactAt_three_thirtyOne_sharp.1)
+    (by omega) (by decide) wall s z black white parent
+
+private def zeroBackChain (T : Nat) : Nat → Int → Bool
+  | 0 => L (fun _ => false) (start2 false) T
+  | i + 1 => back (zeroBackChain T i)
+
+private theorem le_add_one_of_exactAt {k T : Nat} (h : ExactAt k 2 T) : k ≤ T + 1 := by
+  by_cases hk0 : k = 0
+  · omega
+  · have hs := start2_cells false
+    have hsteps : ∀ i, i < k → ∀ p, p < 0 → stepLine (zeroBackChain T (i + 1)) p = zeroBackChain T i p := by
+      intro i _ p hp; exact step_back (zeroBackChain T i) p hp
+    obtain ⟨hit, _⟩ := h (fun _ => false) (start2 false) (zeroBackChain T) hs.1 hs.2.2 (fun _ _ => rfl) hsteps
+    obtain ⟨j, rfl⟩ : ∃ j, k = j + 1 := ⟨k - 1, by omega⟩
+    apply Classical.byContradiction
+    intro hgt
+    have hzero_nonneg : back (zeroBackChain T j) (-((2 : Nat) : Int) - (T : Int) + ((j + 1 : Nat) : Int)) = false := by
+      unfold back
+      rw [Int.toNat_of_nonpos (by omega)]; rfl
+    simp only [zeroBackChain] at hit
+    rw [hzero_nonneg] at hit; exact Bool.noConfusion hit
+
+private def mirrorRow (f : Nat → Bool) (p : Int) : Bool :=
+  if p < 0 then f (-p).toNat else false
+
+private theorem L_zero_wall_eq_zrow (f : Nat → Bool) :
+    ∀ (t : Nat) (p : Int), p ≤ 0 → L (fun _ => false) (mirrorRow f) t p = zrow f t (-p).toNat
+  | 0, p, hp => by
+    by_cases hp0 : p < 0
+    · rw [L_zero hp0, zrow_zero_of_pos f (by omega)]; simp [mirrorRow, hp0]
+    · have heq : p = 0 := by omega
+      subst heq; simp [L_col0, zrow_wall]
+  | t + 1, p, hp => by
+    by_cases hp0 : p < 0
+    · obtain ⟨i, hi⟩ : ∃ i : Nat, (-p).toNat = i + 1 := ⟨(-p).toNat - 1, by omega⟩
+      rw [L_succ hp0, L_zero_wall_eq_zrow f t (p - 1) (by omega),
+          L_zero_wall_eq_zrow f t p (by omega), L_zero_wall_eq_zrow f t (p + 1) (by omega),
+          hi, zrow_succ]
+      have e1 : (-(p - 1)).toNat = i + 2 := by omega
+      have e2 : (-(p + 1)).toNat = i := by omega
+      rw [e1, e2]; rfl
+    · have heq : p = 0 := by omega
+      subst heq; simp [L_col0, zrow_wall]
+
+private theorem stepLine_mirror_zrow (V : Nat → Bool) (u : Nat) (p : Int) (hp : p < 0) :
+    stepLine (mirrorRow (zrow V u)) p = mirrorRow (zrow V (u + 1)) p := by
+  obtain ⟨i, hi⟩ : ∃ i : Nat, (-p).toNat = i + 1 := ⟨(-p).toNat - 1, by omega⟩
+  have h1 : mirrorRow (zrow V u) (p - 1) = zrow V u (i + 2) := by
+    have hp1 : p - 1 < 0 := by omega
+    have e1 : (-(p - 1)).toNat = i + 2 := by omega
+    simp [mirrorRow, hp1, e1]
+  have h2 : mirrorRow (zrow V u) p = zrow V u (i + 1) := by simp [mirrorRow, hp, hi]
+  have h3 : mirrorRow (zrow V u) (p + 1) = zrow V u i := by
+    by_cases hp1 : p + 1 < 0
+    · have e3 : (-(p + 1)).toNat = i := by omega
+      simp [mirrorRow, hp1, e3]
+    · have hi0 : i = 0 := by omega
+      subst hi0; simp [mirrorRow, hp1, zrow_wall]
+  unfold stepLine
+  rw [h1, h2, h3]
+  simp [mirrorRow, hp, hi, rule, zrow_succ]
+
+private theorem top_of_nz {X : Nat} (hX : X ≠ 0) : Top X X.log2 :=
+  ⟨Nat.testBit_log2 hX, fun i hi => Nat.testBit_lt_two_pow
+    (Nat.lt_of_lt_of_le Nat.lt_log2_self (Nat.pow_le_pow_right (by decide) (by omega)))⟩
+
+private theorem build_zrow_history (k : Nat) (E : Nat → Bool) (bits : Fin k → Bool) :
+    ∃ L_row : Nat → Bool, (∀ x, 1 ≤ x → zrow L_row k x = E x) ∧
+      ∀ i : Fin k, zrow L_row i.val 1 = bits i := by
+  induction k with
+  | zero => exact ⟨E, fun _ hx => zrow_zero_of_pos E hx, fun i => Fin.elim0 i⟩
+  | succ k ih =>
+    obtain ⟨P, endP, wall⟩ := ih (fun i => bits i.succ)
+    let L_row := Rule30ZeroBoundary.back (bits 0) P
+    have shift (i x : Nat) : zrow L_row (i + 1) x = zrow P i x := by
+      rw [Nat.add_comm i 1, zrow_shift]
+      exact zrow_congr (zrow_back (bits 0) P) i x
+    refine ⟨L_row, fun x hx => (shift k x).trans (endP x hx), fun i => ?_⟩
+    refine Fin.cases ?_ (fun j => ?_) i
+    · rfl
+    · exact (shift j.val 1).trans (wall j)
+
+/-- **Universal Bridge `ExactAt k 2 T → TargetAt k (T + 1)` (`targetAt_of_exactAt`).** -/
+theorem targetAt_of_exactAt {k T : Nat} (hT : 2 ≤ T) (hEx : ExactAt k 2 T) :
+    TargetAt k (T + 1) := by
+  have hkT : k ≤ T + 1 := le_add_one_of_exactAt hEx
+  have hphys : PhysicalEdge k (T + 1) := by
+    intro L_row m t hm hLm hfin ht V hV
+    have hEx_mt : ExactAt k m t := by
+      by_cases hm2 : 2 ≤ m
+      · exact (two_classes k T hT).1.mpr hEx m t hm2 (by omega)
+      · have hm1 : m = 1 := by omega
+        subst hm1; exact (two_classes k T hT).2.mpr hEx t ht
+    let chain : Nat → Int → Bool := fun i => mirrorRow (zrow V (k - i))
+    have hs1 : mirrorRow L_row (-(m : Int)) = true := by
+      have hneg : -(m : Int) < 0 := by omega
+      have htnm : (-( -(m : Int))).toNat = m := by omega
+      simp only [mirrorRow, hneg, ↓reduceIte, htnm, hLm]
+    have hs0 : ∀ p, p < -(m : Int) → mirrorRow L_row p = false := by
+      intro p hp; simp only [mirrorRow, show p < 0 by omega, ↓reduceIte]; exact hfin _ (by omega)
+    have hx0 : ∀ p, p < 0 → chain 0 p = L (fun _ => false) (mirrorRow L_row) t p := by
+      intro p hp
+      rw [L_zero_wall_eq_zrow L_row t p (by omega)]
+      simp only [chain, Nat.sub_zero, mirrorRow, hp, ↓reduceIte]
+      exact hV (-p).toNat (by omega)
+    have hsteps : ∀ i, i < k → ∀ p, p < 0 → stepLine (chain (i + 1)) p = chain i p := by
+      intro i hi p hp
+      dsimp [chain]
+      rw [stepLine_mirror_zrow V (k - (i + 1)) p hp, show k - (i + 1) + 1 = k - i by omega]
+    obtain ⟨hit, clear⟩ := hEx_mt (fun _ => false) (mirrorRow L_row) chain hs1 hs0 hx0 hsteps
+    have hedge_pos : 1 ≤ m + t - k := by omega
+    have hp_edge : -(m : Int) - (t : Int) + (k : Int) < 0 := by omega
+    simp only [chain, Nat.sub_self, mirrorRow, hp_edge, ↓reduceIte] at hit
+    have htn : (-(-(m : Int) - (t : Int) + (k : Int))).toNat = m + t - k := by omega
+    rw [htn, zrow_zero_of_pos V hedge_pos] at hit
+    refine ⟨hit, fun idx hidx => ?_⟩
+    have hc := clear (-(idx : Int)) (by omega)
+    have hneg_i : -(idx : Int) < 0 := by omega
+    have htn_i : (-( -(idx : Int))).toNat = idx := by omega
+    simp only [chain, Nat.sub_self, mirrorRow, hneg_i, ↓reduceIte, htn_i] at hc
+    rw [zrow_zero_of_pos V (by omega)] at hc
+    exact hc
+  have hfin_pred : FinitePredecessor k (T + 1) := by
+    intro Y t hY ht L_pred hpre
+    let m := Y.log2 + 1
+    have htopY := top_of_nz hY
+    have hLm : rowOfNat Y m = true := htopY.1
+    have hLfin : ∀ i, m < i → rowOfNat Y i = false := by
+      intro i hi; obtain ⟨j, rfl⟩ : ∃ j, i = j + 1 := ⟨i - 1, by omega⟩
+      exact htopY.2 j (by dsimp [m] at hi; omega)
+    have hed := hphys (rowOfNat Y) m t (by dsimp [m]; omega) hLm hLfin ht L_pred
+      (fun i hi => (hpre i hi).trans (zrow_rowOfNat Y t i).symm)
+    let e := m + t - k
+    have he_pos : 1 ≤ e := by dsimp [e, m]; omega
+    let A := natOfRow L_pred e
+    have rep : ∀ x, 1 ≤ x → rowOfNat A x = L_pred x := rowOfNat_natOfRow hed.2
+    have image : iter F k A = iter F t Y := by
+      apply Nat.eq_of_testBit_eq; intro i
+      exact (zrow_rowOfNat A k (i + 1)).symm.trans ((zrow_congr rep k (i + 1)).trans (hpre (i + 1) (by omega)))
+    refine ⟨A, rep, image, ?_, fun i hi => ?_⟩
+    · have ha := rep e he_pos
+      obtain ⟨j, hj⟩ : ∃ j, e = j + 1 := ⟨e - 1, by omega⟩
+      rw [hj] at ha; change A.testBit j = L_pred (j + 1) at ha
+      have heq : Y.log2 + t - k = j := by dsimp [e, m] at hj; omega
+      rw [heq, ha, ← hj]; exact hed.1
+    · have hgt : e < i + 1 := by dsimp [e, m]; omega
+      exact (rep (i + 1) (by omega)).trans (hed.2 (i + 1) hgt)
+  refine ⟨hphys, hfin_pred, fun Y t hY ht bits => ?_⟩
+  obtain ⟨L_pred, pre, trace⟩ := build_zrow_history k (rowOfNat (iter F t Y)) bits
+  obtain ⟨A, rep, image, top⟩ := hfin_pred Y t hY ht L_pred pre
+  exact ⟨A, image, top, fun i => (zrow_rowOfNat A i.val 1).symm.trans
+    ((zrow_congr rep i.val 1).trans (trace i))⟩
+
+/-- **Unconditional `TargetAt 1 9`, `TargetAt 2 25`, and `TargetAt 3 32` (`targetAt_one_nine_two_twentyFive_three_thirtyTwo`).** -/
+theorem targetAt_one_nine_two_twentyFive_three_thirtyTwo :
+    TargetAt 1 9 ∧ TargetAt 2 25 ∧ TargetAt 3 32 :=
+  ⟨targetAt_of_exactAt (by decide) exactAt_one_eight_and_two_twentyFour_sharp.1.1,
+   targetAt_of_exactAt (by decide) exactAt_one_eight_and_two_twentyFour_sharp.2.1,
+   targetAt_of_exactAt (by decide) exactAt_three_thirtyOne_sharp.1⟩
+
 end Ruliology.CellularAutomata.Rule30DrivenParentBand
