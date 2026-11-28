@@ -460,5 +460,476 @@ theorem not_eventually_001_of_C3w0 (hC : C3w0 w001) :
     ¬ ∃ T, ∀ t, T ≤ t → cell t 0 = wordAt3 w001 (t - T) :=
   not_eventually_001_of_C3w ((C3w_iff_C3w0 w001).mpr hC)
 
+/-! ### General driven sideways reconstruction, `Theta011` bijection, `2^n` prefix law -/
+
+/-- Sideways reconstruction on `p ≤ 0` from prescribed boundary `c` (column `0`) and column-`-1` trace `a`. -/
+def reconC (c a : Nat → Bool) : Nat → Nat → Bool
+  | 0, t => c t
+  | 1, t => a t
+  | k + 2, t => xor (reconC c a (k + 1) (t + 1)) (reconC c a (k + 1) t || reconC c a k t)
+
+theorem reconC_two (c a : Nat → Bool) (k t : Nat) :
+    reconC c a (k + 2) t = xor (reconC c a (k + 1) (t + 1)) (reconC c a (k + 1) t || reconC c a k t) := rfl
+
+/-- Initial left configuration reconstructed from boundary `c` and column-`-1` trace `a`. -/
+def lamC (c a : Nat → Bool) (p : Int) : Bool := if p < 0 then reconC c a (-p).toNat 0 else false
+
+theorem L_lamC (c a : Nat → Bool) : ∀ (t k : Nat), L c (lamC c a) t (-(k : Int)) = reconC c a k t := by
+  intro t
+  induction t with
+  | zero =>
+    intro k
+    cases k with
+    | zero => simp [L_col0, reconC]
+    | succ j =>
+      have hp : -((j + 1 : Nat) : Int) < 0 := by omega
+      rw [L_zero hp]; unfold lamC; rw [ite_eq_left hp, show (- -((j + 1 : Nat) : Int)).toNat = j + 1 by omega]
+  | succ t ih =>
+    intro k
+    cases k with
+    | zero => simp [L_col0, reconC]
+    | succ j =>
+      have hp : -((j + 1 : Nat) : Int) < 0 := by omega
+      rw [L_succ hp]
+      have h1 : -((j + 1 : Nat) : Int) - 1 = -((j + 2 : Nat) : Int) := by omega
+      have h2 : -((j + 1 : Nat) : Int) + 1 = -((j : Nat) : Int) := by omega
+      rw [h1, h2, ih (j + 2), ih (j + 1), ih j, reconC_two]
+      unfold rule
+      cases reconC c a (j + 1) (t + 1) <;> cases (reconC c a (j + 1) t || reconC c a j t) <;> rfl
+
+theorem history_eq_reconC (c : Nat → Bool) (s : Int → Bool) :
+    ∀ (k t : Nat), L c s t (-(k : Int)) = reconC c (fun t => L c s t (-1)) k t := by
+  have key : ∀ k : Nat,
+      (∀ t, L c s t (-(k : Int)) = reconC c (fun t => L c s t (-1)) k t) ∧
+      (∀ t, L c s t (-((k + 1 : Nat) : Int)) = reconC c (fun t => L c s t (-1)) (k + 1) t) := by
+    intro k
+    induction k with
+    | zero => exact ⟨fun t => by simp [L_col0, reconC], fun _ => rfl⟩
+    | succ k ih =>
+      refine ⟨ih.2, fun t => ?_⟩
+      have hp : -((k + 1 : Nat) : Int) < 0 := by omega
+      have hstep := L_succ (c := c) (s := s) (t := t) hp
+      have h1 : -((k + 1 : Nat) : Int) - 1 = -((k + 2 : Nat) : Int) := by omega
+      have h2 : -((k + 1 : Nat) : Int) + 1 = -((k : Nat) : Int) := by omega
+      rw [h1, h2] at hstep
+      unfold rule at hstep
+      rw [reconC_two, ← ih.2 (t + 1), ← ih.2 t, ← ih.1 t, hstep]
+      cases L c s t (-((k + 2 : Nat) : Int)) <;> cases (L c s t (-((k + 1 : Nat) : Int)) || L c s t (-(k : Int))) <;> rfl
+  exact fun k t => (key k).1 t
+
+theorem L_neg_local (c : Nat → Bool) (s s' : Int → Bool) :
+    ∀ (t k : Nat), 1 ≤ k → (∀ j : Nat, 1 ≤ j → j ≤ k + t → s (-(j : Int)) = s' (-(j : Int))) →
+      L c s t (-(k : Int)) = L c s' t (-(k : Int))
+  | 0, k, hk, h => by
+    have hp : -(k : Int) < 0 := by omega
+    rw [L_zero hp, L_zero hp]; exact h k hk (by omega)
+  | t + 1, k, hk, h => by
+    have hp : -(k : Int) < 0 := by omega
+    rw [L_succ hp, L_succ hp]
+    have h1 : -(k : Int) - 1 = -((k + 1 : Nat) : Int) := by omega
+    have h2 : -(k : Int) + 1 = -((k - 1 : Nat) : Int) := by omega
+    rw [h1, h2,
+      L_neg_local c s s' t (k + 1) (by omega) (fun j hj1 hj2 => h j hj1 (by omega)),
+      L_neg_local c s s' t k hk (fun j hj1 hj2 => h j hj1 (by omega))]
+    cases hk_eq : k - 1 with
+    | zero => simp [L_col0]
+    | succ m =>
+      rw [L_neg_local c s s' t (m + 1) (by omega) (fun j hj1 hj2 => h j hj1 (by omega))]
+
+theorem L_neg_flip_top (c : Nat → Bool) (s s' : Int → Bool) :
+    ∀ (t k : Nat), 1 ≤ k →
+      (∀ j : Nat, 1 ≤ j → j < k + t → s (-(j : Int)) = s' (-(j : Int))) →
+      s' (-((k + t : Nat) : Int)) = !(s (-((k + t : Nat) : Int))) →
+      L c s' t (-(k : Int)) = !(L c s t (-(k : Int)))
+  | 0, k, _, _, htop => by
+    have hp : -(k : Int) < 0 := by omega
+    rw [L_zero hp, L_zero hp]; simpa using htop
+  | t + 1, k, hk, hlow, htop => by
+    have hp : -(k : Int) < 0 := by omega
+    rw [L_succ hp, L_succ hp]
+    have h1 : -(k : Int) - 1 = -((k + 1 : Nat) : Int) := by omega
+    have h2 : -(k : Int) + 1 = -((k - 1 : Nat) : Int) := by omega
+    rw [h1, h2]
+    have hflip := L_neg_flip_top c s s' t (k + 1) (by omega)
+      (fun j hj1 hj2 => hlow j hj1 (by omega))
+      (by simpa [show k + 1 + t = k + (t + 1) by omega] using htop)
+    have hmid := L_neg_local c s s' t k hk (fun j hj1 hj2 => hlow j hj1 (by omega))
+    have hright : L c s t (-((k - 1 : Nat) : Int)) = L c s' t (-((k - 1 : Nat) : Int)) := by
+      cases hk_eq : k - 1 with
+      | zero => simp [L_col0]
+      | succ m => exact L_neg_local c s s' t (m + 1) (by omega) (fun j hj1 hj2 => hlow j hj1 (by omega))
+    rw [hflip, ← hmid, ← hright]
+    unfold rule
+    cases L c s t (-((k + 1 : Nat) : Int)) <;> cases (L c s t (-(k : Int)) || L c s t (-((k - 1 : Nat) : Int))) <;> rfl
+
+/-- The effective boundary `010` of `w011`. -/
+def eff011 (k : Nat) : Bool := wordAt3 (effWord3 w011) k
+
+/-- Column-`-1` stream of a `C3w0 w011`-admissible configuration with phase-`0` free bits `f`. -/
+def trace011 (f : Nat → Bool) (t : Nat) : Bool :=
+  if t % 3 = 0 then f (t / 3) else if t % 3 = 1 then false else true
+
+/-- Forced-row parameterization `Theta011` for `011` under effective boundary `010`. -/
+def Theta011 (f : Nat → Bool) : Int → Bool := lamC eff011 (trace011 f)
+
+theorem L_Theta011_col_m1 (f : Nat → Bool) (t : Nat) :
+    L eff011 (Theta011 f) t (-1) = trace011 f t := by
+  simpa [Theta011, reconC] using L_lamC eff011 (trace011 f) t 1
+
+theorem Theta011_fits (f : Nat → Bool) (k : Nat) :
+    fits3 (colPattern3 w011) (k % 3) (L eff011 (Theta011 f) k (-1)) = true := by
+  rw [L_Theta011_col_m1, fits3_011]
+  unfold trace011
+  have : k % 3 = 0 ∨ k % 3 = 1 ∨ k % 3 = 2 := by omega
+  rcases this with h | h | h <;> simp [h]
+
+private theorem zero_start_dies_011 :
+    fits3 (colPattern3 w011) (5 % 3) (L eff011 (fun _ => false) 5 (-1)) = false := by decide
+
+private theorem last_black_neg {s : Int → Bool} {M : Nat}
+    (hM : ∀ p : Int, p < -(M : Int) → s p = false)
+    (hne : ∃ k : Nat, 1 ≤ k ∧ k ≤ M ∧ s (-(k : Int)) = true) :
+    ∃ m : Nat, 0 < m ∧ (∀ p : Int, p < -(m : Int) → s p = false) ∧ s (-(m : Int)) = true := by
+  induction M with
+  | zero => obtain ⟨k, hk1, hk0, _⟩ := hne; omega
+  | succ M ih =>
+    by_cases htop : s (-((M + 1 : Nat) : Int)) = true
+    · exact ⟨M + 1, by omega, hM, htop⟩
+    · have hM' : ∀ p : Int, p < -(M : Int) → s p = false := by
+        intro p hp
+        by_cases heq : p = -((M + 1 : Nat) : Int)
+        · subst heq; cases hs : s (-((M + 1 : Nat) : Int)) <;> simp_all
+        · exact hM p (by omega)
+      refine ih hM' ?_
+      obtain ⟨k, hk1, hkM, hsk⟩ := hne
+      refine ⟨k, hk1, ?_, hsk⟩
+      by_cases hk_top : k = M + 1
+      · subst hk_top; exact absurd hsk htop
+      · omega
+
+/-- **Headline 1 (`C3w0_011_iff_nonzero`):** The all-white start violates `C3w0 w011` at tick `5`,
+so `C3w0 w011` is equivalent to excluding nonzero finite left starts with a leftmost black cell `-m`. -/
+theorem C3w0_011_iff_nonzero :
+    C3w0 w011 ↔
+      ∀ (m : Nat) (s : Int → Bool), 0 < m → (∀ p : Int, p < -(m : Int) → s p = false) →
+        s (-(m : Int)) = true →
+        ¬ ∀ k, fits3 (colPattern3 w011) (k % 3) (L eff011 s k (-1)) = true := by
+  constructor
+  · intro h m s _ hs0 _ hall
+    exact h s ⟨m, hs0⟩ hall
+  · intro h s ⟨M, hM⟩ hall
+    by_cases hne : ∃ k : Nat, 1 ≤ k ∧ k ≤ M ∧ s (-(k : Int)) = true
+    · obtain ⟨m, hm, hs0, hs1⟩ := last_black_neg hM hne
+      exact h m s hm hs0 hs1 hall
+    · have hzero : ∀ j : Nat, 1 ≤ j → s (-(j : Int)) = false := by
+        intro j hj
+        by_cases hjM : j ≤ M
+        · cases hsj : s (-(j : Int))
+          · rfl
+          · exact absurd ⟨j, hj, hjM, hsj⟩ hne
+        · exact hM (-(j : Int)) (by omega)
+      have heq := L_neg_local eff011 s (fun _ => false) 5 1 (by omega) (fun j hj _ => hzero j hj)
+      have h5 := hall 5
+      change fits3 (colPattern3 w011) (5 % 3) (L eff011 s 5 (-1)) = true at h5
+      rw [show (-1 : Int) = -((1 : Nat) : Int) by rfl, heq, show -((1 : Nat) : Int) = -1 by rfl,
+        zero_start_dies_011] at h5
+      exact Bool.noConfusion h5
+
+/-- **Headline 2 (`Theta011_bijection_and_C3w0_iff`):** Exact forced-row parameterization of `C3w0 w011`.
+A configuration `s` fits `colPattern3 w011` at every tick iff `s` agrees on `p < 0` with `Theta011 f`,
+and `C3w0 w011` holds iff no `Theta011 f` is finitely supported on the left. -/
+theorem Theta011_bijection_and_C3w0_iff :
+    (∀ s : Int → Bool,
+      (∀ k, fits3 (colPattern3 w011) (k % 3) (L eff011 s k (-1)) = true) ↔
+        ∃ f : Nat → Bool, ∀ p : Int, p < 0 → s p = Theta011 f p) ∧
+    (C3w0 w011 ↔ ∀ f : Nat → Bool, ¬ ∃ M : Nat, ∀ p : Int, p < -(M : Int) → Theta011 f p = false) := by
+  have hbij : ∀ s : Int → Bool,
+      (∀ k, fits3 (colPattern3 w011) (k % 3) (L eff011 s k (-1)) = true) ↔
+        ∃ f : Nat → Bool, ∀ p : Int, p < 0 → s p = Theta011 f p := by
+    intro s
+    constructor
+    · intro hall
+      refine ⟨fun q => L eff011 s (3 * q) (-1), fun p hp => ?_⟩
+      have htr : (fun t => L eff011 s t (-1)) = trace011 (fun q => L eff011 s (3 * q) (-1)) := by
+        funext t
+        have ht := hall t
+        rw [fits3_011] at ht
+        unfold trace011
+        have hmod : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+        rcases hmod with h0 | h1 | h2
+        · rw [ite_eq_left h0]; dsimp only; rw [show 3 * (t / 3) = t by omega]
+        · simp [h1] at ht ⊢; exact ht
+        · simp [h2] at ht ⊢; exact ht
+      have hk : -((-p).toNat : Int) = p := by omega
+      have h0 := L_zero (c := eff011) (s := s) hp
+      rw [← h0, ← hk, history_eq_reconC eff011 s (-p).toNat 0, htr]
+      unfold Theta011 lamC; rw [hk, ite_eq_left hp]
+    · rintro ⟨f, hf⟩ k
+      have heq := L_neg_local eff011 s (Theta011 f) k 1 (by omega) (fun j hj _ => hf (-(j : Int)) (by omega))
+      change fits3 (colPattern3 w011) (k % 3) (L eff011 s k (-1)) = true
+      rw [show (-1 : Int) = -((1 : Nat) : Int) by rfl, heq, show -((1 : Nat) : Int) = -1 by rfl]
+      exact Theta011_fits f k
+  refine ⟨hbij, ?_⟩
+  constructor
+  · intro hC f ⟨M, hM⟩
+    exact hC (Theta011 f) ⟨M, hM⟩ (Theta011_fits f)
+  · intro hno s ⟨M, hM⟩ hall
+    obtain ⟨f, hf⟩ := (hbij s).mp hall
+    exact hno f ⟨M, fun p hp => by rw [← hf p (by omega)]; exact hM p hp⟩
+
+/-- **Headline 3 (`Theta011_ether_eq_etherLeft`):** `Theta011` applied to the period-3 ether's
+phase-`0` column-`-1` readings recovers `etherLeft` identically on all `p < 0`. -/
+theorem Theta011_ether_eq_etherLeft (p : Int) (hp : p < 0) :
+    Theta011 (fun q => L eff011 etherLeft (3 * q) (-1)) p = etherLeft p := by
+  have hall : ∀ k, fits3 (colPattern3 w011) (k % 3) (L eff011 etherLeft k (-1)) = true := C3w_011_ether
+  have htr : (fun t => L eff011 etherLeft t (-1)) = trace011 (fun q => L eff011 etherLeft (3 * q) (-1)) := by
+    funext t
+    have ht := hall t
+    rw [fits3_011] at ht
+    unfold trace011
+    have hmod : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+    rcases hmod with h0 | h1 | h2
+    · rw [ite_eq_left h0]; dsimp only; rw [show 3 * (t / 3) = t by omega]
+    · simp [h1] at ht ⊢; exact ht
+    · simp [h2] at ht ⊢; exact ht
+  have hk : -((-p).toNat : Int) = p := by omega
+  have h0 := L_zero (c := eff011) (s := etherLeft) hp
+  symm
+  rw [← h0, ← hk, history_eq_reconC eff011 etherLeft (-p).toNat 0, htr]
+  unfold Theta011 lamC; rw [hk, ite_eq_left hp]
+
+/-! ### Single-pass packed integer dynamics `step010`, exact `2^n` prefix law -/
+
+def ofNatLeft (Y : Nat) (p : Int) : Bool := if p < 0 then Y.testBit ((-p).toNat - 1) else false
+
+def step010 (t Y : Nat) : Nat := (Y >>> 1) ^^^ (Y ||| ((Y <<< 1) ||| (if t % 3 = 1 then 1 else 0)))
+
+def iter010 : Nat → Nat → Nat
+  | 0, Y => Y
+  | t + 1, Y => step010 t (iter010 t Y)
+
+private theorem eff011_eq_decide (t : Nat) : eff011 t = decide (t % 3 = 1) := by
+  unfold eff011 effWord3 wordAt3
+  have : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+  rcases this with h | h | h <;> simp [h, w011]
+
+private theorem bit_one_zero_succ (c : Prop) [Decidable c] (m : Nat) :
+    (if c then 1 else 0).testBit (m + 1) = false := by
+  by_cases hc : c
+  · rw [ite_eq_left hc]; change (2 ^ 0).testBit (m + 1) = false; rw [Nat.testBit_two_pow]; simp
+  · rw [ite_eq_right hc]; simp
+
+theorem L_ofNatLeft_eq_iter010 (Y : Nat) : ∀ (t : Nat) (k : Nat), 1 ≤ k →
+    L eff011 (ofNatLeft Y) t (-(k : Int)) = (iter010 t Y).testBit (k - 1) := by
+  intro t
+  induction t with
+  | zero =>
+    intro k _
+    have hp : -(k : Int) < 0 := by omega
+    rw [L_zero hp]; unfold ofNatLeft iter010; rw [ite_eq_left hp, show (- -(k : Int)).toNat = k by omega]
+  | succ t ih =>
+    intro k hk
+    have hp : -(k : Int) < 0 := by omega
+    rw [L_succ hp]
+    have h1 : -(k : Int) - 1 = -((k + 1 : Nat) : Int) := by omega
+    have h2 : -(k : Int) + 1 = -((k - 1 : Nat) : Int) := by omega
+    rw [h1, h2, ih (k + 1) (by omega), ih k hk]
+    simp only [iter010, step010, Nat.testBit_xor, Nat.testBit_or, Nat.testBit_shiftRight, Nat.testBit_shiftLeft]
+    rw [show 1 + (k - 1) = k by omega]
+    cases hk_eq : k - 1 with
+    | zero =>
+      have hk1 : k = 1 := by omega
+      subst hk1
+      have hz0 : (-((0 : Nat) : Int)) = 0 := by omega
+      rw [hz0, L_col0, eff011_eq_decide]
+      have hsh0 : (decide (1 ≤ 0) && (iter010 t Y).testBit (0 - 1)) = false := rfl
+      have hif0 : (if t % 3 = 1 then 1 else 0).testBit 0 = decide (t % 3 = 1) := by
+        by_cases ht1 : t % 3 = 1
+        · rw [ite_eq_left ht1, decide_eq_true ht1]; rfl
+        · rw [ite_eq_right ht1, decide_eq_false ht1]; rfl
+      rw [hsh0, Bool.false_or, hif0]; rfl
+    | succ m =>
+      rw [ih (m + 1) (by omega), bit_one_zero_succ (t % 3 = 1) m, Bool.or_false]
+      rfl
+
+def fitsBit011 (t Y : Nat) : Bool := fits3 (colPattern3 w011) (t % 3) ((iter010 t Y).testBit 0)
+
+def expandStep011 (t : Nat) : List Nat → List Nat
+  | [] => []
+  | Y :: Ys =>
+    let rest := expandStep011 t Ys
+    let r1 := if fitsBit011 t (Y + 2 ^ t) then (Y + 2 ^ t) :: rest else rest
+    if fitsBit011 t Y then Y :: r1 else r1
+
+def survPrefixes011 : Nat → List Nat
+  | 0 => [0]
+  | t + 1 => expandStep011 t (survPrefixes011 t)
+
+private theorem mem_expandStep011 (t : Nat) (xs : List Nat) (Z : Nat) :
+    Z ∈ expandStep011 t xs ↔
+      (Z ∈ xs ∧ fitsBit011 t Z = true) ∨ (∃ X ∈ xs, Z = X + 2 ^ t ∧ fitsBit011 t Z = true) := by
+  induction xs with
+  | nil => simp [expandStep011]
+  | cons Y Ys ih =>
+    unfold expandStep011
+    cases h0 : fitsBit011 t Y <;> cases h1 : fitsBit011 t (Y + 2 ^ t)
+    · simp only [Bool.false_eq_true, ite_false, List.mem_cons, ih]
+      constructor
+      · rintro (⟨hz, hfz⟩ | ⟨X, hX, rfl, hfz⟩)
+        · exact Or.inl ⟨Or.inr hz, hfz⟩
+        · exact Or.inr ⟨X, Or.inr hX, rfl, hfz⟩
+      · rintro (⟨rfl | hz, hfz⟩ | ⟨X, rfl | hX, rfl, hfz⟩)
+        · rw [h0] at hfz; exact Bool.noConfusion hfz
+        · exact Or.inl ⟨hz, hfz⟩
+        · rw [h1] at hfz; exact Bool.noConfusion hfz
+        · exact Or.inr ⟨X, hX, rfl, hfz⟩
+    · simp only [Bool.false_eq_true, ite_true, ite_false, List.mem_cons, ih]
+      constructor
+      · rintro (rfl | ⟨hz, hfz⟩ | ⟨X, hX, rfl, hfz⟩)
+        · exact Or.inr ⟨Y, Or.inl rfl, rfl, h1⟩
+        · exact Or.inl ⟨Or.inr hz, hfz⟩
+        · exact Or.inr ⟨X, Or.inr hX, rfl, hfz⟩
+      · rintro (⟨rfl | hz, hfz⟩ | ⟨X, rfl | hX, rfl, hfz⟩)
+        · rw [h0] at hfz; exact Bool.noConfusion hfz
+        · exact Or.inr (Or.inl ⟨hz, hfz⟩)
+        · exact Or.inl rfl
+        · exact Or.inr (Or.inr ⟨X, hX, rfl, hfz⟩)
+    · simp only [Bool.false_eq_true, ite_true, ite_false, List.mem_cons, ih]
+      constructor
+      · rintro (rfl | ⟨hz, hfz⟩ | ⟨X, hX, rfl, hfz⟩)
+        · exact Or.inl ⟨Or.inl rfl, h0⟩
+        · exact Or.inl ⟨Or.inr hz, hfz⟩
+        · exact Or.inr ⟨X, Or.inr hX, rfl, hfz⟩
+      · rintro (⟨rfl | hz, hfz⟩ | ⟨X, rfl | hX, rfl, hfz⟩)
+        · exact Or.inl rfl
+        · exact Or.inr (Or.inl ⟨hz, hfz⟩)
+        · rw [h1] at hfz; exact Bool.noConfusion hfz
+        · exact Or.inr (Or.inr ⟨X, hX, rfl, hfz⟩)
+    · simp only [ite_true, List.mem_cons, ih]
+      constructor
+      · rintro (rfl | rfl | ⟨hz, hfz⟩ | ⟨X, hX, rfl, hfz⟩)
+        · exact Or.inl ⟨Or.inl rfl, h0⟩
+        · exact Or.inr ⟨Y, Or.inl rfl, rfl, h1⟩
+        · exact Or.inl ⟨Or.inr hz, hfz⟩
+        · exact Or.inr ⟨X, Or.inr hX, rfl, hfz⟩
+      · rintro (⟨rfl | hz, hfz⟩ | ⟨X, rfl | hX, rfl, hfz⟩)
+        · exact Or.inl rfl
+        · exact Or.inr (Or.inr (Or.inl ⟨hz, hfz⟩))
+        · exact Or.inr (Or.inl rfl)
+        · exact Or.inr (Or.inr (Or.inr ⟨X, hX, rfl, hfz⟩))
+
+private theorem survPrefixes011_lt : ∀ (t Y : Nat), Y ∈ survPrefixes011 t → Y < 2 ^ t
+  | 0, Y, h => by simp [survPrefixes011] at h; omega
+  | t + 1, Y, h => by
+    change Y ∈ expandStep011 t (survPrefixes011 t) at h
+    rw [mem_expandStep011] at h
+    rcases h with ⟨hY, _⟩ | ⟨X, hX, rfl, _⟩
+    · have := survPrefixes011_lt t Y hY; rw [Nat.pow_succ]; omega
+    · have := survPrefixes011_lt t X hX; rw [Nat.pow_succ]; omega
+
+private theorem iter010_flip_top (t Y : Nat) (hY : Y < 2 ^ t) :
+    (iter010 t (Y + 2 ^ t)).testBit 0 = !((iter010 t Y).testBit 0) := by
+  rw [← L_ofNatLeft_eq_iter010 (Y + 2 ^ t) t 1 (by omega), ← L_ofNatLeft_eq_iter010 Y t 1 (by omega)]
+  refine L_neg_flip_top eff011 (ofNatLeft Y) (ofNatLeft (Y + 2 ^ t)) t 1 (by omega) (fun j hj1 hj2 => ?_) ?_
+  · have hp : -(j : Int) < 0 := by omega
+    simp only [ofNatLeft, hp, ite_true, show (- -(j : Int)).toNat = j by omega]
+    rw [← Nat.or_two_pow_eq_add_of_lt hY, Nat.testBit_or, Nat.testBit_two_pow]
+    simp [show t ≠ j - 1 by omega]
+  · have hp : -((1 + t : Nat) : Int) < 0 := by omega
+    simp only [ofNatLeft, hp, ite_true, show (- -((1 + t : Nat) : Int)).toNat = 1 + t by omega,
+      show 1 + t - 1 = t by omega]
+    rw [← Nat.or_two_pow_eq_add_of_lt hY, Nat.testBit_or, Nat.testBit_two_pow]
+    have hfalse : Y.testBit t = false := Nat.testBit_lt_two_pow hY
+    simp [hfalse]
+
+private theorem iter010_local (t W Y1 Y2 : Nat) (ht : t < W) (hmod : Y1 % 2 ^ W = Y2 % 2 ^ W) :
+    (iter010 t Y1).testBit 0 = (iter010 t Y2).testBit 0 := by
+  rw [← L_ofNatLeft_eq_iter010 Y1 t 1 (by omega), ← L_ofNatLeft_eq_iter010 Y2 t 1 (by omega)]
+  refine L_neg_local eff011 (ofNatLeft Y1) (ofNatLeft Y2) t 1 (by omega) (fun j hj1 hj2 => ?_)
+  have hp : -(j : Int) < 0 := by omega
+  simp only [ofNatLeft, hp, ite_true, show (- -(j : Int)).toNat = j by omega]
+  have hjW : j - 1 < W := by omega
+  have h1 := Nat.testBit_mod_two_pow Y1 W (j - 1)
+  have h2 := Nat.testBit_mod_two_pow Y2 W (j - 1)
+  simp only [hjW, decide_true, Bool.true_and] at h1 h2
+  rw [← h1, ← h2, hmod]
+
+private theorem mem_survPrefixes011_iff : ∀ (W Y : Nat),
+    Y ∈ survPrefixes011 W ↔ Y < 2 ^ W ∧ ∀ t, t < W → fitsBit011 t Y = true
+  | 0, Y => by simp [survPrefixes011]
+  | t + 1, Y => by
+    change Y ∈ expandStep011 t (survPrefixes011 t) ↔ _
+    rw [mem_expandStep011]
+    constructor
+    · rintro (⟨hY, hft⟩ | ⟨X, hX, rfl, hft⟩)
+      · obtain ⟨hYlt, hall⟩ := (mem_survPrefixes011_iff t Y).mp hY
+        refine ⟨by rw [Nat.pow_succ]; omega, fun k hk => if hkt : k = t then hkt ▸ hft else hall k (by omega)⟩
+      · obtain ⟨hXlt, hall⟩ := (mem_survPrefixes011_iff t X).mp hX
+        refine ⟨by rw [Nat.pow_succ]; omega, fun k hk => ?_⟩
+        by_cases hkt : k = t
+        · subst hkt; exact hft
+        · unfold fitsBit011
+          rw [iter010_local k t (X + 2 ^ t) X (by omega) (by rw [Nat.add_mod_right])]
+          exact hall k (by omega)
+    · rintro ⟨hlt, hall⟩
+      let X := Y % 2 ^ t
+      have hXlt : X < 2 ^ t := Nat.mod_lt Y (Nat.two_pow_pos t)
+      have hXmem : X ∈ survPrefixes011 t := by
+        refine (mem_survPrefixes011_iff t X).mpr ⟨hXlt, fun k hk => ?_⟩
+        unfold fitsBit011
+        rw [iter010_local k t X Y hk (Nat.mod_mod Y (2 ^ t))]
+        exact hall k (by omega)
+      have hq2 : Y / 2 ^ t < 2 := (Nat.div_lt_iff_lt_mul (Nat.two_pow_pos t)).mpr
+        (by rw [Nat.mul_comm, ← Nat.pow_succ]; exact hlt)
+      have hsplit : 2 ^ t * (Y / 2 ^ t) + X = Y := Nat.div_add_mod Y (2 ^ t)
+      rcases hq_eq : Y / 2 ^ t with _ | _ | k
+      · rw [hq_eq, Nat.mul_zero, Nat.zero_add] at hsplit
+        exact Or.inl ⟨hsplit ▸ hXmem, hall t (by omega)⟩
+      · rw [hq_eq, Nat.mul_one, Nat.add_comm] at hsplit
+        exact Or.inr ⟨X, hXmem, hsplit.symm, hall t (by omega)⟩
+      · rw [hq_eq] at hq2; omega
+
+private theorem expandStep011_len_free (t : Nat) (h0 : t % 3 = 0) : ∀ xs : List Nat,
+    (expandStep011 t xs).length = 2 * xs.length
+  | [] => rfl
+  | Y :: Ys => by
+    have hf0 : fitsBit011 t Y = true := by unfold fitsBit011; rw [fits3_011]; simp [h0]
+    have hf1 : fitsBit011 t (Y + 2 ^ t) = true := by unfold fitsBit011; rw [fits3_011]; simp [h0]
+    simp only [expandStep011, hf0, hf1, ite_true, List.length_cons, expandStep011_len_free t h0 Ys]
+    omega
+
+private theorem expandStep011_len_pin (t : Nat) (hpin : t % 3 = 1 ∨ t % 3 = 2) :
+    ∀ xs : List Nat, (∀ Y ∈ xs, Y < 2 ^ t) → (expandStep011 t xs).length = xs.length
+  | [], _ => rfl
+  | Y :: Ys, hlt => by
+    have hYlt : Y < 2 ^ t := hlt Y (List.mem_cons_self ..)
+    have hflip : fitsBit011 t (Y + 2 ^ t) = !(fitsBit011 t Y) := by
+      unfold fitsBit011; rw [fits3_011, fits3_011, iter010_flip_top t Y hYlt]
+      rcases hpin with h1 | h2
+      · simp [h1]
+      · simp [h2]
+    have ih := expandStep011_len_pin t hpin Ys (fun X hX => hlt X (List.mem_cons_of_mem Y hX))
+    unfold expandStep011
+    rw [hflip]
+    cases fitsBit011 t Y <;> simp [ih]
+
+/-- **Headline 4 (`c3w0_011_prefix_count_two_pow`):** Out of all `8^n` (`2^(3*n)`) prefixes `Y < 2^(3*n)`
+of width `3 * n`, **exact count `2^n`** satisfy the `011` column-`-1` pattern across `0 .. 3*n - 1`
+(exponential survival fraction `(1/4)^n`). -/
+theorem c3w0_011_prefix_count_two_pow (n : Nat) :
+    (survPrefixes011 (3 * n)).length = 2 ^ n ∧
+    ∀ Y : Nat, Y ∈ survPrefixes011 (3 * n) ↔ Y < 2 ^ (3 * n) ∧ ∀ t, t < 3 * n → fitsBit011 t Y = true := by
+  refine ⟨?_, fun Y => mem_survPrefixes011_iff (3 * n) Y⟩
+  induction n with
+  | zero => rfl
+  | succ n ih =>
+    have s3 : survPrefixes011 (3 * (n + 1)) = expandStep011 (3 * n + 2) (survPrefixes011 (3 * n + 2)) := rfl
+    have s2 : survPrefixes011 (3 * n + 2) = expandStep011 (3 * n + 1) (survPrefixes011 (3 * n + 1)) := rfl
+    have s1 : survPrefixes011 (3 * n + 1) = expandStep011 (3 * n) (survPrefixes011 (3 * n)) := rfl
+    have h1 := expandStep011_len_pin (3 * n + 2) (Or.inr (by omega)) (survPrefixes011 (3 * n + 2)) (survPrefixes011_lt _)
+    have h2 := expandStep011_len_pin (3 * n + 1) (Or.inl (by omega)) (survPrefixes011 (3 * n + 1)) (survPrefixes011_lt _)
+    have h3 := expandStep011_len_free (3 * n) (by omega) (survPrefixes011 (3 * n))
+    rw [s3, h1, s2, h2, s1, h3, ih, Nat.pow_succ]; omega
+
 end Rule30EtherThree
 end Ruliology.CellularAutomata
