@@ -371,7 +371,7 @@ theorem conditional_every_k : ConditionalEveryK := by
       exact of_decide_eq_true found
   exact capacity_at_settling_age k _ _ spec.1 spec.2 (uniform_settling spec.1)
 
-/-! ## Universal 16-Phase Collapse of `K1` Through Width `53,208` and Unconditional `TargetAt` Milestones (`periodic_oddBand_eq_bPhase_of_le_53208`, `K1_eq_universalK1_of_le_53208`, `K1_values_and_unconditional_targetAt_w300`) -/
+/-! ## Universal 16-Phase Collapse of `K1` Through Width `53,208` (`periodic_oddBand_eq_bPhase_of_le_53208`, `K1_eq_universalK1_of_le_53208`) -/
 
 /-- Phase `r` of the universal 16-periodic left strip truncated to band width `w`. -/
 def bPhase (w r : Nat) : Nat := rowAt w (B % 2 ^ w) r
