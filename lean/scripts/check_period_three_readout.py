@@ -59,8 +59,50 @@ def max_avoidance(width, drive):
     return tuple(limits)
 
 
+def six_sample_levels():
+    """Rebuild the width-eight descending rank from black-phase image rows."""
+    size = 256
+    edges = children(8, (0, 0, 1))
+    allowed = {2 * size + x for x, c in enumerate(parent_colors(8)) if c == 3}
+    live = allowed
+    levels = []
+    while live:
+        levels.append(sum(1 << (x % size) for x in live))
+        for phase in (1, 0, 2):
+            live = {x for x in range(phase * size, (phase + 1) * size)
+                    if any(child in live for child in edges[x])}
+        live &= allowed
+        if len(levels) > 5:
+            raise AssertionError("six consecutive ambiguous samples")
+    return levels
+
+
+def singleton_six_sample_witnesses(last_age):
+    """Six consecutive ambiguous eastern words at stride three, grouped by image phase."""
+    colors = parent_colors(8)
+    mask = (1 << 8) - 1
+    row = 1  # Bit j at age t is site j-t.
+    streaks = [0, 0, 0]
+    ends = [[], [], []]
+    for t in range(1, last_age + 1):
+        parent_center = (row >> (t - 1)) & 1
+        row = (row << 2) ^ (row | (row << 1))
+        east = (row >> (t + 1)) & mask
+        assert colors[east] & (1 << parent_center)
+        ph = t % 3
+        streaks[ph] = streaks[ph] + 1 if colors[east] == 3 else 0
+        if streaks[ph] >= 6:
+            ends[ph].append(t)
+    return ends
+
+
 if __name__ == "__main__":
+    levels = six_sample_levels()
+    assert [s.bit_count() for s in levels] == [86, 45, 27, 12, 3]
+    print("width-eight ambiguous survival masks:", *(hex(s) for s in levels))
     for clock, expected in [((0, 0, 1), (14, 13, 19)), ((0, 1, 1), (14, 17, 17))]:
         lengths = max_avoidance(15, clock)
         assert lengths == expected
         print(f"{clock}: longest readout-free blocks by prior phase = {lengths} rows")
+    for phase, ends in enumerate(singleton_six_sample_witnesses(65536)):
+        print(f"width 8, image phase {phase}: {len(ends)} blocks, first and last end {ends[0]}, {ends[-1]}")
