@@ -2,6 +2,7 @@ module
 
 public import Ruliology.CellularAutomata.Rule30Coupled
 public import Ruliology.CellularAutomata.Rule30PeriodTwo
+public import Ruliology.CellularAutomata.Rule30EtherThreeLeft
 
 @[expose] public section
 
@@ -404,6 +405,298 @@ theorem UBEAt_two_iff_Q01 : UBEAt 2 ↔ Rule30PeriodTwo.Q01 := by
     · have hall1 : w = (fun _ => true) := funext (fun t => by
         rw [hw_eq t, hw0, hw1]; split <;> rfl)
       subst hall1
+      obtain ⟨t, _, hbad⟩ := allBlack_escape hm hs0 hs1
+      exact ⟨t, rfl, hbad⟩
+
+/-! ## All-period cyclic phase-shift invariance, effective-boundary reduction, isolated-black characterization, `UBEAt 3` -/
+
+/-- Black-phase escape for a single prescribed boundary word `w`. -/
+def UBESingle (w : Nat → Bool) : Prop :=
+  ∀ (m : Nat) (s : Int → Bool), 0 < m →
+    (∀ i : Int, i < -(m : Int) → s i = false) →
+    s (-(m : Int)) = true →
+    ∃ t, w t = true ∧ L w s t (-1) ≠ !(w (t + 1))
+
+private theorem eq_not_of_no_escape {b next : Bool} (h : ¬ (b ≠ !next)) : b = !next := by
+  cases b <;> cases next <;> simp_all
+
+private theorem L_steps_edge (w : Nat → Bool) :
+    ∀ (d m : Nat) (s : Int → Bool), 0 < m →
+      (∀ i : Int, i < -(m : Int) → s i = false) → s (-(m : Int)) = true →
+      (∀ i : Int, i < -((m + d : Nat) : Int) → L w s d i = false) ∧
+        L w s d (-((m + d : Nat) : Int)) = true
+  | 0, m, s, _, hs0, hs1 => by
+    refine ⟨fun i hi => ?_, ?_⟩
+    · rw [L_zero (by omega)]; exact hs0 i (by omega)
+    · rw [L_zero (by omega)]; simpa using hs1
+  | d + 1, m, s, hm, hs0, hs1 => by
+    obtain ⟨h0, h1⟩ := L_one_step_edge w hm hs0 hs1
+    obtain ⟨ih0, ih1⟩ := L_steps_edge (fun k => w (1 + k)) d (m + 1) (L w s 1) (by omega) h0 h1
+    refine ⟨fun i hi => ?_, ?_⟩
+    · rw [show d + 1 = 1 + d by omega, L_add w s 1 d i (by omega)]
+      exact ih0 i (by omega)
+    · rw [show d + 1 = 1 + d by omega, L_add w s 1 d _ (by omega)]
+      have heq_idx : -((m + (1 + d) : Nat) : Int) = -((m + 1 + d : Nat) : Int) := by omega
+      rw [heq_idx]; exact ih1
+
+theorem UBESingle_of_shift (w : Nat → Bool) (d : Nat) (h : UBESingle (fun t => w (d + t))) :
+    UBESingle w := by
+  intro m s hm hs0 hs1
+  obtain ⟨hd0, hd1⟩ := L_steps_edge w d m s hm hs0 hs1
+  obtain ⟨t, hwt, hbad⟩ := h (m + d) (L w s d) (by omega) hd0 hd1
+  refine ⟨d + t, hwt, ?_⟩
+  rw [L_add w s d t (-1) (by decide), show d + t + 1 = d + (t + 1) by omega]
+  exact hbad
+
+private theorem periodic_add_mul {p : Nat} {w : Nat → Bool} (hper : ∀ t, w (t + p) = w t) :
+    ∀ (q t : Nat), w (t + p * q) = w t
+  | 0, t => by simp
+  | q + 1, t => by rw [Nat.mul_succ, ← Nat.add_assoc, hper]; exact periodic_add_mul hper q t
+
+/-- **Headline 1 (`UBE_phase_shift_iff`):** For every period `p > 0` and `p`-periodic driver `w`,
+black-phase escape holds for `fun t => w (d + t)` if and only if it holds for `w`. -/
+theorem UBE_phase_shift_iff {p : Nat} (hp : 0 < p) {w : Nat → Bool}
+    (hper : ∀ t, w (t + p) = w t) (d : Nat) :
+    UBESingle (fun t => w (d + t)) ↔ UBESingle w := by
+  refine ⟨UBESingle_of_shift w d, fun hw => ?_⟩
+  let r := p - d % p
+  have hq : d + r = p * (d / p + 1) := by
+    have h1 := Nat.div_add_mod d p
+    have h2 : d % p < p := Nat.mod_lt d hp
+    rw [Nat.mul_add, Nat.mul_one]; dsimp [r]; omega
+  have hback : (fun t => w (d + (r + t))) = w := by
+    funext t
+    rw [← Nat.add_assoc, hq, Nat.add_comm (p * (d / p + 1)) t]
+    exact periodic_add_mul hper (d / p + 1) t
+  apply UBESingle_of_shift (fun t => w (d + t)) r
+  simpa [hback] using hw
+
+/-- **Headline 2 (`L_eq_effective_of_admissible`):** If a left start `s` never escapes `w` at any
+black phase (`w t = true → L w s t (-1) = !(w (t + 1))`), then `L w s` coincides across all
+`t : Nat` and `i < 0` with evolution under the effective boundary `fun k => w k && w (k + 1)`. -/
+theorem L_eq_effective_of_admissible {w : Nat → Bool} {s : Int → Bool}
+    (hadm : ∀ t, w t = true → L w s t (-1) = !(w (t + 1))) :
+    ∀ (t : Nat) (i : Int), i < 0 → L w s t i = L (fun k => w k && w (k + 1)) s t i := by
+  intro t
+  induction t with
+  | zero => intro i hi; rw [L_zero hi, L_zero hi]
+  | succ t ih =>
+    intro i hi
+    by_cases hi1 : i = -1
+    · subst hi1
+      rw [L_succ (by decide), L_succ (by decide), ih (-1 - 1) (by decide), ih (-1) (by decide),
+          show (-1 : Int) + 1 = 0 by rfl, L_col0, L_col0]
+      unfold rule
+      cases hwt : w t
+      · simp
+      · have hl : L (fun k => w k && w (k + 1)) s t (-1) = !(w (t + 1)) := by
+          rw [← ih (-1) (by decide)]; exact hadm t hwt
+        rw [hl]; cases w (t + 1) <;> simp
+    · rw [L_succ hi, L_succ hi, ih (i - 1) (by omega), ih i hi, ih (i + 1) (by omega)]
+
+/-- **Headline 3 (`UBE_isolated_iff_zeroDriven_periodic`):** For every period `P ≥ 2`, `UBESingle w`
+holds across **all** `P`-periodic isolated-black drivers `w` (even with multiple `10` pulses per
+period) if and only if no finite nonzero left start keeps column `-1` black at every `P`-th step
+under the zero boundary (`QP P`). -/
+theorem UBE_isolated_iff_zeroDriven_periodic {P : Nat} (hP : 2 ≤ P) :
+    (∀ (m : Nat) (s : Int → Bool), 0 < m → (∀ p : Int, p < -(m : Int) → s p = false) →
+      s (-(m : Int)) = true → ¬ ∀ k, L (fun _ => false) s (P * k) (-1) = true) ↔
+    (∀ w : Nat → Bool, (∀ t, w (t + P) = w t) → (∃ j, w j = true) →
+      (∀ t, (w t && w (t + 1)) = false) → UBESingle w) := by
+  constructor
+  · intro hQP w hper ⟨j, hj⟩ hiso m s hm hs0 hs1
+    apply Classical.byContradiction
+    intro hno
+    have hadm : ∀ t, w t = true → L w s t (-1) = !(w (t + 1)) :=
+      fun t hwt => eq_not_of_no_escape (fun hne => hno ⟨t, hwt, hne⟩)
+    have heff : (fun k => w k && w (k + 1)) = fun _ => false := funext hiso
+    have hzero : ∀ (t : Nat) (i : Int), i < 0 → L w s t i = L (fun _ => false) s t i := by
+      intro t i hi; rw [L_eq_effective_of_admissible hadm t i hi, heff]
+    obtain ⟨hj0, hj1⟩ := L_steps_edge (fun _ => false) j m s hm hs0 hs1
+    refine hQP (m + j) (L (fun _ => false) s j) (by omega) hj0 hj1 (fun k => ?_)
+    have hadd := L_add (fun _ => false) s j (P * k) (-1) (by decide)
+    change L (fun _ => false) s (j + P * k) (-1) = L (fun _ => false) (L (fun _ => false) s j) (P * k) (-1) at hadd
+    rw [← hadd, ← hzero (j + P * k) (-1) (by decide)]
+    have hw_jk : w (j + P * k) = true := by rw [periodic_add_mul hper k j]; exact hj
+    have hw_nxt : w (j + P * k + 1) = false := by
+      have hi := hiso (j + P * k); rw [hw_jk] at hi; simpa using hi
+    rw [hadm (j + P * k) hw_jk, hw_nxt]; rfl
+  · intro hU m s hm hs0 hs1 hall
+    let w0 : Nat → Bool := fun t => decide (t % P = 0)
+    have hper0 : ∀ t, w0 (t + P) = w0 t := fun t => by simp [w0, Nat.add_mod_right]
+    have hiso0 : ∀ t, (w0 t && w0 (t + 1)) = false := by
+      intro t
+      by_cases h0 : t % P = 0
+      · have h1 : (t + 1) % P ≠ 0 := by
+          rw [Nat.add_mod, h0, Nat.zero_add, Nat.mod_mod, Nat.mod_eq_of_lt hP]; omega
+        simp [w0, h0, h1]
+      · simp [w0, h0]
+    have hsame : ∀ (t : Nat) (i : Int), i < 0 → L w0 s t i = L (fun _ => false) s t i := by
+      intro t
+      induction t with
+      | zero => intro i hi; rw [L_zero hi, L_zero hi]
+      | succ t ih =>
+        intro i hi
+        by_cases hi1 : i = -1
+        · subst hi1
+          rw [L_succ (by decide), L_succ (by decide), ih (-1 - 1) (by decide), ih (-1) (by decide),
+              show (-1 : Int) + 1 = 0 by rfl, L_col0, L_col0]
+          by_cases ht0 : t % P = 0
+          · have hmul : P * (t / P) = t := Nat.mul_div_cancel' (Nat.dvd_of_mod_eq_zero ht0)
+            have hb : L (fun _ => false) s t (-1) = true := by rw [← hmul]; exact hall (t / P)
+            rw [hb]; simp [rule]
+          · have hwfalse : w0 t = false := by simp [w0, ht0]
+            rw [hwfalse]
+        · rw [L_succ hi, L_succ hi, ih (i - 1) (by omega), ih i hi, ih (i + 1) (by omega)]
+    obtain ⟨t, hwt, hbad⟩ := hU w0 hper0 ⟨0, by simp [w0]⟩ hiso0 m s hm hs0 hs1
+    have ht0 : t % P = 0 := by simpa [w0] using hwt
+    have hmul : P * (t / P) = t := Nat.mul_div_cancel' (Nat.dvd_of_mod_eq_zero ht0)
+    have hwnxt : w0 (t + 1) = false := by
+      simp [w0, Nat.add_mod, ht0, Nat.mod_eq_of_lt hP]
+    apply hbad
+    rw [hsame t (-1) (by decide), hwnxt, ← hmul, hall (t / P)]; rfl
+
+private theorem periodic_three_eq {w : Nat → Bool} (hper : ∀ t, w (t + 3) = w t) :
+    ∀ t : Nat, w t = if t % 3 = 0 then w 0 else if t % 3 = 1 then w 1 else w 2 := by
+  intro t
+  have hmul := periodic_add_mul hper (t / 3) (t % 3)
+  have hsum : t % 3 + 3 * (t / 3) = t := by omega
+  rw [hsum] at hmul
+  rw [hmul]
+  have : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+  rcases this with h | h | h <;> simp [h]
+
+private theorem UBESingle_w011_iff_C3w0 : UBESingle (Rule30EtherThree.wordAt3 Rule30EtherThree.w011) ↔
+    Rule30EtherThree.C3w0 Rule30EtherThree.w011 := by
+  rw [Rule30EtherThree.C3w0_011_iff_nonzero]
+  let w := Rule30EtherThree.wordAt3 Rule30EtherThree.w011
+  have heff_eq : (fun k => w k && w (k + 1)) = Rule30EtherThree.eff011 := by
+    funext k; symm; exact Rule30EtherThree.wordAt3_effWord3 Rule30EtherThree.w011 k
+  constructor
+  · intro hU m s hm hs0 hs1 hall
+    have hsame : ∀ (t : Nat) (i : Int), i < 0 → L w s t i = L Rule30EtherThree.eff011 s t i := by
+      intro t
+      induction t with
+      | zero => intro i hi; rw [L_zero hi, L_zero hi]
+      | succ t ih =>
+        intro i hi
+        by_cases hi1 : i = -1
+        · subst hi1
+          rw [L_succ (by decide), L_succ (by decide), ih (-1 - 1) (by decide), ih (-1) (by decide),
+              show (-1 : Int) + 1 = 0 by rfl, L_col0, L_col0]
+          have hfit := hall t
+          rw [Rule30EtherThree.fits3_011] at hfit
+          have hmod : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+          rcases hmod with h0 | h1 | h2
+          · have hw0 : w t = false := by simp [w, Rule30EtherThree.wordAt3_011, h0]
+            have he0 : Rule30EtherThree.eff011 t = false := by
+              rw [← congrFun heff_eq t, hw0]; rfl
+            rw [hw0, he0]
+          · have hw1 : w t = true := by simp [w, Rule30EtherThree.wordAt3_011, h1]
+            have he1 : Rule30EtherThree.eff011 t = true := by
+              rw [← congrFun heff_eq t, hw1]; simp [w, Rule30EtherThree.wordAt3_011, show (t + 1) % 3 = 2 by omega]
+            rw [hw1, he1]
+          · simp [h2] at hfit
+            rw [hfit]; unfold rule; cases L Rule30EtherThree.eff011 s t (-1 - 1) <;> cases w t <;> cases Rule30EtherThree.eff011 t <;> rfl
+        · rw [L_succ hi, L_succ hi, ih (i - 1) (by omega), ih i hi, ih (i + 1) (by omega)]
+    obtain ⟨t, hwt, hbad⟩ := hU m s hm hs0 hs1
+    apply hbad
+    rw [hsame t (-1) (by decide)]
+    have hfit := hall t
+    rw [Rule30EtherThree.fits3_011] at hfit
+    have hmod : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+    rcases hmod with h0 | h1 | h2
+    · change Rule30EtherThree.wordAt3 Rule30EtherThree.w011 t = true at hwt
+      rw [Rule30EtherThree.wordAt3_011] at hwt; simp [h0] at hwt
+    · simp [h1] at hfit
+      show L Rule30EtherThree.eff011 s t (-1) = !(Rule30EtherThree.wordAt3 Rule30EtherThree.w011 (t + 1))
+      rw [Rule30EtherThree.wordAt3_011]; simp [hfit, show (t + 1) % 3 = 2 by omega]
+    · simp [h2] at hfit
+      show L Rule30EtherThree.eff011 s t (-1) = !(Rule30EtherThree.wordAt3 Rule30EtherThree.w011 (t + 1))
+      rw [Rule30EtherThree.wordAt3_011]; simp [hfit, show (t + 1) % 3 = 0 by omega]
+  · intro hC m s hm hs0 hs1
+    apply Classical.byContradiction
+    intro hno
+    have hadm : ∀ t, w t = true → L w s t (-1) = !(w (t + 1)) :=
+      fun t hwt => eq_not_of_no_escape (fun hne => hno ⟨t, hwt, hne⟩)
+    refine hC m s hm hs0 hs1 (fun k => ?_)
+    have heq := L_eq_effective_of_admissible hadm k (-1) (by decide)
+    rw [heff_eq] at heq
+    rw [← heq, Rule30EtherThree.fits3_011]
+    have hmod : k % 3 = 0 ∨ k % 3 = 1 ∨ k % 3 = 2 := by omega
+    rcases hmod with h0 | h1 | h2
+    · simp [h0]
+    · have hwk : w k = true := by simp [w, Rule30EtherThree.wordAt3_011, h1]
+      have hwn : w (k + 1) = true := by simp [w, Rule30EtherThree.wordAt3_011, show (k + 1) % 3 = 2 by omega]
+      simp [h1, hadm k hwk, hwn]
+    · have hwk : w k = true := by simp [w, Rule30EtherThree.wordAt3_011, h2]
+      have hwn : w (k + 1) = false := by simp [w, Rule30EtherThree.wordAt3_011, show (k + 1) % 3 = 0 by omega]
+      simp [h2, hadm k hwk, hwn]
+
+/-- **Headline 4 (`UBEAt_three_iff_Q001_and_C3w0`):** Exact complete characterization of period-3
+black-phase escape: `UBEAt 3` holds if and only if both `Rule30EtherThree.Q001` and
+`Rule30EtherThree.C3w0 Rule30EtherThree.w011` hold. -/
+theorem UBEAt_three_iff_Q001_and_C3w0 :
+    UBEAt 3 ↔ Rule30EtherThree.Q001 ∧ Rule30EtherThree.C3w0 Rule30EtherThree.w011 := by
+  constructor
+  · intro h3
+    have hQ001 : Rule30EtherThree.Q001 := by
+      unfold Rule30EtherThree.Q001
+      rw [UBE_isolated_iff_zeroDriven_periodic (P := 3) (by decide)]
+      intro w hper hblk _ m s hm hs0 hs1
+      exact h3 m s w hm hs0 hs1 hper hblk
+    have hC011 : Rule30EtherThree.C3w0 Rule30EtherThree.w011 := by
+      rw [← UBESingle_w011_iff_C3w0]
+      intro m s hm hs0 hs1
+      exact h3 m s (Rule30EtherThree.wordAt3 Rule30EtherThree.w011) hm hs0 hs1
+        (fun t => by unfold Rule30EtherThree.wordAt3; rw [Nat.add_mod_right]) ⟨1, rfl⟩
+    exact ⟨hQ001, hC011⟩
+  · rintro ⟨hQ001, hC011⟩ m s w hm hs0 hs1 hper ⟨j, hj⟩
+    have hiso_all := (UBE_isolated_iff_zeroDriven_periodic (P := 3) (by decide)).mp hQ001
+    have hw011_u : UBESingle (Rule30EtherThree.wordAt3 Rule30EtherThree.w011) :=
+      UBESingle_w011_iff_C3w0.mpr hC011
+    have hper011 : ∀ t, Rule30EtherThree.wordAt3 Rule30EtherThree.w011 (t + 3) =
+        Rule30EtherThree.wordAt3 Rule30EtherThree.w011 t := fun t => by
+      unfold Rule30EtherThree.wordAt3; rw [Nat.add_mod_right]
+    have hw_eq := periodic_three_eq hper
+    cases hw0 : w 0 <;> cases hw1 : w 1 <;> cases hw2 : w 2
+    · have hf := hw_eq j; rw [hw0, hw1, hw2] at hf
+      have : j % 3 = 0 ∨ j % 3 = 1 ∨ j % 3 = 2 := by omega
+      rcases this with h | h | h <;> simp [h] at hf <;> rw [hf] at hj <;> exact Bool.noConfusion hj
+    · refine hiso_all w hper ⟨2, by rw [hw_eq 2]; simp [hw2]⟩ (fun t => ?_) m s hm hs0 hs1
+      rw [hw_eq t, hw_eq (t + 1), hw0, hw1, hw2]
+      have : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+      rcases this with h | h | h <;> simp [h, show (t + 1) % 3 = (t % 3 + 1) % 3 by omega]
+    · refine hiso_all w hper ⟨1, by rw [hw_eq 1]; simp [hw1]⟩ (fun t => ?_) m s hm hs0 hs1
+      rw [hw_eq t, hw_eq (t + 1), hw0, hw1, hw2]
+      have : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+      rcases this with h | h | h <;> simp [h, show (t + 1) % 3 = (t % 3 + 1) % 3 by omega]
+    · have heq : w = Rule30EtherThree.wordAt3 Rule30EtherThree.w011 := funext fun t => by
+        rw [hw_eq t, hw0, hw1, hw2, Rule30EtherThree.wordAt3_011]
+        have : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+        rcases this with h | h | h <;> simp [h]
+      subst heq; exact hw011_u m s hm hs0 hs1
+    · refine hiso_all w hper ⟨0, by rw [hw_eq 0]; simp [hw0]⟩ (fun t => ?_) m s hm hs0 hs1
+      rw [hw_eq t, hw_eq (t + 1), hw0, hw1, hw2]
+      have : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+      rcases this with h | h | h <;> simp [h, show (t + 1) % 3 = (t % 3 + 1) % 3 by omega]
+    · have heq : w = (fun t => Rule30EtherThree.wordAt3 Rule30EtherThree.w011 (2 + t)) := funext fun t => by
+        rw [hw_eq t, hw0, hw1, hw2, Rule30EtherThree.wordAt3_011]
+        have : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+        rcases this with h | h | h <;> simp [h, show (2 + t) % 3 = (2 + t % 3) % 3 by omega]
+      subst heq
+      exact ((UBE_phase_shift_iff (by decide) hper011 2).mpr hw011_u) m s hm hs0 hs1
+    · have heq : w = (fun t => Rule30EtherThree.wordAt3 Rule30EtherThree.w011 (1 + t)) := funext fun t => by
+        rw [hw_eq t, hw0, hw1, hw2, Rule30EtherThree.wordAt3_011]
+        have : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+        rcases this with h | h | h <;> simp [h, show (1 + t) % 3 = (1 + t % 3) % 3 by omega]
+      subst heq
+      exact ((UBE_phase_shift_iff (by decide) hper011 1).mpr hw011_u) m s hm hs0 hs1
+    · have heq : w = (fun _ => true) := funext fun t => by
+        rw [hw_eq t, hw0, hw1, hw2]
+        have : t % 3 = 0 ∨ t % 3 = 1 ∨ t % 3 = 2 := by omega
+        rcases this with h | h | h <;> simp [h]
+      subst heq
       obtain ⟨t, _, hbad⟩ := allBlack_escape hm hs0 hs1
       exact ⟨t, rfl, hbad⟩
 
