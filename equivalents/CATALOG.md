@@ -3057,8 +3057,15 @@ is 2 log₂ n (1 + o(1)) ([MaxOrderComplexity](Rule30Equivalents/MaxOrderComplex
     the center column of a random configuration, run forward with rule 30 and backward with G, is a
     two-sided sequence of independent fair coins (`measurePreserving_twoSidedTrace`): the two-sided
     Bernoulli shift is a factor of rule 30. Likewise, ergodicity of the doubling map
-    (`AddCircle.ergodic_nsmul`) says nothing about one specific number. *Correction:* an earlier
-    version said that the trace is normal for a comeager set of configurations; that is false.
+    (`AddCircle.ergodic_nsmul`) says nothing about one specific number. On one half: after T ticks
+    of a prescribed center word, the right half of a fair-coin configuration has the fair-coin law
+    conditioned on a closed set of mass 2^−T, and so does the right half when a continuous rule
+    chooses the word from the initial right half, as the center beside any fixed left half does
+    ([DrivenRightHalf](Rule30Equivalents/DrivenRightHalf.lean): `after_exact`, `mass_attainable`,
+    `Feedback.driven_exact`, `Feedback.later_exact`); so almost-sure aperiodicity of the center
+    beside every finite left half with a black cell reduces to the nullity of purely periodic center
+    words (`Feedback.reduction`), which is open. *Correction:* an earlier version said that the trace
+    is normal for a comeager set of configurations; that is false.
 12. **Proof theory.** Problem 1 is Π⁰₂ and its negation is Σ⁰₂, so finite computation settles
     neither. This is formal ([Computability](Rule30Equivalents/Computability.lean)): the center
     column is primitive recursive (`primrec_center`), Problem 1 says that for every T and P some t ≥
